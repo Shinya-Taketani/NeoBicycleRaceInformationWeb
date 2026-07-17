@@ -12,15 +12,18 @@
 This application includes an initial KEIRIN.JP scraping foundation for male keirin data.
 
 ```bash
-php artisan keirin:players:sync --grade-code=15 --with-detail --limit-players=3
-php artisan keirin:races:import-results --from=2026-07-01 --to=2026-07-31
+php artisan keirin:players:sync --with-detail --limit-players=3
+php artisan keirin:races:sync-schedule --from=2026-07-01 --to=2026-07-31
+php artisan keirin:races:import-results --race-id=1 --raw-file=/path/to/result.html --source-url=https://keirin.jp/example/result
 ```
 
-Use `--raw-file=/path/to/file.html` to verify parsers and DB persistence without network access. Player sync intentionally defaults to the narrow `S級S班` search condition because KEIRIN.JP returns a "more than 1000 records" error for broad male active-player searches.
+Use `--raw-file=/path/to/file.html` to verify parsers and DB persistence without network access. Player sync walks the configured male grade codes by default; pass `--grade-code=15` to limit the run to one grade.
 
-Raw responses and fetch metadata are stored under `storage/app/private/scraping/raw` and `scraping_fetch_logs`. Set `KEIRIN_USER_AGENT`, `KEIRIN_SLEEP_MS`, and the DB connection in `.env` before running network imports.
+Raw responses and fetch metadata are stored under `storage/app/private/scraping/raw` and `scraping_fetch_logs`. Batch progress is tracked in `batch_runs` and `batch_run_items`. Set `KEIRIN_USER_AGENT`, `KEIRIN_SLEEP_MS`, and the DB connection in `.env` before running network imports.
 
-Race schedule import persists the confirmed schedule links from `/pc/raceschedule`. Race result and payout detail parsers are available for saved HTML, but the internal result-detail navigation must be confirmed before automated result crawling is enabled.
+Race schedule sync persists meeting-level schedule data into `race_meetings` and `race_days`. The result import command currently imports saved result HTML for a specified race by `--race-id` or `--external-race-id`; automated result-detail crawling is intentionally not enabled until KEIRIN.JP result navigation is confirmed against current pages.
+
+When PostgreSQL advisory locks are used, the application database user must be able to run `pg_try_advisory_lock` and `pg_advisory_unlock`. Network scraping should be run only after confirming the current KEIRIN.JP public pages, robots.txt, and terms are compatible with the requested access pattern.
 
 ## About Laravel
 

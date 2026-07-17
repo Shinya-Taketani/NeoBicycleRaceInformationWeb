@@ -6,19 +6,20 @@ namespace App\Domain\Keirin\Scraping\Services;
 
 use App\Domain\Keirin\Scraping\Enums\BatchRunStatus;
 use App\Models\BatchRun;
+use App\Models\BatchRunItem;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
 class BatchRunService
 {
+    /**
+     * @var array<string,bool>
+     */
+    private array $heldLocks = [];
+
     public function start(string $type, array $parameters = [], ?string $lockKey = null): BatchRun
     {
-        if ($lockKey !== null && DB::getDriverName() === 'pgsql') {
-            $locked = DB::selectOne('SELECT pg_try_advisory_lock(hashtext(?)) AS locked', [$lockKey]);
-            if (! (bool) ($locked->locked ?? false)) {
-                throw new \RuntimeException("Another batch is already running for {$lockKey}.");
-            }
-        }
+        $this->acquireLock($lockKey);
 
         return BatchRun::query()->create([
             'type' => $type,
@@ -41,10 +42,109 @@ class BatchRunService
             'error_message' => $errorMessage,
         ])->save();
 
-        if ($run->lock_key !== null && DB::getDriverName() === 'pgsql') {
-            DB::selectOne('SELECT pg_advisory_unlock(hashtext(?))', [$run->lock_key]);
+        return $run;
+    }
+
+    public function releaseLock(?string $lockKey): void
+    {
+        if ($lockKey === null || DB::getDriverName() !== 'pgsql' || ! isset($this->heldLocks[$lockKey])) {
+            return;
         }
 
-        return $run;
+        DB::selectOne('SELECT pg_advisory_unlock(hashtext(?))', [$lockKey]);
+        unset($this->heldLocks[$lockKey]);
+    }
+
+    public function startItem(BatchRun $run, string $itemType, string $itemKey, array $metadata = []): BatchRunItem
+    {
+        $item = BatchRunItem::query()->firstOrNew([
+            'batch_run_id' => $run->id,
+            'item_type' => $itemType,
+            'item_key' => $itemKey,
+        ]);
+
+        $item->fill([
+            'status' => 'RUNNING',
+            'attempt_count' => ((int) $item->attempt_count) + 1,
+            'started_at' => new DateTimeImmutable('now'),
+            'finished_at' => null,
+            'error_type' => null,
+            'error_message' => null,
+            'metadata' => $metadata,
+        ])->save();
+
+        return $item;
+    }
+
+    public function succeedItem(BatchRunItem $item, array $metadata = []): void
+    {
+        $this->finishItem($item, 'SUCCEEDED', metadata: $metadata);
+    }
+
+    public function failItem(BatchRunItem $item, string $errorType, string $errorMessage, array $metadata = []): void
+    {
+        $this->finishItem($item, 'FAILED', $errorType, $errorMessage, metadata: $metadata);
+    }
+
+    public function skipItem(BatchRunItem $item, string $reason, array $metadata = []): void
+    {
+        $item->fill([
+            'status' => 'SKIPPED_UNSUPPORTED_CATEGORY',
+            'skip_reason' => $reason,
+            'finished_at' => new DateTimeImmutable('now'),
+            'metadata' => $metadata ?: $item->metadata,
+        ])->save();
+    }
+
+    public function shouldSkipSucceeded(BatchRun $run, string $itemType, string $itemKey, bool $skipSucceeded): bool
+    {
+        if (! $skipSucceeded) {
+            return false;
+        }
+
+        return BatchRunItem::query()
+            ->where('batch_run_id', $run->id)
+            ->where('item_type', $itemType)
+            ->where('item_key', $itemKey)
+            ->where('status', 'SUCCEEDED')
+            ->exists();
+    }
+
+    /**
+     * @return list<BatchRunItem>
+     */
+    public function resumableItems(int $runId): array
+    {
+        return BatchRunItem::query()
+            ->where('batch_run_id', $runId)
+            ->whereIn('status', ['PENDING', 'FAILED'])
+            ->orderBy('id')
+            ->get()
+            ->all();
+    }
+
+    private function acquireLock(?string $lockKey): void
+    {
+        if ($lockKey === null || DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        $locked = DB::selectOne('SELECT pg_try_advisory_lock(hashtext(?)) AS locked', [$lockKey]);
+        if (! (bool) ($locked->locked ?? false)) {
+            throw new \RuntimeException("Another batch is already running for {$lockKey}.");
+        }
+
+        $this->heldLocks[$lockKey] = true;
+    }
+
+    private function finishItem(BatchRunItem $item, string $status, ?string $errorType = null, ?string $errorMessage = null, array $metadata = []): void
+    {
+        $item->fill([
+            'status' => $status,
+            'finished_at' => new DateTimeImmutable('now'),
+            'error_type' => $errorType,
+            'error_message' => $errorMessage,
+            'metadata' => $metadata ?: $item->metadata,
+        ])->save();
     }
 }

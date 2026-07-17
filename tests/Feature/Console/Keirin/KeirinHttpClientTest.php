@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console\Keirin;
 
-use App\Domain\Keirin\Scraping\Enums\FetchErrorType;
-use App\Domain\Keirin\Scraping\Exceptions\KeirinHttpException;
 use App\Domain\Keirin\Scraping\Http\KeirinHttpClient;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -23,29 +21,25 @@ class KeirinHttpClientTest extends TestCase
         $this->assertSame('<html>ok</html>', $response->body);
     }
 
-    public function test_it_classifies_429(): void
+    public function test_it_returns_429_response_for_raw_logging(): void
     {
         config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
         Http::fake(['keirin.jp/*' => Http::response('too many', 429)]);
 
-        try {
-            (new KeirinHttpClient)->get('/sp/racersearch', sleepMsOverride: 0);
-            $this->fail('Exception was not thrown.');
-        } catch (KeirinHttpException $exception) {
-            $this->assertSame(FetchErrorType::TooManyRequests, $exception->errorType);
-        }
+        $response = (new KeirinHttpClient)->get('/sp/racersearch', sleepMsOverride: 0);
+
+        $this->assertSame(429, $response->httpStatus);
+        $this->assertSame('too many', $response->body);
     }
 
-    public function test_it_classifies_5xx(): void
+    public function test_it_returns_5xx_response_for_raw_logging(): void
     {
         config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
         Http::fake(['keirin.jp/*' => Http::response('error', 500)]);
 
-        try {
-            (new KeirinHttpClient)->get('/sp/racersearch', sleepMsOverride: 0);
-            $this->fail('Exception was not thrown.');
-        } catch (KeirinHttpException $exception) {
-            $this->assertSame(FetchErrorType::ServerError, $exception->errorType);
-        }
+        $response = (new KeirinHttpClient)->get('/sp/racersearch', sleepMsOverride: 0);
+
+        $this->assertSame(500, $response->httpStatus);
+        $this->assertSame('error', $response->body);
     }
 }

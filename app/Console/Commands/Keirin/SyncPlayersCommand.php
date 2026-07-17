@@ -10,13 +10,14 @@ use Illuminate\Console\Command;
 class SyncPlayersCommand extends Command
 {
     protected $signature = 'keirin:players:sync
-        {--grade-code=15 : KEIRIN.JP kyuhanCD. Default is S級S班 to keep first run small}
+        {--grade-code= : KEIRIN.JP kyuhanCD. Omit to walk configured male grades}
         {--prefecture-code= : KEIRIN.JP hukenCD}
         {--page=1 : Search result page}
-        {--limit-players= : Max players to persist from the page}
+        {--limit-players= : Max players to persist for the whole batch}
         {--with-detail : Fetch and persist each player detail page}
         {--raw-file= : Parse a saved player search result HTML without network}
         {--source-url= : Source URL used with --raw-file}
+        {--skip-succeeded : Skip items already marked SUCCEEDED within this run}
         {--sleep-ms= : Request interval override in milliseconds}';
 
     protected $description = 'Sync male keirin player summaries and optional details from KEIRIN.JP.';
@@ -31,6 +32,7 @@ class SyncPlayersCommand extends Command
             'with_detail' => (bool) $this->option('with-detail'),
             'raw_file' => $this->option('raw-file') ?: null,
             'source_url' => $this->option('source-url') ?: null,
+            'skip_succeeded' => (bool) $this->option('skip-succeeded'),
             'sleep_ms' => $this->option('sleep-ms') !== null ? (int) $this->option('sleep-ms') : null,
         ]);
 

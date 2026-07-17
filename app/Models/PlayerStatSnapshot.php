@@ -11,6 +11,7 @@ class PlayerStatSnapshot extends Model
     protected $fillable = [
         'player_id',
         'basis_date',
+        'source_hash',
         'race_score',
         'win_rate',
         'quinella_rate',
@@ -19,7 +20,8 @@ class PlayerStatSnapshot extends Model
         'home_count',
         'start_count',
         'source_url',
-        'fetched_at',
+        'first_fetched_at',
+        'last_fetched_at',
     ];
 
     protected function casts(): array
@@ -30,7 +32,8 @@ class PlayerStatSnapshot extends Model
             'win_rate' => 'decimal:2',
             'quinella_rate' => 'decimal:2',
             'trio_rate' => 'decimal:2',
-            'fetched_at' => 'immutable_datetime',
+            'first_fetched_at' => 'immutable_datetime',
+            'last_fetched_at' => 'immutable_datetime',
         ];
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Scraping\Parsers;
 
 use App\Domain\Keirin\Scraping\DTO\RacePayoutDto;
+use App\Domain\Keirin\Scraping\Exceptions\ParserException;
 use App\Domain\Keirin\Scraping\Support\HtmlTextNormalizer;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -19,6 +20,15 @@ class PayoutParser
         $crawler->addHtmlContent($html, 'UTF-8');
         $sequenceByType = [];
         $payouts = [];
+        $text = HtmlTextNormalizer::normalize($crawler->text(null, false)) ?? '';
+
+        if ($crawler->filter('#pitbodyHarai')->count() === 0) {
+            if (str_contains($text, '払戻なし') || str_contains($text, '開催中止') || str_contains($text, '中止')) {
+                return [];
+            }
+
+            throw new ParserException('Payout table marker was not found.');
+        }
 
         $crawler->filter('#pitbodyHarai tr')->each(function (Crawler $row) use (&$sequenceByType, &$payouts): void {
             $values = $row->filter('td')->each(fn (Crawler $cell): ?string => HtmlTextNormalizer::normalize($cell->text(null, false)));
@@ -35,7 +45,7 @@ class PayoutParser
             $sequenceByType[$type] = ($sequenceByType[$type] ?? 0) + 1;
             $payouts[] = new RacePayoutDto(
                 betTypeCode: $type,
-                combination: $values[1],
+                combination: $this->combination($values[1]),
                 payoutAmount: $this->money($values[2] ?? null),
                 popularity: $this->int($values[3] ?? null),
                 sequence: $sequenceByType[$type],
@@ -43,6 +53,13 @@ class PayoutParser
         });
 
         return $payouts;
+    }
+
+    private function combination(string $raw): string
+    {
+        $normalized = HtmlTextNormalizer::normalize(mb_convert_kana($raw, 'as', 'UTF-8')) ?? $raw;
+
+        return preg_replace('/\s+/u', '', $normalized) ?? $normalized;
     }
 
     private function betTypeCode(string $raw): ?string

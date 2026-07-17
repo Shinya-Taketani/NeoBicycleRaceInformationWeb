@@ -19,4 +19,12 @@ return [
         'player_detail_pc' => '/pc/racerprofile',
         'race_schedule' => '/pc/raceschedule',
     ],
+    'male_grade_codes' => [
+        '15', // S級S班
+        '11', // S級1班
+        '12', // S級2班
+        '21', // A級1班
+        '22', // A級2班
+        '23', // A級3班
+    ],
 ];

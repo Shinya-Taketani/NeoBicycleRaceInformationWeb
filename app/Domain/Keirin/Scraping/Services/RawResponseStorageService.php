@@ -21,7 +21,10 @@ class RawResponseStorageService
     {
         $sha256 = hash('sha256', $response->body);
         $path = $this->path($response, $sha256);
-        Storage::disk((string) config('keirin.raw_disk'))->put($path, $response->body);
+        $stored = Storage::disk((string) config('keirin.raw_disk'))->put($path, $response->body);
+        if ($stored !== true) {
+            throw new \RuntimeException("Failed to store raw response at {$path}.");
+        }
 
         $utf8Body = '';
         $detectedEncoding = null;
@@ -33,8 +36,11 @@ class RawResponseStorageService
             [$utf8Body, $detectedEncoding] = $this->converter->convertToUtf8($response->body, $response->contentType);
             $conversionSucceeded = true;
         } catch (CharacterEncodingConversionException $exception) {
-            $resolvedErrorType = FetchErrorType::EncodingConversionFailed;
-            $resolvedErrorMessage = $exception->getMessage();
+            $resolvedErrorType ??= FetchErrorType::EncodingConversionFailed;
+            $resolvedErrorMessage = trim(implode(' ', array_filter([
+                $resolvedErrorMessage,
+                $exception->getMessage(),
+            ])));
         }
 
         $log = ScrapingFetchLog::query()->create([

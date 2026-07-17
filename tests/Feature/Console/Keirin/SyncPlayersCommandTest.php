@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console\Keirin;
 
+use App\Models\BatchRunItem;
 use App\Models\Player;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,5 +28,6 @@ class SyncPlayersCommandTest extends TestCase
         ])->assertExitCode(0);
 
         $this->assertSame(9, Player::query()->count());
+        $this->assertGreaterThan(0, BatchRunItem::query()->where('item_type', 'PLAYER_LIST_PAGE')->count());
     }
 }

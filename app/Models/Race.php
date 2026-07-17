@@ -11,6 +11,7 @@ class Race extends Model
     protected $fillable = [
         'source',
         'external_race_id',
+        'race_day_id',
         'racetrack_id',
         'race_date',
         'race_number',

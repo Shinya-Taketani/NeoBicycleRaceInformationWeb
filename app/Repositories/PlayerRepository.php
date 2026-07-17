@@ -83,8 +83,23 @@ class PlayerRepository
             }
 
             if ($dto->recentStats !== null) {
-                PlayerStatSnapshot::query()->create([
+                $sourceHash = hash('sha256', json_encode([
+                    'basis_date' => $dto->sourceUpdatedAt?->format('Y-m-d'),
+                    'race_score' => $dto->recentStats->raceScore,
+                    'win_rate' => $dto->recentStats->winRate,
+                    'quinella_rate' => $dto->recentStats->quinellaRate,
+                    'trio_rate' => $dto->recentStats->trioRate,
+                    'back_count' => $dto->recentStats->backCount,
+                    'home_count' => $dto->recentStats->homeCount,
+                    'start_count' => $dto->recentStats->startCount,
+                ], JSON_THROW_ON_ERROR));
+
+                $snapshot = PlayerStatSnapshot::query()->firstOrNew([
                     'player_id' => $player->id,
+                    'source_hash' => $sourceHash,
+                ]);
+
+                $snapshot->fill([
                     'basis_date' => $dto->sourceUpdatedAt?->format('Y-m-d'),
                     'race_score' => $dto->recentStats->raceScore,
                     'win_rate' => $dto->recentStats->winRate,
@@ -94,8 +109,9 @@ class PlayerRepository
                     'home_count' => $dto->recentStats->homeCount,
                     'start_count' => $dto->recentStats->startCount,
                     'source_url' => $dto->sourceUrl,
-                    'fetched_at' => $fetchedAt,
-                ]);
+                    'first_fetched_at' => $snapshot->exists ? $snapshot->first_fetched_at : $fetchedAt,
+                    'last_fetched_at' => $fetchedAt,
+                ])->save();
             }
 
             return $player;

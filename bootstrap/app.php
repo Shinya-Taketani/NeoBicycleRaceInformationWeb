@@ -2,6 +2,7 @@
 
 use App\Console\Commands\Keirin\ImportRaceResultsCommand;
 use App\Console\Commands\Keirin\SyncPlayersCommand;
+use App\Console\Commands\Keirin\SyncRaceScheduleCommand;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         ImportRaceResultsCommand::class,
+        SyncRaceScheduleCommand::class,
         SyncPlayersCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {

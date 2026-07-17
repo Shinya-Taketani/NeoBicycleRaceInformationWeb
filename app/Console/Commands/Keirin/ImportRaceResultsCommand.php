@@ -4,56 +4,68 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Keirin;
 
-use App\Domain\Keirin\Scraping\Services\RaceImportService;
 use App\Domain\Keirin\Scraping\Services\RaceResultImportService;
-use DateTimeImmutable;
 use Illuminate\Console\Command;
 
 class ImportRaceResultsCommand extends Command
 {
     protected $signature = 'keirin:races:import-results
-        {--from= : YYYY-MM-DD}
-        {--to= : YYYY-MM-DD}
-        {--raw-file= : Parse saved schedule/result HTML without network}
-        {--parse-result-only : Use --raw-file as race result detail HTML and only verify result/payout parsers}
-        {--sleep-ms= : Request interval override in milliseconds}';
+        {--race-id= : Internal races.id}
+        {--external-race-id= : races.external_race_id}
+        {--raw-file= : Saved result HTML}
+        {--source-url= : Source URL for the saved result HTML}
+        {--result-status=CONFIRMED : UNAVAILABLE, PROVISIONAL, UNDER_REVIEW, CONFIRMED, CORRECTED, CANCELLED}';
 
-    protected $description = 'Import keirin race schedule structure and provide raw-file verification for result and payout parsers.';
+    protected $description = 'Import race results and payouts from a saved KEIRIN.JP result HTML.';
 
-    public function handle(RaceImportService $schedules, RaceResultImportService $results): int
+    public function handle(RaceResultImportService $results): int
     {
-        if ($this->option('parse-result-only')) {
-            $rawFile = $this->option('raw-file');
-            if (! is_string($rawFile) || $rawFile === '') {
-                $this->error('--raw-file is required with --parse-result-only.');
-
-                return self::FAILURE;
-            }
-
-            $counts = $results->parseRawFile($rawFile);
-            $this->line("results={$counts['results']} payouts={$counts['payouts']}");
-
-            return self::SUCCESS;
-        }
-
-        if (! is_string($this->option('from')) || ! is_string($this->option('to'))) {
-            $this->error('--from and --to are required.');
+        $raceId = $this->option('race-id');
+        $externalRaceId = $this->option('external-race-id');
+        if (($raceId === null && $externalRaceId === null) || ($raceId !== null && $externalRaceId !== null)) {
+            $this->error('Specify exactly one of --race-id or --external-race-id.');
 
             return self::FAILURE;
         }
 
-        $result = $schedules->importSchedule(
-            new DateTimeImmutable((string) $this->option('from')),
-            new DateTimeImmutable((string) $this->option('to')),
-            [
-                'raw_file' => $this->option('raw-file') ?: null,
-                'sleep_ms' => $this->option('sleep-ms') !== null ? (int) $this->option('sleep-ms') : null,
-            ],
-        );
+        $rawFile = $this->option('raw-file');
+        if (! is_string($rawFile) || $rawFile === '') {
+            $this->error('--raw-file is required.');
 
-        $this->info("batch_run_id={$result['batch_run']->id}");
-        $this->line("success={$result['success']} skipped={$result['skipped']} failed={$result['failed']}");
+            return self::FAILURE;
+        }
 
-        return $result['failed'] === 0 ? self::SUCCESS : self::FAILURE;
+        $sourceUrl = $this->option('source-url');
+        if (! is_string($sourceUrl) || $sourceUrl === '') {
+            $this->error('--source-url is required.');
+
+            return self::FAILURE;
+        }
+
+        $status = (string) $this->option('result-status');
+        if (! in_array($status, ['UNAVAILABLE', 'PROVISIONAL', 'UNDER_REVIEW', 'CONFIRMED', 'CORRECTED', 'CANCELLED'], true)) {
+            $this->error('--result-status is invalid.');
+
+            return self::FAILURE;
+        }
+
+        try {
+            $result = $results->importRawFile(
+                raceId: $raceId !== null ? (int) $raceId : null,
+                externalRaceId: is_string($externalRaceId) ? $externalRaceId : null,
+                rawFile: $rawFile,
+                sourceUrl: $sourceUrl,
+                resultStatus: $status,
+            );
+        } catch (\Throwable $throwable) {
+            $this->error($throwable->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info("race_id={$result['race']->id}");
+        $this->line("results={$result['results']} payouts={$result['payouts']}");
+
+        return self::SUCCESS;
     }
 }

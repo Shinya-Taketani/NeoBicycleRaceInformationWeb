@@ -17,6 +17,7 @@ class RaceResult extends Model
         'result_status',
         'winning_technique',
         'raw_result_text',
+        'source_url',
         'fetched_at',
     ];
 

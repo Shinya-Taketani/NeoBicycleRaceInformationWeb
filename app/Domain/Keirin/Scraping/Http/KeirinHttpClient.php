@@ -56,25 +56,11 @@ class KeirinHttpClient
                 )
                 ->get($url, $query);
         } catch (ConnectionException $exception) {
-            throw new KeirinHttpException(FetchErrorType::ConnectionFailed, $url, $exception->getMessage(), previous: $exception);
+            throw $exception;
         }
 
         if ($response === null) {
             throw new KeirinHttpException(FetchErrorType::Unknown, $url, 'HTTP response was not created.');
-        }
-
-        $status = $response->status();
-
-        if ($status === 429) {
-            throw new KeirinHttpException(FetchErrorType::TooManyRequests, $url, 'KEIRIN.JP returned HTTP 429.', $status);
-        }
-
-        if ($status >= 500) {
-            throw new KeirinHttpException(FetchErrorType::ServerError, $url, "KEIRIN.JP returned HTTP {$status}.", $status);
-        }
-
-        if ($status >= 400) {
-            throw new KeirinHttpException(FetchErrorType::HttpError, $url, "KEIRIN.JP returned HTTP {$status}.", $status);
         }
 
         return new FetchedResponseDto(
@@ -82,11 +68,28 @@ class KeirinHttpClient
             method: 'GET',
             url: $response->effectiveUri() !== null ? (string) $response->effectiveUri() : $url,
             requestKey: $this->requestKey($url, $query),
-            httpStatus: $status,
+            httpStatus: $response->status(),
             body: $response->body(),
             contentType: $response->header('Content-Type'),
             fetchedAt: new DateTimeImmutable('now'),
             retryCount: $retryCount,
+        );
+    }
+
+    public function failureResponse(string $pathOrUrl, array $query, string $message): FetchedResponseDto
+    {
+        $url = $this->url($pathOrUrl);
+
+        return new FetchedResponseDto(
+            source: (string) config('keirin.source'),
+            method: 'GET',
+            url: $url,
+            requestKey: $this->requestKey($url, $query),
+            httpStatus: null,
+            body: '',
+            contentType: null,
+            fetchedAt: new DateTimeImmutable('now'),
+            retryCount: (int) config('keirin.retry_times', 2),
         );
     }
 

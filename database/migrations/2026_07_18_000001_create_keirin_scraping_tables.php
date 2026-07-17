@@ -62,8 +62,8 @@ return new class extends Migration
             $table->string('detected_encoding', 60)->nullable();
             $table->boolean('utf8_conversion_succeeded')->default(false);
             $table->unsignedBigInteger('response_size');
-            $table->char('sha256', 64);
-            $table->string('raw_file_path');
+            $table->char('sha256', 64)->nullable();
+            $table->string('raw_file_path')->nullable();
             $table->unsignedInteger('retry_count')->default(0);
             $table->string('parser_version', 80);
             $table->string('error_type', 120)->nullable();
@@ -118,6 +118,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('player_id')->constrained()->cascadeOnDelete();
             $table->date('basis_date')->nullable();
+            $table->char('source_hash', 64);
             $table->decimal('race_score', 6, 2)->nullable();
             $table->decimal('win_rate', 5, 2)->nullable();
             $table->decimal('quinella_rate', 5, 2)->nullable();
@@ -126,10 +127,11 @@ return new class extends Migration
             $table->unsignedInteger('home_count')->nullable();
             $table->unsignedInteger('start_count')->nullable();
             $table->text('source_url')->nullable();
-            $table->timestampTz('fetched_at');
+            $table->timestampTz('first_fetched_at');
+            $table->timestampTz('last_fetched_at');
             $table->timestampsTz();
 
-            $table->unique(['player_id', 'basis_date', 'fetched_at']);
+            $table->unique(['player_id', 'source_hash']);
         });
 
         Schema::create('racetracks', function (Blueprint $table): void {
@@ -143,13 +145,49 @@ return new class extends Migration
             $table->unique(['source', 'external_track_id']);
         });
 
+        Schema::create('race_meetings', function (Blueprint $table): void {
+            $table->id();
+            $table->string('source', 80);
+            $table->string('external_meeting_id', 180);
+            $table->foreignId('racetrack_id')->constrained()->cascadeOnDelete();
+            $table->string('meeting_name')->nullable();
+            $table->string('grade', 40)->nullable();
+            $table->date('starts_on');
+            $table->date('ends_on');
+            $table->unsignedSmallInteger('duration_days');
+            $table->text('race_list_url')->nullable();
+            $table->string('encrypted_parameter', 255)->nullable();
+            $table->string('day_kind', 20)->nullable();
+            $table->timestampTz('last_fetched_at')->nullable();
+            $table->timestampsTz();
+
+            $table->unique(['source', 'external_meeting_id']);
+            $table->index(['starts_on', 'ends_on']);
+        });
+
+        Schema::create('race_days', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('race_meeting_id')->constrained()->cascadeOnDelete();
+            $table->string('external_race_day_id', 200);
+            $table->date('race_date');
+            $table->unsignedSmallInteger('day_number');
+            $table->text('race_list_url')->nullable();
+            $table->text('result_list_url')->nullable();
+            $table->timestampTz('last_fetched_at')->nullable();
+            $table->timestampsTz();
+
+            $table->unique(['race_meeting_id', 'race_date']);
+            $table->unique('external_race_day_id');
+        });
+
         Schema::create('races', function (Blueprint $table): void {
             $table->id();
             $table->string('source', 80);
             $table->string('external_race_id', 160);
+            $table->foreignId('race_day_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('racetrack_id')->nullable()->constrained()->nullOnDelete();
             $table->date('race_date');
-            $table->unsignedSmallInteger('race_number')->nullable();
+            $table->unsignedSmallInteger('race_number');
             $table->timestampTz('scheduled_start_at')->nullable();
             $table->string('name')->nullable();
             $table->string('grade', 40)->nullable();
@@ -192,6 +230,7 @@ return new class extends Migration
             $table->string('result_status', 40);
             $table->string('winning_technique', 40)->nullable();
             $table->string('raw_result_text')->nullable();
+            $table->text('source_url')->nullable();
             $table->timestampTz('fetched_at');
             $table->timestampsTz();
 
@@ -227,6 +266,8 @@ return new class extends Migration
         Schema::dropIfExists('race_results');
         Schema::dropIfExists('race_entries');
         Schema::dropIfExists('races');
+        Schema::dropIfExists('race_days');
+        Schema::dropIfExists('race_meetings');
         Schema::dropIfExists('racetracks');
         Schema::dropIfExists('player_stat_snapshots');
         Schema::dropIfExists('player_status_histories');
