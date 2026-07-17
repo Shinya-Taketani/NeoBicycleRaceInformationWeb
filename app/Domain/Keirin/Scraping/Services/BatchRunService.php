@@ -96,33 +96,6 @@ class BatchRunService
         ])->save();
     }
 
-    public function shouldSkipSucceeded(BatchRun $run, string $itemType, string $itemKey, bool $skipSucceeded): bool
-    {
-        if (! $skipSucceeded) {
-            return false;
-        }
-
-        return BatchRunItem::query()
-            ->where('batch_run_id', $run->id)
-            ->where('item_type', $itemType)
-            ->where('item_key', $itemKey)
-            ->where('status', 'SUCCEEDED')
-            ->exists();
-    }
-
-    /**
-     * @return list<BatchRunItem>
-     */
-    public function resumableItems(int $runId): array
-    {
-        return BatchRunItem::query()
-            ->where('batch_run_id', $runId)
-            ->whereIn('status', ['PENDING', 'FAILED'])
-            ->orderBy('id')
-            ->get()
-            ->all();
-    }
-
     private function acquireLock(?string $lockKey): void
     {
         if ($lockKey === null || DB::getDriverName() !== 'pgsql') {

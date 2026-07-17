@@ -11,7 +11,7 @@ class RaceScheduleParserTest extends TestCase
 {
     public function test_it_parses_real_race_schedule_fixture(): void
     {
-        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/race_schedule_2026_07.html');
+        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/actual/race_schedule_2026_07.html');
 
         $items = (new RaceScheduleParser)->parse($html);
 

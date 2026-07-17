@@ -204,6 +204,30 @@ return new class extends Migration
             $table->index(['race_date', 'racetrack_id']);
         });
 
+        Schema::create('race_result_imports', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('race_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('batch_run_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('batch_run_item_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('scraping_fetch_log_id')->nullable()->constrained()->nullOnDelete();
+            $table->text('source_url');
+            $table->char('source_hash', 64);
+            $table->string('raw_file_path');
+            $table->string('parser_version', 80);
+            $table->string('requested_result_status', 40)->nullable();
+            $table->string('parsed_page_status', 40)->nullable();
+            $table->string('import_status', 40);
+            $table->unsignedInteger('result_count')->default(0);
+            $table->unsignedInteger('payout_count')->default(0);
+            $table->string('error_type', 120)->nullable();
+            $table->text('error_message')->nullable();
+            $table->timestampTz('imported_at')->nullable();
+            $table->timestampsTz();
+
+            $table->index(['race_id', 'import_status']);
+            $table->index('source_hash');
+        });
+
         Schema::create('race_entries', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('race_id')->constrained()->cascadeOnDelete();
@@ -223,6 +247,7 @@ return new class extends Migration
         Schema::create('race_results', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('race_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('race_result_import_id')->nullable()->constrained('race_result_imports')->nullOnDelete();
             $table->foreignId('race_entry_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('player_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedSmallInteger('bike_number')->nullable();
@@ -241,6 +266,7 @@ return new class extends Migration
         Schema::create('race_payouts', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('race_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('race_result_import_id')->nullable()->constrained('race_result_imports')->nullOnDelete();
             $table->string('bet_type_code', 40);
             $table->string('combination', 80);
             $table->unsignedInteger('payout_amount')->nullable();
@@ -257,6 +283,8 @@ return new class extends Migration
             DB::statement("ALTER TABLE players ADD CONSTRAINT players_gender_check CHECK (gender IS NULL OR gender IN ('male', 'female', 'unknown'))");
             DB::statement("ALTER TABLE races ADD CONSTRAINT races_result_status_check CHECK (result_status IN ('UNAVAILABLE', 'PROVISIONAL', 'UNDER_REVIEW', 'CONFIRMED', 'CORRECTED', 'CANCELLED'))");
             DB::statement("ALTER TABLE race_results ADD CONSTRAINT race_results_status_check CHECK (result_status IN ('FINISHED', 'TIED', 'DISQUALIFIED', 'DID_NOT_START', 'DID_NOT_FINISH', 'WITHDRAWN', 'CRASHED', 'UNKNOWN'))");
+            DB::statement("ALTER TABLE race_result_imports ADD CONSTRAINT race_result_imports_import_status_check CHECK (import_status IN ('RUNNING', 'SUCCEEDED', 'SKIPPED', 'FAILED'))");
+            DB::statement("ALTER TABLE race_result_imports ADD CONSTRAINT race_result_imports_page_status_check CHECK (parsed_page_status IS NULL OR parsed_page_status IN ('RESULTS_AVAILABLE', 'UNAVAILABLE', 'UNDER_REVIEW', 'CANCELLED'))");
         }
     }
 
@@ -264,6 +292,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('race_payouts');
         Schema::dropIfExists('race_results');
+        Schema::dropIfExists('race_result_imports');
         Schema::dropIfExists('race_entries');
         Schema::dropIfExists('races');
         Schema::dropIfExists('race_days');

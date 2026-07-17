@@ -14,7 +14,7 @@ class ImportRaceResultsCommand extends Command
         {--external-race-id= : races.external_race_id}
         {--raw-file= : Saved result HTML}
         {--source-url= : Source URL for the saved result HTML}
-        {--result-status=CONFIRMED : UNAVAILABLE, PROVISIONAL, UNDER_REVIEW, CONFIRMED, CORRECTED, CANCELLED}';
+        {--result-status= : UNAVAILABLE, PROVISIONAL, UNDER_REVIEW, CONFIRMED, CORRECTED, CANCELLED}';
 
     protected $description = 'Import race results and payouts from a saved KEIRIN.JP result HTML.';
 
@@ -28,9 +28,21 @@ class ImportRaceResultsCommand extends Command
             return self::FAILURE;
         }
 
+        if ($raceId !== null && (! is_numeric($raceId) || (int) $raceId < 1 || (string) (int) $raceId !== (string) $raceId)) {
+            $this->error('--race-id must be a positive integer.');
+
+            return self::FAILURE;
+        }
+
         $rawFile = $this->option('raw-file');
         if (! is_string($rawFile) || $rawFile === '') {
             $this->error('--raw-file is required.');
+
+            return self::FAILURE;
+        }
+
+        if (! is_file($rawFile) || ! is_readable($rawFile)) {
+            $this->error('--raw-file must exist and be readable.');
 
             return self::FAILURE;
         }
@@ -42,7 +54,19 @@ class ImportRaceResultsCommand extends Command
             return self::FAILURE;
         }
 
+        if (filter_var($sourceUrl, FILTER_VALIDATE_URL) === false) {
+            $this->error('--source-url must be a valid URL.');
+
+            return self::FAILURE;
+        }
+
         $status = (string) $this->option('result-status');
+        if ($status === '') {
+            $this->error('--result-status is required.');
+
+            return self::FAILURE;
+        }
+
         if (! in_array($status, ['UNAVAILABLE', 'PROVISIONAL', 'UNDER_REVIEW', 'CONFIRMED', 'CORRECTED', 'CANCELLED'], true)) {
             $this->error('--result-status is invalid.');
 
@@ -55,7 +79,7 @@ class ImportRaceResultsCommand extends Command
                 externalRaceId: is_string($externalRaceId) ? $externalRaceId : null,
                 rawFile: $rawFile,
                 sourceUrl: $sourceUrl,
-                resultStatus: $status,
+                requestedResultStatus: $status,
             );
         } catch (\Throwable $throwable) {
             $this->error($throwable->getMessage());
@@ -65,6 +89,7 @@ class ImportRaceResultsCommand extends Command
 
         $this->info("race_id={$result['race']->id}");
         $this->line("results={$result['results']} payouts={$result['payouts']}");
+        $this->line("import_id={$result['import']->id} import_status={$result['status']}");
 
         return self::SUCCESS;
     }

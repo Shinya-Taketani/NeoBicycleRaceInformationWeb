@@ -12,7 +12,7 @@ class PayoutParserTest extends TestCase
 {
     public function test_it_parses_multiple_payout_types_and_missing_popularity(): void
     {
-        $payouts = (new PayoutParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/race_result_normal.html'));
+        $payouts = (new PayoutParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/race_result_normal.html'));
 
         $this->assertCount(3, $payouts);
         $this->assertSame('EXACTA', $payouts[0]->betTypeCode);
@@ -42,5 +42,33 @@ class PayoutParserTest extends TestCase
     public function test_it_allows_no_payout_marker(): void
     {
         $this->assertSame([], (new PayoutParser)->parse('<html><body>払戻なし</body></html>'));
+    }
+
+    public function test_it_throws_when_payout_table_has_no_data_rows(): void
+    {
+        $this->expectException(ParserException::class);
+
+        (new PayoutParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/payout_empty_rows.html'));
+    }
+
+    public function test_it_throws_for_unknown_bet_type(): void
+    {
+        $this->expectException(ParserException::class);
+
+        (new PayoutParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/payout_unknown_type.html'));
+    }
+
+    public function test_it_throws_for_invalid_amount(): void
+    {
+        $this->expectException(ParserException::class);
+
+        (new PayoutParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/payout_invalid_amount.html'));
+    }
+
+    public function test_it_throws_for_partial_invalid_rows(): void
+    {
+        $this->expectException(ParserException::class);
+
+        (new PayoutParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/payout_partial_invalid.html'));
     }
 }

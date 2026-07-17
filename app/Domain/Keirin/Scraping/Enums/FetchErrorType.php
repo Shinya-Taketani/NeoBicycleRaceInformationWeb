@@ -11,6 +11,7 @@ enum FetchErrorType: string
     case Timeout = 'TIMEOUT';
     case ConnectionFailed = 'CONNECTION_FAILED';
     case HttpError = 'HTTP_ERROR';
+    case EmptyResponse = 'EMPTY_RESPONSE';
     case EncodingConversionFailed = 'ENCODING_CONVERSION_FAILED';
     case Unknown = 'UNKNOWN';
 }

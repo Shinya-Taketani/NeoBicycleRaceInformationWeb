@@ -23,10 +23,6 @@ class RaceResultParser
         $text = HtmlTextNormalizer::normalize($crawler->text(null, false)) ?? '';
 
         if ($crawler->filter('#pitbodyBs')->count() === 0) {
-            if (str_contains($text, '開催中止') || str_contains($text, '中止') || str_contains($text, '結果未掲載') || str_contains($text, '結果未確定')) {
-                return [];
-            }
-
             throw new ParserException('Race result table marker was not found.');
         }
 
@@ -72,7 +68,8 @@ class RaceResultParser
     {
         return match ($rawRank) {
             '失' => RaceEntryResultStatus::Disqualified,
-            '欠', '取消' => RaceEntryResultStatus::Withdrawn,
+            '欠', '欠場' => RaceEntryResultStatus::DidNotStart,
+            '取消' => RaceEntryResultStatus::Withdrawn,
             '棄' => RaceEntryResultStatus::DidNotFinish,
             '落' => RaceEntryResultStatus::Crashed,
             '未着' => RaceEntryResultStatus::DidNotFinish,

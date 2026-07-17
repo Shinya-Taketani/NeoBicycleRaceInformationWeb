@@ -16,7 +16,7 @@ class RaceImportService
     public function __construct(
         private readonly BatchRunService $batchRuns,
         private readonly RaceScheduleFetcher $fetcher,
-        private readonly RawResponseStorageService $rawStorage,
+        private readonly ScrapingFetchService $fetches,
         private readonly RaceScheduleParser $parser,
         private readonly RaceRepository $races,
     ) {}
@@ -40,9 +40,17 @@ class RaceImportService
         try {
             if (($options['raw_file'] ?? null) !== null) {
                 $item = $this->batchRuns->startItem($run, 'RACE_SCHEDULE_MONTH', 'raw-file:'.$options['raw_file']);
-                $items = $this->parser->parse(File::get((string) $options['raw_file']));
-                $this->batchRuns->succeedItem($item, ['count' => count($items)]);
-                $fetchedAt = new DateTimeImmutable('now');
+                try {
+                    $items = $this->parser->parse(File::get((string) $options['raw_file']));
+                    $this->batchRuns->succeedItem($item, ['count' => count($items)]);
+                    $fetchedAt = new DateTimeImmutable('now');
+                } catch (\Throwable $throwable) {
+                    $failed++;
+                    $error = $throwable->getMessage();
+                    $items = [];
+                    $fetchedAt = new DateTimeImmutable('now');
+                    $this->batchRuns->failItem($item, $throwable::class, $throwable->getMessage());
+                }
             } else {
                 $items = [];
                 $cursor = $from->modify('first day of this month');
@@ -50,8 +58,7 @@ class RaceImportService
                     $itemKey = 'race-schedule-month:'.$cursor->format('Y-m');
                     $item = $this->batchRuns->startItem($run, 'RACE_SCHEDULE_MONTH', $itemKey);
                     try {
-                        $response = $this->fetcher->fetch((int) $cursor->format('Y'), (int) $cursor->format('m'), $options['sleep_ms'] ?? null);
-                        $stored = $this->rawStorage->store($response, (int) $run->id);
+                        $stored = $this->fetches->fetch(fn () => $this->fetcher->fetch((int) $cursor->format('Y'), (int) $cursor->format('m'), $options['sleep_ms'] ?? null), (int) $run->id);
                         $parsed = $this->parser->parse($stored->utf8Body);
                         $items = [...$items, ...$parsed];
                         $this->batchRuns->succeedItem($item, ['count' => count($parsed)]);

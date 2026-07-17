@@ -56,7 +56,18 @@ class KeirinHttpClient
                 )
                 ->get($url, $query);
         } catch (ConnectionException $exception) {
-            throw $exception;
+            $type = str_contains(strtolower($exception->getMessage()), 'timed out')
+                ? FetchErrorType::Timeout
+                : FetchErrorType::ConnectionFailed;
+
+            throw new KeirinHttpException(
+                $type,
+                $url,
+                $exception->getMessage(),
+                null,
+                $this->emptyResponse($url, $query, $retryCount),
+                $exception,
+            );
         }
 
         if ($response === null) {
@@ -76,23 +87,6 @@ class KeirinHttpClient
         );
     }
 
-    public function failureResponse(string $pathOrUrl, array $query, string $message): FetchedResponseDto
-    {
-        $url = $this->url($pathOrUrl);
-
-        return new FetchedResponseDto(
-            source: (string) config('keirin.source'),
-            method: 'GET',
-            url: $url,
-            requestKey: $this->requestKey($url, $query),
-            httpStatus: null,
-            body: '',
-            contentType: null,
-            fetchedAt: new DateTimeImmutable('now'),
-            retryCount: (int) config('keirin.retry_times', 2),
-        );
-    }
-
     private function url(string $pathOrUrl): string
     {
         if (Str::startsWith($pathOrUrl, ['http://', 'https://'])) {
@@ -107,5 +101,20 @@ class KeirinHttpClient
         ksort($query);
 
         return hash('sha256', $url.'?'.http_build_query($query));
+    }
+
+    private function emptyResponse(string $url, array $query, int $retryCount): FetchedResponseDto
+    {
+        return new FetchedResponseDto(
+            source: (string) config('keirin.source'),
+            method: 'GET',
+            url: $url,
+            requestKey: $this->requestKey($url, $query),
+            httpStatus: null,
+            body: '',
+            contentType: null,
+            fetchedAt: new DateTimeImmutable('now'),
+            retryCount: $retryCount,
+        );
     }
 }

@@ -11,7 +11,7 @@ class PlayerDetailParserTest extends TestCase
 {
     public function test_it_parses_real_player_detail_fixture(): void
     {
-        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/player_detail_014934.html');
+        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/actual/player_detail_014934.html');
 
         $detail = (new PlayerDetailParser)->parse($html, 'https://www.keirin.jp/pc/racerprofile?snum=014934');
 

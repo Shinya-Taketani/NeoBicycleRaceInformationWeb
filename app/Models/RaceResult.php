@@ -10,6 +10,7 @@ class RaceResult extends Model
 {
     protected $fillable = [
         'race_id',
+        'race_result_import_id',
         'race_entry_id',
         'player_id',
         'bike_number',

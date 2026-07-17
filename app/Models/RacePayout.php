@@ -10,6 +10,7 @@ class RacePayout extends Model
 {
     protected $fillable = [
         'race_id',
+        'race_result_import_id',
         'bet_type_code',
         'combination',
         'payout_amount',

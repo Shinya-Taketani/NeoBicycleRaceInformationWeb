@@ -21,6 +21,7 @@ class PayoutParser
         $sequenceByType = [];
         $payouts = [];
         $text = HtmlTextNormalizer::normalize($crawler->text(null, false)) ?? '';
+        $dataRows = 0;
 
         if ($crawler->filter('#pitbodyHarai')->count() === 0) {
             if (str_contains($text, '払戻なし') || str_contains($text, '開催中止') || str_contains($text, '中止')) {
@@ -30,27 +31,54 @@ class PayoutParser
             throw new ParserException('Payout table marker was not found.');
         }
 
-        $crawler->filter('#pitbodyHarai tr')->each(function (Crawler $row) use (&$sequenceByType, &$payouts): void {
+        if (str_contains($text, '払戻なし')) {
+            return [];
+        }
+
+        $crawler->filter('#pitbodyHarai tr')->each(function (Crawler $row) use (&$sequenceByType, &$payouts, &$dataRows): void {
             $values = $row->filter('td')->each(fn (Crawler $cell): ?string => HtmlTextNormalizer::normalize($cell->text(null, false)));
             $values = array_values(array_filter($values, fn (?string $value): bool => $value !== null));
-            if (count($values) < 3) {
+            if ($values === []) {
                 return;
+            }
+
+            $dataRows++;
+            if (count($values) < 3) {
+                throw new ParserException('Payout row had an unsupported column count.');
             }
 
             $type = $this->betTypeCode($values[0]);
             if ($type === null) {
-                return;
+                throw new ParserException('Unknown payout bet type: '.$values[0]);
+            }
+
+            $combination = $this->combination($values[1]);
+            if ($combination === '') {
+                throw new ParserException('Payout combination was empty.');
+            }
+
+            $amount = $this->money($values[2] ?? null);
+            if ($amount === null) {
+                throw new ParserException('Payout amount could not be parsed: '.($values[2] ?? ''));
             }
 
             $sequenceByType[$type] = ($sequenceByType[$type] ?? 0) + 1;
             $payouts[] = new RacePayoutDto(
                 betTypeCode: $type,
-                combination: $this->combination($values[1]),
-                payoutAmount: $this->money($values[2] ?? null),
+                combination: $combination,
+                payoutAmount: $amount,
                 popularity: $this->int($values[3] ?? null),
                 sequence: $sequenceByType[$type],
             );
         });
+
+        if ($dataRows > 0 && count($payouts) !== $dataRows) {
+            throw new ParserException('Payout table was only partially parsed.');
+        }
+
+        if ($dataRows === 0) {
+            throw new ParserException('Payout table exists, but no payout rows were parsed.');
+        }
 
         return $payouts;
     }

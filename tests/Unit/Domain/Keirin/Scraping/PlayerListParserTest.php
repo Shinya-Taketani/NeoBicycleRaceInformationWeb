@@ -12,7 +12,7 @@ class PlayerListParserTest extends TestCase
 {
     public function test_it_parses_real_player_search_fixture(): void
     {
-        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/player_search_s_class.html');
+        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/actual/player_search_s_class.html');
 
         $page = (new PlayerListParser)->parse($html, 'https://keirin.jp/sp/racersearchresult?dppg=1&seibetuCD=1&kyuhanCD=15&stgt=1');
 

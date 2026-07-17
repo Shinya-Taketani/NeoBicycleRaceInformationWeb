@@ -14,16 +14,26 @@ This application includes an initial KEIRIN.JP scraping foundation for male keir
 ```bash
 php artisan keirin:players:sync --with-detail --limit-players=3
 php artisan keirin:races:sync-schedule --from=2026-07-01 --to=2026-07-31
-php artisan keirin:races:import-results --race-id=1 --raw-file=/path/to/result.html --source-url=https://keirin.jp/example/result
+php artisan keirin:races:import-results --race-id=1 --raw-file=/path/to/result.html --source-url=https://keirin.jp/example/result --result-status=CONFIRMED
 ```
 
 Use `--raw-file=/path/to/file.html` to verify parsers and DB persistence without network access. Player sync walks the configured male grade codes by default; pass `--grade-code=15` to limit the run to one grade.
 
-Raw responses and fetch metadata are stored under `storage/app/private/scraping/raw` and `scraping_fetch_logs`. Batch progress is tracked in `batch_runs` and `batch_run_items`. Set `KEIRIN_USER_AGENT`, `KEIRIN_SLEEP_MS`, and the DB connection in `.env` before running network imports.
+Raw responses and fetch metadata are stored under `storage/app/private/scraping/raw` and `scraping_fetch_logs`. Saved result HTML passed to `keirin:races:import-results` is copied under `storage/app/private/scraping/raw-import` and recorded in `race_result_imports`. Batch progress is tracked in `batch_runs` and `batch_run_items`. Set `KEIRIN_USER_AGENT`, `KEIRIN_SLEEP_MS`, and the DB connection in `.env` before running network imports.
 
 Race schedule sync persists meeting-level schedule data into `race_meetings` and `race_days`. The result import command currently imports saved result HTML for a specified race by `--race-id` or `--external-race-id`; automated result-detail crawling is intentionally not enabled until KEIRIN.JP result navigation is confirmed against current pages.
 
-When PostgreSQL advisory locks are used, the application database user must be able to run `pg_try_advisory_lock` and `pg_advisory_unlock`. Network scraping should be run only after confirming the current KEIRIN.JP public pages, robots.txt, and terms are compatible with the requested access pattern.
+`--result-status` is required for result import. `CONFIRMED` and `CORRECTED` are accepted only when result rows are parsed. `UNAVAILABLE` and `UNDER_REVIEW` do not delete existing confirmed results or payouts. `CANCELLED` clears existing result data only when a cancellation marker is present in the HTML and `--result-status=CANCELLED` is explicitly specified.
+
+Resume support is not implemented yet. Failed items are recorded in `batch_run_items`, but there is no `--resume-run-id` command option in this initial version.
+
+When PostgreSQL advisory locks are used, the application database user must be able to run `pg_try_advisory_lock` and `pg_advisory_unlock`. A database administrator may also need to grant schema access, for example:
+
+```sql
+GRANT USAGE, CREATE ON SCHEMA public TO <application_database_user>;
+```
+
+Network scraping should be run only after confirming the current KEIRIN.JP public pages, robots.txt, and terms are compatible with the requested access pattern.
 
 ## About Laravel
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Scraping\Services;
 
-use App\Domain\Keirin\Scraping\Enums\FetchErrorType;
-use App\Domain\Keirin\Scraping\Exceptions\KeirinHttpException;
+use App\Domain\Keirin\Scraping\DTO\PlayerListPageDto;
+use App\Domain\Keirin\Scraping\Exceptions\ParserException;
 use App\Domain\Keirin\Scraping\Fetchers\PlayerDetailFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\PlayerListFetcher;
 use App\Domain\Keirin\Scraping\Parsers\PlayerDetailParser;
@@ -21,7 +21,7 @@ class PlayerSyncService
         private readonly BatchRunService $batchRuns,
         private readonly PlayerListFetcher $listFetcher,
         private readonly PlayerDetailFetcher $detailFetcher,
-        private readonly RawResponseStorageService $rawStorage,
+        private readonly ScrapingFetchService $fetches,
         private readonly PlayerListParser $listParser,
         private readonly PlayerDetailParser $detailParser,
         private readonly PlayerRepository $players,
@@ -68,9 +68,11 @@ class PlayerSyncService
 
             foreach ($grades as $gradeCode) {
                 $pageNumber = (int) ($options['page'] ?? 1);
-                $lastPage = null;
+                $previousSha256 = null;
+                $previousPlayerSet = null;
+                $pagesFetched = 0;
 
-                do {
+                while (true) {
                     if (($options['limit_players'] ?? null) !== null && $success >= (int) $options['limit_players']) {
                         break 2;
                     }
@@ -79,29 +81,46 @@ class PlayerSyncService
                     $item = $this->batchRuns->startItem($run, 'PLAYER_LIST_PAGE', $itemKey);
 
                     try {
-                        $response = $this->listFetcher->fetch(
-                            page: $pageNumber,
-                            gradeCode: $gradeCode,
-                            prefectureCode: $options['prefecture_code'] ?? null,
-                            sleepMs: $options['sleep_ms'] ?? null,
-                        );
-                        $stored = $this->rawStorage->store($response, (int) $run->id, $this->httpErrorType($response->httpStatus), $this->httpErrorMessage($response->httpStatus));
-                        $this->throwIfHttpError($response->httpStatus, $response->url);
+                        if ($pagesFetched >= (int) config('keirin.max_player_pages_per_grade', 100)) {
+                            throw new ParserException('Player page limit was exceeded for grade '.$gradeCode.'.');
+                        }
+
+                        $response = null;
+                        $stored = $this->fetches->fetch(function () use (&$response, $pageNumber, $gradeCode, $options) {
+                            $response = $this->listFetcher->fetch(
+                                page: $pageNumber,
+                                gradeCode: $gradeCode,
+                                prefectureCode: $options['prefecture_code'] ?? null,
+                                sleepMs: $options['sleep_ms'] ?? null,
+                            );
+
+                            return $response;
+                        }, (int) $run->id);
                         $page = $this->listParser->parse($stored->utf8Body, $response->url);
+                        $this->validatePage($page, $pageNumber, $stored->sha256, $previousSha256, $previousPlayerSet);
+
                         $pageCounts = $this->persistPlayerPage($page, $response->fetchedAt, $run, $options, $success);
                         $success += $pageCounts['success'];
                         $skipped += $pageCounts['skipped'];
                         $failed += $pageCounts['failed'];
-                        $lastPage = $page->lastPage ?? $page->currentPage;
+                        $lastPage = $page->lastPage;
                         $this->batchRuns->succeedItem($item, ['players' => count($page->players), 'last_page' => $lastPage]);
+
+                        $pagesFetched++;
+                        $previousSha256 = $stored->sha256;
+                        $previousPlayerSet = $this->playerSetHash($page);
+                        if ($pageNumber >= $lastPage) {
+                            break;
+                        }
+
+                        $pageNumber++;
                     } catch (\Throwable $throwable) {
                         $failed++;
                         $error = $throwable->getMessage();
                         $this->batchRuns->failItem($item, $throwable::class, $throwable->getMessage());
+                        break;
                     }
-
-                    $pageNumber++;
-                } while ($lastPage === null || $pageNumber <= $lastPage);
+                }
             }
         } catch (\Throwable $throwable) {
             $failed++;
@@ -117,8 +136,12 @@ class PlayerSyncService
 
     private function syncDetail(string $externalPlayerId, BatchRun $run, ?int $sleepMs): void
     {
-        $response = $this->detailFetcher->fetch($externalPlayerId, $sleepMs);
-        $stored = $this->rawStorage->store($response, (int) $run->id);
+        $response = null;
+        $stored = $this->fetches->fetch(function () use (&$response, $externalPlayerId, $sleepMs) {
+            $response = $this->detailFetcher->fetch($externalPlayerId, $sleepMs);
+
+            return $response;
+        }, (int) $run->id);
         $detail = $this->detailParser->parse($stored->utf8Body, $response->url);
 
         if ($detail->gender === 'female') {
@@ -167,27 +190,35 @@ class PlayerSyncService
         return ['success' => $success, 'skipped' => $skipped, 'failed' => $failed];
     }
 
-    private function throwIfHttpError(?int $status, string $url): void
+    private function validatePage(PlayerListPageDto $page, int $requestedPage, string $sha256, ?string $previousSha256, ?string $previousPlayerSet): void
     {
-        if ($status === null || $status < 400) {
-            return;
+        if ($page->currentPage !== $requestedPage) {
+            throw new ParserException("Player page mismatch: requested {$requestedPage}, parsed {$page->currentPage}.");
         }
 
-        throw new KeirinHttpException($this->httpErrorType($status) ?? FetchErrorType::HttpError, $url, "KEIRIN.JP returned HTTP {$status}.", $status);
+        if ($page->lastPage === null || $page->lastPage < 1 || $page->lastPage < $page->currentPage) {
+            throw new ParserException('Player page lastPage was invalid.');
+        }
+
+        if ($page->lastPage > (int) config('keirin.max_player_pages_per_grade', 100)) {
+            throw new ParserException('Player page lastPage exceeded the configured safety limit.');
+        }
+
+        if ($previousSha256 !== null && $previousSha256 === $sha256) {
+            throw new ParserException('Player pagination returned the same raw HTML for consecutive pages.');
+        }
+
+        $playerSet = $this->playerSetHash($page);
+        if ($previousPlayerSet !== null && $previousPlayerSet === $playerSet) {
+            throw new ParserException('Player pagination returned the same player set for consecutive pages.');
+        }
     }
 
-    private function httpErrorType(?int $status): ?FetchErrorType
+    private function playerSetHash(PlayerListPageDto $page): string
     {
-        return match (true) {
-            $status === 429 => FetchErrorType::TooManyRequests,
-            $status !== null && $status >= 500 => FetchErrorType::ServerError,
-            $status !== null && $status >= 400 => FetchErrorType::HttpError,
-            default => null,
-        };
-    }
+        $ids = array_map(fn ($player): string => $player->externalPlayerId, $page->players);
+        sort($ids);
 
-    private function httpErrorMessage(?int $status): ?string
-    {
-        return $status !== null && $status >= 400 ? "KEIRIN.JP returned HTTP {$status}." : null;
+        return hash('sha256', implode('|', $ids));
     }
 }
