@@ -1,0 +1,723 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<!DOCTYPE html>
+<html lang="ja" xmlns="http://www.w3.org/1999/xhtml"><head id="j_idt2">
+   <title>選手検索結果｜KEIRIN.JP</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta http-equiv="Content-Type" content="text/html" charset="utf-8" />
+	<meta http-equiv="content-script-type" content="text/javascript" />
+	<meta http-equiv="content-style-type" content="text/css" />
+	<meta http-equiv="imagetoolbar" content="no" />
+	<meta name="author" content="JKA" />
+	<meta name="copyright" content="COPYRIGHT(C) JKA. ALL RIGHTS RESERVED." />
+	<meta name="robots" content="NOINDEX,NOFOLLOW" />
+
+   
+   <link rel="stylesheet" href="/sp/static/css/common/bootstrap.min.css" /> 
+   <link rel="stylesheet" href="/sp/static/css/common/bootstrap-theme.min.css" />
+   <link rel="stylesheet" href="/sp/static/css/common/font-awesome.min.css" /> 
+   <link rel="stylesheet" type="text/css" href="/sp/static/css/common/jquery-ui.css" />
+   <link rel="stylesheet" type="text/css" href="/sp/static/css/S_base.css" />
+   <link rel="stylesheet" type="text/css" href="/sp/static/css/sc0103.css" />
+   <script type="text/javascript" src="/sp/static/js/common/jquery-1.11.3.js"></script>
+   <script type="text/javascript" src="/sp/static/js/common/bootstrap.min.js"></script>
+   <script type="text/javascript" src="/sp/static/js/common/jquery-ui.js"></script>
+   <script type="text/javascript" src="/sp/static/js/common/jquery.carouFredSel-6.2.1-packed.js"></script>
+   <script type="text/javascript" src="/sp/static/js/S_footer.js"></script>
+   <script type="text/javascript" src="/sp/static/js/S_ticker.js"></script>
+
+   
+   <link rel="stylesheet" media="all" href="/sp/static/css/SJ0504.css" />
+   <link rel="stylesheet" type="text/css" href="/sp/static/css/subdialog.css" />		 
+   <script type="text/javascript" src="/sp/static/js/common/jquery.cookie.js"></script>
+   <script type="text/javascript" src="/sp/static/js/slick/slick.min.js"></script>
+   <script type="text/javascript" src="/sp/static/js/subdialog.js"></script>
+   <script type="text/javascript" src="/sp/static/js/commonLoad.js"></script></head><body><div lang="ja" xmlns="http://www.w3.org/1999/xhtml">
+<div class="clear-fix dispoff">
+	<p class="fl-l"><img class="top_logo" alt="競輪.jp" src="/sp/static/img/topbtn.gif" /></p>
+</div>
+<div class="rainbowbar dispoff">
+</div>
+<div id="header" class="navbar" style="overflow-x: hidden">
+     <table class="w100pc">
+       <tbody>
+       <tr>
+       <td>
+       <div id="ticker_area" class="ticker_area clear-fix dispoff">
+         <div id="ticker" class="fl-l">
+           <div id="ticker_inner"> 
+				<div id="shTickerHsep" class="dispib"> </div><span class="ticker color_red">【お知らせ】Androidスマートフォンにてライブ映像の再生不具合が発生しております。詳しくは競輪トピックスをご覧ください。　　</span><span class="ticker body_base_color">KEIRIN.JPインターネット・電話投票会員（CTC会員）募集中！詳しくは競輪トピックスをご覧ください。　　</span><span class="ticker body_base_color">ミッドナイト競輪は1番車から競走得点上位順に選手を並べ、より分かりやすく、よりシンプルに！　　</span>
+           </div>
+         </div>
+       </div>
+       </td>
+       </tr>
+       </tbody>
+     </table>
+</div>
+<script type="text/javascript">
+$(window).load(function() {
+	var flg = 0; 
+	var widthTckH = window.innerWidth-1;
+	var dispFlg = true;
+	if (flg == 0){
+		$('#ticker_area').css('height','32px');
+	}	
+	if (dispFlg == true) {
+		$('#ticker_area').removeClass('dispoff');
+		tickerdisp(flg,'ticker',widthTckH);
+		$('#shTickerHsep').width(widthTckH);
+	}
+});
+</script><input id="sfHdnLink_0" type="hidden" name="sfHdnLink_0" value="https://keirin.jp/sp/static/help/SU0504.html" />
+</div> 
+
+   
+   <script>
+     function ichiDelete(arg1,arg2){
+       document.SJ0504SubmitForm.ichiosiMode.value = "2";
+       document.SJ0504SubmitForm.ichiosiSensyuNo.value = arg1;
+       document.SJ0504SubmitForm.ichiosiTourokuDate.value = arg2;
+       $('#conf_cancel').dialog('open');
+     }
+     function ichiInsert(arg){
+       document.SJ0504SubmitForm.ichiosiMode.value = "1";
+       document.SJ0504SubmitForm.ichiosiSensyuNo.value = arg;
+       $('#conf_save').dialog('open');
+     }
+     function pageChange(arg){
+       document.SJ0504SubmitForm.dppg.value = arg;
+       document.SJ0504SubmitForm.ichiosiMode.value = "";
+       document.SJ0504SubmitForm.submit();
+       return false;
+     }
+     function sensyuLink(arg){
+       document.SJ0504SensyuLinkForm.snum.value = arg;
+       document.SJ0504SensyuLinkForm.submit();
+       return false;
+     }
+     $(document).on("touchstart mousedown","#player1",function() {
+         $(this).addClass("touch");
+     });
+     $(document).on("touchend mouseup","#player1",function() {
+         $(this).removeClass("touch");
+     });
+     $(document).on("touchmove mousemove ","#player1", function() {
+         $(this).removeClass("touch");
+     });
+   </script>
+   <form name="SJ0504SensyuLinkForm" id="SJ0504SensyuLinkForm" action="/sp/racerprofile" method="get">
+     <input type="hidden" name="snum" />
+   </form>
+   <form name="SJ0504SubmitForm" id="SJ0504SubmitForm" action="/sp/racersearchresult" method="get">
+     <input type="hidden" name="dppg" value="1" />
+     <input type="hidden" name="nameSeiKana" />
+     <input type="hidden" name="nameMeiKana" />
+     <input type="hidden" name="nameSei" />
+     <input type="hidden" name="nameMei" />
+     <input type="hidden" name="snum" />
+     <input type="hidden" name="hukenCD" />
+     <input type="hidden" name="sotugyouki" />
+     <input type="hidden" name="kuniCD" />
+     <input type="hidden" name="seibetuCD" value="1" />
+     <input type="hidden" name="kyuhanCD" value="15" />
+     <input type="hidden" name="tikuCD" />
+     <input type="hidden" name="age" />
+     <input type="hidden" name="bHomebankCD" />
+     <input type="hidden" name="homekyogiCD" />
+     <input type="hidden" name="kyakusituCD" />
+     <input type="hidden" name="ckbn" />
+     <input type="hidden" name="stgt" value="1" />
+     <input type="hidden" name="ichiosiMode" />
+     <input type="hidden" name="ichiosiSensyuNo" />
+     <input type="hidden" name="ichiosiTourokuDate" />
+     <input type="hidden" name="TransactionId" />
+     <input type="hidden" name="TransactionToken" />
+   </form>
+   <div id="" class="SJ504_0329_main" style="padding:0 10px">
+	 <div>
+       <div class="SJ504_0329_head">
+         <div class="al-c">
+           <span class="midasi1_fsz">選手検索結果</span>
+         </div>
+         <table width="100%" border="0">
+           <tr>
+             <td colspan="2" class="al-r"><span id="UNQ_orlabel_1">2026/07/17 02:36</span> 更新</td>
+           </tr>
+           <tr>
+             <td colspan="2" class="al-l"><span id="UNQ_orlabel_2">9</span>件見つかりました。</td>
+           </tr>
+         </table>
+         <div id="" class="btn50pv2 clear-fix" style="padding-right:0px">
+           <table class="btn50pv2" style="table-layout:fixed">
+             <tr>
+               <td><button name="btnCollectionGuide" class="btn bbtn al-c" type="button" onclick="window.open('/sp/static/help/SU0504.html#collection');">コレクション<br />について</button></td>
+               <td><button name="btnItiosiGuide" class="btn bbtn al-c paddingzero" type="button" onclick="window.open('/sp/static/help/SU0504.html#push');">一押し選手登録<br />について</button></td>
+             </tr>
+           </table>
+         </div>
+       </div>
+       <div class="SJ504_0329">
+			<div class="tbl_header b-a" style="padding:5px 0">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:63%;padding:0 0 5px">
+								<table style="width:100%;background-color:#FFFFFF">
+									<tr>
+										<td class="b-a">
+											<p>選手氏名</p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" class="paddingzero" style="width:35.9%">
+								<p>・登録番号</p>
+								<p>・級班</p>
+								<p>・地区</p>
+								<p>・府県</p>
+							</td>
+							<td rowspan="2" class="paddingzero" style="width:29.6%">
+								<p>・卒業期</p>
+								<p>・年齢</p>
+								<p>・ホーム</p>
+								<p>・脚質</p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c b-a paddingzero" style="background-color:#FFFFFF">コレクション</td>
+							<td colspan="2" class="al-c b-a" style="background-color:#FFFFFF"><div class="b-a" style="padding:4px">一押し選手<br />登録</div></td>
+						</tr>
+					</table>
+				</div>
+			</div>
+       </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('015035')">
+                                              <p><span id="j_idt25:0:UNQ_orlabel_6">アベ　タクマ</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:0:UNQ_orlabel_8">阿部　拓真</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:0:UNQ_orlabel_9">015035</span></p>
+								<p>・<span id="j_idt25:0:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:0:UNQ_orlabel_11">北日本</span></p>
+								<p>・<span id="j_idt25:0:UNQ_orlabel_12">宮城県</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:0:UNQ_orlabel_13">107期</span></p>
+								<p>・<span id="j_idt25:0:UNQ_orlabel_14">35</span>歳</p>
+								<p>・<span id="j_idt25:0:UNQ_orlabel_15">－</span></p>
+								<p>・<span id="j_idt25:0:UNQ_orlabel_16">両</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('015298')">
+                                              <p><span id="j_idt25:1:UNQ_orlabel_6">カナガ　タイト</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:1:UNQ_orlabel_8">嘉永　泰斗</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:1:UNQ_orlabel_9">015298</span></p>
+								<p>・<span id="j_idt25:1:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:1:UNQ_orlabel_11">九州</span></p>
+								<p>・<span id="j_idt25:1:UNQ_orlabel_12">熊本県</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:1:UNQ_orlabel_13">113期</span></p>
+								<p>・<span id="j_idt25:1:UNQ_orlabel_14">28</span>歳</p>
+								<p>・<span id="j_idt25:1:UNQ_orlabel_15">熊本</span></p>
+								<p>・<span id="j_idt25:1:UNQ_orlabel_16">逃</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('014741')">
+                                              <p><span id="j_idt25:2:UNQ_orlabel_6">グンジ　コウヘイ</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:2:UNQ_orlabel_8">郡司　浩平</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:2:UNQ_orlabel_9">014741</span></p>
+								<p>・<span id="j_idt25:2:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:2:UNQ_orlabel_11">南関東</span></p>
+								<p>・<span id="j_idt25:2:UNQ_orlabel_12">神奈川県</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:2:UNQ_orlabel_13">99期</span></p>
+								<p>・<span id="j_idt25:2:UNQ_orlabel_14">35</span>歳</p>
+								<p>・<span id="j_idt25:2:UNQ_orlabel_15">川崎</span></p>
+								<p>・<span id="j_idt25:2:UNQ_orlabel_16">両</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('014838')">
+                                              <p><span id="j_idt25:3:UNQ_orlabel_6">コショウ　ユウサク</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:3:UNQ_orlabel_8">古性　優作</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:3:UNQ_orlabel_9">014838</span></p>
+								<p>・<span id="j_idt25:3:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:3:UNQ_orlabel_11">近畿</span></p>
+								<p>・<span id="j_idt25:3:UNQ_orlabel_12">大阪府</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:3:UNQ_orlabel_13">100期</span></p>
+								<p>・<span id="j_idt25:3:UNQ_orlabel_14">35</span>歳</p>
+								<p>・<span id="j_idt25:3:UNQ_orlabel_15">－</span></p>
+								<p>・<span id="j_idt25:3:UNQ_orlabel_16">両</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('015413')">
+                                              <p><span id="j_idt25:4:UNQ_orlabel_6">テラサキ　コウヘイ</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:4:UNQ_orlabel_8">寺崎　浩平</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:4:UNQ_orlabel_9">015413</span></p>
+								<p>・<span id="j_idt25:4:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:4:UNQ_orlabel_11">近畿</span></p>
+								<p>・<span id="j_idt25:4:UNQ_orlabel_12">福井県</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:4:UNQ_orlabel_13">117期</span></p>
+								<p>・<span id="j_idt25:4:UNQ_orlabel_14">32</span>歳</p>
+								<p>・<span id="j_idt25:4:UNQ_orlabel_15">福井</span></p>
+								<p>・<span id="j_idt25:4:UNQ_orlabel_16">逃</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('015242')">
+                                              <p><span id="j_idt25:5:UNQ_orlabel_6">マスギ　タクミ</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:5:UNQ_orlabel_8">眞杉　匠</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:5:UNQ_orlabel_9">015242</span></p>
+								<p>・<span id="j_idt25:5:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:5:UNQ_orlabel_11">関東</span></p>
+								<p>・<span id="j_idt25:5:UNQ_orlabel_12">栃木県</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:5:UNQ_orlabel_13">113期</span></p>
+								<p>・<span id="j_idt25:5:UNQ_orlabel_14">27</span>歳</p>
+								<p>・<span id="j_idt25:5:UNQ_orlabel_15">宇都宮</span></p>
+								<p>・<span id="j_idt25:5:UNQ_orlabel_16">逃</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('013962')">
+                                              <p><span id="j_idt25:6:UNQ_orlabel_6">ミナミ　シユウジ</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:6:UNQ_orlabel_8">南　修二</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:6:UNQ_orlabel_9">013962</span></p>
+								<p>・<span id="j_idt25:6:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:6:UNQ_orlabel_11">近畿</span></p>
+								<p>・<span id="j_idt25:6:UNQ_orlabel_12">大阪府</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:6:UNQ_orlabel_13">88期</span></p>
+								<p>・<span id="j_idt25:6:UNQ_orlabel_14">44</span>歳</p>
+								<p>・<span id="j_idt25:6:UNQ_orlabel_15">岸和田</span></p>
+								<p>・<span id="j_idt25:6:UNQ_orlabel_16">追</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('015039')">
+                                              <p><span id="j_idt25:7:UNQ_orlabel_6">ヨシダ　タクヤ</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:7:UNQ_orlabel_8">吉田　拓矢</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:7:UNQ_orlabel_9">015039</span></p>
+								<p>・<span id="j_idt25:7:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:7:UNQ_orlabel_11">関東</span></p>
+								<p>・<span id="j_idt25:7:UNQ_orlabel_12">茨城県</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:7:UNQ_orlabel_13">107期</span></p>
+								<p>・<span id="j_idt25:7:UNQ_orlabel_14">31</span>歳</p>
+								<p>・<span id="j_idt25:7:UNQ_orlabel_15">取手</span></p>
+								<p>・<span id="j_idt25:7:UNQ_orlabel_16">両</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+         <div class="SJ504_0329 ">
+			<div class="b-a" style="padding:5px 2px">
+				<div id="" class="btn25pv2 clear-fix paddingzero">
+					<table class="btn25pv2 paddingzero" style="table-layout:fixed">
+						<tr>
+							<td colspan="3" class="al-c" style="width:55.1%;padding:0 0 5px">
+								<table style="width:100%;">
+									<tr>
+										<td class="b-a" id="player1" onclick="sensyuLink('014396')">
+                                              <p><span id="j_idt25:8:UNQ_orlabel_6">ワキモト　ユウタ</span></p>
+                                              <p>
+                                                <a href="javascript:void(0)" class="linkcolor"><span id="j_idt25:8:UNQ_orlabel_8">脇本　雄太</span>
+                                                </a>
+                                              </p>
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td rowspan="2" style="width:35.9%">
+								<p>・<span id="j_idt25:8:UNQ_orlabel_9">014396</span></p>
+								<p>・<span id="j_idt25:8:UNQ_orlabel_10">S級S班</span></p>
+								<p>・<span id="j_idt25:8:UNQ_orlabel_11">近畿</span></p>
+								<p>・<span id="j_idt25:8:UNQ_orlabel_12">福井県</span></p>
+							</td>
+							<td rowspan="2" style="width:29.6%">
+								<p>・<span id="j_idt25:8:UNQ_orlabel_13">94期</span></p>
+								<p>・<span id="j_idt25:8:UNQ_orlabel_14">37</span>歳</p>
+								<p>・<span id="j_idt25:8:UNQ_orlabel_15">福井</span></p>
+								<p>・<span id="j_idt25:8:UNQ_orlabel_16">逃</span></p>
+							</td>
+						</tr>
+						<tr>
+							<td class="al-c paddingzero">
+							</td>
+							<td colspan="2" class="al-c">
+                                <button class="btn bbtn al-c paddingzero" disabled="disabled">一押し<br />登録</button>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+         </div>
+     </div>
+   </div>
+   
+
+   <div class="wsp"></div><div lang="ja" xmlns="http://www.w3.org/1999/xhtml">
+<div class="rainbowbar"></div>
+<div class="copyright al-r">
+	<p>COPYRIGHT JKA. ALL RIGHTS RESERVED.</p>
+</div><div lang="ja" xmlns="http://www.w3.org/1999/xhtml">
+<link rel="stylesheet" href="/sp/static/css/common/font-awesome.min.css" />
+<link rel="stylesheet" href="/sp/static/css/sc0103.css" />
+<script type="text/javascript" src="/sp/static/js/S_footer.js"></script>
+<script type="text/javascript" src="/sp/static/js/commonSubmit.js"></script>
+<footer class="navbar navbar-fixed-bottom">
+<ul class="footer_menu">
+	<li id="fnlitop">
+		<img id="fnimgtop" alt="トップ" src="/sp/static/img/icon/footer_top_dis.png" prm="/sp/top" />
+	</li>
+	<li id="fnlibet">
+		<img id="fnimgbet" alt="投票" src="/sp/static/img/icon/footer_bet_dis.png" /><input id="fnHdnTouhyouUrl" type="hidden" name="fnHdnTouhyouUrl" value="https://keirin.jp/sp/voteselect" /><input id="fnHdnTouhyouEnc" type="hidden" name="fnHdnTouhyouEnc" value="C6Xeggl9eGq1sDyvETWUMlYGqz43JNlcgJDH2F5-ACg" />
+	</li>
+	<li id="fnlipc">
+		<img id="fnimgpc" alt="PCサイト" src="/sp/static/img/icon/footer_pc_dis.png" prm="https://keirin.jp/pc/top" />
+	</li>
+	<li id="fnlimenu" class="submenu">
+		<img id="fnimgmenu" alt="メニュー" src="/sp/static/img/icon/footer_menu_dis.png" />
+		<div class="sub-menu">
+			<table class="w-100p tbl_fixed">
+				<tbody>
+					<tr>
+						<td>
+							<button id="fnbtnKeirinTopics" class="btn onbtn" name="fnbtnKeirinTopics" jname="競輪トピックス" value="ボタン" onclick="location.href='/sp/topicslist'">競輪トピックス</button>
+						</td>
+						<td>
+							<button id="fnbtnNews" class="btn onbtn" name="fnbtnNews" jname="競輪場／場外車券売場からのお知らせ" value="ボタン" onclick="location.href='/sp/rmationlist'">競輪場／場外車券<br />売場からのお知らせ</button>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<button id="fnbtnPlayerSearc" class="btn onbtn" name="fnbtnPlayerSearc" jname="選手検索" value="ボタン" onclick="location.href='/sp/racersearch'">選手検索</button>
+						</td>
+						<td>
+							<button id="fnbtnThedates" class="btn onbtn" name="fnbtnThedates" value="ボタン" onclick="location.href='/sp/raceschedule'">開催日程</button>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<button id="fnbtnVelodromeList" class="btn onbtn" name="fnbtnVelodromeList" jname="競輪場一覧" value="ボタン" onclick="location.href='/sp/jyolist'">競輪場一覧</button>
+						</td>
+						<td>
+							<button id="fnbtnTicketsalesfloorList" class="btn onbtn" name="fnbtnTicketsalesfloorList" jname="場外車券売場一覧" value="ボタン" onclick="location.href='/sp/jyogailist'">場外車券売場一覧</button>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<button id="fnbtnTicketsalesfloorList" class="btn onbtn" name="fnbtnTicketsalesfloorList" jname="ランキング" value="ボタン" onclick="sfRankingLinkClick()">ランキング<p class="outpage_link"><i class="fa fa-external-link"></i></p></button><input id="sfRankingUrl" type="hidden" name="sfRankingUrl" value="https://keirin.jp/pc/prizeranking" />						
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</li>
+	<li id="fnlihelp">
+       <a id="sfLinkGuideandHelp" onclick="sfHelpLinkClick()" target="_blank"><img id="fnimghelp" alt="ヘルプ" src="/sp/static/img/icon/footer_help_dis.png" /></a>
+    </li>
+</ul><input id="sfHelpLink" type="hidden" name="sfHelpLink" value="https://keirin.jp/sp/static/help/SU0504.html" />   
+</footer>
+<script type="text/javascript">
+$(window).load(function() {
+var flg = 9; 
+footerloading(flg);
+});
+sfLoadingFinalize();
+</script>
+</div>
+<script>
+//<![CDATA[
+    var anaxhr = new XMLHttpRequest();
+    var anaURL = location.protocol + '//' + location.host + '/sp' + '/ana';   
+    anaxhr.open("GET", anaURL);
+    anaxhr.setRequestHeader("X-KEIRINJP-ANA-SCREEN", screen.width+"x"+screen.height);
+    anaxhr.setRequestHeader("X-KEIRINJP-ANA-URI", window.location.href);
+    if("anaJsonType" in window){
+      anaxhr.setRequestHeader("X-KEIRINJP-ANA-JSONTYPE", anaJsonType);
+    }
+    anaxhr.send();
+   
+//]]>
+</script>
+</div> 
+		
+   <div id="conf_cancel" class="conf_cancel">
+     <div style="margin:10px 10px 10px 10px; width:270px;">
+       <p class="al-c">選択した選手を削除します。</p>
+       <div class="al-c" style="padding-top: 10px;">
+         <button class="btn onbtn al-c" id="dest_ok_btn" style="width: 100px;" type="button">ＯＫ</button>
+         <button class="btn onbtn al-c" id="dest_cancel_btn" style="width: 100px;" type="button">キャンセル</button>
+       </div>
+     </div>
+   </div>
+   <div id="conf_save" class="conf_save">
+     <div style="margin:10px 10px 10px 10px; width:270px;">
+       <p class="al-c">選択した選手を登録します。</p>
+       <div class="al-c" style="padding-top: 10px;">
+         <button class="btn onbtn al-c" id="save_ok_btn" style="width: 100px;" type="button">ＯＫ</button>
+         <button class="btn onbtn al-c" id="save_cancel_btn" style="width: 100px;" type="button">キャンセル</button>
+       </div>
+     </div>
+   </div>
+   <div id="alert_dialog" class="alert_dialog">
+     <div class="">
+       <div style="width:100%;">
+         <p class="al-c"></p>
+         <div id="" class="btn50pv2 clear-fix" style="padding-top: 0;width:95%">
+           <table class="btn50pv2" style="table-layout:fixed">
+             <tbody><tr>
+               <td><button type="button" id="alert_ok_btn" class="btn bbtn al-c">OK</button></td>
+             </tr></tbody>
+           </table>
+         </div>
+       </div>
+     </div>
+   </div>
+
+   <script>
+		$('#alert_ok_btn').click(function () {
+			$('#alert_dialog').dialog('close');			
+			return false;
+		});
+		
+		$('#dest_cancel_btn').click(function () {
+			$('#conf_cancel').dialog('close');			
+			return false;
+		});
+		
+		$('#dest_ok_btn').click(function () {
+			$('#conf_cancel').dialog('close');			
+			$('#SJ0504SubmitForm').submit();
+		});
+
+		$('#save_ok_btn').click(function () {
+			$('#conf_save').dialog('close');
+			$('#SJ0504SubmitForm').submit();
+		});
+		
+		$('#save_cancel_btn').click(function () {
+			$('#conf_save').dialog('close');
+			return false;
+		});
+
+   </script></body></html>

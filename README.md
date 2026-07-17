@@ -7,6 +7,21 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Keirin Scraping Initial Commands
+
+This application includes an initial KEIRIN.JP scraping foundation for male keirin data.
+
+```bash
+php artisan keirin:players:sync --grade-code=15 --with-detail --limit-players=3
+php artisan keirin:races:import-results --from=2026-07-01 --to=2026-07-31
+```
+
+Use `--raw-file=/path/to/file.html` to verify parsers and DB persistence without network access. Player sync intentionally defaults to the narrow `S級S班` search condition because KEIRIN.JP returns a "more than 1000 records" error for broad male active-player searches.
+
+Raw responses and fetch metadata are stored under `storage/app/private/scraping/raw` and `scraping_fetch_logs`. Set `KEIRIN_USER_AGENT`, `KEIRIN_SLEEP_MS`, and the DB connection in `.env` before running network imports.
+
+Race schedule import persists the confirmed schedule links from `/pc/raceschedule`. Race result and payout detail parsers are available for saved HTML, but the internal result-detail navigation must be confirmed before automated result crawling is enabled.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
