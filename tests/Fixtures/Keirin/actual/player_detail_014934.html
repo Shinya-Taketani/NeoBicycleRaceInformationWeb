@@ -1,0 +1,1480 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<!DOCTYPE html>
+<html lang="ja" xmlns="http://www.w3.org/1999/xhtml"><head id="j_idt2">
+  <meta http-equiv="Content-Type" content="text/html" charset="utf-8" />
+  <meta http-equiv="content-script-type" content="text/javascript" />
+  <meta http-equiv="content-style-type" content="text/css" />
+  <meta http-equiv="imagetoolbar" content="no" />
+  <meta name="author" content="JKA" />
+  <meta name="copyright" content="COPYRIGHT(C) JKA. ALL RIGHTS RESERVED." />
+  <meta name="robots" content="INDEX,FOLLOW" />
+
+  <title>選手プロフィール｜KEIRIN.JP</title>
+
+  <meta name="description" content="次回出走予定や近況成績。さらには誕生日・血液型・師匠や練習仲間まで！競輪選手の詳細な情報が入手できます。" />
+  <link rel="icon" href="/pc/static/img/common/favicon.ico" />
+  <link rel="stylesheet" href="/pc/static/css/common/bootstrap.min.css" />
+  <link rel="stylesheet" href="/pc/static/css/common/bootstrap-theme.min.css" />
+  <link rel="stylesheet" href="/pc/static/css/common/font-awesome.min.css" />
+  <link rel="stylesheet" href="/pc/static/css/common/jquery-ui.css" />
+  <link rel="stylesheet" href="/pc/static/css/P_base.css" />
+  <link rel="stylesheet" href="/pc/static/css/subdialog.css" />
+  <link rel="stylesheet" href="/pc/static/css/race_base.css" />
+  <link rel="stylesheet" href="/pc/static/css/PJ0601.css" />
+  <script type="text/javascript" src="/pc/static/js/common/jquery-1.11.3.js"></script>
+  <script type="text/javascript" src="/pc/static/js/common/bootstrap.min.js"></script>
+  <script type="text/javascript" src="/pc/static/js/common/jquery-ui.js"></script>
+  <script type="text/javascript" src="/pc/static/js/common/jquery.carouFredSel-6.2.1-packed.js"></script>
+  <script type="text/javascript" src="/pc/static/js/common/jquery.cookie.js"></script>
+  <script type="text/javascript" src="/pc/static/js/common/jquery.json.min.js"></script>
+  <script type="text/javascript" src="/pc/static/js/common/jquery.tablesorter.min.js"></script>
+  <script type="text/javascript" src="/pc/static/js/common.js"></script>
+  <script type="text/javascript" src="/pc/static/js/commonLoad.js"></script>
+  <script type="text/javascript" src="/pc/static/js/commonSubmit.js"></script>
+  <script type="text/javascript" src="/pc/static/js/commonJSON.js"></script>
+  <script type="text/javascript" src="/pc/static/js/com_kaime.js"></script>
+  <script type="text/javascript" src="/pc/static/js/subdialog.js"></script>
+  <script type="text/javascript" src="/pc/static/js/Chart_B.js"></script>
+  <script type="text/javascript" src="/pc/static/js/P_ticker.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PC0101_c.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PC0101_v.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PC0101.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PC0102.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PJ9102_c.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PJ9102_v.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PJ9110_v.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PJ9110_c.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PJ9110.js"></script>
+  <script type="text/javascript" src="/pc/static/js/PJ0601.js"></script>
+  <script type="text/javascript">
+    var parentFuncId = "PJ0601";
+    var displayingId = "PJ0601";
+  </script></head><body>
+  <div class="basewindows"><div lang="ja" xmlns="http://www.w3.org/1999/xhtml">
+<nav id="menu" class="navbar header_bg navipos" role="navigation">
+  <div class="container" id="nav_menus">
+    <div class="navbar-header">
+	  <a class="navbar-brand" id="btnKeirinjp" onclick="shLinkClick(0)"><img src="/pc/static/img/topbtn.png" alt="KEIRIN.JP TOP" class="top_logo" style="cursor:pointer" /></a><input id="shHdnLink_0" type="hidden" name="shHdnLink_0" value="/pc/top" />
+	</div>
+    <div id="navbar" class="collapse navbar-collapse">
+	  <ul class="nav navbar-nav">
+           <li class="dropdown"><a role="button" id="btnSyoshinsya" class="topmenu_txt" onclick="shLinkClick(1)">初心者コンテンツ</a><input id="shHdnLink_1" type="hidden" name="shHdnLink_1" value="/pc/static/beginner/select-language/index.html" />
+           </li>
+           <li class="dropdown"><a role="button" id="btnKaisainittei" class="topmenu_txt" onclick="shLinkClick(2)">開催日程</a><input id="shHdnLink_2" type="hidden" name="shHdnLink_2" value="/pc/raceschedule" />
+           </li>
+           <li class="dropdown"><a role="button" id="btnKensakuShiryou" class="topmenu_txt" onclick="shLinkClick(3)">検索/資料室</a><input id="shHdnLink_3" type="hidden" name="shHdnLink_3" value="/pc/search" />
+           </li>
+           <li class="dropdown"><a role="button" id="btnRanking" class="topmenu_txt" onclick="shLinkClick(7)">ランキング</a><input id="shHdnLink_7" type="hidden" name="shHdnLink_7" value="/pc/prizeranking" />
+           </li>
+           <li class="dropdown"><a role="button" id="btnKeirinJyougai" class="topmenu_txt" onclick="shLinkClick(4)">競輪場/場外売場</a><input id="shHdnLink_4" type="hidden" name="shHdnLink_4" value="/pc/jyolist" />
+           </li>
+           <li class="dropdown"><a role="button" id="btnKeirinSchool" class="topmenu_txt" onclick="shLinkClick(5)">日本競輪選手養成所</a><input id="shHdnLink_5" type="hidden" name="shHdnLink_5" value="/pc/dfw/portal/guest/jik/index.html" />
+           </li>
+           <li class="dropdown"><a role="button" id="btnLink" class="topmenu_txt" onclick="shLinkClick(6)">リンク</a><input id="shHdnLink_6" type="hidden" name="shHdnLink_6" value="/pc/dfw/portal/guest/link/index.html" />
+           </li>
+           <li class="dropdown　btn_drop"></li>
+           <li class="dropdown　btn_drop"></li>
+           <li class="dropdown　btn_drop"></li>
+           <li class="dropdown　btn_drop"> </li>
+	  </ul>
+	</div>
+  </div>
+  <div id="topfix">
+    <div id="colorbar" class="menu_colorbar"></div>
+       <div id="ticker_area" class="ticker_area clear-fix">
+     <table class="w100pc">
+       <tbody>
+       <tr>
+       <td style="border-style: none">       
+         <div id="ticker" class="fl-l comHeadTicker">
+           <div id="ticker_inner">
+           </div>
+         </div>
+       </td>
+       </tr>
+       </tbody>
+     </table>
+       </div>
+  </div>
+     <div id="breads" class="bread_area clear-fix">
+       <div class="bread_crab fl-l" id="hcomBlDiv">
+       </div>
+       <div id="shGSearch" class="searchbox fl-r">
+       </div>
+     </div>
+</nav><input id="sh_hidden1" type="hidden" name="sh_hidden1" value="false" />
+       <div id="main" style="MARGIN-TOP: 0px">
+         <div id="topbtns" class="raceinfo bbottom">
+	       <div id="sh_suc_div">     
+             <div class="topbtns_inner">
+               <div id="hcomBtngroup" role="group" class="btn-group">
+                 <button id="shTodayRace" class="btn btn_fsz onbtn active btn_today_tomo" name="btnRaceToday" onclick="shChgRaceListBtn(0)" jname="今日の開催" value="ボタン">今日の開催</button>
+                 <button id="shTomorrowRace" class="btn btn_fsz onbtn btn_today_tomo" name="btnRaceTomorrow" onclick="shChgRaceListBtn(1)" jname="明日の開催" value="ボタン">明日の開催</button> 
+               </div>
+               <div id="hcomnoRaceMsg" class="dispoff" jname="レースなしメッセージ" name="divNoRaceMsg"><span id="UNQ_orlabel_18" class="no_race_msg"></span></div>
+               <div calss="dispon" id="hcomRaceDiv">
+                 <div id="hcomRace" class="dispon list-inline" jname="レースリスト" name="divRaceList"></div>
+               </div>
+             </div>
+           </div>
+  	     </div>
+       </div>
+   <script type="text/javascript">
+	var pc0101_json = {"kaisaiDateKbn":"0","loginState":false,"RaceList":[{"gradeBackColor":"grade_g2_bg_color","kaisaiDate":"20260717","naibuKeirinCd":"74","keirinjoName":"高知","gradeKbn":"4","gradeIconPath":"/pc/static/img/icon/grade/ico_g2.png","gradeIconName":"G2","nichijiIconPath":"/pc/static/img/icon/Himoku/ico_day1.png","nichijiIconName":"初日","KubunIconPath":"/pc/static/img/icon/KaisaiIcon/ico_kaisai_3.png","kubunIconName":"3","touhyouFlg":"0","liveFlg":"1","touhyouLivePara":"u3ftnY5SRux-xk3s1TGkhUyrMVuTX-ESj1pnR1B1Vzg","tyusiKbn":"0","denColorFlg":"0","raceNum":"12R","denTime":"","denTitle":"発売締切","loginState":false},{"gradeBackColor":"white_bg_color","kaisaiDate":"20260717","naibuKeirinCd":"47","keirinjoName":"松阪","gradeKbn":"2","gradeIconPath":"/pc/static/img/icon/grade/ico_f1.png","gradeIconName":"F1","nichijiIconPath":"/pc/static/img/icon/Himoku/ico_day2.png","nichijiIconName":"2日目","KubunIconPath":"/pc/static/img/icon/KaisaiIcon/ico_kaisai_1.png","kubunIconName":"1","touhyouFlg":"0","liveFlg":"1","touhyouLivePara":"eNuNUsNFo4CVHMeFfGSwJ5LATwOUbZSPfFxJFlaWxDo","tyusiKbn":"0","denColorFlg":"0","raceNum":"12R","denTime":"","denTitle":"発売締切","loginState":false},{"gradeBackColor":"white_bg_color","kaisaiDate":"20260717","naibuKeirinCd":"13","keirinjoName":"いわき平","gradeKbn":"1","gradeIconPath":"/pc/static/img/icon/grade/ico_f2.png","gradeIconName":"F2","nichijiIconPath":"/pc/static/img/icon/Himoku/ico_day2.png","nichijiIconName":"2日目","KubunIconPath":"/pc/static/img/icon/KaisaiIcon/ico_kaisai_5.png","kubunIconName":"5","touhyouFlg":"0","liveFlg":"1","touhyouLivePara":"6nWOJ2YgWUh0vVMBoyI8CGy4NoK_42_8AX5sYUVclrY","tyusiKbn":"0","denColorFlg":"0","raceNum":"9R","denTime":"","denTitle":"発売締切","loginState":false},{"gradeBackColor":"white_bg_color","kaisaiDate":"20260717","naibuKeirinCd":"21","keirinjoName":"弥彦","gradeKbn":"1","gradeIconPath":"/pc/static/img/icon/grade/ico_f2.png","gradeIconName":"F2","nichijiIconPath":"/pc/static/img/icon/Himoku/ico_day1.png","nichijiIconName":"初日","KubunIconPath":"/pc/static/img/icon/KaisaiIcon/ico_kaisai_1.png","kubunIconName":"1","touhyouFlg":"0","liveFlg":"1","touhyouLivePara":"uT3_6zZe5WhDM6pyOeBlSD7NTVdVndu81_mObUAL2sk","tyusiKbn":"0","denColorFlg":"0","raceNum":"11R","denTime":"","denTitle":"発売締切","loginState":false},{"gradeBackColor":"white_bg_color","kaisaiDate":"20260717","naibuKeirinCd":"23","keirinjoName":"取手","gradeKbn":"1","gradeIconPath":"/pc/static/img/icon/grade/ico_f2.png","gradeIconName":"F2","nichijiIconPath":"/pc/static/img/icon/Himoku/ico_fday.png","nichijiIconName":"最終日","KubunIconPath":"/pc/static/img/icon/KaisaiIcon/ico_kaisai_8.png","kubunIconName":"8","touhyouFlg":"0","liveFlg":"1","touhyouLivePara":"fnI91TdVAK41Vyxrjvt6vbd7-fi1BP4ob_8tJwteIKw","tyusiKbn":"0","denColorFlg":"0","raceNum":"7R","denTime":"","denTitle":"発売締切","loginState":false},{"gradeBackColor":"white_bg_color","kaisaiDate":"20260717","naibuKeirinCd":"26","keirinjoName":"西武園","gradeKbn":"1","gradeIconPath":"/pc/static/img/icon/grade/ico_f2.png","gradeIconName":"F2","nichijiIconPath":"/pc/static/img/icon/Himoku/ico_day2.png","nichijiIconName":"2日目","KubunIconPath":"/pc/static/img/icon/KaisaiIcon/ico_kaisai_3.png","kubunIconName":"3","touhyouFlg":"0","liveFlg":"1","touhyouLivePara":"86UD0KmbHVSS6K2kIhuq0c5EoSJBOppu4qRfX4oLYiA","tyusiKbn":"0","denColorFlg":"0","raceNum":"11R","denTime":"","denTitle":"発売締切","loginState":false},{"gradeBackColor":"white_bg_color","kaisaiDate":"20260717","naibuKeirinCd":"53","keirinjoName":"奈良","gradeKbn":"1","gradeIconPath":"/pc/static/img/icon/grade/ico_f2.png","gradeIconName":"F2","nichijiIconPath":"/pc/static/img/icon/Himoku/ico_day2.png","nichijiIconName":"2日目","KubunIconPath":"/pc/static/img/icon/KaisaiIcon/ico_kaisai_5.png","kubunIconName":"5","touhyouFlg":"0","liveFlg":"1","touhyouLivePara":"hXAFouF_EW8oCnSpPo40hkzVYbNrCMed0-cOyLXVyJQ","tyusiKbn":"0","denColorFlg":"0","raceNum":"9R","denTime":"","denTitle":"発売締切","loginState":false}],"tickerFlg":true,"tickerFlashFlg":"0","kanyusyaFlgJSON":false,"parentDspId":"PPJ0601","currentDspId":"PJ0601","touhyouLnkPath":"/pc/racevote","liveLinkPath":"/pc/racelive","tickerData":[{"tickerColorData":"color_red","tickerTextData":"【お知らせ】Androidスマートフォンにてライブ映像の再生不具合が発生しております。詳しくは競輪トピックスをご覧ください。　　"},{"tickerColorData":"body_base_color","tickerTextData":"KEIRIN.JPインターネット・電話投票会員（CTC会員）募集中！詳しくは競輪トピックスをご覧ください。　　"},{"tickerColorData":"body_base_color","tickerTextData":"ミッドナイト競輪は1番車から競走得点上位順に選手を並べ、より分かりやすく、よりシンプルに！　　"}],"breadCrumbData":[{"postgetFlg":"1","breadCrumbPath":"/pc/top","breadCrumbName":"トップページ","breadCrumbDspID":"PJ0101"},{"postgetFlg":"1","breadCrumbPath":"/pc/search","breadCrumbName":"検索/資料室","breadCrumbDspID":"PJ0501"},{"postgetFlg":"2","breadCrumbPath":"","breadCrumbName":"選手プロフィール","breadCrumbDspID":""}],"forceProtcolParam":"0","resultCd":0,"writeANA":false};
+	PC0101View.shDrawJSONData(pc0101_json,0);
+   </script><input id="sfHdnLink_0" type="hidden" name="sfHdnLink_0" value="https://keirin.jp/pc/static/help/PU0601.html" />   
+</div>
+<a name="profile" id="profile"></a>
+    <div class="PJ0601">
+      <div class="col1_layB pj0601_body">
+        <div class="clear-fix col_ank">
+          <div class="fl-l">
+            <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('profile')">プロフィール</button>
+            <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('recent')">近況成績</button>
+            <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('total')">通算成績</button>
+          </div>
+          <div class="fl-r al-r">
+            <button id="itioshi_regist_1" type="button" class="btn btn_fsz onbtn itioshi_regist " disabled="false">一押し選手登録</button>
+            <p>一押し選手については<a href="/pc/static/help/PU0504.html#push" class="txt_underline" target="_blank">こちら</a></p>
+          </div>
+        </div>
+        <div class="midasi1_fsz">プロフィール</div>
+            <p id="lblNotes4">※250競走の成績は、競走得点・各成績には反映されません。</p>
+        <div class="clear-fix"><p class="fl-r">2026/07/13 02:35&nbsp;更新</p></div>
+        <div class="clear-fix">
+          <div class="clear-fix">
+            <div class="fl-l" style="width:84%">
+              <div class="pad_t_10">
+                <table>
+                  <tbody>
+                    <tr>
+                      <td class="nob v-al-t pad_l_0 wd_80">
+                        <table>
+                          <tbody>
+                            <tr>
+                              <td class="tbl_header al-c">氏名</td>
+                              <td class="tbl_header al-c">フリガナ</td>
+                              <td class="tbl_header al-c">府県</td>
+                              <td class="tbl_header al-c">生年月日</td>
+                              <td class="tbl_header al-c">年齢</td>
+                              <td class="tbl_header al-c">性別</td>
+                              <td class="tbl_header al-c">登録番号</td>
+                            </tr>
+                            <tr>
+                              <td class="al-c">渋谷　錬</td>
+                              <td class="al-c">シブタニ　レン</td>
+                              <td class="al-c">神奈川県</td>
+                              <td class="al-c">1990/11/25</td>
+                              <td class="al-c">35歳</td>
+                              <td class="al-c">男</td>
+                              <td class="al-c" id="PlayerNo">014934</td>
+                            </tr>
+                            <tr>
+                              <td class="tbl_header al-c">期別</td>
+                              <td class="tbl_header wd_148 al-c">級班</td>
+                              <td class="tbl_header al-c">級班所属日</td>
+                              <td class="tbl_header wd_148 al-c">次期級班</td>
+                              <td class="tbl_header wd_148 al-c">脚質</td>
+                              <td class="tbl_header al-c">今期得点</td>
+                            </tr>
+                            <tr>
+                              <td class="al-c">103期</td>
+                              <td class="al-c">Ａ級１班</td>
+                              <td class="al-c">2026/07/01</td>
+                              <td class="al-c">-</td>
+                              <td class="al-c">追</td>
+                              <td class="al-c"><a class="txt_underline" onclick="shLocalJump('graph')">88.16</a></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="v-al-t nob pad_t_10 pad_l_0">
+                        <p class="midasi2_fsz">■級班の履歴情報</p>
+                        <table>
+                          <thead>
+                            <tr>
+                              <td class="tbl_header al-c">級班</td>
+                              <td class="tbl_header al-c">年月日</td>
+                              <td class="nb-a" colspan="5" style="background-color:#FFFFFF"></td>
+                            </tr>
+                          </thead>
+                          <tbody class="altertable">
+                            <tr>
+                              <td class="al-c">Ａ級１班
+                              <span></span>
+                              </td>
+                              <td class="al-c">2026/07/01</td>
+                              <td class="nb-a" colspan="5" style="background-color:#FFFFFF"></td>
+                            </tr>
+                            <tr>
+                              <td class="al-c">Ａ級２班
+                              <span></span>
+                              </td>
+                              <td class="al-c">2024/01/01</td>
+                              <td class="nb-a" colspan="5" style="background-color:#FFFFFF"></td>
+                            </tr>
+                            <tr>
+                              <td class="al-c">Ａ級１班
+                              <span></span>
+                              </td>
+                              <td class="al-c">2023/07/01</td>
+                              <td class="nb-a" colspan="5" style="background-color:#FFFFFF"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pad_t_10">
+                <p class="midasi2_fsz">■身長・体重・体力等</p>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td class="tbl_header al-c">星座</td>
+                      <td class="tbl_header al-c">九星</td>
+                      <td class="tbl_header al-c">血液型</td>
+                      <td class="tbl_header al-c">身長</td>
+                      <td class="tbl_header al-c">体重</td>
+                      <td class="nb-a" colspan="2"></td>
+                    </tr>
+                    <tr>
+                      <td class="al-c">射手座</td>
+                      <td class="al-c">一白</td>
+                      <td class="al-c">B </td>
+                      <td class="al-c">172.0cm</td>
+                      <td class="al-c">80.0kg</td>
+                      <td class="nb-a" colspan="2"></td>
+                    </tr>
+                    <tr>
+                      <td class="tbl_header al-c">胸囲</td>
+                      <td class="tbl_header al-c">太股</td>
+                      <td class="tbl_header al-c">背筋力</td>
+                      <td class="tbl_header al-c">肺活量</td>
+                    </tr>
+                    <tr>
+                      <td class="al-c">97.0cm</td>
+                      <td class="al-c">62.0cm</td>
+                      <td class="al-c">210.0kg</td>
+                      <td class="al-c">4200cc</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pad_t_10">
+                <p class="midasi2_fsz">■縁故・知人・仲間等</p>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">縁故選手</td>
+                      <td class="tbl_header al-c" colspan="2">友人</td>
+                      <td class="tbl_header al-c" colspan="2">練習仲間</td>
+                      <td class="nb-a"></td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2" style="word-wrap: break-word;">伊藤 大志(兄86期)</td>
+                      <td class="al-c" colspan="2" style="word-wrap: break-word;">
+                        <table>
+                          <tbody>
+                            <tr>
+                              <td class="nob wd_30"> </td>
+                              <td class="al-l nb-a wd_110"><a href="?snum=014822" class="txt_underline">関根健太郎</a></td>
+                              <td class="al-l nb-a">
+                                <p>（神奈川・100期）</p>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td class="nob wd_30"> </td>
+                              <td class="al-l nb-a wd_110"><a href="?snum=014741" class="txt_underline">郡司　浩平</a></td>
+                              <td class="al-l nb-a">
+                                <p>（神奈川・99期）</p>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td class="nob wd_30"> </td>
+                              <td class="al-l nb-a wd_110"><a href="?snum=014744" class="txt_underline">和田真久留</a></td>
+                              <td class="al-l nb-a">
+                                <p>（神奈川・99期）</p>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td class="nob wd_30"> </td>
+                              <td class="al-l nb-a wd_110"><a href="?snum=015094" class="txt_underline">佐々木　龍</a></td>
+                              <td class="al-l nb-a">
+                                <p>（神奈川・109期）</p>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td class="nob wd_30"> </td>
+                              <td class="al-l nb-a wd_110"><a href="?snum=015171" class="txt_underline">出澤　拓也</a></td>
+                              <td class="al-l nb-a">
+                                <p>（神奈川・111期）</p>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                      <td class="al-c" colspan="2">-</td>
+                    </tr>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">師匠</td>
+                      <td class="tbl_header al-c" colspan="2">弟子</td>
+                      <td class="tbl_header al-c" colspan="2">練習グループ</td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2">
+                        <table>
+                          <tbody>
+                            <tr>
+                              <td class="nob wd_30"> </td>
+                              <td class="al-l nb-a wd_110"><a href="?snum=012362" class="txt_underline">小笠原弘高</a></td>
+                              <td class="al-l nb-a">
+                                <p>（神奈川・67期）</p>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                      <td class="al-c" colspan="2">-</td>
+                      <td class="al-c" colspan="2" style="word-wrap: break-word;">-</td>
+                    </tr>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">ニックネーム</td>
+                      <td class="nob" colspan="2"> </td>
+                      <td class="nob" colspan="2"> </td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2" style="word-wrap: break-word;">ワンポ</td>
+                      <td class="al-c nob" colspan="2"> </td>
+                      <td class="al-c nob" colspan="2"> </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pad_t_20">
+                <table>
+                  <tbody>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="6">ホームバンク</td>
+                      <td class="tbl_header al-c" colspan="6">ホーム競技場（練習地）</td>
+                      <td class="tbl_header al-c" colspan="6">得意な周長</td>
+                      <td class="tbl_header al-c" colspan="6">得意な競輪場</td>
+                      <td class="tbl_header al-c" colspan="6">好きな車番</td>
+                      <td class="nb-a" colspan="5"></td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="6">平塚</td>
+                      <td class="al-c" colspan="6">-</td>
+                      <td class="al-c" colspan="6">500m</td>
+                      <td class="al-c" colspan="6">-</td>
+                      <td class="al-c" colspan="6">３                  </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td class="tbl_header al-c nb-t" colspan="3">好きな食べ物</td>
+                      <td class="tbl_header al-c nb-t" colspan="3">嫌いな食べ物</td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="3" style="word-wrap: break-word;">焼き鳥</td>
+                      <td class="al-c" colspan="3" style="word-wrap: break-word;">セロリ</td>
+                    </tr>
+                    <tr><td class="tbl_header al-c" colspan="6">自転車競技歴</td></tr>
+                    <tr><td class="al-c" colspan="6">-</td></tr>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">中学校スポーツ歴</td>
+                      <td class="tbl_header al-c" colspan="2">高校スポーツ歴</td>
+                      <td class="tbl_header al-c" colspan="2">大学・社会人スポーツ歴</td>
+                      <td class="nb-a"></td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2" style="word-wrap: break-word;">野球</td>
+                      <td class="al-c" colspan="2" style="word-wrap: break-word;">野球・バレーボール</td>
+                      <td class="al-c" colspan="2" style="word-wrap: break-word;">-</td>
+                    </tr>
+                    <tr><td class="tbl_header al-c" colspan="6">他スポーツの主な成績</td></tr>
+                    <tr><td class="al-c" colspan="6" style="word-wrap: break-word;">-</td></tr>
+                    <tr><td class="tbl_header al-c" colspan="6">JKA表彰歴</td></tr>
+                    <tr><td class="al-c" colspan="6" style="word-wrap: break-word;">-</td></tr>
+                    <tr><td class="tbl_header al-c" colspan="6">褒章表彰</td></tr>
+                    <tr><td class="al-c" colspan="6" style="word-wrap: break-word;">-</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pad_t_10">
+                <p class="midasi2_fsz">■競輪学校時代</p>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">受験区分</td>
+                      <td class="tbl_header al-c" colspan="2">競輪学校1着回数</td>
+                      <td class="tbl_header al-c" colspan="2">競輪学校2着回数</td>
+                      <td class="nb-a"></td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2">技能</td>
+                      <td class="al-c" colspan="2">12回</td>
+                      <td class="al-c" colspan="2">10回</td>
+                      <td class="nb-a"></td>
+                    </tr>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">競輪学校3着回数</td>
+                      <td class="tbl_header al-c" colspan="2">競輪学校着外回数</td>
+                      <td class="tbl_header al-c" colspan="2">競輪学校順位</td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2">11回</td>
+                      <td class="al-c" colspan="2">30回</td>
+                      <td class="al-c" colspan="2">13位</td>
+                    </tr>
+                    <tr><td class="tbl_header al-c" colspan="6">卒業記念レース成績</td></tr>
+                    <tr><td class="al-c" colspan="6">3･1･5･1             </td></tr>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">200mタイム</td>
+                      <td class="tbl_header al-c" colspan="2">400mタイム</td>
+                      <td class="tbl_header al-c" colspan="2">1000mタイム</td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2">０分１１秒４８</td>
+                      <td class="al-c" colspan="2">０分２３秒５４</td>
+                      <td class="al-c" colspan="2">１分１１秒２０</td>
+                    </tr>
+                    <tr>
+                      <td class="tbl_header al-c" colspan="2">最高速度</td>
+                      <td class="tbl_header al-c" colspan="2">ダッシュ力</td>
+                      <td class="tbl_header al-c" colspan="2">持続時間</td>
+                    </tr>
+                    <tr>
+                      <td class="al-c" colspan="2">63.6km/h</td>
+                      <td class="al-c" colspan="2">9.46秒</td>
+                      <td class="al-c" colspan="2">8.75秒</td>
+                    </tr>
+                    <tr><td class="tbl_header al-c" colspan="6">表彰</td></tr>
+                    <tr><td class="al-c" colspan="6">-</td></tr>
+                  </tbody>
+                </table>
+
+              </div>
+            </div>
+          <div class="fl-r pad_t_10 wd_16">
+            <table>
+              <tbody>
+                <tr>
+                  <td class="nob v-al-t al-c">
+                    <p><img class="b-a" style="width:180px;height:240px;" src="/pc/dfw/portal/picture/sen01/sen0149/014934_00.jpg" /></p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="al-r clear-fix"><a href="#top"><img alt="ページトップへ" src="/pc/static/img/icon/totop.png" /></a></div>
+<a name="recent" id="recent"></a>
+      <div class="clear-fix col_ank">
+        <div class="fl-l">
+          <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('profile')">プロフィール</button>
+          <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('recent')">近況成績</button>
+          <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('total')">通算成績</button>
+        </div>
+        <div class="fl-r al-r">
+            <button id="itioshi_regist_2" type="button" class="btn btn_fsz onbtn itioshi_regist " disabled="false">一押し選手登録</button>
+            <p>一押し選手については<a href="/pc/static/help/PU0504.html#push" class="txt_underline" target="_blank">こちら</a></p>
+        </div>
+      </div>
+      <div>
+              <div class="midasi1_fsz">近況成績</div>
+            <p id="lblNotes5">※250競走の成績は、競走得点・各成績には反映されません。</p>
+            <p>※女子選手の2023年度GP・G1成績は、F2に含まれます。</p>
+        <div class="clear-fix"><p class="fl-r">2026/07/18 02:36&nbsp;更新</p></div>
+        <div class="clear-fix col_ank">
+          <div class="pad_t_10">
+            <p class="midasi2_fsz">■直近4ヶ月成績</p>
+            <table>
+              <tbody>
+                <tr>
+                  <td class="tbl_header al-c wd_5">1着</td>
+                  <td class="tbl_header al-c wd_5">2着</td>
+                  <td class="tbl_header al-c wd_5">3着</td>
+                  <td class="tbl_header al-c wd_5">着外</td>
+                  <td class="tbl_header al-c wd_5">棄権</td>
+                  <td class="tbl_header al-c wd_5">失格</td>
+                  <td class="tbl_header al-c wd_10">総出走回数</td>
+                  <td class="tbl_header al-c wd_10">勝率</td>
+                  <td class="tbl_header al-c wd_10">2連対率</td>
+                  <td class="tbl_header al-c wd_10">3連対率</td>
+                  <td class="tbl_header al-c wd_10">ホーム回数</td>
+                  <td class="tbl_header al-c wd_10">バック回数</td>
+                  <td class="tbl_header al-c wd_10">競走得点</td>
+                </tr>
+                <tr>
+                  <td class="al-c"><p>5回</p></td>
+                  <td class="al-c"><p>2回</p></td>
+                  <td class="al-c"><p>7回</p></td>
+                  <td class="al-c"><p>16回</p></td>
+                  <td class="al-c"><p>0回</p></td>
+                  <td class="al-c"><p>0回</p></td>
+                  <td class="al-c"><p>30回</p></td>
+                  <td class="al-c"><p>16.6%</p></td>
+                  <td class="al-c"><p>23.3%</p></td>
+                  <td class="al-c"><p>46.6%</p></td>
+                  <td class="al-c"><p>1回</p></td>
+                  <td class="al-c"><p>1回</p></td>
+                  <td class="al-c"><p>85.80</p></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pad_t_10">
+            <p class="midasi2_fsz">■開催中のレース　</p>
+              <div><span class="color_red">現在、開催中のレースには出場しておりません。</span></div>
+          </div>
+            <div class="pad_t_10">
+              <p class="midasi2_fsz">■最近の成績　成績の見方は<a class="txt_underline" onclick="resultLookClick();">こちら</a></p>
+              <table class="seiseki">
+                <tr>
+                  <td class="tbl_header al-c">直近1</td>
+                  <td class="tbl_header al-c">直近2</td>
+                  <td class="tbl_header al-c">直近3</td>
+                  <td class="tbl_header al-c">直近4</td>
+                  <td class="tbl_header al-c">直近5</td>
+                  <td class="tbl_header al-c">直近6</td>
+                  <td class="tbl_header al-c">直近7</td>
+                  <td class="tbl_header al-c">直近8</td>
+                </tr>
+                <tr>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">07/10</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'W2uRQM1igycPTuhMZ-U0HxluJbAQf-41MmWPl-1Y9aE', 'PJ0301')" class="txt_underline">伊Ｆ１</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('W2uRQM1igycPTuhMZ-U0H1ckeGFVEhpuVqRpv-w0D0Y')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('W2uRQM1igycPTuhMZ-U0HxB7pSxYRGdtDjGZHiqA0PA')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('W2uRQM1igycPTuhMZ-U0H377Kxxh_PIvv1IrQISvZsE')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">07/01</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'PJOfLLI48RrgDLu5cqJtkT8Gcbelzk7c4OIqmKdor5Y', 'PJ0301')" class="txt_underline">戸Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('PJOfLLI48RrgDLu5cqJtkabWw-EH8jSC3M69XD2DWd4')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-2.png')" title="2"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('PJOfLLI48RrgDLu5cqJtkczCha7YiMfNy9oIARXQprY')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('PJOfLLI48RrgDLu5cqJtkY9OGMsee4qh2-WlXSPP8O0')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-6.png')" title="6"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">06/22</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'oGn5WPyFKUs7MmpVS67mXT-p8UifVY211GvOGf3NpKU', 'PJ0301')" class="txt_underline">原Ｆ１</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('oGn5WPyFKUs7MmpVS67mXQVya9UzJlClKFFMua787FU')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('oGn5WPyFKUs7MmpVS67mXc-XU3_0Ra9OOlU1rdoLEFw')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-5.png')" title="5"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('oGn5WPyFKUs7MmpVS67mXawVhjjjmJO68C7wavlr1NQ')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-1.png')" title="1"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">06/01</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'u93Y_4IZiF1UgerS4eAiisMnshdJ7_DI-wSbl3AeqY0', 'PJ0301')" class="txt_underline">名Ｆ１</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u93Y_4IZiF1UgerS4eAiimLdg-zFrPfhy6tv2CcUL-w')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-6.png')" title="6"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u93Y_4IZiF1UgerS4eAiio9fXtusTRLdYGAOi4tOaDA')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u93Y_4IZiF1UgerS4eAiill4ldIZPbsu7KvmsNPlQfo')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-1.png')" title="1"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">05/23</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'T9wMz-ha1TZ640Z-S5GN5N981E5N0Ddr3kTe0_HVzho', 'PJ0301')" class="txt_underline">函Ｆ１</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('T9wMz-ha1TZ640Z-S5GN5MMggjviIC8054Ciq_zFfPs')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-1.png')" title="1"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('T9wMz-ha1TZ640Z-S5GN5MzGFnOo85OF10Um0gAWvLA')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('T9wMz-ha1TZ640Z-S5GN5NqtnAmQu_rzTt_5RpFme5k')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-7.png')" title="7"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">05/11</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'yARyZ2RxXOeo4l7Z4BiVfheBJ2zYrSvzT0EHNMcpEaI', 'PJ0301')" class="txt_underline">閣Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('yARyZ2RxXOeo4l7Z4BiVfp-JvvM3vvc5gYFaUFWS47U')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('yARyZ2RxXOeo4l7Z4BiVfpk0W_EUFhOSJIj9OZHDj9w')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('yARyZ2RxXOeo4l7Z4BiVfuKP6JSEsIQMpoZEWksRYHA')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-1.png')" title="1"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">05/04</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'u3ftnY5SRux-xk3s1TGkha3-EBuqSEkVuhSwNYhrRMk', 'PJ0301')" class="txt_underline">知Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u3ftnY5SRux-xk3s1TGkhfkeNUJBBo-cr5xSpwRFG00')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u3ftnY5SRux-xk3s1TGkhY8qYOTTgJXe-4RdWu859ug')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-6.png')" title="6"></p><p class="imgbadge_s4_B">B</p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u3ftnY5SRux-xk3s1TGkhR0QPioqqjxlEB2MZqhJ0lk')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">04/23</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'DmIwu_ksRjo1cUHhq6GFl2ofkb5VcEdVHZzVYwO_GZI', 'PJ0301')" class="txt_underline">塚Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('DmIwu_ksRjo1cUHhq6GFl-jQw2lDMLEf_rKmwBvgeXs')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-1.png')" title="1"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('DmIwu_ksRjo1cUHhq6GFlywDGmDIp8mqm-b5BqRsC7A')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('DmIwu_ksRjo1cUHhq6GFl422ODaaXdnyxsf97J9iQ-U')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Bcircle-6.png')" title="6"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="tbl_header al-c">直近9</td>
+                  <td class="tbl_header al-c">直近10</td>
+                  <td class="tbl_header al-c">直近11</td>
+                  <td class="tbl_header al-c">直近12</td>
+                  <td class="tbl_header al-c">直近13</td>
+                  <td class="tbl_header al-c">直近14</td>
+                  <td class="tbl_header al-c">直近15</td>
+                  <td class="tbl_header al-c">直近16</td>
+                </tr>
+                <tr>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">04/16</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'fh4VmOIOM0WWTQX4GRt_SKaDTHXPTU9shWNPUvpJLAc', 'PJ0301')" class="txt_underline">岐Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('fh4VmOIOM0WWTQX4GRt_SBP4wXu6A2V9s7VPlqA_72c')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('fh4VmOIOM0WWTQX4GRt_SAxae_NHFtkt0U_RscmX3cI')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-2.png')" title="2"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('fh4VmOIOM0WWTQX4GRt_SK5x2TLpscAt7PcVxbhw2vg')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">04/05</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'fnI91TdVAK41Vyxrjvt6vTv51oGv7EWlsjz9escjOO0', 'PJ0301')" class="txt_underline">取Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('fnI91TdVAK41Vyxrjvt6vdhIyB58o5Q8y2Cx1gXoIzU')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-5.png')" title="5"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('fnI91TdVAK41Vyxrjvt6vT00bWz1sXiGsob8EgsGLxQ')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('fnI91TdVAK41Vyxrjvt6vQ4vrDd4NA3DKJE7mMBsdlU')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-7.png')" title="7"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">03/16</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'u3ftnY5SRux-xk3s1TGkhWC5WgykwpBNXQ1eS7OQU7o', 'PJ0301')" class="txt_underline">知Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u3ftnY5SRux-xk3s1TGkhdDA9-mObthRaevVPMKgsRM')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-7.png')" title="7"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u3ftnY5SRux-xk3s1TGkhSA90OuAdGTJSECuIGNYAwk')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-1.png')" title="1"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('u3ftnY5SRux-xk3s1TGkhbDmsQMj3vyOxNeBtViK-tU')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">03/09</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'VB1S_PaPR1rdxlfD6hcdcL_cXgtkeOIzt-pGtWSU7ZY', 'PJ0301')" class="txt_underline">宇Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('VB1S_PaPR1rdxlfD6hcdcN8YbivaKV8NLsEhWNpm4gw')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-2.png')" title="2"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('VB1S_PaPR1rdxlfD6hcdcA5D4uzcagQ1nXByeUtxkmo')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-M.png')" title="未"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('VB1S_PaPR1rdxlfD6hcdcE5Pn-oIdVQR_8zpQtpjKt4')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-2.png')" title="2"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('VB1S_PaPR1rdxlfD6hcdcGWcF8RYUf1ISxyercioveI')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Bcircle-5.png')" title="5"></p></div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">02/21</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'cT5PUT3R6DvBoJ7bLhzW2x9CsV2cF3ko6iw4Ic3IDbE', 'PJ0301')" class="txt_underline">防Ｆ１</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('cT5PUT3R6DvBoJ7bLhzW29uRd-TgDrw3AmhWqkx5mKw')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('cT5PUT3R6DvBoJ7bLhzW236OTdr6RIkl_1v3RoZkRNY')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('cT5PUT3R6DvBoJ7bLhzW235qqdevQwWUDJ7B2jYTWGo')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-2.png')" title="2"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">02/15</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', '86UD0KmbHVSS6K2kIhuq0WtwZVItx7UuHJcwo4KJ7ak', 'PJ0301')" class="txt_underline">園Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('86UD0KmbHVSS6K2kIhuq0ZajZuOcYeOw3sk4GpVpMP0')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('86UD0KmbHVSS6K2kIhuq0XtCVWQzpgEgaub5bniX_X4')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('86UD0KmbHVSS6K2kIhuq0cCPu5b5THNyzWHOfUtgRjk')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">02/01</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'eNuNUsNFo4CVHMeFfGSwJ50oE2ydMiP4bdqp3kbDVqY', 'PJ0301')" class="txt_underline">阪Ｆ１</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('eNuNUsNFo4CVHMeFfGSwJ4ziatiafQeVBWGT0oQGS5A')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('eNuNUsNFo4CVHMeFfGSwJwZoUj8XD0_tAaLpq-X10kc')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-5.png')" title="5"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('eNuNUsNFo4CVHMeFfGSwJwH255vzNaAptBNgJOnlOF4')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-2.png')" title="2"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">01/13</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'Jf8M704WoVPTu-FwuPh-RjrVFZvJeIvyb1rkZzYZCRA', 'PJ0301')" class="txt_underline">岸Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('Jf8M704WoVPTu-FwuPh-RqIXlZwzp07mEQagKYyrtA4')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-5.png')" title="5"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('Jf8M704WoVPTu-FwuPh-RgWBnuufh2TTdFzGaYhgG-g')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-6.png')" title="6"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('Jf8M704WoVPTu-FwuPh-RvhuXFSLFBRw01svdlY4XN0')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="tbl_header al-c">直近17</td>
+                  <td class="tbl_header al-c">直近18</td>
+                  <td class="tbl_header al-c">直近19</td>
+                  <td class="tbl_header al-c">直近20</td>
+                </tr>
+                <tr>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">01/03</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'oGn5WPyFKUs7MmpVS67mXb369pnOIODjM5PO3xpndS4', 'PJ0301')" class="txt_underline">原Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="4" class="al-c over nob ">病気欠場
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">12/17</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'h__77j4w8AlDcHCZGhh7w5EpC26flfA8ayFkoDX9Y1I', 'PJ0301')" class="txt_underline">伊Ｆ１</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('h__77j4w8AlDcHCZGhh7w5eUEQ9svx9tpvxD2JiC11Q')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-normal-3.png')" title="3"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob clc"><div class="clc dispib" style="width:35px" href="#" onclick="rbTyokinResultClick('h__77j4w8AlDcHCZGhh7wznqcKud0HnTnsIqV84RJh4')"><p class="imgbadge_s4" style="background-image: url('/pc/static/img/icon/print/setP-Wcircle-4.png')" title="4"></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob "><div class="dispib" style="width: 35px;"><p title="途中欠場" class="imgbadge_s4" style='background-image: url("/pc/static/img/icon/print/id_setp-normal-to.png");'></p></div>
+                        </td>
+                        <td colspan="1" class="al-c over nob ">
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">11/30</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'SuKJIPVhVoiNK6nnisncLwadvzpZ7suNjkMBboQsgKM', 'PJ0301')" class="txt_underline">広Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="4" class="al-c over nob ">負傷欠場
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:top;">
+                    <table class="seiseki_kobetsu">
+                      <tr>
+                        <td colspan="2" class="nb-a al-l">11/23</td>
+                        <td colspan="2" class="nb-a al-r"><a onclick="rbClick('lnk_racelist', 'mGxEUYJ7i9241bn6zoi-0qN2OT6mQwq6_tPcalPEFoc', 'PJ0301')" class="txt_underline">静Ｆ２</a></td>
+                      </tr>
+                      <tr>
+                        <td colspan="4" class="al-c over nob ">負傷欠場
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <div id="graph" class="clear-fix">
+              <div class="dispib v-al-t col_graph_fix">
+                <div class="pad_t_10">
+                  <p class="midasi2_fsz">■出場予定</p>
+                  <table>
+                    <thead>
+                      <tr>
+                        <td class="tbl_header al-c" colspan="3">開催場　グレード</td>
+                        <td class="tbl_header al-c" colspan="3">月/日</td>
+                        <td class="nb-a" colspan="1" style="background-color:#FFFFFF"></td>
+                      </tr>
+                    </thead>
+                    <tbody class="altertable">
+                      <tr>
+                        <td class="al-c" colspan="3"><a onclick="rbClick('lnk_racelist', 'D4DOyhWP8yD6jQkjiiZ35A3pJvlK5S1k00ldvFl2Chs', 'PJ0302')" class="txt_underline">和歌山 Ｆ２</a></td>
+                        <td class="al-c" colspan="3">07/24～07/26</td>
+                        <td class="nb-a" colspan="1" style="background-color:#FFFFFF"></td>
+                      </tr>
+                      <tr>
+                        <td class="al-c" colspan="3"><a onclick="rbClick('lnk_racelist', 'VB1S_PaPR1rdxlfD6hcdcPXLXCy9F8ugo3cHpAII4gM', 'PJ0302')" class="txt_underline">宇都宮 Ｆ２</a></td>
+                        <td class="al-c" colspan="3">08/06～08/08</td>
+                        <td class="nb-a" colspan="1" style="background-color:#FFFFFF"></td>
+                      </tr>
+                      <tr>
+                        <td class="al-c" colspan="3"><a onclick="rbClick('lnk_racelist', 'pwzdqoQWyXU0o-0Slea_GTIbJFXpa3IpMWAPTYlH4nQ', 'PJ0302')" class="txt_underline">佐世保 Ｆ２</a></td>
+                        <td class="al-c" colspan="3">08/18～08/20</td>
+                        <td class="nb-a" colspan="1" style="background-color:#FFFFFF"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="pad_t_10">
+                  <p class="midasi2_fsz">■連対時の決まり手</p>
+                  <table>
+                    <tbody>
+                      <tr class="hgt_140px"><td class="v-al-b" style="padding: 0px;" colspan="3"><p class="al-c">0%</p></td><td class="v-al-b" style="padding: 0px;" colspan="3"><p class="al-c">0%</p></td><td class="v-al-b" style="padding: 0px;" colspan="3"><p class="al-c">86%</p><table class="al-c barchart" style="height:94.6px"><tr><td class="klmari_sashi_graph"></td></tr></table></td><td class="v-al-b" style="padding: 0px;" colspan="3"><p class="al-c">14%</p><table class="al-c barchart" style="height:15.4px"><tr><td class="klmari_mark_graph"></td></tr></table></td>
+                        <td class="nb-a" colspan="2" style="background-color:#FFFFFF"></td>
+                      </tr>
+                      <tr>
+                        <td class="tbl_header al-c" colspan="3">逃げ</td>
+                        <td class="tbl_header al-c" colspan="3">捲り</td>
+                        <td class="tbl_header al-c" colspan="3">差し</td>
+                        <td class="tbl_header al-c" colspan="3">マーク</td>
+                        <td class="nb-a" colspan="2" style="background-color:#FFFFFF"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="dispib col_9102_fix">
+                <div class="pad_t_10">
+                  <div class="midasi2_fsz">平均競走得点遷移グラフ　<span class="color_red">赤線：直近4ヶ月</span>　<span class="color_blue">青線：直近4ヶ月（今期のみ）</span></div>
+                    <div id="over_kyosotokuten2" class="over_kyosotokuten"></div><div xmlns="http://www.w3.org/1999/xhtml">
+   <div id="over_kyosotokuten" class="over_kyosotokuten">
+     <div id="ptGraphArea">
+       <p class="al-c" style="PADDING-BOTTOM: 10px; PADDING-TOP: 5px; PADDING-LEFT: 0px; PADDING-RIGHT: 0px">
+       <canvas id="canvas_tokuten" class="b-a" style="BACKGROUND-COLOR: #ffffff" width="970" height="455">
+       </canvas>
+       </p>
+     </div>
+     <div id="ptHyoArea">
+     </div>
+     <div id="ptErrmsgArea">
+     </div>
+   </div>
+</div> 
+                    
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="al-r clear-fix"><a href="#top"><img alt="ページトップへ" src="/pc/static/img/icon/totop.png" /></a></div>
+        <a name="total" id="total"></a>
+        <div class="clear-fix col_ank">
+          <div class="fl-l">
+            <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('profile')">プロフィール</button>
+            <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('recent')">近況成績</button>
+            <button class="btn btn_fsz onbtn" type="button" onclick="shLocalJump('total')">通算成績</button>
+          </div>
+          <div class="fl-r al-r">
+            <button id="itioshi_regist_3" type="button" class="btn btn_fsz onbtn itioshi_regist " disabled="false">一押し選手登録</button>
+            <p>一押し選手については<a href="/pc/static/help/PU0504.html#push" class="txt_underline" target="_blank">こちら</a></p>
+          </div>
+        </div>
+        <div>
+          <div class="midasi1_fsz">通算成績</div>
+            <p id="lblNotes6">※250競走の成績は、競走得点・各成績には反映されません。</p>
+            <p>※女子選手の2023年度GP・G1成績は、F2に含まれます。</p>
+          <div class="clear-fix">
+            <p class="fl-r">2026/07/13 02:35&nbsp;更新</p>
+          </div>
+          <div class="clear-fix">
+            <div class="pad_t_10">
+              <p class="midasi2_fsz">■デビュー</p>
+              <table>
+                <tbody>
+                  <tr>
+                    <td class="tbl_header wd_196 al-c" colspan="3">年月日</td>
+                    <td class="tbl_header wd_98 al-c" colspan="1">競輪場</td>
+                    <td class="tbl_header wd_296 al-c" colspan="3">成績</td>
+                    <td class="nb-a" colspan="6" style="background-color:#FFFFFF"></td>
+                  </tr>
+                  <tr>
+                    <td class="al-c" colspan="3">2013/07/02</td>
+                    <td class="al-c" colspan="1">函　館</td>
+                    <td class="al-c" colspan="3">6.4.2</td>
+                    <td class="nb-a" colspan="6" style="background-color:#FFFFFF"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pad_t_10">
+              <p class="midasi2_fsz">■初勝利・初優勝</p>
+              <table>
+                <thead>
+                  <tr>
+                    <td class="tbl_header al-c" colspan="1"></td>
+                    <td class="tbl_header al-c" colspan="6">初勝利</td>
+                    <td class="tbl_header al-c" colspan="6">初優勝</td>
+                  </tr>
+                  <tr>
+                    <td class="al-c tbl_header" colspan="1"></td>
+                    <td class="al-c tbl_header" colspan="2">年月日</td>
+                    <td class="al-c tbl_header" colspan="1">競輪場</td>
+                    <td class="al-c tbl_header" colspan="3">成績</td>
+                    <td class="al-c tbl_header" colspan="2">年月日</td>
+                    <td class="al-c tbl_header" colspan="1">競輪場</td>
+                    <td class="al-c tbl_header" colspan="3">成績</td>
+                  </tr>
+                </thead>
+                <tbody class="altertable">
+                  <tr>
+                    <td class="al-c" colspan="1">Ｂ級</td>
+                    <td class="al-c" colspan="2">-</td>
+                    <td class="al-c" colspan="1">-</td>
+                    <td class="al-c" colspan="3">-</td>
+                    <td class="al-c" colspan="2">-</td>
+                    <td class="al-c" colspan="1">-</td>
+                    <td class="al-c" colspan="3">-</td>
+                  </tr>
+                  <tr>
+                    <td class="al-c" colspan="1">Ａ級</td>
+                    <td class="al-c" colspan="2">2013/07/26</td>
+                    <td class="al-c" colspan="1">宇都宮</td>
+                    <td class="al-c" colspan="3">2.4.1</td>
+                    <td class="al-c" colspan="2">2014/06/28</td>
+                    <td class="al-c" colspan="1">防　府</td>
+                    <td class="al-c" colspan="3">1.1.1</td>
+                  </tr>
+                  <tr>
+                    <td class="al-c" colspan="1">Ｓ級</td>
+                    <td class="al-c" colspan="2">-</td>
+                    <td class="al-c" colspan="1">-</td>
+                    <td class="al-c" colspan="3">-</td>
+                    <td class="al-c" colspan="2">-</td>
+                    <td class="al-c" colspan="1">-</td>
+                    <td class="al-c" colspan="3">-</td>
+                  </tr>
+                  <tr>
+                    <td class="al-c" colspan="1">特別競輪</td>
+                    <td class="al-c" colspan="2">-</td>
+                    <td class="al-c" colspan="1">-</td>
+                    <td class="al-c" colspan="3">-</td>
+                    <td class="al-c" colspan="2">-</td>
+                    <td class="al-c" colspan="1">-</td>
+                    <td class="al-c" colspan="3">-</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pad_t_10">
+              <p class="midasi2_fsz">■通算成績</p>
+              <table>
+                <thead>
+                  <tr>
+                    <td class="tbl_header al-c" colspan="2">総出走回数</td>
+                    <td class="tbl_header al-c">出走数</td>
+                    <td class="tbl_header al-c">優勝</td>
+                    <td class="tbl_header al-c">1着</td>
+                    <td class="tbl_header al-c">2着</td>
+                    <td class="tbl_header al-c">3着</td>
+                    <td class="tbl_header al-c">着外</td>
+                    <td class="tbl_header al-c">棄権</td>
+                    <td class="tbl_header al-c">失格</td>
+                    <td class="tbl_header al-c">勝率</td>
+                    <td class="tbl_header al-c">2連対率</td>
+                    <td class="tbl_header al-c">3連対率</td>
+                  </tr>
+                </thead>
+                <tbody class="altertable">
+	              <tr>
+                    <td class="nb-t td_b_b2" style="vertical-align:top;background-color:#FFFFFF" rowspan="3">～１昨年
+                    </td>
+	                <td class="al-c">合計</td>
+	                <td class="al-c">839</td>
+	                <td class="al-c">6</td>
+	                <td class="al-c">120</td>
+	                <td class="al-c">118</td>
+	                <td class="al-c">115</td>
+	                <td class="al-c">465</td>
+	                <td class="al-c">18</td>
+	                <td class="al-c">4</td>
+	                <td class="al-c">14.3%</td>
+	                <td class="al-c">28.3%</td>
+	                <td class="al-c">42.0%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c">Ｆ２</td>
+	                <td class="al-c">602</td>
+	                <td class="al-c">6</td>
+	                <td class="al-c">104</td>
+	                <td class="al-c">93</td>
+	                <td class="al-c">90</td>
+	                <td class="al-c">300</td>
+	                <td class="al-c">14</td>
+	                <td class="al-c">2</td>
+	                <td class="al-c">17.2%</td>
+	                <td class="al-c">32.7%</td>
+	                <td class="al-c">47.6%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c td_b_b2">Ｆ１</td>
+	                <td class="al-c td_b_b2">237</td>
+	                <td class="al-c td_b_b2">0</td>
+	                <td class="al-c td_b_b2">16</td>
+	                <td class="al-c td_b_b2">25</td>
+	                <td class="al-c td_b_b2">25</td>
+	                <td class="al-c td_b_b2">165</td>
+	                <td class="al-c td_b_b2">4</td>
+	                <td class="al-c td_b_b2">2</td>
+	                <td class="al-c td_b_b2">6.7%</td>
+	                <td class="al-c td_b_b2">17.2%</td>
+	                <td class="al-c td_b_b2">27.8%</td>
+	              </tr>
+	              <tr>
+                    <td class="nb-t td_b_b2" style="vertical-align:top;background-color:#FFFFFF" rowspan="3">昨年
+                    </td>
+	                <td class="al-c">合計</td>
+	                <td class="al-c">80</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">9</td>
+	                <td class="al-c">17</td>
+	                <td class="al-c">19</td>
+	                <td class="al-c">32</td>
+	                <td class="al-c">1</td>
+	                <td class="al-c">3</td>
+	                <td class="al-c">11.2%</td>
+	                <td class="al-c">32.5%</td>
+	                <td class="al-c">56.2%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c">Ｆ２</td>
+	                <td class="al-c">57</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">9</td>
+	                <td class="al-c">9</td>
+	                <td class="al-c">13</td>
+	                <td class="al-c">26</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">15.7%</td>
+	                <td class="al-c">31.5%</td>
+	                <td class="al-c">54.3%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c td_b_b2">Ｆ１</td>
+	                <td class="al-c td_b_b2">23</td>
+	                <td class="al-c td_b_b2">0</td>
+	                <td class="al-c td_b_b2">0</td>
+	                <td class="al-c td_b_b2">8</td>
+	                <td class="al-c td_b_b2">6</td>
+	                <td class="al-c td_b_b2">6</td>
+	                <td class="al-c td_b_b2">1</td>
+	                <td class="al-c td_b_b2">3</td>
+	                <td class="al-c td_b_b2">0.0%</td>
+	                <td class="al-c td_b_b2">34.7%</td>
+	                <td class="al-c td_b_b2">60.8%</td>
+	              </tr>
+	              <tr>
+                    <td class="nb-t td_b_b2" style="vertical-align:top;background-color:#FFFFFF" rowspan="3">本年
+                    </td>
+	                <td class="al-c">合計</td>
+	                <td class="al-c">48</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">6</td>
+	                <td class="al-c">6</td>
+	                <td class="al-c">10</td>
+	                <td class="al-c">26</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">12.5%</td>
+	                <td class="al-c">25.0%</td>
+	                <td class="al-c">45.8%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c">Ｆ２</td>
+	                <td class="al-c">30</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">3</td>
+	                <td class="al-c">4</td>
+	                <td class="al-c">7</td>
+	                <td class="al-c">16</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">10.0%</td>
+	                <td class="al-c">23.3%</td>
+	                <td class="al-c">46.6%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c td_b_b2">Ｆ１</td>
+	                <td class="al-c td_b_b2">18</td>
+	                <td class="al-c td_b_b2">0</td>
+	                <td class="al-c td_b_b2">3</td>
+	                <td class="al-c td_b_b2">2</td>
+	                <td class="al-c td_b_b2">3</td>
+	                <td class="al-c td_b_b2">10</td>
+	                <td class="al-c td_b_b2">0</td>
+	                <td class="al-c td_b_b2">0</td>
+	                <td class="al-c td_b_b2">16.6%</td>
+	                <td class="al-c td_b_b2">27.7%</td>
+	                <td class="al-c td_b_b2">44.4%</td>
+	              </tr>
+	              <tr>
+                    <td class="nb-t" style="vertical-align:top;background-color:#FFFFFF" rowspan="3">通算
+                    </td>
+	                <td class="al-c">合計</td>
+	                <td class="al-c">967</td>
+	                <td class="al-c">6</td>
+	                <td class="al-c">135</td>
+	                <td class="al-c">141</td>
+	                <td class="al-c">144</td>
+	                <td class="al-c">523</td>
+	                <td class="al-c">19</td>
+	                <td class="al-c">7</td>
+	                <td class="al-c">13.9%</td>
+	                <td class="al-c">28.5%</td>
+	                <td class="al-c">43.4%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c">Ｆ２</td>
+	                <td class="al-c">689</td>
+	                <td class="al-c">6</td>
+	                <td class="al-c">116</td>
+	                <td class="al-c">106</td>
+	                <td class="al-c">110</td>
+	                <td class="al-c">342</td>
+	                <td class="al-c">14</td>
+	                <td class="al-c">2</td>
+	                <td class="al-c">16.8%</td>
+	                <td class="al-c">32.2%</td>
+	                <td class="al-c">48.1%</td>
+	              </tr>
+	              <tr>
+	                <td class="al-c">Ｆ１</td>
+	                <td class="al-c">278</td>
+	                <td class="al-c">0</td>
+	                <td class="al-c">19</td>
+	                <td class="al-c">35</td>
+	                <td class="al-c">34</td>
+	                <td class="al-c">181</td>
+	                <td class="al-c">5</td>
+	                <td class="al-c">5</td>
+	                <td class="al-c">6.8%</td>
+	                <td class="al-c">19.4%</td>
+	                <td class="al-c">31.6%</td>
+	              </tr>
+                </tbody>
+              </table>
+              <p class="al-r">※1975年（昭和50年）以前の競走成績は含みません。</p>
+            </div>
+            <div class="pad_t_10">
+              <p class="midasi2_fsz">■節目勝数達成</p>
+              <table>
+                <thead>
+                  <tr>
+                    <td class="tbl_header al-c" colspan="1">勝数</td>
+                    <td class="tbl_header al-c" colspan="2">達成日</td>
+                    <td class="tbl_header al-c" colspan="1">競輪場</td>
+                    <td class="nb-a" colspan="9" style="background-color:#FFFFFF"></td>
+                  </tr>
+                </thead>
+                <tbody class="altertable">
+                  <tr>
+                    <td class="al-c" colspan="1">100</td>
+                    <td class="al-c" colspan="2">2022/03/16</td>
+                    <td class="al-c" colspan="1">大　垣</td>
+                    <td colspan="9" class="nb-a" style="background-color:#FFFFFF"></td>
+                  </tr>
+                </tbody>
+              </table>
+              <table><tbody><tr><td class="nb-a al-r" colspan="4"><p>※1975年（昭和50年）以前の競走成績を含みます。</p></td><td class="nb-a" colspan="9"></td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+        <div class="al-r clear-fix"><a href="#top"><img alt="ページトップへ" src="/pc/static/img/icon/totop.png" /></a></div>
+      </div>
+    </div><div lang="ja" xmlns="http://www.w3.org/1999/xhtml"> 
+   <div class="al-r clear-fix toppageto" id="shbtnTop"><img id="shLinkTopOfPage" onclick="window.location.href=&quot;#top&quot;" alt="ページトップへ" src="/pc/static/img/icon/totop.png" style="cursor:pointer" />
+   </div>
+   <div class="al-r clear-fix toppageto" id="shbtnTopoff" style="height: 20px;"></div>
+
+   <footer class="footer">
+     <div class="container clear-fix">
+     <a target="_blank" role="button" id="sfLinkGuideandHelp" jname="操作ガイド/ヘルプ" onclick="sfLinkClick(0)">操作ガイド/ヘルプ</a> |
+     <a role="button" id="sfLinkinquiry" jname="お問い合わせ" onclick="sfLinkClick(1)">お問い合わせ</a><input id="sfHdnLink_1" type="hidden" name="sfHdnLink_1" value="/pc/dfw/portal/guest/site/otoiawase.html" /> |
+<noscript>
+     <a role="button" id="sfLinkUseenvironment" jname="お客様利用環境表示" href="/pc/userenvironment">お客様利用環境表示</a>
+</noscript>
+<script>
+//<![CDATA[
+	var htmltxt = '<a role="button" id="sfLinkUseenvironment"  jname="お客様利用環境表示" onclick="sfLinkClick(2)" >お客様利用環境表示</a>';
+     document.write(htmltxt);
+//]]>
+</script><input id="sfHdnLink_2" type="hidden" name="sfHdnLink_2" value="/pc/userenvironment" /> |      
+     <a role="button" id="sfLinkSiteMap" jname="サイトマップ" onclick="sfLinkClick(3)">サイトマップ</a><input id="sfHdnLink_3" type="hidden" name="sfHdnLink_3" value="/pc/dfw/portal/guest/sitemap/index.html" /> |
+     <a role="button" id="sfLinkSitePolicy" jname="サイトポリシー" onclick="sfLinkClick(4)">サイトポリシー</a><input id="sfHdnLink_4" type="hidden" name="sfHdnLink_4" value="/pc/dfw/portal/guest/policy/index.html" /> |
+     <a role="button" id="sfLinkSumahoSite" jname="スマホサイト" onclick="sfLinkClick(5)">スマホサイト</a><input id="sfHdnLink_5" type="hidden" name="sfHdnLink_5" value="https://keirin.jp/sp/top" />    
+       <div class="fl-r copyright">COPYRIGHT JKA. ALL RIGHTS  RESERVED.</div>
+     </div><input id="sfHelpLink" type="hidden" name="sfHelpLink" value="https://keirin.jp/pc/static/help/PU0601.html" />   
+   </footer>
+<script>
+	sfLoadingFinalize();
+//<![CDATA[
+    var anaxhr = new XMLHttpRequest();
+    var anaURL = location.protocol + '//' + location.host + '/pc' + '/ana';
+    anaxhr.open("GET", anaURL);
+    anaxhr.setRequestHeader("X-KEIRINJP-ANA-SCREEN", screen.width+"x"+screen.height);
+    anaxhr.setRequestHeader("X-KEIRINJP-ANA-URI", window.location.href);
+    if("anaJsonType" in window){
+      anaxhr.setRequestHeader("X-KEIRINJP-ANA-JSONTYPE", anaJsonType);
+    }
+    anaxhr.send();
+   
+//]]>
+</script>
+</div><div xmlns="http://www.w3.org/1999/xhtml">
+<div id="tanten_ari">
+<div id="tan_div" class="dispoff">
+	<table class="kara100p_tbl" border="0" width="100%"><tbody><tr>
+		<td style="width: 476px;">
+			<table class="tanten_ari_tbl">
+				<tbody><tr>
+					<th>競輪場</th>
+					<th>グレード</th>
+					<th>開催日</th>
+					<th>レース</th>
+					<th>種目</th>
+				</tr>
+				<tr>
+					<td id="piKeirinjyo"></td>
+					<td class="grade" id="piGrade"></td>
+					<td class="kdate" id="piKaisaihi"></td>
+					<td id="piRaceNo"></td>
+					<td id="piSyumoku"></td>
+				</tr>
+			</tbody></table>
+		</td>
+		<td style="width: 30px;">
+		</td>
+		<td>
+			<div class="fl-r clear-fix" style="padding-right: 20px;">
+				<button class="btn onbtn" style="width: 130px;" type="button" id="pibtnResult">競走結果</button>
+				<div class="wsp10"></div>
+				<button class="btn onbtn" style="width: 130px;" type="button" id="pibtnDigest"><img height="16" style="margin-right: 6px;" alt="film" src="/pc/static/img/icon/ico_film.png" />ダイジェスト</button>
+			</div>
+		</td>
+	</tr></tbody></table>
+
+	<div style="padding-top: 5px;" id="pidivBs">
+		<p>■ ＢＳ通過順位・短評</p>
+		<table class="tanten_ari_tbl_bs">
+			<thead>
+				<tr>
+					<th style="width: 46px;">着</th>
+					<th style="width: 86px;">ＢＳ<br />通過順位</th>
+					<th style="width: 76px;">車番</th>
+					<th style="width: 160px;">選手名</th>
+					<th style="width: 730px;">短評</th>
+				</tr>
+			</thead>
+			<tbody id="pitbodyBs">
+			</tbody>
+		</table>
+	</div>
+	
+	<div class="inline_top" style="width: 200px; margin-right: 10px; padding-top: 5px;" id="pidivSyaban">
+		<p id="pipSyabanTitle">■ 車番</p>
+		<table id="pitableSyaban" class="tanten_ari_tbl_sya" style="width: 100%; height: 305px;">
+		</table>
+		<div id="piSyabanComment" class="al-c">今開催出場選手は<br />太字で表示されます。</div>
+	</div>
+
+	<div class="inline_top" style="width: 300px; margin-right: 10px; padding-top: 5px;" id="pidivTenkai">
+		<p>■ レース展開<img height="16" class="yajirusi_left" src="/pc/static/img/member_left_short.png" /></p>
+		<table class="tanten_ari_tbl_race" style="width: 100%;">
+			<tbody>
+			<tr>
+				<th class="al-c" style="width: 25%;">周回中</th>
+				<td style="width: 75%;">
+					<table id="piTableTenkaiGoing" class="rece_deployment" style="width: 100%; table-layout: fixed;">
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<th class="al-c">打鐘</th>
+				<td>
+					<table id="piTableTenkaiBell" class="rece_deployment" style="width: 100%; table-layout: fixed;">
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<th class="al-c">ＨＳ</th>
+				<td>
+					<table id="piTableTenkaiHS" class="rece_deployment" style="width: 100%; table-layout: fixed;">
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<th class="al-c">ＢＳ</th>
+				<td>
+					<table id="piTableTenkaiBS" class="rece_deployment" style="width: 100%; table-layout: fixed;">
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<th class="al-c">ゴール前</th>
+				<td>
+					<table id="piTableTenkaiGoal" class="rece_deployment" style="width: 100%; table-layout: fixed;">
+					</table>
+				</td>
+			</tr>
+		</tbody></table>
+	</div>
+	
+	<div class="inline_top" style="width: 290px; margin-right: 10px; padding-top: 5px;" id="pidivHarai">
+		<p>■ 払戻金</p>
+		<table class="tanten_ari_tbl_modoshi" style="width: 100%;">
+			<tbody id="pitbodyHarai">
+			</tbody>
+		</table>
+	</div>
+	
+	<div class="inline_top" style="width: 270px; padding-top: 5px;" id="pidivBiko">
+		<p>■ 備考</p>
+		<table class="bikou_tbl" style="height: 305px;">
+			<tbody><tr>
+				<td><div id="pilblBiko"></div></td>
+			</tr>
+		</tbody></table>
+	</div>
+	<div style="text-align: center; padding-top: 10px;" id="pidivTeikyo"><p id="pipTeikyo"></p></div>
+</div>
+<div id="tan_err_div" class="dispoff"></div>
+</div>
+</div>
+    <div id="conf_save_racerprofile" class="conf_save_racerprofile">
+      <div><input id="itiosiUrl" type="hidden" name="itiosiUrl" value="" />
+      </div>
+    </div><input id="codeConfError" type="hidden" name="codeConfError" value="" />
+  </div><input id="lnk_racelive" type="hidden" value="/pc/racelive"><input id="lnk_racelist" type="hidden" value="/pc/racelist"><input id="lnk_racelist" type="hidden" value="/pc/racelist"><input id="lnk_racelive" type="hidden" value="/pc/racelive"><input id="lnk_racelive" type="hidden" value="/pc/racelive"><input id="lnk_digest" type="hidden" value="/pc/digest">
+<div id="raceInfoSubHelp" class="raceInfoSubHelp">
+  <iframe id="PY0107" class="raceInfoSubHelpFrame" src="/pc/static/help/PY0107.html" allowtransparency="true" frameborder="0" height="100%" width="100%" scrolling="no"></iframe>
+</div></body></html>
