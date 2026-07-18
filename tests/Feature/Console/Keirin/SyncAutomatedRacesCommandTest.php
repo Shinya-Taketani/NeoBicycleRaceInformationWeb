@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console\Keirin;
 
 use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
+use App\Domain\Keirin\Scraping\Parsers\RaceLiveResultParser;
 use App\Models\BatchRunItem;
 use App\Models\Player;
 use App\Models\Race;
@@ -330,6 +331,71 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $this->assertSame('CONFIRMED', $race->refresh()->result_status);
     }
 
+    public function test_nine_car_live_result_sync_preserves_long_raw_json_and_import_history(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        Player::query()->create([
+            'source' => 'keirin_jp',
+            'external_player_id' => 'existing-player',
+            'registration_number' => 'existing-player',
+            'name' => '既存選手',
+        ]);
+        $race = $this->raceWithEntries(1, 'enc-nine-result', 9);
+        $detailResponse = $this->nineEntrantDetailHtml();
+        $completeResultResponse = $this->nineEntrantResultHtml();
+        $completeResult = (new EmbeddedJsonExtractor)->extract($completeResultResponse, 'PJ0326');
+        $partialResultResponse = $this->resultHtmlWith(function (array $result) use ($completeResult): array {
+            $result = $completeResult;
+            $result['tyakujyunItemSubData'] = array_slice($result['tyakujyunItemSubData'], 0, 8);
+
+            return $result;
+        });
+        $resultResponse = $partialResultResponse;
+        Http::fake(function (Request $request) use ($detailResponse, &$resultResponse) {
+            parse_str($request->body(), $form);
+
+            return ($form['disp'] ?? null) === 'PJ0315'
+                ? Http::response($detailResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8'])
+                : Http::response($resultResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        });
+        $arguments = [
+            '--date' => '2026-06-16',
+            '--race-id' => (string) $race->id,
+            '--sleep-ms' => '1',
+        ];
+
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+        $failedImport = RaceResultImport::query()->where('race_id', $race->id)->firstOrFail();
+        $this->assertSame('FAILED', $failedImport->import_status);
+        $this->assertSame(0, RaceResult::query()->where('race_id', $race->id)->count());
+
+        $resultResponse = $completeResultResponse;
+        $this->assertSame(0, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+        $this->assertSame(0, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+
+        $parsed = $this->app->make(RaceLiveResultParser::class)->parse($completeResultResponse);
+        $expectedRawByBike = [];
+        foreach ($parsed->resultPage->results as $result) {
+            $expectedRawByBike[$result->bikeNumber] = $result->rawText;
+        }
+        foreach (RaceResult::query()->where('race_id', $race->id)->get() as $storedResult) {
+            $expectedRaw = $expectedRawByBike[$storedResult->bike_number];
+            $this->assertGreaterThan(255, mb_strlen($expectedRaw));
+            $this->assertSame($expectedRaw, $storedResult->raw_result_text);
+        }
+
+        $this->assertSame(9, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame(8, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertSame(7, RacePayout::query()->where('race_id', $race->id)->distinct()->count('bet_type_code'));
+        $this->assertSame(3, RaceResultImport::query()->where('race_id', $race->id)->count());
+        $this->assertSame(1, RaceResultImport::query()->whereKey($failedImport->id)->where('import_status', 'FAILED')->count());
+        $this->assertSame(2, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'SUCCEEDED')->count());
+        $this->assertSame(1, Player::query()->count());
+        $this->assertSame(1, Race::query()->count());
+        $this->assertSame(9, RaceEntry::query()->where('race_id', $race->id)->count());
+    }
+
     private function meetingWithDays(): RaceMeeting
     {
         $track = Racetrack::query()->create(['source' => 'keirin_jp', 'external_track_id' => '56', 'name' => '合成競輪場']);
@@ -459,6 +525,64 @@ class SyncAutomatedRacesCommandTest extends TestCase
                 'sensyuRegistNo' => '000008',
                 'kimarite' => '',
                 'kojinStateItemSubData' => [],
+            ];
+
+            return $result;
+        });
+    }
+
+    private function nineEntrantDetailHtml(): string
+    {
+        $extractor = new EmbeddedJsonExtractor;
+        $fixture = $this->eightEntrantDetailHtml();
+        $context = $extractor->extract($fixture, 'PC0201');
+        $detail = $extractor->extract($fixture, 'PJ0315');
+        $context['C0201data']['C0201racedtl']['C0201sensyu'][] = [
+            'carNum' => 9,
+            'numPlayer' => '000009',
+        ];
+        $detail['sensyuTypeInfo'][] = [
+            'syaban' => '9',
+            'wakuban' => '7',
+            'sensyuRegistNo' => '000009',
+            'sensyuName' => '選手 9',
+            'huKen' => '京都',
+            'kyuhan' => 'S2',
+            'kyakusitu' => '両',
+            'heikinTokuten' => '99.00',
+        ];
+
+        return '<!doctype html><html><body><script>jsonData["PC0201"] = '
+            .json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .'; jsonData["PJ0315"] = '
+            .json_encode($detail, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .';</script></body></html>';
+    }
+
+    private function nineEntrantResultHtml(): string
+    {
+        return $this->resultHtmlWith(function (array $result): array {
+            foreach ($result['tyakujyunItemSubData'] as &$row) {
+                $row['rawPayload'] = str_repeat('長', 300);
+            }
+            unset($row);
+            $result['tyakujyunItemSubData'][] = [
+                'tyaku' => '6',
+                'syaban' => '8',
+                'sensyuName' => '選手 8',
+                'sensyuRegistNo' => '000008',
+                'kimarite' => '',
+                'kojinStateItemSubData' => [],
+                'rawPayload' => str_repeat('長', 300),
+            ];
+            $result['tyakujyunItemSubData'][] = [
+                'tyaku' => '7',
+                'syaban' => '9',
+                'sensyuName' => '選手 9',
+                'sensyuRegistNo' => '000009',
+                'kimarite' => '',
+                'kojinStateItemSubData' => [],
+                'rawPayload' => str_repeat('長', 300),
             ];
 
             return $result;
