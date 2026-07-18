@@ -43,6 +43,26 @@ class SyncPlayersCommandTest extends TestCase
         $this->assertSame(0, BatchRunItem::query()->where('status', 'RUNNING')->count());
     }
 
+    public function test_single_page_s_class_sync_honors_limit_players(): void
+    {
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        Http::fake(['keirin.jp/*' => Http::response(
+            file_get_contents(base_path('tests/Fixtures/Keirin/actual/player_search_s_class.html')),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        )]);
+
+        $this->artisan('keirin:players:sync', [
+            '--grade-code' => '15',
+            '--limit-players' => '3',
+            '--sleep-ms' => '0',
+        ])->assertExitCode(0);
+
+        $this->assertSame(3, Player::query()->count());
+        $this->assertSame(1, BatchRunItem::query()->where('item_type', 'PLAYER_LIST_PAGE')->where('status', 'SUCCEEDED')->count());
+        Http::assertSentCount(1);
+    }
+
     public function test_first_page_parser_failure_stops_grade(): void
     {
         config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0, 'keirin.male_grade_codes' => ['15']]);

@@ -75,18 +75,28 @@ class PlayerListParser
             throw new ParserException('No players were parsed from a search result page.');
         }
 
+        $totalCount = $this->extractTotalCount($text);
+        $currentPage = $this->extractCurrentPage($crawler, $text);
+        $explicitLastPage = $this->extractLastPage($text);
+        $lastPage = $this->resolveLastPage(
+            explicitLastPage: $explicitLastPage,
+            currentPage: $currentPage,
+            totalCount: $totalCount,
+            parsedPlayerCount: count($players),
+            hasNextPageIndicator: $this->hasNextPageIndicator($crawler, $currentPage),
+        );
+
         return new PlayerListPageDto(
             players: $players,
-            totalCount: $this->extractTotalCount($crawler),
-            currentPage: $this->extractCurrentPage($crawler),
-            lastPage: $this->extractLastPage($crawler),
-            sourceUpdatedAt: $this->extractUpdatedAt($crawler),
+            totalCount: $totalCount,
+            currentPage: $currentPage,
+            lastPage: $lastPage,
+            sourceUpdatedAt: $this->extractUpdatedAt($text),
         );
     }
 
-    private function extractTotalCount(Crawler $crawler): ?int
+    private function extractTotalCount(string $text): ?int
     {
-        $text = HtmlTextNormalizer::normalize($crawler->text(null, false)) ?? '';
         if (preg_match('/([0-9]+)件見つかりました/u', $text, $matches) === 1) {
             return (int) $matches[1];
         }
@@ -94,19 +104,26 @@ class PlayerListParser
         return null;
     }
 
-    private function extractCurrentPage(Crawler $crawler): int
+    private function extractCurrentPage(Crawler $crawler, string $text): int
     {
-        $text = HtmlTextNormalizer::normalize($crawler->text(null, false)) ?? '';
         if (preg_match('/ページ\s*([0-9]+)\/[0-9]+/u', $text, $matches) === 1) {
             return (int) $matches[1];
         }
 
-        return 1;
+        $formPages = $crawler->filter('input[type="hidden"][name="dppg"]')->each(
+            fn (Crawler $input): ?int => $this->positiveInteger($input->attr('value')),
+        );
+        $formPages = array_values(array_unique(array_filter($formPages, fn (?int $page): bool => $page !== null)));
+
+        if (count($formPages) === 1) {
+            return $formPages[0];
+        }
+
+        throw new ParserException('Player currentPage could not be determined.');
     }
 
-    private function extractLastPage(Crawler $crawler): ?int
+    private function extractLastPage(string $text): ?int
     {
-        $text = HtmlTextNormalizer::normalize($crawler->text(null, false)) ?? '';
         if (preg_match('/ページ\s*[0-9]+\/([0-9]+)/u', $text, $matches) === 1) {
             return (int) $matches[1];
         }
@@ -114,9 +131,77 @@ class PlayerListParser
         return null;
     }
 
-    private function extractUpdatedAt(Crawler $crawler): ?DateTimeImmutable
+    private function resolveLastPage(
+        ?int $explicitLastPage,
+        int $currentPage,
+        ?int $totalCount,
+        int $parsedPlayerCount,
+        bool $hasNextPageIndicator,
+    ): int {
+        if ($explicitLastPage !== null) {
+            return $explicitLastPage;
+        }
+
+        if ($currentPage === 1 && $totalCount !== null && $totalCount === $parsedPlayerCount && ! $hasNextPageIndicator) {
+            return 1;
+        }
+
+        if ($totalCount === null) {
+            throw new ParserException('Player totalCount and lastPage could not be determined.');
+        }
+
+        if ($totalCount > $parsedPlayerCount) {
+            throw new ParserException("Player lastPage was missing although totalCount={$totalCount} exceeded parsed players={$parsedPlayerCount}.");
+        }
+
+        if ($hasNextPageIndicator) {
+            throw new ParserException('Player lastPage was missing although a next-page indicator was present.');
+        }
+
+        throw new ParserException('Player lastPage could not be determined safely.');
+    }
+
+    private function hasNextPageIndicator(Crawler $crawler, int $currentPage): bool
     {
-        $text = HtmlTextNormalizer::normalize($crawler->text(null, false)) ?? '';
+        foreach ($crawler->filter('a, button, input')->getIterator() as $element) {
+            $control = new Crawler($element);
+            if ($control->attr('disabled') !== null || $control->attr('aria-disabled') === 'true') {
+                continue;
+            }
+
+            $label = HtmlTextNormalizer::normalize(implode(' ', array_filter([
+                $control->text(null, false),
+                $control->attr('value'),
+                $control->attr('aria-label'),
+                $control->attr('title'),
+            ], fn (?string $value): bool => $value !== null))) ?? '';
+
+            if (str_contains($label, '次へ') || str_contains($label, '次ページ') || str_contains($label, '次のページ') || strtoupper($label) === 'NEXT') {
+                return true;
+            }
+
+            $navigation = implode(' ', array_filter([
+                $control->attr('href'),
+                $control->attr('onclick'),
+                $control->attr('formaction'),
+            ], fn (?string $value): bool => $value !== null));
+            if (preg_match('/(?:[?&]dppg=|pageChange\(\s*[\'\"]?)([0-9]+)/i', $navigation, $matches) === 1 && (int) $matches[1] > $currentPage) {
+                return true;
+            }
+
+            if ($control->attr('name') === 'dppg') {
+                $targetPage = $this->positiveInteger($control->attr('value'));
+                if ($targetPage !== null && $targetPage > $currentPage) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function extractUpdatedAt(string $text): ?DateTimeImmutable
+    {
         if (preg_match('/([0-9]{4}\/[0-9]{2}\/[0-9]{2}\s+[0-9]{2}:[0-9]{2})\s*更新/u', $text, $matches) === 1) {
             return new DateTimeImmutable(str_replace('/', '-', $matches[1]));
         }
@@ -131,5 +216,14 @@ class PlayerListParser
         $host = $parts['host'] ?? parse_url((string) config('keirin.base_url'), PHP_URL_HOST);
 
         return "{$scheme}://{$host}{$path}";
+    }
+
+    private function positiveInteger(?string $value): ?int
+    {
+        if ($value === null || preg_match('/^[1-9][0-9]*$/', $value) !== 1) {
+            return null;
+        }
+
+        return (int) $value;
     }
 }

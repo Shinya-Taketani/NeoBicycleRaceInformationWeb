@@ -18,11 +18,63 @@ class PlayerListParserTest extends TestCase
 
         $this->assertSame(9, $page->totalCount);
         $this->assertSame(1, $page->currentPage);
+        $this->assertSame(1, $page->lastPage);
         $this->assertCount(9, $page->players);
         $this->assertSame('015035', $page->players[0]->externalPlayerId);
         $this->assertSame('阿部　拓真', $page->players[0]->name);
         $this->assertSame('SS', $page->players[0]->grade);
         $this->assertSame('male', $page->players[0]->gender);
+    }
+
+    public function test_it_rejects_missing_last_page_when_total_count_exceeds_parsed_players(): void
+    {
+        $this->expectException(ParserException::class);
+        $this->expectExceptionMessage('totalCount=20 exceeded parsed players=10');
+
+        (new PlayerListParser)->parse(
+            file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/player_search_missing_pagination_20_of_10.html'),
+            'https://keirin.jp/sp/racersearchresult?dppg=1',
+        );
+    }
+
+    public function test_it_rejects_missing_total_count_and_last_page(): void
+    {
+        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/actual/player_search_s_class.html');
+        $html = preg_replace('/<span id="UNQ_orlabel_2">9<\/span>件見つかりました。/u', '', $html);
+
+        $this->expectException(ParserException::class);
+        $this->expectExceptionMessage('Player totalCount and lastPage could not be determined.');
+
+        (new PlayerListParser)->parse((string) $html, 'https://keirin.jp/sp/racersearchresult?dppg=1');
+    }
+
+    public function test_explicit_page_fraction_takes_priority(): void
+    {
+        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/actual/player_search_s_class.html');
+
+        $page = (new PlayerListParser)->parse($html.'<div>ページ 1/3</div>', 'https://keirin.jp/sp/racersearchresult?dppg=1');
+
+        $this->assertSame(1, $page->currentPage);
+        $this->assertSame(3, $page->lastPage);
+    }
+
+    public function test_it_rejects_single_page_fallback_when_a_next_page_indicator_exists(): void
+    {
+        $html = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/actual/player_search_s_class.html');
+        $indicators = [
+            'link' => '<a href="/sp/racersearchresult?dppg=2">次へ</a>',
+            'button' => '<button type="button" onclick="pageChange(2)">次ページ</button>',
+            'form value' => '<input type="submit" name="dppg" value="2">',
+        ];
+
+        foreach ($indicators as $case => $indicator) {
+            try {
+                (new PlayerListParser)->parse($html.$indicator, 'https://keirin.jp/sp/racersearchresult?dppg=1');
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (ParserException $exception) {
+                $this->assertStringContainsString('a next-page indicator was present', $exception->getMessage());
+            }
+        }
     }
 
     public function test_it_rejects_too_broad_search_results(): void
