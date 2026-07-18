@@ -49,4 +49,16 @@ class RaceEntrantExpectationResolverTest extends TestCase
             }
         }
     }
+
+    public function test_automated_sync_accepts_non_standard_count_only_with_authoritative_entries(): void
+    {
+        $resolver = new RaceEntrantExpectationResolver;
+        $expected = $resolver->resolveFromValues(6, range(1, 6), allowAuthoritativeNonStandardCount: true);
+
+        $this->assertSame(6, $expected->count);
+        $this->assertSame(range(1, 6), $expected->bikeNumbers);
+
+        $this->expectException(RaceResultCompletenessException::class);
+        $resolver->resolveFromValues(6, [], allowAuthoritativeNonStandardCount: true);
+    }
 }

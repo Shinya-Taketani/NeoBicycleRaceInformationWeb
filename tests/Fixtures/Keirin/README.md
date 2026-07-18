@@ -14,3 +14,5 @@ Keirin fixture policy
 Some fixture contents may be minimized to avoid unnecessary personal data and to keep tests focused. Runtime scraping never falls back to fixtures.
 
 Official race result detail pages have not yet been confirmed as full real-page fixtures in this repository, so current race result fixtures are synthetic.
+
+The `synthetic/race-sync-*` fixtures are minimized from the key structures observed in the saved JSJ001, JSJ017, PJ0315, and PJ0326 research responses. Encrypted parameters, rider identities, and meeting names are fictional. They cover six meeting days, 12 races, 7-car and 9-car fields, embedded race details, abnormal result statuses, and all supported payout types. Full research responses under `storage/app/private/research` are not fixtures and must not be committed.

@@ -18,5 +18,6 @@ readonly class FetchedResponseDto
         public ?string $contentType,
         public DateTimeImmutable $fetchedAt,
         public int $retryCount = 0,
+        public array $requestParameters = [],
     ) {}
 }

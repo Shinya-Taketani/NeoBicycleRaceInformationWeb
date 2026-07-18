@@ -7,6 +7,7 @@ namespace App\Domain\Keirin\Scraping\Services;
 use App\Domain\Keirin\Scraping\DTO\ConvertedBodyDto;
 use App\Domain\Keirin\Scraping\DTO\ParsedRaceResultPageDto;
 use App\Domain\Keirin\Scraping\DTO\StoredImportedRawFileDto;
+use App\Domain\Keirin\Scraping\DTO\StoredRawResponseDto;
 use App\Domain\Keirin\Scraping\Enums\FetchErrorType;
 use App\Domain\Keirin\Scraping\Enums\ParsedRaceResultPageStatus;
 use App\Domain\Keirin\Scraping\Enums\RaceResultStatus;
@@ -117,6 +118,61 @@ class RaceResultImportService
         }
     }
 
+    /**
+     * Import a response already fetched and logged by the automated synchronization batch.
+     *
+     * @return array{results:int,payouts:int,race:Race,import:RaceResultImport,status:string}
+     */
+    public function importStoredResponse(
+        Race $race,
+        BatchRun $run,
+        BatchRunItem $item,
+        StoredRawResponseDto $storedRaw,
+        ParsedRaceResultPageDto $page,
+        string $sourceUrl,
+        RaceResultStatus $requestedResultStatus,
+    ): array {
+        $import = RaceResultImport::query()->create([
+            'race_id' => $race->id,
+            'batch_run_id' => $run->id,
+            'batch_run_item_id' => $item->id,
+            'scraping_fetch_log_id' => $storedRaw->fetchLogId,
+            'source_url' => $sourceUrl,
+            'source_hash' => $storedRaw->sha256,
+            'raw_file_path' => $storedRaw->rawFilePath,
+            'detected_encoding' => $storedRaw->detectedEncoding,
+            'utf8_conversion_succeeded' => $storedRaw->utf8ConversionSucceeded,
+            'raw_response_size' => $storedRaw->responseSize,
+            'converted_hash' => hash('sha256', $storedRaw->utf8Body),
+            'parser_version' => (string) config('keirin.parser_version'),
+            'requested_result_status' => $requestedResultStatus->value,
+            'import_status' => 'RUNNING',
+            'imported_at' => new DateTimeImmutable('now'),
+        ]);
+
+        try {
+            $this->validateRequestedStatus($page, $requestedResultStatus);
+            $result = match ($page->pageStatus) {
+                ParsedRaceResultPageStatus::ResultsAvailable => $this->syncAvailableResults($race, $import, $page, $sourceUrl, $requestedResultStatus, allowAuthoritativeNonStandardCount: true),
+                ParsedRaceResultPageStatus::Unavailable,
+                ParsedRaceResultPageStatus::UnderReview => $this->skipUnavailableResult($race, $import, $page, $sourceUrl, $requestedResultStatus),
+                ParsedRaceResultPageStatus::Cancelled => $this->syncCancelled($race, $import, $page, $sourceUrl, $requestedResultStatus),
+            };
+
+            return [
+                'results' => $result['results'],
+                'payouts' => $result['payouts'],
+                'race' => $race->refresh(),
+                'import' => $import->refresh(),
+                'status' => $result['status'],
+            ];
+        } catch (Throwable $throwable) {
+            $this->failImport($import, $throwable);
+
+            throw $throwable;
+        }
+    }
+
     private function findRace(?int $raceId, ?string $externalRaceId): ?Race
     {
         return Race::query()
@@ -191,13 +247,18 @@ class RaceResultImportService
         ParsedRaceResultPageDto $page,
         string $sourceUrl,
         RaceResultStatus $requestedResultStatus,
+        bool $allowAuthoritativeNonStandardCount = false,
     ): array {
-        $expectedEntrants = $this->entrantExpectations->resolve($race);
+        $expectedEntrants = $this->entrantExpectations->resolve($race, allowAuthoritativeNonStandardCount: $allowAuthoritativeNonStandardCount);
         $this->completenessValidator->validate($page, $expectedEntrants);
 
-        DB::transaction(function () use ($race, $import, $page, $sourceUrl, $requestedResultStatus): void {
+        DB::transaction(function () use ($race, $import, $page, $sourceUrl, $requestedResultStatus, $allowAuthoritativeNonStandardCount): void {
             $lockedRace = Race::query()->whereKey($race->id)->lockForUpdate()->firstOrFail();
-            $lockedExpectedEntrants = $this->entrantExpectations->resolve($lockedRace, lockForUpdate: true);
+            $lockedExpectedEntrants = $this->entrantExpectations->resolve(
+                $lockedRace,
+                lockForUpdate: true,
+                allowAuthoritativeNonStandardCount: $allowAuthoritativeNonStandardCount,
+            );
             $this->completenessValidator->validate($page, $lockedExpectedEntrants);
             $this->assertTransitionAllowed($lockedRace, $requestedResultStatus);
             $fetchedAt = CarbonImmutable::now();

@@ -42,4 +42,22 @@ class KeirinHttpClientTest extends TestCase
         $this->assertSame(500, $response->httpStatus);
         $this->assertSame('error', $response->body);
     }
+
+    public function test_it_posts_form_data_with_headers_and_records_parameters(): void
+    {
+        config(['keirin.sleep_ms' => 0]);
+        Http::fake(['keirin.jp/*' => Http::response('<html>ok</html>', 200, ['Content-Type' => 'text/html; charset=UTF-8'])]);
+
+        $response = (new KeirinHttpClient)->postForm('/pc/racelist', [
+            'disp' => 'PJ0301',
+            'encp' => 'encrypted-value',
+        ], 0, ['Referer' => 'https://keirin.jp/pc/racelist']);
+
+        $this->assertSame('POST', $response->method);
+        $this->assertSame(['disp' => 'PJ0301', 'encp' => 'encrypted-value'], $response->requestParameters);
+        Http::assertSent(fn ($request): bool => $request->method() === 'POST'
+            && $request['disp'] === 'PJ0301'
+            && $request['encp'] === 'encrypted-value'
+            && $request->hasHeader('Referer', 'https://keirin.jp/pc/racelist'));
+    }
 }

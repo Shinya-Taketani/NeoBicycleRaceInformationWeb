@@ -22,7 +22,17 @@ class KeirinHttpClient
         $this->connectionFailures = $connectionFailures ?? new ConnectionFailureClassifier;
     }
 
-    public function get(string $pathOrUrl, array $query = [], ?int $sleepMsOverride = null): FetchedResponseDto
+    public function get(string $pathOrUrl, array $query = [], ?int $sleepMsOverride = null, array $headers = []): FetchedResponseDto
+    {
+        return $this->request('GET', $pathOrUrl, $query, $sleepMsOverride, $headers);
+    }
+
+    public function postForm(string $pathOrUrl, array $form, ?int $sleepMsOverride = null, array $headers = []): FetchedResponseDto
+    {
+        return $this->request('POST', $pathOrUrl, $form, $sleepMsOverride, $headers);
+    }
+
+    private function request(string $method, string $pathOrUrl, array $parameters, ?int $sleepMsOverride, array $headers): FetchedResponseDto
     {
         $url = $this->url($pathOrUrl);
         $sleepMs = $sleepMsOverride ?? (int) config('keirin.sleep_ms', 1000);
@@ -35,9 +45,10 @@ class KeirinHttpClient
         $response = null;
 
         try {
-            $response = Http::withHeaders([
+            $request = Http::withHeaders([
                 'User-Agent' => (string) config('keirin.user_agent'),
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                ...$headers,
             ])
                 ->connectTimeout((float) config('keirin.connect_timeout_seconds', 5))
                 ->timeout((float) config('keirin.timeout_seconds', 20))
@@ -60,15 +71,18 @@ class KeirinHttpClient
                         return false;
                     },
                     throw: false,
-                )
-                ->get($url, $query);
+                );
+
+            $response = $method === 'POST'
+                ? $request->asForm()->post($url, $parameters)
+                : $request->get($url, $parameters);
         } catch (ConnectionException $exception) {
             throw new KeirinHttpException(
                 $this->connectionFailures->classify($exception),
                 $url,
                 $exception->getMessage(),
                 null,
-                $this->emptyResponse($url, $query, $retryCount),
+                $this->emptyResponse($method, $url, $parameters, $retryCount),
                 $exception,
             );
         }
@@ -79,14 +93,15 @@ class KeirinHttpClient
 
         return new FetchedResponseDto(
             source: (string) config('keirin.source'),
-            method: 'GET',
+            method: $method,
             url: $response->effectiveUri() !== null ? (string) $response->effectiveUri() : $url,
-            requestKey: $this->requestKey($url, $query),
+            requestKey: $this->requestKey($method, $url, $parameters),
             httpStatus: $response->status(),
             body: $response->body(),
             contentType: $response->header('Content-Type'),
             fetchedAt: new DateTimeImmutable('now'),
             retryCount: $retryCount,
+            requestParameters: $parameters,
         );
     }
 
@@ -99,25 +114,26 @@ class KeirinHttpClient
         return rtrim((string) config('keirin.base_url'), '/').'/'.ltrim($pathOrUrl, '/');
     }
 
-    private function requestKey(string $url, array $query): string
+    private function requestKey(string $method, string $url, array $parameters): string
     {
-        ksort($query);
+        ksort($parameters);
 
-        return hash('sha256', $url.'?'.http_build_query($query));
+        return hash('sha256', $method.' '.$url.'?'.http_build_query($parameters));
     }
 
-    private function emptyResponse(string $url, array $query, int $retryCount): FetchedResponseDto
+    private function emptyResponse(string $method, string $url, array $parameters, int $retryCount): FetchedResponseDto
     {
         return new FetchedResponseDto(
             source: (string) config('keirin.source'),
-            method: 'GET',
+            method: $method,
             url: $url,
-            requestKey: $this->requestKey($url, $query),
+            requestKey: $this->requestKey($method, $url, $parameters),
             httpStatus: null,
             body: '',
             contentType: null,
             fetchedAt: new DateTimeImmutable('now'),
             retryCount: $retryCount,
+            requestParameters: $parameters,
         );
     }
 }

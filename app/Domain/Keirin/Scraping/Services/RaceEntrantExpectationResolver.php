@@ -12,7 +12,7 @@ use App\Models\RaceEntry;
 
 class RaceEntrantExpectationResolver
 {
-    public function resolve(Race $race, bool $lockForUpdate = false): ExpectedRaceEntrantsDto
+    public function resolve(Race $race, bool $lockForUpdate = false, bool $allowAuthoritativeNonStandardCount = false): ExpectedRaceEntrantsDto
     {
         $query = RaceEntry::query()
             ->where('race_id', $race->id)
@@ -25,18 +25,21 @@ class RaceEntrantExpectationResolver
         return $this->resolveFromValues(
             $race->entrant_count === null ? null : (int) $race->entrant_count,
             $query->pluck('bike_number')->all(),
+            $allowAuthoritativeNonStandardCount,
         );
     }
 
     /**
      * @param  list<int|string|null>  $entryBikeNumbers
      */
-    public function resolveFromValues(?int $entrantCount, array $entryBikeNumbers): ExpectedRaceEntrantsDto
+    public function resolveFromValues(?int $entrantCount, array $entryBikeNumbers, bool $allowAuthoritativeNonStandardCount = false): ExpectedRaceEntrantsDto
     {
         if ($entryBikeNumbers !== []) {
             $bikeNumbers = $this->normalizeBikeNumbers($entryBikeNumbers);
             $entryCount = count($bikeNumbers);
-            $this->assertSupportedCount($entryCount);
+            if (! $allowAuthoritativeNonStandardCount) {
+                $this->assertSupportedCount($entryCount);
+            }
 
             if ($entrantCount !== null && $entrantCount !== $entryCount) {
                 throw new RaceResultCompletenessException("Race entry count mismatch: entries={$entryCount}, entrant_count={$entrantCount}.");

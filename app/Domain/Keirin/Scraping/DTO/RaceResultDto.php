@@ -15,5 +15,15 @@ readonly class RaceResultDto
         public RaceEntryResultStatus $status,
         public ?string $winningTechnique,
         public ?string $rawText,
+        public ?string $externalPlayerId = null,
+        public ?int $age = null,
+        public ?string $prefecture = null,
+        public ?string $graduationPeriod = null,
+        public ?string $grade = null,
+        public ?string $margin = null,
+        public ?string $finishTime = null,
+        public ?string $backHome = null,
+        public ?string $lineRank = null,
+        public array $individualStates = [],
     ) {}
 }

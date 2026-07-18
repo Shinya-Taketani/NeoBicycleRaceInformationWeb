@@ -15,6 +15,7 @@ class RaceDay extends Model
         'day_number',
         'race_list_url',
         'result_list_url',
+        'encrypted_parameter',
         'last_fetched_at',
     ];
 

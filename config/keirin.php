@@ -13,13 +13,16 @@ return [
     'sleep_ms' => (int) env('KEIRIN_SLEEP_MS', 1000),
     'parser_version' => env('KEIRIN_PARSER_VERSION', '2026-07-18-initial'),
     'raw_disk' => env('KEIRIN_RAW_DISK', 'local'),
-    'raw_root' => env('KEIRIN_RAW_ROOT', 'private/scraping/raw'),
-    'raw_import_root' => env('KEIRIN_RAW_IMPORT_ROOT', 'private/scraping/raw-import'),
+    'raw_root' => env('KEIRIN_RAW_ROOT', 'scraping/raw'),
+    'raw_import_root' => env('KEIRIN_RAW_IMPORT_ROOT', 'scraping/raw-import'),
     'max_player_pages_per_grade' => (int) env('KEIRIN_MAX_PLAYER_PAGES_PER_GRADE', 100),
     'routes' => [
         'player_search_result' => '/sp/racersearchresult',
         'player_detail_pc' => '/pc/racerprofile',
         'race_schedule' => '/pc/raceschedule',
+        'race_list' => '/pc/racelist',
+        'race_json' => '/pc/json',
+        'race_live' => '/pc/racelive',
     ],
     'male_grade_codes' => [
         '15', // S級S班
