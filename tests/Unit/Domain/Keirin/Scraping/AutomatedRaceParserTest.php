@@ -40,30 +40,31 @@ class AutomatedRaceParserTest extends TestCase
         $this->assertCount(12, $page->races);
     }
 
-    public function test_it_parses_twelve_races_seven_and_nine_car_fields_and_leading_zero_ids(): void
+    public function test_it_parses_twelve_races_six_through_nine_car_fields_and_leading_zero_ids(): void
     {
         $page = (new RaceEntryListParser)->parse($this->fixture('race-sync-jsj017.json'));
 
         $this->assertCount(12, $page->races);
         $this->assertCount(7, $page->races[0]->entries);
         $this->assertCount(9, $page->races[1]->entries);
-        $this->assertCount(6, $page->races[2]->entries);
+        $this->assertCount(8, $page->races[2]->entries);
+        $this->assertCount(6, $page->races[3]->entries);
         $this->assertSame(RaceCategory::Men, $page->races[0]->category);
         $this->assertSame('000001', $page->races[0]->entries[0]->externalPlayerId);
     }
 
-    public function test_it_accepts_only_six_seven_or_nine_entrants_per_race(): void
+    public function test_it_accepts_only_six_through_nine_entrants_for_mens_races(): void
     {
         $fixture = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
 
-        foreach ([6, 7, 9] as $count) {
+        foreach ([6, 7, 8, 9] as $count) {
             $json = $fixture;
             $json['rInfo'][0]['sInfo'] = array_slice($fixture['rInfo'][1]['sInfo'], 0, $count);
             $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
             $this->assertCount($count, $page->races[0]->entries);
         }
 
-        foreach ([1, 2, 5] as $count) {
+        foreach ([1, 2, 3, 4, 5] as $count) {
             $json = $fixture;
             $json['rInfo'][0]['sInfo'] = array_slice($fixture['rInfo'][0]['sInfo'], 0, $count);
             try {
@@ -83,6 +84,52 @@ class AutomatedRaceParserTest extends TestCase
             $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
 
             $this->assertSame(RaceCategory::Girls, $page->races[0]->category);
+        }
+    }
+
+    public function test_unsupported_categories_bypass_mens_entrant_count_validation(): void
+    {
+        foreach ([
+            'Ｌ級ガールズ予選' => RaceCategory::Girls,
+            'カテゴリ未定' => RaceCategory::Unknown,
+        ] as $raceType => $expectedCategory) {
+            foreach ([5, 8] as $count) {
+                $json = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+                $json['rInfo'][0]['syumoku'] = $raceType;
+                $json['rInfo'][0]['sInfo'] = array_slice($json['rInfo'][2]['sInfo'], 0, $count);
+
+                $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+
+                $this->assertSame($expectedCategory, $page->races[0]->category);
+                $this->assertCount($count, $page->races[0]->entries);
+            }
+        }
+    }
+
+    public function test_structurally_invalid_entrants_are_rejected_independently_of_count_validation(): void
+    {
+        $fixture = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $invalidCases = [
+            'duplicate bike number' => function (array &$json): void {
+                $json['rInfo'][0]['sInfo'][1]['syaban'] = 1;
+            },
+            'out of range bike number' => function (array &$json): void {
+                $json['rInfo'][0]['sInfo'][0]['syaban'] = 10;
+            },
+            'invalid registration number' => function (array &$json): void {
+                $json['rInfo'][0]['sInfo'][0]['senNo'] = 'invalid';
+            },
+        ];
+
+        foreach ($invalidCases as $case => $mutate) {
+            $json = $fixture;
+            $mutate($json);
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
         }
     }
 

@@ -7,6 +7,7 @@ namespace App\Domain\Keirin\Scraping\Parsers;
 use App\Domain\Keirin\Scraping\DTO\RaceEntryListPageDto;
 use App\Domain\Keirin\Scraping\DTO\RaceListEntryDto;
 use App\Domain\Keirin\Scraping\DTO\RaceListRaceDto;
+use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Exceptions\ParserException;
 use App\Domain\Keirin\Scraping\Support\HtmlTextNormalizer;
 use App\Domain\Keirin\Scraping\Support\RaceCategoryPolicy;
@@ -57,6 +58,9 @@ class RaceEntryListParser
             if (! is_array($rawRace)) {
                 throw new ParserException('JSJ017 race was invalid.');
             }
+            $raceNumber = $this->integer($rawRace['raceNo'] ?? null, 'raceNo', 1, 99);
+            $raceType = HtmlTextNormalizer::normalize(is_string($rawRace['syumoku'] ?? null) ? $rawRace['syumoku'] : null);
+            $category = $this->categories->classify($raceType);
             $entries = [];
             $rawEntries = $rawRace['sInfo'] ?? null;
             if (! is_array($rawEntries) || $rawEntries === []) {
@@ -84,9 +88,9 @@ class RaceEntryListParser
                 throw new ParserException('JSJ017 contained duplicate bike numbers.');
             }
 
-            $raceNumber = $this->integer($rawRace['raceNo'] ?? null, 'raceNo', 1, 99);
-            $raceType = HtmlTextNormalizer::normalize(is_string($rawRace['syumoku'] ?? null) ? $rawRace['syumoku'] : null);
-            $this->entrantCounts->assertSupported(count($entries), "JSJ017 race {$raceNumber}");
+            if ($category === RaceCategory::Men) {
+                $this->entrantCounts->assertSupported(count($entries), "JSJ017 race {$raceNumber}");
+            }
 
             $races[] = new RaceListRaceDto(
                 raceNumber: $raceNumber,
@@ -94,7 +98,7 @@ class RaceEntryListParser
                 salesCloseTime: $this->time($rawRace['denTime'] ?? null, 'denTime'),
                 startTime: $this->time($rawRace['stTime'] ?? null, 'stTime'),
                 resultAvailable: (string) ($rawRace['resultFlg'] ?? '') === '1',
-                category: $this->categories->classify($raceType),
+                category: $category,
                 entries: $entries,
             );
         }

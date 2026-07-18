@@ -50,10 +50,10 @@ class RaceEntrantExpectationResolverTest extends TestCase
         }
     }
 
-    public function test_six_seven_and_nine_entrants_are_supported_with_or_without_entry_rows(): void
+    public function test_six_through_nine_entrants_are_supported_with_or_without_entry_rows(): void
     {
         $resolver = new RaceEntrantExpectationResolver;
-        foreach ([6, 7, 9] as $count) {
+        foreach ([6, 7, 8, 9] as $count) {
             $fromEntries = $resolver->resolveFromValues($count, range(1, $count));
             $fromCount = $resolver->resolveFromValues($count, []);
 

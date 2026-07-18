@@ -9,7 +9,7 @@ use App\Domain\Keirin\Scraping\Exceptions\ParserException;
 class RaceEntrantCountPolicy
 {
     /** @var list<int> */
-    private const SUPPORTED_COUNTS = [6, 7, 9];
+    private const SUPPORTED_COUNTS = [6, 7, 8, 9];
 
     public function assertSupported(int $count, string $context): void
     {
