@@ -9,6 +9,8 @@ Keirin fixture policy
 
 `synthetic/player_search_missing_pagination_20_of_10.html` is an anonymized, minimal player-search structure for the inconsistent case where 20 results are reported but only 10 players are present and no page count is rendered.
 
+`synthetic/player_search_foreign_rider_page.html` is an anonymized, minimal reproduction of a player-search page containing both a normal domestic row and a foreign-rider row without `UNQ_orlabel_6`. It preserves the observed page 23/46 structure while excluding real rider identity data.
+
 Some fixture contents may be minimized to avoid unnecessary personal data and to keep tests focused. Runtime scraping never falls back to fixtures.
 
 Official race result detail pages have not yet been confirmed as full real-page fixtures in this repository, so current race result fixtures are synthetic.

@@ -75,6 +75,37 @@ class SyncPlayersCommandTest extends TestCase
         $this->assertSame(0, BatchRunItem::query()->where('item_key', 'player-list:15:all:2')->count());
     }
 
+    public function test_foreign_rider_page_sync_succeeds_without_field_shift(): void
+    {
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        Http::fake(['keirin.jp/*' => Http::response(
+            file_get_contents(base_path('tests/Fixtures/Keirin/synthetic/player_search_foreign_rider_page.html')),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        )]);
+
+        $this->artisan('keirin:players:sync', [
+            '--grade-code' => '12',
+            '--page' => '23',
+            '--limit-players' => '2',
+            '--sleep-ms' => '0',
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseHas('players', [
+            'external_player_id' => '900002',
+            'name' => 'テスト　ライダー',
+            'name_kana' => null,
+            'current_grade' => 'S2',
+            'district' => '外国',
+            'prefecture' => 'イギリス',
+            'graduation_period' => null,
+            'home_bank' => null,
+            'riding_style' => '両',
+        ]);
+        $this->assertSame(2, Player::query()->count());
+        Http::assertSentCount(1);
+    }
+
     public function test_second_page_failure_does_not_fetch_third_page(): void
     {
         config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0, 'keirin.male_grade_codes' => ['15']]);

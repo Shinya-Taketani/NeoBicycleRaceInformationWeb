@@ -30,45 +30,7 @@ class PlayerListParser
 
         $players = [];
         $crawler->filterXPath('//td[contains(@onclick, "sensyuLink(")]')->each(function (Crawler $node) use (&$players, $sourceUrl): void {
-            $onclick = $node->attr('onclick') ?? '';
-            if (preg_match("/sensyuLink\\('([0-9]+)'\\)/", $onclick, $matches) !== 1) {
-                return;
-            }
-
-            $externalId = $matches[1];
-            $nameKana = HtmlTextNormalizer::normalize($node->filter('p')->eq(0)->text(null, false));
-            $name = HtmlTextNormalizer::normalize($node->filter('p')->eq(1)->text(null, false));
-            if ($name === null) {
-                throw new ParserException("Player name was missing for {$externalId}.");
-            }
-
-            $outerTable = $node->ancestors()->filter('table.btn25pv2')->first();
-            $spans = $outerTable->filter('span')->each(
-                fn (Crawler $span): ?string => HtmlTextNormalizer::normalize($span->text(null, false))
-            );
-
-            $registrationNumber = $spans[2] ?? $externalId;
-            $grade = GradeNormalizer::normalize($spans[3] ?? null);
-            $district = HtmlTextNormalizer::normalize($spans[4] ?? null);
-            $prefecture = HtmlTextNormalizer::normalize($spans[5] ?? null);
-            $graduationPeriod = HtmlTextNormalizer::normalize($spans[6] ?? null);
-            $age = isset($spans[7]) ? (int) HtmlTextNormalizer::digits($spans[7]) : null;
-            $homeBank = HtmlTextNormalizer::normalize($spans[8] ?? null);
-            $ridingStyle = HtmlTextNormalizer::normalize($spans[9] ?? null);
-
-            $players[] = new PlayerSummaryDto(
-                externalPlayerId: $registrationNumber,
-                name: $name,
-                nameKana: $nameKana,
-                grade: $grade,
-                district: $district,
-                prefecture: $prefecture,
-                graduationPeriod: $graduationPeriod,
-                age: $age,
-                homeBank: $homeBank,
-                ridingStyle: $ridingStyle,
-                detailUrl: $this->absoluteUrl($sourceUrl, '/pc/racerprofile?snum='.$registrationNumber),
-            );
+            $players[] = $this->parsePlayer($node, $sourceUrl);
         });
 
         if ($players === []) {
@@ -93,6 +55,70 @@ class PlayerListParser
             lastPage: $lastPage,
             sourceUpdatedAt: $this->extractUpdatedAt($text),
         );
+    }
+
+    private function parsePlayer(Crawler $node, string $sourceUrl): PlayerSummaryDto
+    {
+        $onclick = $node->attr('onclick') ?? '';
+        if (preg_match("/sensyuLink\\('([0-9]+)'\\)/", $onclick, $matches) !== 1) {
+            throw new ParserException("Player external ID could not be parsed from onclick: {$onclick}");
+        }
+
+        $externalId = $matches[1];
+        $outerTables = $node->ancestors()->filter('table.btn25pv2');
+        if ($outerTables->count() === 0) {
+            throw new ParserException("Player row table could not be determined for {$externalId}.");
+        }
+
+        $outerTable = $outerTables->first();
+        $nameKana = $this->spanValue($outerTable, 'UNQ_orlabel_6', $externalId);
+        $name = $this->requiredSpanValue($outerTable, 'UNQ_orlabel_8', 'name', $externalId);
+        $registrationNumber = $this->requiredSpanValue($outerTable, 'UNQ_orlabel_9', 'registration number', $externalId);
+        $rawGrade = $this->requiredSpanValue($outerTable, 'UNQ_orlabel_10', 'grade', $externalId);
+
+        if ($registrationNumber !== $externalId) {
+            throw new ParserException("Player registration number mismatch for {$externalId}: parsed {$registrationNumber}.");
+        }
+
+        $ageDigits = HtmlTextNormalizer::digits($this->spanValue($outerTable, 'UNQ_orlabel_14', $externalId));
+
+        return new PlayerSummaryDto(
+            externalPlayerId: $externalId,
+            name: $name,
+            nameKana: $nameKana,
+            grade: GradeNormalizer::normalize($rawGrade),
+            district: $this->spanValue($outerTable, 'UNQ_orlabel_11', $externalId),
+            prefecture: $this->spanValue($outerTable, 'UNQ_orlabel_12', $externalId),
+            graduationPeriod: $this->spanValue($outerTable, 'UNQ_orlabel_13', $externalId),
+            age: $ageDigits === null ? null : (int) $ageDigits,
+            homeBank: $this->spanValue($outerTable, 'UNQ_orlabel_15', $externalId),
+            ridingStyle: $this->spanValue($outerTable, 'UNQ_orlabel_16', $externalId),
+            detailUrl: $this->absoluteUrl($sourceUrl, '/pc/racerprofile?snum='.$externalId),
+        );
+    }
+
+    private function requiredSpanValue(Crawler $outerTable, string $idSuffix, string $field, string $externalId): string
+    {
+        $value = $this->spanValue($outerTable, $idSuffix, $externalId);
+        if ($value === null) {
+            throw new ParserException("Player {$field} was missing for {$externalId}.");
+        }
+
+        return $value;
+    }
+
+    private function spanValue(Crawler $outerTable, string $idSuffix, string $externalId): ?string
+    {
+        $spans = $outerTable->filter('span[id$="'.$idSuffix.'"]');
+        if ($spans->count() > 1) {
+            throw new ParserException("Player field {$idSuffix} appeared more than once for {$externalId}.");
+        }
+
+        if ($spans->count() === 0) {
+            return null;
+        }
+
+        return HtmlTextNormalizer::normalize($spans->first()->text(null, false));
     }
 
     private function extractTotalCount(string $text): ?int
