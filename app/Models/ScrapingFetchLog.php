@@ -14,6 +14,7 @@ class ScrapingFetchLog extends Model
         'request_method',
         'request_url',
         'request_key',
+        'request_parameters',
         'http_status',
         'fetched_at',
         'content_type',
@@ -35,6 +36,7 @@ class ScrapingFetchLog extends Model
             'fetched_at' => 'immutable_datetime',
             'utf8_conversion_succeeded' => 'boolean',
             'metadata' => 'array',
+            'request_parameters' => 'array',
         ];
     }
 }

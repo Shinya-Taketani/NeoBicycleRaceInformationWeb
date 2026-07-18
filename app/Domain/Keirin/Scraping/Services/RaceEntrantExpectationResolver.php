@@ -94,7 +94,7 @@ class RaceEntrantExpectationResolver
 
     private function assertSupportedCount(int $count): void
     {
-        if (! in_array($count, [7, 9], true)) {
+        if (! in_array($count, [6, 7, 8, 9], true)) {
             throw new RaceResultCompletenessException("Unsupported entrant count: {$count}.");
         }
     }

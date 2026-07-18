@@ -94,6 +94,28 @@ class RawResponseStorageServiceTest extends TestCase
         ]);
     }
 
+    public function test_it_stores_json_with_json_extension_and_request_parameters(): void
+    {
+        Storage::fake('local');
+        $response = new FetchedResponseDto(
+            source: 'keirin_jp',
+            method: 'GET',
+            url: 'https://keirin.jp/pc/json?type=JSJ001',
+            requestKey: 'race-json',
+            httpStatus: 200,
+            body: '{"resultCd":0}',
+            contentType: 'application/json; charset=UTF-8',
+            fetchedAt: new DateTimeImmutable('2026-07-18 06:00:00'),
+            requestParameters: ['type' => 'JSJ001', 'encp' => 'encrypted-value'],
+        );
+
+        $stored = app(RawResponseStorageService::class)->store($response);
+
+        $this->assertStringEndsWith('.json', $stored->rawFilePath);
+        $this->assertStringStartsWith('scraping/raw/', $stored->rawFilePath);
+        $this->assertSame(['type' => 'JSJ001', 'encp' => 'encrypted-value'], ScrapingFetchLog::query()->firstOrFail()->request_parameters);
+    }
+
     private function response(int $status = 200, string $body = '<html><meta charset="utf-8">競輪</html>', ?string $contentType = 'text/html; charset=UTF-8'): FetchedResponseDto
     {
         return new FetchedResponseDto(

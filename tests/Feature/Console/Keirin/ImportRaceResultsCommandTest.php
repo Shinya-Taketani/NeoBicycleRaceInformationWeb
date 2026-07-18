@@ -239,10 +239,10 @@ class ImportRaceResultsCommandTest extends TestCase
         $this->createRaceEntries($outOfRange, [1, 2, 3, 4, 5, 6, 10]);
         $mismatched = $this->race(externalRaceId: 'entry-count-mismatch', entrantCount: 9);
         $this->createRaceEntries($mismatched, range(1, 7));
-        $unsupported = $this->race(externalRaceId: 'entry-count-unsupported', entrantCount: 6);
-        $this->createRaceEntries($unsupported, range(1, 6));
+        $sixCarWithSevenCarResult = $this->race(externalRaceId: 'entry-count-six-versus-seven', entrantCount: 6);
+        $this->createRaceEntries($sixCarWithSevenCarResult, range(1, 6));
 
-        foreach ([$outOfRange, $mismatched, $unsupported] as $race) {
+        foreach ([$outOfRange, $mismatched, $sixCarWithSevenCarResult] as $race) {
             $this->importResult($race, 'race_result_normal.html', 'CONFIRMED', expectedExitCode: 1);
             $this->assertSame(0, RaceResult::query()->where('race_id', $race->id)->count());
         }

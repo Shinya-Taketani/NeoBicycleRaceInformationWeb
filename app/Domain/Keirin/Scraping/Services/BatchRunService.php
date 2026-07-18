@@ -10,6 +10,7 @@ use App\Models\BatchRun;
 use App\Models\BatchRunItem;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class BatchRunService
 {
@@ -22,14 +23,20 @@ class BatchRunService
     {
         $this->acquireLock($lockKey);
 
-        return BatchRun::query()->create([
-            'type' => $type,
-            'source' => (string) config('keirin.source'),
-            'status' => BatchRunStatus::Running->value,
-            'lock_key' => $lockKey,
-            'parameters' => $parameters,
-            'started_at' => new DateTimeImmutable('now'),
-        ]);
+        try {
+            return BatchRun::query()->create([
+                'type' => $type,
+                'source' => (string) config('keirin.source'),
+                'status' => BatchRunStatus::Running->value,
+                'lock_key' => $lockKey,
+                'parameters' => $parameters,
+                'started_at' => new DateTimeImmutable('now'),
+            ]);
+        } catch (Throwable $throwable) {
+            $this->releaseLock($lockKey);
+
+            throw $throwable;
+        }
     }
 
     public function finish(BatchRun $run, int $success, int $skipped, int $failure, ?string $errorMessage = null): BatchRun

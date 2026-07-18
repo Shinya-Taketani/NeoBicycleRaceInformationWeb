@@ -33,7 +33,7 @@ class RaceEntrantExpectationResolverTest extends TestCase
     {
         $invalidCases = [
             'missing expected count' => [null, []],
-            'unsupported entrant count' => [6, []],
+            'unsupported entrant count' => [5, []],
             'entry count mismatch' => [9, [1, 2, 3, 4, 5, 6, 7]],
             'duplicate bike number' => [7, [1, 2, 3, 4, 5, 6, 6]],
             'missing bike number' => [7, [1, 2, 3, 4, 5, 6, null]],
@@ -47,6 +47,20 @@ class RaceEntrantExpectationResolverTest extends TestCase
             } catch (RaceResultCompletenessException) {
                 $this->addToAssertionCount(1);
             }
+        }
+    }
+
+    public function test_six_through_nine_entrants_are_supported_with_or_without_entry_rows(): void
+    {
+        $resolver = new RaceEntrantExpectationResolver;
+        foreach ([6, 7, 8, 9] as $count) {
+            $fromEntries = $resolver->resolveFromValues($count, range(1, $count));
+            $fromCount = $resolver->resolveFromValues($count, []);
+
+            $this->assertSame($count, $fromEntries->count);
+            $this->assertSame(range(1, $count), $fromEntries->bikeNumbers);
+            $this->assertSame($count, $fromCount->count);
+            $this->assertNull($fromCount->bikeNumbers);
         }
     }
 }

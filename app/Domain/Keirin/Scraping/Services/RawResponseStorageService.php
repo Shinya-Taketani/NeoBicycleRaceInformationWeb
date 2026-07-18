@@ -52,6 +52,7 @@ class RawResponseStorageService
             'request_method' => $response->method,
             'request_url' => $response->url,
             'request_key' => $response->requestKey,
+            'request_parameters' => $response->requestParameters,
             'http_status' => $response->httpStatus,
             'fetched_at' => $response->fetchedAt,
             'content_type' => $response->contentType,
@@ -94,6 +95,7 @@ class RawResponseStorageService
             'request_method' => $response->method,
             'request_url' => $response->url,
             'request_key' => $response->requestKey,
+            'request_parameters' => $response->requestParameters,
             'http_status' => $response->httpStatus,
             'fetched_at' => $response->fetchedAt,
             'content_type' => $response->contentType,
@@ -152,6 +154,8 @@ class RawResponseStorageService
         $time = $response->fetchedAt->format('YmdHis.u');
         $requestKey = substr($response->requestKey, 0, 24);
 
-        return trim((string) config('keirin.raw_root'), '/')."/{$response->source}/{$date}/{$requestKey}-{$time}-".substr($sha256, 0, 16).'.html';
+        $extension = str_contains(strtolower((string) $response->contentType), 'json') ? 'json' : 'html';
+
+        return trim((string) config('keirin.raw_root'), '/')."/{$response->source}/{$date}/{$requestKey}-{$time}-".substr($sha256, 0, 16).'.'.$extension;
     }
 }

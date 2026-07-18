@@ -12,11 +12,14 @@ class RaceEntry extends Model
         'race_id',
         'player_id',
         'external_player_id',
+        'player_name',
         'bike_number',
         'frame_number',
         'grade',
         'race_score',
         'line_text',
+        'prefecture',
+        'riding_style',
         'fetched_at',
     ];
 
