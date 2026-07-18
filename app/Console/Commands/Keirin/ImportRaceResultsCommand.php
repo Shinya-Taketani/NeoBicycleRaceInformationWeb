@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Keirin;
 
+use App\Domain\Keirin\Scraping\Enums\RaceResultStatus;
 use App\Domain\Keirin\Scraping\Services\RaceResultImportService;
 use Illuminate\Console\Command;
 
@@ -67,7 +68,8 @@ class ImportRaceResultsCommand extends Command
             return self::FAILURE;
         }
 
-        if (! in_array($status, ['UNAVAILABLE', 'PROVISIONAL', 'UNDER_REVIEW', 'CONFIRMED', 'CORRECTED', 'CANCELLED'], true)) {
+        $resultStatus = RaceResultStatus::tryFrom($status);
+        if ($resultStatus === null) {
             $this->error('--result-status is invalid.');
 
             return self::FAILURE;
@@ -79,7 +81,7 @@ class ImportRaceResultsCommand extends Command
                 externalRaceId: is_string($externalRaceId) ? $externalRaceId : null,
                 rawFile: $rawFile,
                 sourceUrl: $sourceUrl,
-                requestedResultStatus: $status,
+                requestedResultStatus: $resultStatus,
             );
         } catch (\Throwable $throwable) {
             $this->error($throwable->getMessage());

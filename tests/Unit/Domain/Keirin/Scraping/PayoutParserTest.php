@@ -71,4 +71,35 @@ class PayoutParserTest extends TestCase
 
         (new PayoutParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/payout_partial_invalid.html'));
     }
+
+    public function test_it_preserves_column_positions_when_popularity_is_empty(): void
+    {
+        $html = '<table><tbody id="pitbodyHarai"><tr><td>2車単</td><td>1-2</td><td>1,230円</td><td></td></tr></tbody></table>';
+
+        $payout = (new PayoutParser)->parse($html)[0];
+
+        $this->assertSame('EXACTA', $payout->betTypeCode);
+        $this->assertSame('1-2', $payout->combination);
+        $this->assertSame(1230, $payout->payoutAmount);
+        $this->assertNull($payout->popularity);
+    }
+
+    public function test_it_rejects_missing_required_cells_without_shifting_columns(): void
+    {
+        $invalidRows = [
+            'bet type' => '<td></td><td>1-2</td><td>100円</td><td>1</td>',
+            'combination' => '<td>2車単</td><td></td><td>100円</td><td>1</td>',
+            'amount' => '<td>2車単</td><td>1-2</td><td></td><td>1</td>',
+            'missing popularity column' => '<td>2車単</td><td>1-2</td><td>100円</td>',
+        ];
+
+        foreach ($invalidRows as $case => $cells) {
+            try {
+                (new PayoutParser)->parse("<table><tbody id=\"pitbodyHarai\"><tr>{$cells}</tr></tbody></table>");
+                $this->fail("ParserException was not thrown for missing {$case}.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
 }

@@ -213,6 +213,10 @@ return new class extends Migration
             $table->text('source_url');
             $table->char('source_hash', 64);
             $table->string('raw_file_path');
+            $table->string('detected_encoding', 60)->nullable();
+            $table->boolean('utf8_conversion_succeeded')->default(false);
+            $table->unsignedBigInteger('raw_response_size');
+            $table->char('converted_hash', 64)->nullable();
             $table->string('parser_version', 80);
             $table->string('requested_result_status', 40)->nullable();
             $table->string('parsed_page_status', 40)->nullable();
@@ -250,7 +254,7 @@ return new class extends Migration
             $table->foreignId('race_result_import_id')->nullable()->constrained('race_result_imports')->nullOnDelete();
             $table->foreignId('race_entry_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('player_id')->nullable()->constrained()->nullOnDelete();
-            $table->unsignedSmallInteger('bike_number')->nullable();
+            $table->unsignedSmallInteger('bike_number');
             $table->unsignedSmallInteger('rank')->nullable();
             $table->string('result_status', 40);
             $table->string('winning_technique', 40)->nullable();
@@ -269,7 +273,7 @@ return new class extends Migration
             $table->foreignId('race_result_import_id')->nullable()->constrained('race_result_imports')->nullOnDelete();
             $table->string('bet_type_code', 40);
             $table->string('combination', 80);
-            $table->unsignedInteger('payout_amount')->nullable();
+            $table->unsignedInteger('payout_amount');
             $table->unsignedInteger('popularity')->nullable();
             $table->unsignedSmallInteger('sequence')->default(1);
             $table->text('source_url')->nullable();
@@ -280,9 +284,12 @@ return new class extends Migration
         });
 
         if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE batch_run_items ADD CONSTRAINT batch_run_items_status_check CHECK (status IN ('PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'SKIPPED', 'SKIPPED_UNSUPPORTED_CATEGORY'))");
             DB::statement("ALTER TABLE players ADD CONSTRAINT players_gender_check CHECK (gender IS NULL OR gender IN ('male', 'female', 'unknown'))");
             DB::statement("ALTER TABLE races ADD CONSTRAINT races_result_status_check CHECK (result_status IN ('UNAVAILABLE', 'PROVISIONAL', 'UNDER_REVIEW', 'CONFIRMED', 'CORRECTED', 'CANCELLED'))");
-            DB::statement("ALTER TABLE race_results ADD CONSTRAINT race_results_status_check CHECK (result_status IN ('FINISHED', 'TIED', 'DISQUALIFIED', 'DID_NOT_START', 'DID_NOT_FINISH', 'WITHDRAWN', 'CRASHED', 'UNKNOWN'))");
+            DB::statement("ALTER TABLE race_results ADD CONSTRAINT race_results_status_check CHECK (result_status IN ('FINISHED', 'TIED', 'DISQUALIFIED', 'DID_NOT_START', 'DID_NOT_FINISH', 'WITHDRAWN', 'CRASHED'))");
+            DB::statement('ALTER TABLE race_results ADD CONSTRAINT race_results_bike_number_check CHECK (bike_number BETWEEN 1 AND 9)');
+            DB::statement('ALTER TABLE race_results ADD CONSTRAINT race_results_rank_check CHECK (rank IS NULL OR rank > 0)');
             DB::statement("ALTER TABLE race_result_imports ADD CONSTRAINT race_result_imports_import_status_check CHECK (import_status IN ('RUNNING', 'SUCCEEDED', 'SKIPPED', 'FAILED'))");
             DB::statement("ALTER TABLE race_result_imports ADD CONSTRAINT race_result_imports_page_status_check CHECK (parsed_page_status IS NULL OR parsed_page_status IN ('RESULTS_AVAILABLE', 'UNAVAILABLE', 'UNDER_REVIEW', 'CANCELLED'))");
         }

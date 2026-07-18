@@ -10,5 +10,6 @@ enum BatchRunItemStatus: string
     case Running = 'RUNNING';
     case Succeeded = 'SUCCEEDED';
     case Failed = 'FAILED';
+    case Skipped = 'SKIPPED';
     case SkippedUnsupportedCategory = 'SKIPPED_UNSUPPORTED_CATEGORY';
 }

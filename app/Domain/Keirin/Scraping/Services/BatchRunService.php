@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Scraping\Services;
 
+use App\Domain\Keirin\Scraping\Enums\BatchRunItemStatus;
 use App\Domain\Keirin\Scraping\Enums\BatchRunStatus;
 use App\Models\BatchRun;
 use App\Models\BatchRunItem;
@@ -64,10 +65,11 @@ class BatchRunService
         ]);
 
         $item->fill([
-            'status' => 'RUNNING',
+            'status' => BatchRunItemStatus::Running->value,
             'attempt_count' => ((int) $item->attempt_count) + 1,
             'started_at' => new DateTimeImmutable('now'),
             'finished_at' => null,
+            'skip_reason' => null,
             'error_type' => null,
             'error_message' => null,
             'metadata' => $metadata,
@@ -78,22 +80,31 @@ class BatchRunService
 
     public function succeedItem(BatchRunItem $item, array $metadata = []): void
     {
-        $this->finishItem($item, 'SUCCEEDED', metadata: $metadata);
+        $this->finishItem($item, BatchRunItemStatus::Succeeded->value, metadata: $metadata);
     }
 
     public function failItem(BatchRunItem $item, string $errorType, string $errorMessage, array $metadata = []): void
     {
-        $this->finishItem($item, 'FAILED', $errorType, $errorMessage, metadata: $metadata);
+        $this->finishItem($item, BatchRunItemStatus::Failed->value, $errorType, $errorMessage, metadata: $metadata);
     }
 
-    public function skipItem(BatchRunItem $item, string $reason, array $metadata = []): void
+    public function skipItem(BatchRunItem $item, string $reason, array $metadata = [], string $status = BatchRunItemStatus::Skipped->value): void
     {
+        if (! in_array($status, [BatchRunItemStatus::Skipped->value, BatchRunItemStatus::SkippedUnsupportedCategory->value], true)) {
+            throw new \InvalidArgumentException("Unsupported batch item skip status: {$status}");
+        }
+
         $item->fill([
-            'status' => 'SKIPPED_UNSUPPORTED_CATEGORY',
+            'status' => $status,
             'skip_reason' => $reason,
             'finished_at' => new DateTimeImmutable('now'),
             'metadata' => $metadata ?: $item->metadata,
         ])->save();
+    }
+
+    public function skipUnsupportedCategoryItem(BatchRunItem $item, string $reason, array $metadata = []): void
+    {
+        $this->skipItem($item, $reason, $metadata, BatchRunItemStatus::SkippedUnsupportedCategory->value);
     }
 
     private function acquireLock(?string $lockKey): void

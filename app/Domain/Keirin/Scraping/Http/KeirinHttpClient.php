@@ -15,6 +15,13 @@ use Illuminate\Support\Str;
 
 class KeirinHttpClient
 {
+    private readonly ConnectionFailureClassifier $connectionFailures;
+
+    public function __construct(?ConnectionFailureClassifier $connectionFailures = null)
+    {
+        $this->connectionFailures = $connectionFailures ?? new ConnectionFailureClassifier;
+    }
+
     public function get(string $pathOrUrl, array $query = [], ?int $sleepMsOverride = null): FetchedResponseDto
     {
         $url = $this->url($pathOrUrl);
@@ -56,12 +63,8 @@ class KeirinHttpClient
                 )
                 ->get($url, $query);
         } catch (ConnectionException $exception) {
-            $type = str_contains(strtolower($exception->getMessage()), 'timed out')
-                ? FetchErrorType::Timeout
-                : FetchErrorType::ConnectionFailed;
-
             throw new KeirinHttpException(
-                $type,
+                $this->connectionFailures->classify($exception),
                 $url,
                 $exception->getMessage(),
                 null,

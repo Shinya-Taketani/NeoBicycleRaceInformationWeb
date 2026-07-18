@@ -13,5 +13,4 @@ enum RaceEntryResultStatus: string
     case DidNotFinish = 'DID_NOT_FINISH';
     case Withdrawn = 'WITHDRAWN';
     case Crashed = 'CRASHED';
-    case Unknown = 'UNKNOWN';
 }

@@ -36,15 +36,34 @@ class PayoutParser
         }
 
         $crawler->filter('#pitbodyHarai tr')->each(function (Crawler $row) use (&$sequenceByType, &$payouts, &$dataRows): void {
+            if ($row->filter('th')->count() > 0) {
+                if ($row->filter('td')->count() > 0) {
+                    throw new ParserException('Payout row mixed header and data cells.');
+                }
+
+                return;
+            }
+
             $values = $row->filter('td')->each(fn (Crawler $cell): ?string => HtmlTextNormalizer::normalize($cell->text(null, false)));
-            $values = array_values(array_filter($values, fn (?string $value): bool => $value !== null));
-            if ($values === []) {
+            if ($values === [] || $this->isEmptyRow($values)) {
                 return;
             }
 
             $dataRows++;
-            if (count($values) < 3) {
+            if (count($values) !== 4) {
                 throw new ParserException('Payout row had an unsupported column count.');
+            }
+
+            if ($values[0] === null) {
+                throw new ParserException('Payout bet type was empty.');
+            }
+
+            if ($values[1] === null) {
+                throw new ParserException('Payout combination was empty.');
+            }
+
+            if ($values[2] === null) {
+                throw new ParserException('Payout amount was empty.');
             }
 
             $type = $this->betTypeCode($values[0]);
@@ -63,11 +82,16 @@ class PayoutParser
             }
 
             $sequenceByType[$type] = ($sequenceByType[$type] ?? 0) + 1;
+            $popularity = $this->int($values[3]);
+            if ($values[3] !== null && $popularity === null) {
+                throw new ParserException('Payout popularity could not be parsed: '.$values[3]);
+            }
+
             $payouts[] = new RacePayoutDto(
                 betTypeCode: $type,
                 combination: $combination,
                 payoutAmount: $amount,
-                popularity: $this->int($values[3] ?? null),
+                popularity: $popularity,
                 sequence: $sequenceByType[$type],
             );
         });
@@ -116,5 +140,19 @@ class PayoutParser
         $digits = HtmlTextNormalizer::digits($value);
 
         return $digits === null ? null : (int) $digits;
+    }
+
+    /**
+     * @param  list<?string>  $values
+     */
+    private function isEmptyRow(array $values): bool
+    {
+        foreach ($values as $value) {
+            if ($value !== null) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

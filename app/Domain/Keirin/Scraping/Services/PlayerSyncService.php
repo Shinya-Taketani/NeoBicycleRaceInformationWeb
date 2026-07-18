@@ -172,7 +172,7 @@ class PlayerSyncService
                 $item = $this->batchRuns->startItem($run, 'PLAYER_DETAIL', 'player-detail:'.$summary->externalPlayerId);
                 try {
                     if ($summary->gender !== 'male') {
-                        $this->batchRuns->skipItem($item, 'SKIPPED_UNSUPPORTED_CATEGORY');
+                        $this->batchRuns->skipUnsupportedCategoryItem($item, 'SKIPPED_UNSUPPORTED_CATEGORY');
                         $skipped++;
 
                         continue;

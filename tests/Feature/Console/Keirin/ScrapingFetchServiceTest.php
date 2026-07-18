@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console\Keirin;
 
+use App\Domain\Keirin\Scraping\Enums\FetchErrorType;
 use App\Domain\Keirin\Scraping\Exceptions\KeirinHttpException;
 use App\Domain\Keirin\Scraping\Fetchers\PlayerDetailFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\PlayerListFetcher;
@@ -11,6 +12,8 @@ use App\Domain\Keirin\Scraping\Fetchers\RaceResultFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\RaceScheduleFetcher;
 use App\Domain\Keirin\Scraping\Services\ScrapingFetchService;
 use App\Models\ScrapingFetchLog;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -99,6 +102,69 @@ class ScrapingFetchServiceTest extends TestCase
                 'error_type' => 'CONNECTION_FAILED',
             ]);
         }
+    }
+
+    public function test_it_classifies_guzzle_connection_context_and_logs_bodyless_failures(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+
+        $cases = [
+            28 => FetchErrorType::Timeout,
+            7 => FetchErrorType::ConnectionFailed,
+            6 => FetchErrorType::DnsFailure,
+        ];
+        $connections = [];
+
+        foreach (array_keys($cases) as $errno) {
+            $guzzle = new ConnectException(
+                'generic transport failure',
+                new Request('GET', 'https://keirin.jp/test'),
+                null,
+                ['errno' => $errno],
+            );
+            $connections[] = new ConnectionException('generic transport failure', 0, $guzzle);
+        }
+
+        Http::fake(function () use (&$connections): never {
+            throw array_shift($connections);
+        });
+
+        foreach ($cases as $errno => $expected) {
+            try {
+                app(ScrapingFetchService::class)->fetch(fn () => app(PlayerListFetcher::class)->fetch(sleepMs: 0));
+                $this->fail("KeirinHttpException was not thrown for cURL errno {$errno}.");
+            } catch (KeirinHttpException $exception) {
+                $this->assertSame($expected, $exception->errorType);
+            }
+
+            $this->assertDatabaseHas('scraping_fetch_logs', [
+                'id' => ScrapingFetchLog::query()->latest('id')->value('id'),
+                'response_size' => 0,
+                'raw_file_path' => null,
+                'error_type' => $expected->value,
+            ]);
+        }
+    }
+
+    public function test_connection_failure_without_context_uses_unknown_fallback_and_is_logged(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        Http::fake(fn () => throw new ConnectionException('Unclassified network problem'));
+
+        try {
+            app(ScrapingFetchService::class)->fetch(fn () => app(PlayerListFetcher::class)->fetch(sleepMs: 0));
+            $this->fail('KeirinHttpException was not thrown.');
+        } catch (KeirinHttpException $exception) {
+            $this->assertSame(FetchErrorType::Unknown, $exception->errorType);
+        }
+
+        $this->assertDatabaseHas('scraping_fetch_logs', [
+            'response_size' => 0,
+            'raw_file_path' => null,
+            'error_type' => 'UNKNOWN',
+        ]);
     }
 
     public function test_it_treats_http_200_empty_body_as_failure(): void

@@ -19,6 +19,8 @@ readonly class ParsedRaceResultPageDto
         public bool $resultMarkerFound,
         public bool $payoutMarkerFound,
         public bool $explicitNoPayoutMarker,
+        public bool $resultParsingComplete,
+        public bool $payoutParsingComplete,
         public string $sourceHash,
         public string $parserVersion,
     ) {}

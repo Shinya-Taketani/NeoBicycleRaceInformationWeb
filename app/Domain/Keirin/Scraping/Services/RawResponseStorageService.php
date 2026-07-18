@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Scraping\Services;
 
+use App\Domain\Keirin\Scraping\DTO\ConvertedBodyDto;
 use App\Domain\Keirin\Scraping\DTO\FetchedResponseDto;
+use App\Domain\Keirin\Scraping\DTO\StoredImportedRawFileDto;
 use App\Domain\Keirin\Scraping\DTO\StoredRawResponseDto;
 use App\Domain\Keirin\Scraping\Enums\FetchErrorType;
 use App\Domain\Keirin\Scraping\Exceptions\CharacterEncodingConversionException;
@@ -107,7 +109,7 @@ class RawResponseStorageService
         ]);
     }
 
-    public function storeImportedRawFile(string $sourcePath, string $raceKey): array
+    public function storeImportedRawFile(string $sourcePath, string $raceKey): StoredImportedRawFileDto
     {
         $body = file_get_contents($sourcePath);
         if (! is_string($body)) {
@@ -125,7 +127,23 @@ class RawResponseStorageService
             throw new \RuntimeException("Failed to store imported raw response at {$path}.");
         }
 
-        return ['path' => $path, 'sha256' => $sha256, 'body' => $body];
+        return new StoredImportedRawFileDto(
+            rawFilePath: $path,
+            sha256: $sha256,
+            responseSize: strlen($body),
+            originalBody: $body,
+        );
+    }
+
+    public function convertImportedRawFile(StoredImportedRawFileDto $stored): ConvertedBodyDto
+    {
+        [$utf8Body, $detectedEncoding] = $this->converter->convertToUtf8($stored->originalBody);
+
+        return new ConvertedBodyDto(
+            utf8Body: $utf8Body,
+            detectedEncoding: $detectedEncoding,
+            sha256: hash('sha256', $utf8Body),
+        );
     }
 
     private function path(FetchedResponseDto $response, string $sha256): string

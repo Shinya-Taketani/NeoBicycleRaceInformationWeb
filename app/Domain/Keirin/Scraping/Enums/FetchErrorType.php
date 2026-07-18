@@ -10,6 +10,7 @@ enum FetchErrorType: string
     case ServerError = 'HTTP_5XX';
     case Timeout = 'TIMEOUT';
     case ConnectionFailed = 'CONNECTION_FAILED';
+    case DnsFailure = 'DNS_FAILURE';
     case HttpError = 'HTTP_ERROR';
     case EmptyResponse = 'EMPTY_RESPONSE';
     case EncodingConversionFailed = 'ENCODING_CONVERSION_FAILED';

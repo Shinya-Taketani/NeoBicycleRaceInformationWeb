@@ -16,6 +16,10 @@ class RaceResultImport extends Model
         'source_url',
         'source_hash',
         'raw_file_path',
+        'detected_encoding',
+        'utf8_conversion_succeeded',
+        'raw_response_size',
+        'converted_hash',
         'parser_version',
         'requested_result_status',
         'parsed_page_status',
@@ -30,6 +34,7 @@ class RaceResultImport extends Model
     protected function casts(): array
     {
         return [
+            'utf8_conversion_succeeded' => 'boolean',
             'imported_at' => 'immutable_datetime',
         ];
     }

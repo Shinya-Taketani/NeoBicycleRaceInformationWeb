@@ -44,6 +44,8 @@ class RaceResultPageParser
                 $resultMarkerFound,
                 $payoutMarkerFound,
                 $explicitNoPayoutMarker,
+                true,
+                true,
                 $sourceHash,
                 $parserVersion,
             );
@@ -57,6 +59,8 @@ class RaceResultPageParser
                 $resultMarkerFound,
                 $payoutMarkerFound,
                 $explicitNoPayoutMarker,
+                true,
+                true,
                 $sourceHash,
                 $parserVersion,
             );
@@ -70,6 +74,8 @@ class RaceResultPageParser
                 $resultMarkerFound,
                 $payoutMarkerFound,
                 $explicitNoPayoutMarker,
+                true,
+                true,
                 $sourceHash,
                 $parserVersion,
             );
@@ -89,6 +95,8 @@ class RaceResultPageParser
             $resultMarkerFound,
             $payoutMarkerFound,
             $explicitNoPayoutMarker,
+            true,
+            true,
             $sourceHash,
             $parserVersion,
         );
