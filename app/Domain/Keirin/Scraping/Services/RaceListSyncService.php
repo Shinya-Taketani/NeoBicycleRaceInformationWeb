@@ -18,6 +18,7 @@ use App\Models\RaceMeeting;
 use App\Repositories\RaceRepository;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use RuntimeException;
 use Throwable;
 
@@ -63,6 +64,7 @@ class RaceListSyncService
                     );
                     $meetingMetadata = $this->metadataParser->parse($raceListRaw->utf8Body);
                     $this->races->updateMeetingDayParameters($meeting, $meetingMetadata, new DateTimeImmutable('now'));
+                    $targetDays = $this->reconciledTargetDays($meeting, $targetDays, $from, $to, $options);
                     $this->batchRuns->succeedItem($meetingItem, ['days' => count($meetingMetadata->days)]);
                 } catch (Throwable $throwable) {
                     $failed += $targetDays->count();
@@ -188,5 +190,29 @@ class RaceListSyncService
             })
             ->orderBy('race_days.race_date')
             ->limit(isset($options['limit']) ? (int) $options['limit'] : PHP_INT_MAX);
+    }
+
+    /**
+     * @param  Collection<int, RaceDay>  $originalDays
+     * @return Collection<int, RaceDay>
+     */
+    private function reconciledTargetDays(
+        RaceMeeting $meeting,
+        Collection $originalDays,
+        DateTimeImmutable $from,
+        DateTimeImmutable $to,
+        array $options,
+    ): Collection {
+        $query = RaceDay::query()
+            ->where('race_meeting_id', $meeting->id)
+            ->whereDate('race_date', '>=', $from->format('Y-m-d'))
+            ->whereDate('race_date', '<=', $to->format('Y-m-d'))
+            ->orderBy('race_date');
+
+        if (isset($options['limit']) || isset($options['race_id'])) {
+            $query->whereIn('id', $originalDays->pluck('id')->all());
+        }
+
+        return $query->get();
     }
 }
