@@ -31,6 +31,7 @@ class Race extends Model
     {
         return [
             'race_date' => 'immutable_date',
+            'entrant_count' => 'integer',
             'scheduled_start_at' => 'immutable_datetime',
             'result_confirmed_at' => 'immutable_datetime',
             'last_fetched_at' => 'immutable_datetime',

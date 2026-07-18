@@ -9,11 +9,14 @@ use App\Models\BatchRun;
 use App\Models\BatchRunItem;
 use App\Models\Race;
 use App\Models\RaceDay;
+use App\Models\RaceEntry;
 use App\Models\RaceMeeting;
 use App\Models\RacePayout;
 use App\Models\RaceResult;
 use App\Models\RaceResultImport;
 use App\Models\Racetrack;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event;
@@ -90,7 +93,7 @@ class ImportRaceResultsCommandTest extends TestCase
         $this->assertSame([1, 0, 0], [$run->success_count, $run->skipped_count, $run->failure_count]);
     }
 
-    public function test_corrected_result_removes_stale_rows(): void
+    public function test_corrected_result_keeps_all_entries_and_removes_stale_payouts(): void
     {
         Storage::fake('local');
         $race = $this->race();
@@ -109,9 +112,11 @@ class ImportRaceResultsCommandTest extends TestCase
             '--result-status' => 'CORRECTED',
         ])->assertExitCode(0);
 
-        $this->assertSame(2, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame(7, RaceResult::query()->where('race_id', $race->id)->count());
         $this->assertSame(1, RacePayout::query()->where('race_id', $race->id)->count());
         $this->assertSame(1, RaceResult::query()->where('race_id', $race->id)->where('bike_number', 2)->where('rank', 1)->count());
+        $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'combination' => '1-2']);
+        $this->assertDatabaseHas('race_payouts', ['race_id' => $race->id, 'combination' => '2-1', 'payout_amount' => 2340]);
         $this->assertSame('CORRECTED', $race->refresh()->result_status);
         $this->assertSame(2, RaceResultImport::query()->where('race_id', $race->id)->count());
     }
@@ -138,9 +143,163 @@ class ImportRaceResultsCommandTest extends TestCase
         }
 
         $this->assertSame('CORRECTED', $race->refresh()->result_status);
-        $this->assertSame(2, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame(7, RaceResult::query()->where('race_id', $race->id)->count());
         $this->assertSame(1, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertSame(3, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'SUCCEEDED')->count());
         $this->assertSame(2, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'FAILED')->count());
+    }
+
+    public function test_race_entries_allow_complete_7_and_9_car_results(): void
+    {
+        Storage::fake('local');
+        $race7 = $this->race(externalRaceId: 'entries-7', raceNumber: 7, entrantCount: 7);
+        $this->createRaceEntries($race7, range(1, 7));
+        $race9 = $this->race(externalRaceId: 'entries-9', raceNumber: 9, entrantCount: 9);
+        $this->createRaceEntries($race9, range(1, 9));
+
+        $this->importResult($race7, 'race_result_normal.html', 'CONFIRMED');
+        $this->importResult($race9, 'race_result_normal_9.html', 'CONFIRMED');
+
+        $this->assertSame(7, RaceResult::query()->where('race_id', $race7->id)->count());
+        $this->assertSame(9, RaceResult::query()->where('race_id', $race9->id)->count());
+    }
+
+    public function test_entrant_count_allows_complete_7_and_9_car_results_without_entries(): void
+    {
+        Storage::fake('local');
+        $race7 = $this->race(externalRaceId: 'count-7', raceNumber: 7, entrantCount: 7);
+        $race9 = $this->race(externalRaceId: 'count-9', raceNumber: 9, entrantCount: 9);
+
+        $this->importResult($race7, 'race_result_normal.html', 'CONFIRMED');
+        $this->importResult($race9, 'race_result_normal_9.html', 'CONFIRMED');
+
+        $this->assertSame(7, RaceResult::query()->where('race_id', $race7->id)->count());
+        $this->assertSame(9, RaceResult::query()->where('race_id', $race9->id)->count());
+    }
+
+    public function test_truncated_7_car_result_preserves_all_existing_data_and_audit_state(): void
+    {
+        Storage::fake('local');
+        CarbonImmutable::setTestNow('2026-07-18 10:00:00');
+
+        try {
+            $race = $this->race(externalRaceId: 'truncated-7', entrantCount: 7);
+            $this->createRaceEntries($race, range(1, 7));
+            $this->importResult($race, 'race_result_normal.html', 'CONFIRMED');
+            $beforeResults = $this->resultSnapshot($race);
+            $beforePayouts = $this->payoutSnapshot($race);
+            $beforeRace = $race->refresh()->only(['result_status', 'result_url', 'result_confirmed_at', 'last_fetched_at']);
+
+            CarbonImmutable::setTestNow('2026-07-18 11:00:00');
+            $this->importResult($race, 'race_result_truncated_2_of_7.html', 'CORRECTED', expectedExitCode: 1);
+
+            $this->assertSame($beforeResults, $this->resultSnapshot($race));
+            $this->assertSame($beforePayouts, $this->payoutSnapshot($race));
+            $this->assertEquals($beforeRace, $race->refresh()->only(['result_status', 'result_url', 'result_confirmed_at', 'last_fetched_at']));
+            $this->assertSame('FAILED', RaceResultImport::query()->latest('id')->firstOrFail()->import_status);
+            $this->assertSame('FAILED', BatchRunItem::query()->latest('id')->firstOrFail()->status);
+            $run = BatchRun::query()->latest('id')->firstOrFail();
+            $this->assertSame([0, 0, 1], [$run->success_count, $run->skipped_count, $run->failure_count]);
+            $this->assertSame(0, BatchRunItem::query()->where('status', 'RUNNING')->count());
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_truncated_9_car_result_is_rejected_against_race_entries(): void
+    {
+        Storage::fake('local');
+        $race = $this->race(externalRaceId: 'truncated-9', entrantCount: 9);
+        $this->createRaceEntries($race, range(1, 9));
+
+        $this->importResult($race, 'race_result_truncated_8_of_9.html', 'CONFIRMED', expectedExitCode: 1);
+
+        $this->assertSame(0, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame('UNAVAILABLE', $race->refresh()->result_status);
+        $this->assertSame('FAILED', RaceResultImport::query()->latest('id')->firstOrFail()->import_status);
+    }
+
+    public function test_equal_count_with_wrong_bike_set_is_rejected(): void
+    {
+        Storage::fake('local');
+        $race = $this->race(externalRaceId: 'wrong-bike-set', entrantCount: 7);
+        $this->createRaceEntries($race, range(1, 7));
+
+        $this->importResult($race, 'race_result_wrong_bike_set.html', 'CONFIRMED', expectedExitCode: 1);
+
+        $this->assertSame(0, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame(0, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertSame('UNAVAILABLE', $race->refresh()->result_status);
+    }
+
+    public function test_invalid_race_entry_expectations_are_rejected(): void
+    {
+        Storage::fake('local');
+        $outOfRange = $this->race(externalRaceId: 'entry-out-of-range', entrantCount: 7);
+        $this->createRaceEntries($outOfRange, [1, 2, 3, 4, 5, 6, 10]);
+        $mismatched = $this->race(externalRaceId: 'entry-count-mismatch', entrantCount: 9);
+        $this->createRaceEntries($mismatched, range(1, 7));
+        $unsupported = $this->race(externalRaceId: 'entry-count-unsupported', entrantCount: 6);
+        $this->createRaceEntries($unsupported, range(1, 6));
+
+        foreach ([$outOfRange, $mismatched, $unsupported] as $race) {
+            $this->importResult($race, 'race_result_normal.html', 'CONFIRMED', expectedExitCode: 1);
+            $this->assertSame(0, RaceResult::query()->where('race_id', $race->id)->count());
+        }
+    }
+
+    public function test_duplicate_race_entry_bike_number_is_rejected_by_database_constraint(): void
+    {
+        $race = $this->race(externalRaceId: 'entry-bike-duplicate', entrantCount: 7);
+        $this->createRaceEntries($race, [1]);
+
+        $this->expectException(QueryException::class);
+
+        $this->createRaceEntries($race, [1]);
+    }
+
+    public function test_missing_or_unsupported_entrant_count_is_rejected_without_entries(): void
+    {
+        Storage::fake('local');
+        $missing = $this->race(externalRaceId: 'count-missing', entrantCount: null);
+        $unsupported = $this->race(externalRaceId: 'count-unsupported', entrantCount: 6);
+        $truncated = $this->race(externalRaceId: 'count-truncated', entrantCount: 7);
+
+        $this->importResult($missing, 'race_result_normal.html', 'CONFIRMED', expectedExitCode: 1);
+        $this->importResult($unsupported, 'race_result_normal.html', 'CONFIRMED', expectedExitCode: 1);
+        $this->importResult($truncated, 'race_result_truncated_2_of_7.html', 'CONFIRMED', expectedExitCode: 1);
+
+        $this->assertSame(0, RaceResult::query()->whereIn('race_id', [$missing->id, $unsupported->id, $truncated->id])->count());
+        $this->assertSame(3, RaceResultImport::query()->where('import_status', 'FAILED')->count());
+    }
+
+    public function test_confirmed_at_is_preserved_across_confirmed_and_corrected_reimports(): void
+    {
+        Storage::fake('local');
+        $race = $this->race(externalRaceId: 'confirmed-at', entrantCount: 7);
+
+        try {
+            CarbonImmutable::setTestNow('2026-07-18 10:00:00');
+            $this->importResult($race, 'race_result_normal.html', 'CONFIRMED');
+            $confirmedAt = $race->refresh()->result_confirmed_at;
+            $firstFetchedAt = $race->last_fetched_at;
+
+            CarbonImmutable::setTestNow('2026-07-18 11:00:00');
+            $this->importResult($race, 'race_result_normal.html', 'CONFIRMED');
+            $this->assertEquals($confirmedAt, $race->refresh()->result_confirmed_at);
+            $this->assertGreaterThan($firstFetchedAt, $race->last_fetched_at);
+
+            CarbonImmutable::setTestNow('2026-07-18 12:00:00');
+            $this->importResult($race, 'race_result_corrected.html', 'CORRECTED');
+            $this->assertEquals($confirmedAt, $race->refresh()->result_confirmed_at);
+
+            CarbonImmutable::setTestNow('2026-07-18 13:00:00');
+            $this->importResult($race, 'race_result_corrected.html', 'CORRECTED');
+            $this->assertEquals($confirmedAt, $race->refresh()->result_confirmed_at);
+            $this->assertEquals(CarbonImmutable::parse('2026-07-18 13:00:00'), $race->last_fetched_at);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     public function test_missing_target_race_fails(): void
@@ -565,8 +724,39 @@ class ImportRaceResultsCommandTest extends TestCase
         return $path;
     }
 
-    private function race(string $source = 'keirin_jp', string $externalRaceId = 'test-race-1', int $raceNumber = 1): Race
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function resultSnapshot(Race $race): array
     {
+        return RaceResult::query()
+            ->where('race_id', $race->id)
+            ->orderBy('bike_number')
+            ->get(['bike_number', 'rank', 'result_status', 'raw_result_text', 'source_url'])
+            ->map(fn (RaceResult $result): array => $result->toArray())
+            ->all();
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function payoutSnapshot(Race $race): array
+    {
+        return RacePayout::query()
+            ->where('race_id', $race->id)
+            ->orderBy('bet_type_code')
+            ->orderBy('combination')
+            ->get(['bet_type_code', 'combination', 'payout_amount', 'popularity', 'sequence', 'source_url'])
+            ->map(fn (RacePayout $payout): array => $payout->toArray())
+            ->all();
+    }
+
+    private function race(
+        string $source = 'keirin_jp',
+        string $externalRaceId = 'test-race-1',
+        int $raceNumber = 1,
+        ?int $entrantCount = 7,
+    ): Race {
         $track = Racetrack::query()->firstOrCreate([
             'source' => $source,
             'external_track_id' => '99',
@@ -580,7 +770,23 @@ class ImportRaceResultsCommandTest extends TestCase
             'racetrack_id' => $track->id,
             'race_date' => '2026-07-18',
             'race_number' => $raceNumber,
+            'entrant_count' => $entrantCount,
             'result_status' => 'UNAVAILABLE',
         ]);
+    }
+
+    /**
+     * @param  list<int>  $bikeNumbers
+     */
+    private function createRaceEntries(Race $race, array $bikeNumbers): void
+    {
+        foreach ($bikeNumbers as $bikeNumber) {
+            RaceEntry::query()->create([
+                'race_id' => $race->id,
+                'external_player_id' => 'player-'.$bikeNumber,
+                'bike_number' => $bikeNumber,
+                'fetched_at' => now(),
+            ]);
+        }
     }
 }

@@ -44,6 +44,14 @@ class RaceResultParserTest extends TestCase
         $this->assertSame(9, $results[8]->rank);
     }
 
+    public function test_it_parses_a_structurally_valid_truncated_result_without_deciding_completeness(): void
+    {
+        $results = (new RaceResultParser)->parse(file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/race_result_truncated_2_of_7.html'));
+
+        $this->assertCount(2, $results);
+        $this->assertSame([1, 2], array_map(static fn ($result): int => (int) $result->bikeNumber, $results));
+    }
+
     public function test_it_accepts_confirmed_full_status_labels(): void
     {
         $html = '<table><tbody id="pitbodyBs">'
@@ -76,7 +84,6 @@ class RaceResultParserTest extends TestCase
             'empty rank/status' => '<tr><td></td><td></td><td>7</td><td>渡辺　七郎</td><td></td></tr>',
             'unknown status' => '<tr><td>不明</td><td></td><td>7</td><td>渡辺　七郎</td><td></td></tr>',
             'empty player identifier' => '<tr><td>7</td><td></td><td>7</td><td></td><td></td></tr>',
-            'duplicate player identifier' => '<tr><td>7</td><td></td><td>7</td><td>山田　太郎</td><td></td></tr>',
         ];
 
         foreach ($invalidRows as $case => $invalidRow) {
@@ -87,6 +94,19 @@ class RaceResultParserTest extends TestCase
                 $this->addToAssertionCount(1);
             }
         }
+    }
+
+    public function test_same_player_name_on_different_bike_numbers_is_not_treated_as_an_identifier(): void
+    {
+        $fixture = file_get_contents(__DIR__.'/../../../../Fixtures/Keirin/synthetic/race_result_normal.html');
+        $html = str_replace('渡辺　七郎', '山田　太郎', $fixture);
+
+        $results = (new RaceResultParser)->parse($html);
+
+        $this->assertCount(7, $results);
+        $this->assertSame(1, $results[0]->bikeNumber);
+        $this->assertSame(7, $results[6]->bikeNumber);
+        $this->assertSame($results[0]->playerName, $results[6]->playerName);
     }
 
     public function test_it_throws_when_required_marker_is_missing(): void

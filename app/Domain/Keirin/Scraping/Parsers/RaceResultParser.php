@@ -26,7 +26,6 @@ class RaceResultParser
         $dataRows = 0;
         $parsedRows = 0;
         $seenBikeNumbers = [];
-        $seenPlayers = [];
 
         if ($crawler->filter('#pitbodyBs')->count() === 0) {
             throw new ParserException('Race result table marker was not found.');
@@ -40,7 +39,6 @@ class RaceResultParser
             &$dataRows,
             &$parsedRows,
             &$seenBikeNumbers,
-            &$seenPlayers,
         ): void {
             $totalRows++;
             $thCount = $row->filter('th')->count();
@@ -91,13 +89,8 @@ class RaceResultParser
                 throw new ParserException("Race result row {$index} had no player identifier.");
             }
 
-            if (isset($seenPlayers[$playerName])) {
-                throw new ParserException("Race result player {$playerName} appeared more than once.");
-            }
-
             [$rank, $status] = $this->rankAndStatus($rawRank, $index);
             $seenBikeNumbers[$bikeNumber] = true;
-            $seenPlayers[$playerName] = true;
             $results[] = new RaceResultDto(
                 rank: $rank,
                 bikeNumber: $bikeNumber,

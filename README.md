@@ -23,6 +23,8 @@ Raw responses and fetch metadata are stored under `storage/app/private/scraping/
 
 Race schedule sync persists meeting-level schedule data into `race_meetings` and `race_days`. The result import command currently imports saved result HTML for a specified race by `--race-id` or `--external-race-id`; automated result-detail crawling is intentionally not enabled until KEIRIN.JP result navigation is confirmed against current pages.
 
+Result and payout persistence is implemented, but the winning-technique column on official result detail HTML has not yet been confirmed. `winning_technique` remains `null` until current real HTML is verified and the parser can be extended without guessing the column structure.
+
 `--result-status` is required for result import. `CONFIRMED` and `CORRECTED` are accepted only when result rows are parsed. `UNAVAILABLE` and `UNDER_REVIEW` do not delete existing confirmed results or payouts. `CANCELLED` clears existing result data only when a cancellation marker is present in the HTML and `--result-status=CANCELLED` is explicitly specified.
 
 Resume support is not implemented yet. Failed items are recorded in `batch_run_items`, but there is no `--resume-run-id` command option in this initial version.

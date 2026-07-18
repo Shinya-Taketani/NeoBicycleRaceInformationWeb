@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Scraping\Services;
 
+use App\Domain\Keirin\Scraping\DTO\ConvertedBodyDto;
 use App\Domain\Keirin\Scraping\DTO\ParsedRaceResultPageDto;
 use App\Domain\Keirin\Scraping\DTO\StoredImportedRawFileDto;
 use App\Domain\Keirin\Scraping\Enums\FetchErrorType;
@@ -18,6 +19,7 @@ use App\Models\Race;
 use App\Models\RacePayout;
 use App\Models\RaceResult;
 use App\Models\RaceResultImport;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,8 @@ class RaceResultImportService
         private readonly BatchRunService $batchRuns,
         private readonly RawResponseStorageService $rawStorage,
         private readonly RaceResultPageParser $parser,
+        private readonly RaceEntrantExpectationResolver $entrantExpectations,
+        private readonly RaceResultCompletenessValidator $completenessValidator,
     ) {}
 
     /**
@@ -57,21 +61,16 @@ class RaceResultImportService
 
         try {
             $storedRaw = $this->rawStorage->storeImportedRawFile($rawFile, (string) $raceKey);
+            $converted = $this->rawStorage->convertImportedRawFile($storedRaw);
+            $page = $this->parser->parse($converted->utf8Body);
             $race = $this->findRace($raceId, $externalRaceId);
             $import = $this->createImport($race, $run, $item, $sourceUrl, $storedRaw, $requestedResultStatus);
+            $this->recordSuccessfulConversion($import, $converted);
 
             if (! $race instanceof Race) {
                 throw new RuntimeException('Target race was not found.');
             }
 
-            $converted = $this->rawStorage->convertImportedRawFile($storedRaw);
-            $import->forceFill([
-                'detected_encoding' => $converted->detectedEncoding,
-                'utf8_conversion_succeeded' => true,
-                'converted_hash' => $converted->sha256,
-            ])->save();
-
-            $page = $this->parser->parse($converted->utf8Body);
             $this->validateRequestedStatus($page, $requestedResultStatus);
 
             $result = match ($page->pageStatus) {
@@ -101,7 +100,11 @@ class RaceResultImportService
             if ($import instanceof RaceResultImport && ! $importFinalized) {
                 $this->failImport($import, $throwable);
             } elseif (! $import instanceof RaceResultImport && isset($storedRaw)) {
+                $race ??= $this->findRace($raceId, $externalRaceId);
                 $import = $this->createImport($race, $run, $item, $sourceUrl, $storedRaw, $requestedResultStatus);
+                if (isset($converted)) {
+                    $this->recordSuccessfulConversion($import, $converted);
+                }
                 $this->failImport($import, $throwable);
             }
 
@@ -170,38 +173,13 @@ class RaceResultImportService
         }
     }
 
-    private function validateCompleteAvailablePage(ParsedRaceResultPageDto $page): void
+    private function recordSuccessfulConversion(RaceResultImport $import, ConvertedBodyDto $converted): void
     {
-        if ($page->pageStatus !== ParsedRaceResultPageStatus::ResultsAvailable) {
-            throw new RuntimeException('Only a results-available page can synchronize race results.');
-        }
-
-        if (! $page->resultParsingComplete || ! $page->payoutParsingComplete) {
-            throw new RuntimeException('Race result or payout parsing was not complete.');
-        }
-
-        if ($page->results === []) {
-            throw new RuntimeException('A results-available page must contain at least one result row.');
-        }
-
-        $seenBikeNumbers = [];
-        foreach ($page->results as $result) {
-            if ($result->bikeNumber === null || $result->bikeNumber < 1 || $result->bikeNumber > 9) {
-                throw new RuntimeException('Parsed race result row had an invalid bike number.');
-            }
-
-            if (isset($seenBikeNumbers[$result->bikeNumber])) {
-                throw new RuntimeException("Parsed bike number {$result->bikeNumber} appeared more than once.");
-            }
-
-            $seenBikeNumbers[$result->bikeNumber] = true;
-        }
-
-        foreach ($page->payouts as $payout) {
-            if ($payout->betTypeCode === '' || $payout->combination === '' || $payout->payoutAmount === null) {
-                throw new RuntimeException('Parsed payout data was incomplete.');
-            }
-        }
+        $import->forceFill([
+            'detected_encoding' => $converted->detectedEncoding,
+            'utf8_conversion_succeeded' => true,
+            'converted_hash' => $converted->sha256,
+        ])->save();
     }
 
     /**
@@ -214,12 +192,15 @@ class RaceResultImportService
         string $sourceUrl,
         RaceResultStatus $requestedResultStatus,
     ): array {
-        $this->validateCompleteAvailablePage($page);
+        $expectedEntrants = $this->entrantExpectations->resolve($race);
+        $this->completenessValidator->validate($page, $expectedEntrants);
 
         DB::transaction(function () use ($race, $import, $page, $sourceUrl, $requestedResultStatus): void {
             $lockedRace = Race::query()->whereKey($race->id)->lockForUpdate()->firstOrFail();
+            $lockedExpectedEntrants = $this->entrantExpectations->resolve($lockedRace, lockForUpdate: true);
+            $this->completenessValidator->validate($page, $lockedExpectedEntrants);
             $this->assertTransitionAllowed($lockedRace, $requestedResultStatus);
-            $fetchedAt = new DateTimeImmutable('now');
+            $fetchedAt = CarbonImmutable::now();
 
             $seenResultBikeNumbers = [];
             foreach ($page->results as $result) {
@@ -282,7 +263,7 @@ class RaceResultImportService
                 'result_status' => $requestedResultStatus->value,
                 'result_url' => $sourceUrl,
                 'result_confirmed_at' => in_array($requestedResultStatus, [RaceResultStatus::Confirmed, RaceResultStatus::Corrected], true)
-                    ? $fetchedAt
+                    ? ($lockedRace->result_confirmed_at ?? $fetchedAt)
                     : null,
                 'last_fetched_at' => $fetchedAt,
             ])->save();

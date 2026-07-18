@@ -23,6 +23,7 @@ class RaceEntry extends Model
     protected function casts(): array
     {
         return [
+            'bike_number' => 'integer',
             'race_score' => 'decimal:2',
             'fetched_at' => 'immutable_datetime',
         ];
