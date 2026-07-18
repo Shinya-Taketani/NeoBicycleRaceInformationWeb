@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Domain\Keirin\Scraping;
 
+use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Enums\RaceEntryResultStatus;
+use App\Domain\Keirin\Scraping\Enums\RaceResultStatus;
 use App\Domain\Keirin\Scraping\Exceptions\ParserException;
 use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
 use App\Domain\Keirin\Scraping\Parsers\RaceDayMetadataParser;
@@ -45,7 +47,43 @@ class AutomatedRaceParserTest extends TestCase
         $this->assertCount(12, $page->races);
         $this->assertCount(7, $page->races[0]->entries);
         $this->assertCount(9, $page->races[1]->entries);
+        $this->assertCount(6, $page->races[2]->entries);
+        $this->assertSame(RaceCategory::Men, $page->races[0]->category);
         $this->assertSame('000001', $page->races[0]->entries[0]->externalPlayerId);
+    }
+
+    public function test_it_accepts_only_six_seven_or_nine_entrants_per_race(): void
+    {
+        $fixture = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+
+        foreach ([6, 7, 9] as $count) {
+            $json = $fixture;
+            $json['rInfo'][0]['sInfo'] = array_slice($fixture['rInfo'][1]['sInfo'], 0, $count);
+            $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+            $this->assertCount($count, $page->races[0]->entries);
+        }
+
+        foreach ([1, 2, 5] as $count) {
+            $json = $fixture;
+            $json['rInfo'][0]['sInfo'] = array_slice($fixture['rInfo'][0]['sInfo'], 0, $count);
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+                $this->fail("ParserException was not thrown for {$count} entrants.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_it_classifies_l_grade_and_girls_races_as_unsupported_categories(): void
+    {
+        foreach (['Ｌ級ガールズ予選', 'ガールズ決勝'] as $raceType) {
+            $json = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+            $json['rInfo'][0]['syumoku'] = $raceType;
+            $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+
+            $this->assertSame(RaceCategory::Girls, $page->races[0]->category);
+        }
     }
 
     public function test_it_pairs_the_first_race_with_the_first_array_parameter_even_when_selected_race_is_twelve(): void
@@ -109,6 +147,7 @@ class AutomatedRaceParserTest extends TestCase
         $page = (new RaceLiveResultParser(new EmbeddedJsonExtractor))->parse($this->fixture('race-sync-pj0326.html'));
 
         $this->assertCount(7, $page->resultPage->results);
+        $this->assertSame(RaceResultStatus::Confirmed, $page->detectedStatus);
         $this->assertNull($page->resultPage->results[5]->rank);
         $this->assertSame(RaceEntryResultStatus::Crashed, $page->resultPage->results[5]->status);
         $this->assertSame(RaceEntryResultStatus::Disqualified, $page->resultPage->results[6]->status);

@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Scraping\Services;
 
 use App\Domain\Keirin\Scraping\DTO\ParsedRaceResultPageDto;
-use App\Domain\Keirin\Scraping\Enums\ParsedRaceResultPageStatus;
+use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Enums\RaceResultStatus;
 use App\Domain\Keirin\Scraping\Fetchers\RaceLiveFetcher;
 use App\Domain\Keirin\Scraping\Parsers\RaceDetailParser;
 use App\Domain\Keirin\Scraping\Parsers\RaceLiveResultParser;
+use App\Domain\Keirin\Scraping\Support\RaceCategoryPolicy;
 use App\Models\BatchRun;
 use App\Models\Race;
 use App\Models\RaceEntry;
@@ -28,6 +29,7 @@ class RaceResultSyncService
         private readonly RaceLiveResultParser $resultParser,
         private readonly RaceRepository $races,
         private readonly RaceResultImportService $resultImports,
+        private readonly RaceCategoryPolicy $categories,
     ) {}
 
     /** @return array{batch_run:BatchRun,success:int,skipped:int,failed:int,results:int,payouts:int} */
@@ -41,11 +43,23 @@ class RaceResultSyncService
         ], $lockKey);
         $success = $skipped = $failed = $resultCount = $payoutCount = 0;
         $lastError = null;
+        $outerException = null;
 
         try {
             foreach ($this->raceQuery($from, $to, $options)->get() as $race) {
                 $item = $this->batchRuns->startItem($run, 'RACE_RESULT', 'race:'.$race->id);
                 try {
+                    $category = $this->categories->classify($race->race_type);
+                    if ($category !== RaceCategory::Men) {
+                        $skipped++;
+                        $this->batchRuns->skipUnsupportedCategoryItem($item, 'UNSUPPORTED_RACE_CATEGORY', [
+                            'race_type' => $race->race_type,
+                            'category' => $category->value,
+                        ]);
+
+                        continue;
+                    }
+
                     if (! is_string($race->encrypted_parameter) || $race->encrypted_parameter === '') {
                         throw new \RuntimeException("Race {$race->external_race_id} has no encrypted parameter.");
                     }
@@ -62,10 +76,16 @@ class RaceResultSyncService
                     );
                     $resultPage = $this->resultParser->parse($resultRaw->utf8Body);
                     $this->assertResultContext($race, $resultPage->raceDate, $resultPage->trackCode, $resultPage->raceNumber);
+                    if (! $resultPage->detectedStatus instanceof RaceResultStatus) {
+                        $skipped++;
+                        $this->batchRuns->skipItem($item, 'RESULT_STATUS_UNDETERMINED', [
+                            'evidence' => $resultPage->statusEvidence,
+                            'raw_file_path' => $resultRaw->rawFilePath,
+                        ]);
+
+                        continue;
+                    }
                     $this->assertResultPlayers($race, $resultPage->resultPage);
-                    $requestedStatus = $resultPage->resultPage->pageStatus === ParsedRaceResultPageStatus::ResultsAvailable
-                        ? RaceResultStatus::Confirmed
-                        : RaceResultStatus::Unavailable;
                     $imported = $this->resultImports->importStoredResponse(
                         $race,
                         $run,
@@ -73,7 +93,7 @@ class RaceResultSyncService
                         $resultRaw,
                         $resultPage->resultPage,
                         rtrim((string) config('keirin.base_url'), '/').(string) config('keirin.routes.race_live'),
-                        $requestedStatus,
+                        $resultPage->detectedStatus,
                     );
                     $resultCount += $imported['results'];
                     $payoutCount += $imported['payouts'];
@@ -94,11 +114,21 @@ class RaceResultSyncService
                     $this->batchRuns->failItem($item, $throwable::class, $throwable->getMessage());
                 }
             }
+        } catch (Throwable $throwable) {
+            $failed++;
+            $lastError = $throwable->getMessage();
+            $outerException = $throwable;
         } finally {
-            $this->batchRuns->releaseLock($lockKey);
+            try {
+                $run = $this->batchRuns->finish($run, $success, $skipped, $failed, $lastError);
+            } finally {
+                $this->batchRuns->releaseLock($lockKey);
+            }
         }
 
-        $run = $this->batchRuns->finish($run, $success, $skipped, $failed, $lastError);
+        if ($outerException instanceof Throwable) {
+            throw $outerException;
+        }
 
         return [
             'batch_run' => $run,

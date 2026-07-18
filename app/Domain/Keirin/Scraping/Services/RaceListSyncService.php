@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Scraping\Services;
 
+use App\Domain\Keirin\Scraping\DTO\RaceEntryListPageDto;
+use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Fetchers\RaceDayMetadataFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\RaceEntryListFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\RaceListPageFetcher;
@@ -42,8 +44,9 @@ class RaceListSyncService
             'to' => $to->format('Y-m-d'),
             ...$options,
         ], $lockKey);
-        $success = $failed = $raceCount = $entryCount = $unresolved = 0;
+        $success = $skipped = $failed = $raceCount = $entryCount = $unresolved = 0;
         $lastError = null;
+        $outerException = null;
 
         try {
             $days = $this->days($from, $to, $options)->get()->groupBy('race_meeting_id');
@@ -87,7 +90,49 @@ class RaceListSyncService
                         $metadata = $this->metadataParser->parse($metadataRaw->utf8Body);
                         $entryPage = $this->entryListParser->parse($entriesRaw->utf8Body);
                         $parameters = $this->consistency->validate($metadata, $entryPage);
-                        $counts = $this->races->syncRaceDay($day, $metadata, $entryPage, $parameters, new DateTimeImmutable('now'));
+
+                        $menRaces = array_values(array_filter(
+                            $entryPage->races,
+                            fn ($race): bool => $race->category === RaceCategory::Men,
+                        ));
+                        $unsupportedRaces = array_values(array_filter(
+                            $entryPage->races,
+                            fn ($race): bool => $race->category !== RaceCategory::Men,
+                        ));
+                        $skipped += count($unsupportedRaces);
+
+                        if ($menRaces === []) {
+                            $this->batchRuns->skipUnsupportedCategoryItem($item, 'UNSUPPORTED_RACE_CATEGORY', [
+                                'races' => array_map(fn ($race): array => [
+                                    'race_number' => $race->raceNumber,
+                                    'race_type' => $race->raceType,
+                                    'category' => $race->category->value,
+                                ], $unsupportedRaces),
+                            ]);
+
+                            continue;
+                        }
+
+                        foreach ($unsupportedRaces as $unsupportedRace) {
+                            $categoryItem = $this->batchRuns->startItem(
+                                $run,
+                                'RACE_CATEGORY',
+                                sprintf('race-day:%d:race:%02d', $day->id, $unsupportedRace->raceNumber),
+                            );
+                            $this->batchRuns->skipUnsupportedCategoryItem($categoryItem, 'UNSUPPORTED_RACE_CATEGORY', [
+                                'race_number' => $unsupportedRace->raceNumber,
+                                'race_type' => $unsupportedRace->raceType,
+                                'category' => $unsupportedRace->category->value,
+                            ]);
+                        }
+
+                        $menEntryPage = new RaceEntryListPageDto(
+                            trackCode: $entryPage->trackCode,
+                            raceDate: $entryPage->raceDate,
+                            lastUpdatedAt: $entryPage->lastUpdatedAt,
+                            races: $menRaces,
+                        );
+                        $counts = $this->races->syncRaceDay($day, $metadata, $menEntryPage, $parameters, new DateTimeImmutable('now'));
                         $success++;
                         $raceCount += $counts['races'];
                         $entryCount += $counts['entries'];
@@ -100,16 +145,26 @@ class RaceListSyncService
                     }
                 }
             }
+        } catch (Throwable $throwable) {
+            $failed++;
+            $lastError = $throwable->getMessage();
+            $outerException = $throwable;
         } finally {
-            $this->batchRuns->releaseLock($lockKey);
+            try {
+                $run = $this->batchRuns->finish($run, $success, $skipped, $failed, $lastError);
+            } finally {
+                $this->batchRuns->releaseLock($lockKey);
+            }
         }
 
-        $run = $this->batchRuns->finish($run, $success, 0, $failed, $lastError);
+        if ($outerException instanceof Throwable) {
+            throw $outerException;
+        }
 
         return [
             'batch_run' => $run,
             'success' => $success,
-            'skipped' => 0,
+            'skipped' => $skipped,
             'failed' => $failed,
             'races' => $raceCount,
             'entries' => $entryCount,

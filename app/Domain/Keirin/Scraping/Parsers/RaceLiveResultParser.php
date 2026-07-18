@@ -10,8 +10,10 @@ use App\Domain\Keirin\Scraping\DTO\RacePayoutDto;
 use App\Domain\Keirin\Scraping\DTO\RaceResultDto;
 use App\Domain\Keirin\Scraping\Enums\ParsedRaceResultPageStatus;
 use App\Domain\Keirin\Scraping\Enums\RaceEntryResultStatus;
+use App\Domain\Keirin\Scraping\Enums\RaceResultStatus;
 use App\Domain\Keirin\Scraping\Exceptions\ParserException;
 use App\Domain\Keirin\Scraping\Support\HtmlTextNormalizer;
+use App\Domain\Keirin\Scraping\Support\RaceResultStatusPolicy;
 
 class RaceLiveResultParser
 {
@@ -25,7 +27,14 @@ class RaceLiveResultParser
         'WHaraiGakuDispItemSubData' => 'QUINELLA_PLACE',
     ];
 
-    public function __construct(private readonly EmbeddedJsonExtractor $embeddedJson) {}
+    private readonly RaceResultStatusPolicy $statuses;
+
+    public function __construct(
+        private readonly EmbeddedJsonExtractor $embeddedJson,
+        ?RaceResultStatusPolicy $statuses = null,
+    ) {
+        $this->statuses = $statuses ?? new RaceResultStatusPolicy;
+    }
 
     public function parse(string $html): AutomatedRaceResultPageDto
     {
@@ -36,11 +45,18 @@ class RaceLiveResultParser
             throw new ParserException('PJ0326 PC0201 context was missing.');
         }
 
+        $decision = $this->statuses->decide($context, $result);
         $resultMarker = $this->boolean($result['tyakujyunDispFlg'] ?? false);
         $payoutMarker = $this->boolean($result['haraiGakuDispFlg'] ?? false);
-        $pageStatus = $resultMarker ? ParsedRaceResultPageStatus::ResultsAvailable : ParsedRaceResultPageStatus::Unavailable;
-        $results = $resultMarker ? $this->results($result['tyakujyunItemSubData'] ?? null) : [];
-        $payouts = $payoutMarker ? $this->payouts($result['haraiGakuSubData'] ?? null) : [];
+        $parseResults = in_array($decision->status, [RaceResultStatus::Provisional, RaceResultStatus::Confirmed, RaceResultStatus::Corrected], true);
+        $pageStatus = match ($decision->status) {
+            RaceResultStatus::UnderReview => ParsedRaceResultPageStatus::UnderReview,
+            RaceResultStatus::Cancelled => ParsedRaceResultPageStatus::Cancelled,
+            RaceResultStatus::Provisional, RaceResultStatus::Confirmed, RaceResultStatus::Corrected => ParsedRaceResultPageStatus::ResultsAvailable,
+            default => ParsedRaceResultPageStatus::Unavailable,
+        };
+        $results = $parseResults ? $this->results($result['tyakujyunItemSubData'] ?? null) : [];
+        $payouts = $parseResults && $payoutMarker ? $this->payouts($result['haraiGakuSubData'] ?? null) : [];
 
         return new AutomatedRaceResultPageDto(
             raceDate: $this->digits($context['selKaisai'] ?? null, 'selKaisai', 8),
@@ -49,6 +65,8 @@ class RaceLiveResultParser
             lastUpdatedAt: $this->text($result['lastUpdateTime'] ?? null),
             weather: $this->text($result['tenki'] ?? null),
             windSpeed: $this->text($result['husoku'] ?? null),
+            detectedStatus: $decision->status,
+            statusEvidence: $decision->evidence,
             resultPage: new ParsedRaceResultPageDto(
                 pageStatus: $pageStatus,
                 results: $results,
@@ -56,8 +74,8 @@ class RaceLiveResultParser
                 resultMarkerFound: $resultMarker,
                 payoutMarkerFound: $payoutMarker,
                 explicitNoPayoutMarker: $resultMarker && ! $payoutMarker,
-                resultParsingComplete: $resultMarker,
-                payoutParsingComplete: $payoutMarker || ! $resultMarker,
+                resultParsingComplete: $parseResults && $resultMarker,
+                payoutParsingComplete: $parseResults && ($payoutMarker || ! $resultMarker),
                 sourceHash: hash('sha256', $html),
                 parserVersion: (string) config('keirin.parser_version'),
             ),

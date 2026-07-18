@@ -35,7 +35,7 @@ class SyncRaceListCommand extends Command
         }
         $result = $raceLists->sync($from, $to, $options);
         $this->info("batch_run_id={$result['batch_run']->id}");
-        $this->line("days={$result['success']} races={$result['races']} entries={$result['entries']} unresolved_players={$result['unresolved_players']} failed={$result['failed']}");
+        $this->line("days={$result['success']} races={$result['races']} entries={$result['entries']} unresolved_players={$result['unresolved_players']} skipped={$result['skipped']} failed={$result['failed']}");
         if ($result['failed'] > 0 && $result['batch_run']->error_message !== null) {
             $this->error($result['batch_run']->error_message);
         }

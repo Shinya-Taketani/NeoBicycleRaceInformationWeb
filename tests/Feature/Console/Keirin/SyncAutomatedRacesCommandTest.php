@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console\Keirin;
 
+use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
 use App\Models\BatchRunItem;
 use App\Models\Player;
 use App\Models\Race;
@@ -48,7 +49,7 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $this->assertSame(0, Artisan::call('keirin:races:sync-race-list', $arguments), Artisan::output());
 
         $this->assertSame(12, Race::query()->count());
-        $this->assertSame(26, RaceEntry::query()->count());
+        $this->assertSame(76, RaceEntry::query()->count());
         $this->assertSame(1, Player::query()->count());
         $this->assertDatabaseHas('races', [
             'external_race_id' => '56:20260616:01',
@@ -110,6 +111,7 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $succeededRace = $this->raceWithEntries(2, 'enc-success');
         $detail = str_replace('"selRaceNo":1', '"selRaceNo":2', $this->fixture('race-sync-pj0315.html'));
         $result = str_replace('"selRaceNo":1', '"selRaceNo":2', $this->fixture('race-sync-pj0326.html'));
+        $result = str_replace('"raceNo":1', '"raceNo":2', $result);
         Http::fake(function (Request $request) use ($detail, $result) {
             parse_str($request->body(), $form);
             if (($form['encp'] ?? null) === 'enc-fail') {
@@ -131,6 +133,131 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $this->assertSame(7, RaceResult::query()->where('race_id', $succeededRace->id)->count());
         $this->assertSame(1, BatchRunItem::query()->where('item_key', 'race:'.$failedRace->id)->where('status', 'FAILED')->count());
         $this->assertSame(1, BatchRunItem::query()->where('item_key', 'race:'.$succeededRace->id)->where('status', 'SUCCEEDED')->count());
+    }
+
+    public function test_girls_race_is_recorded_as_unsupported_without_deleting_existing_data(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $this->meetingWithDays();
+        $existingRace = $this->raceWithEntries(1, 'existing-girls');
+        $existingRace->forceFill([
+            'name' => 'existing girls race',
+            'race_type' => 'Ｌ級ガールズ予選',
+        ])->save();
+        $entries = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $entries['rInfo'][0]['syumoku'] = 'Ｌ級ガールズ予選';
+        $this->fakeRaceListResponses(json_encode($entries, JSON_THROW_ON_ERROR));
+
+        $this->artisan('keirin:races:sync-race-list', [
+            '--date' => '2026-06-16',
+            '--sleep-ms' => '1',
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseHas('races', [
+            'id' => $existingRace->id,
+            'name' => 'existing girls race',
+            'race_type' => 'Ｌ級ガールズ予選',
+        ]);
+        $this->assertSame(12, Race::query()->count());
+        $this->assertSame(76, RaceEntry::query()->count());
+        $this->assertDatabaseHas('batch_run_items', [
+            'item_type' => 'RACE_CATEGORY',
+            'status' => 'SKIPPED_UNSUPPORTED_CATEGORY',
+        ]);
+    }
+
+    public function test_girls_race_is_not_sent_to_the_mens_result_parsers(): void
+    {
+        Storage::fake('local');
+        $race = $this->raceWithEntries(1, 'enc-girls');
+        $race->forceFill(['race_type' => 'Ｌ級ガールズ予選'])->save();
+        Http::fake();
+
+        $this->artisan('keirin:races:sync-results', [
+            '--date' => '2026-06-16',
+            '--race-id' => (string) $race->id,
+        ])->assertExitCode(0);
+
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('batch_run_items', [
+            'item_key' => 'race:'.$race->id,
+            'status' => 'SKIPPED_UNSUPPORTED_CATEGORY',
+        ]);
+        $this->assertSame(0, RaceResultImport::query()->count());
+    }
+
+    public function test_partial_jsj017_preserves_existing_race_entries(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $race = $this->raceWithEntries(1, 'enc-existing');
+        $entries = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $entries['rInfo'][0]['sInfo'] = array_slice($entries['rInfo'][0]['sInfo'], 0, 1);
+        $this->fakeRaceListResponses(json_encode($entries, JSON_THROW_ON_ERROR));
+
+        $this->artisan('keirin:races:sync-race-list', [
+            '--date' => '2026-06-16',
+            '--sleep-ms' => '1',
+        ])->assertExitCode(1);
+
+        $this->assertSame(7, RaceEntry::query()->where('race_id', $race->id)->count());
+        $this->assertSame(range(1, 7), RaceEntry::query()->where('race_id', $race->id)->orderBy('bike_number')->pluck('bike_number')->all());
+    }
+
+    public function test_partial_pj0326_preserves_existing_results_and_payouts(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $race = $this->raceWithEntries(1, 'enc-result');
+        $resultResponse = $this->fixture('race-sync-pj0326.html');
+        Http::fake(function (Request $request) use (&$resultResponse) {
+            parse_str($request->body(), $form);
+
+            return ($form['disp'] ?? null) === 'PJ0315'
+                ? Http::response($this->fixture('race-sync-pj0315.html'), 200, ['Content-Type' => 'text/html; charset=UTF-8'])
+                : Http::response($resultResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        });
+        $arguments = ['--date' => '2026-06-16', '--race-id' => (string) $race->id, '--sleep-ms' => '1'];
+        $this->artisan('keirin:races:sync-results', $arguments)->assertExitCode(0);
+
+        $resultResponse = $this->resultHtmlWith(function (array $result): array {
+            $result['tyakujyunItemSubData'] = array_slice($result['tyakujyunItemSubData'], 0, 1);
+
+            return $result;
+        });
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+
+        $this->assertSame(7, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame(8, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+    }
+
+    public function test_undetermined_result_status_is_skipped_without_importing_or_confirming(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $race = $this->raceWithEntries(1, 'enc-undetermined');
+        $unknown = $this->resultHtmlWith(function (array $result): array {
+            unset($result['haraiGakuDispFlg']);
+
+            return $result;
+        });
+        $this->fakeResultResponses($unknown);
+
+        $this->artisan('keirin:races:sync-results', [
+            '--date' => '2026-06-16',
+            '--race-id' => (string) $race->id,
+            '--sleep-ms' => '1',
+        ])->assertExitCode(0);
+
+        $this->assertSame('UNAVAILABLE', $race->refresh()->result_status);
+        $this->assertSame(0, RaceResultImport::query()->count());
+        $this->assertDatabaseHas('batch_run_items', [
+            'item_key' => 'race:'.$race->id,
+            'status' => 'SKIPPED',
+            'skip_reason' => 'RESULT_STATUS_UNDETERMINED',
+        ]);
     }
 
     private function meetingWithDays(): RaceMeeting
@@ -169,6 +296,7 @@ class SyncAutomatedRacesCommandTest extends TestCase
             'racetrack_id' => $meeting->racetrack_id,
             'race_date' => '2026-06-16',
             'race_number' => $raceNumber,
+            'race_type' => 'S級予選',
             'entrant_count' => 7,
             'encrypted_parameter' => $encryptedParameter,
             'result_available' => true,
@@ -185,28 +313,42 @@ class SyncAutomatedRacesCommandTest extends TestCase
         return $race;
     }
 
-    private function fakeRaceListResponses(): void
+    private function fakeRaceListResponses(?string $entryResponse = null): void
     {
-        Http::fake(function (Request $request) {
+        Http::fake(function (Request $request) use ($entryResponse) {
             if (str_contains($request->url(), '/pc/racelist')) {
                 return Http::response($this->fixture('race-sync-racelist.html'), 200, ['Content-Type' => 'text/html; charset=UTF-8']);
             }
 
             return str_contains($request->url(), 'type=JSJ001')
                 ? Http::response($this->fixture('race-sync-jsj001.json'), 200, ['Content-Type' => 'application/json; charset=UTF-8'])
-                : Http::response($this->fixture('race-sync-jsj017.json'), 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+                : Http::response($entryResponse ?? $this->fixture('race-sync-jsj017.json'), 200, ['Content-Type' => 'application/json; charset=UTF-8']);
         });
     }
 
-    private function fakeResultResponses(): void
+    private function fakeResultResponses(?string $resultResponse = null): void
     {
-        Http::fake(function (Request $request) {
+        Http::fake(function (Request $request) use ($resultResponse) {
             parse_str($request->body(), $form);
 
             return ($form['disp'] ?? null) === 'PJ0315'
                 ? Http::response($this->fixture('race-sync-pj0315.html'), 200, ['Content-Type' => 'text/html; charset=UTF-8'])
-                : Http::response($this->fixture('race-sync-pj0326.html'), 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+                : Http::response($resultResponse ?? $this->fixture('race-sync-pj0326.html'), 200, ['Content-Type' => 'text/html; charset=UTF-8']);
         });
+    }
+
+    private function resultHtmlWith(callable $mutate): string
+    {
+        $extractor = new EmbeddedJsonExtractor;
+        $fixture = $this->fixture('race-sync-pj0326.html');
+        $context = $extractor->extract($fixture, 'PC0201');
+        $result = $mutate($extractor->extract($fixture, 'PJ0326'));
+
+        return '<!doctype html><html><body><script>jsonData["PC0201"] = '
+            .json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .'; jsonData["PJ0326"] = '
+            .json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .';</script></body></html>';
     }
 
     private function fixture(string $name): string

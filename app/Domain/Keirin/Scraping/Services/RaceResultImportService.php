@@ -153,7 +153,7 @@ class RaceResultImportService
         try {
             $this->validateRequestedStatus($page, $requestedResultStatus);
             $result = match ($page->pageStatus) {
-                ParsedRaceResultPageStatus::ResultsAvailable => $this->syncAvailableResults($race, $import, $page, $sourceUrl, $requestedResultStatus, allowAuthoritativeNonStandardCount: true),
+                ParsedRaceResultPageStatus::ResultsAvailable => $this->syncAvailableResults($race, $import, $page, $sourceUrl, $requestedResultStatus),
                 ParsedRaceResultPageStatus::Unavailable,
                 ParsedRaceResultPageStatus::UnderReview => $this->skipUnavailableResult($race, $import, $page, $sourceUrl, $requestedResultStatus),
                 ParsedRaceResultPageStatus::Cancelled => $this->syncCancelled($race, $import, $page, $sourceUrl, $requestedResultStatus),
@@ -247,17 +247,15 @@ class RaceResultImportService
         ParsedRaceResultPageDto $page,
         string $sourceUrl,
         RaceResultStatus $requestedResultStatus,
-        bool $allowAuthoritativeNonStandardCount = false,
     ): array {
-        $expectedEntrants = $this->entrantExpectations->resolve($race, allowAuthoritativeNonStandardCount: $allowAuthoritativeNonStandardCount);
+        $expectedEntrants = $this->entrantExpectations->resolve($race);
         $this->completenessValidator->validate($page, $expectedEntrants);
 
-        DB::transaction(function () use ($race, $import, $page, $sourceUrl, $requestedResultStatus, $allowAuthoritativeNonStandardCount): void {
+        DB::transaction(function () use ($race, $import, $page, $sourceUrl, $requestedResultStatus): void {
             $lockedRace = Race::query()->whereKey($race->id)->lockForUpdate()->firstOrFail();
             $lockedExpectedEntrants = $this->entrantExpectations->resolve(
                 $lockedRace,
                 lockForUpdate: true,
-                allowAuthoritativeNonStandardCount: $allowAuthoritativeNonStandardCount,
             );
             $this->completenessValidator->validate($page, $lockedExpectedEntrants);
             $this->assertTransitionAllowed($lockedRace, $requestedResultStatus);

@@ -33,7 +33,7 @@ class RaceEntrantExpectationResolverTest extends TestCase
     {
         $invalidCases = [
             'missing expected count' => [null, []],
-            'unsupported entrant count' => [6, []],
+            'unsupported entrant count' => [5, []],
             'entry count mismatch' => [9, [1, 2, 3, 4, 5, 6, 7]],
             'duplicate bike number' => [7, [1, 2, 3, 4, 5, 6, 6]],
             'missing bike number' => [7, [1, 2, 3, 4, 5, 6, null]],
@@ -50,15 +50,17 @@ class RaceEntrantExpectationResolverTest extends TestCase
         }
     }
 
-    public function test_automated_sync_accepts_non_standard_count_only_with_authoritative_entries(): void
+    public function test_six_seven_and_nine_entrants_are_supported_with_or_without_entry_rows(): void
     {
         $resolver = new RaceEntrantExpectationResolver;
-        $expected = $resolver->resolveFromValues(6, range(1, 6), allowAuthoritativeNonStandardCount: true);
+        foreach ([6, 7, 9] as $count) {
+            $fromEntries = $resolver->resolveFromValues($count, range(1, $count));
+            $fromCount = $resolver->resolveFromValues($count, []);
 
-        $this->assertSame(6, $expected->count);
-        $this->assertSame(range(1, 6), $expected->bikeNumbers);
-
-        $this->expectException(RaceResultCompletenessException::class);
-        $resolver->resolveFromValues(6, [], allowAuthoritativeNonStandardCount: true);
+            $this->assertSame($count, $fromEntries->count);
+            $this->assertSame(range(1, $count), $fromEntries->bikeNumbers);
+            $this->assertSame($count, $fromCount->count);
+            $this->assertNull($fromCount->bikeNumbers);
+        }
     }
 }
