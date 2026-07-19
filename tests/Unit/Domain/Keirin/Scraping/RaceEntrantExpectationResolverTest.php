@@ -33,9 +33,10 @@ class RaceEntrantExpectationResolverTest extends TestCase
     {
         $invalidCases = [
             'missing expected count' => [null, []],
-            'unsupported entrant count' => [5, []],
+            'unsupported entrant count' => [4, []],
             'entry count mismatch' => [9, [1, 2, 3, 4, 5, 6, 7]],
             'duplicate bike number' => [7, [1, 2, 3, 4, 5, 6, 6]],
+            'non-contiguous bike numbers' => [5, [1, 2, 3, 4, 6]],
             'missing bike number' => [7, [1, 2, 3, 4, 5, 6, null]],
             'out-of-range bike number' => [7, [1, 2, 3, 4, 5, 6, 10]],
         ];
@@ -50,10 +51,10 @@ class RaceEntrantExpectationResolverTest extends TestCase
         }
     }
 
-    public function test_six_through_nine_entrants_are_supported_with_or_without_entry_rows(): void
+    public function test_five_through_nine_entrants_are_supported_with_or_without_entry_rows(): void
     {
         $resolver = new RaceEntrantExpectationResolver;
-        foreach ([6, 7, 8, 9] as $count) {
+        foreach ([5, 6, 7, 8, 9] as $count) {
             $fromEntries = $resolver->resolveFromValues($count, range(1, $count));
             $fromCount = $resolver->resolveFromValues($count, []);
 
