@@ -6,6 +6,7 @@ namespace App\Domain\Keirin\Scraping\Services;
 
 use App\Domain\Keirin\Scraping\DTO\RaceEntryListPageDto;
 use App\Domain\Keirin\Scraping\Enums\RaceCategory;
+use App\Domain\Keirin\Scraping\Exceptions\RaceEntryListUnavailableException;
 use App\Domain\Keirin\Scraping\Fetchers\RaceDayMetadataFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\RaceEntryListFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\RaceListPageFetcher;
@@ -140,6 +141,16 @@ class RaceListSyncService
                         $entryCount += $counts['entries'];
                         $unresolved += $counts['unresolved_players'];
                         $this->batchRuns->succeedItem($item, $counts);
+                    } catch (RaceEntryListUnavailableException $exception) {
+                        $skipped++;
+                        $this->batchRuns->skipItem($item, $exception->reason, [
+                            'race_day_id' => (int) $day->id,
+                            'race_date' => $day->race_date->format('Y-m-d'),
+                            'reason' => $exception->reason,
+                            'message' => $exception->getMessage(),
+                            'evidence' => $exception->evidence,
+                            'raw_file_path' => $entriesRaw->rawFilePath,
+                        ]);
                     } catch (Throwable $throwable) {
                         $failed++;
                         $lastError = $throwable->getMessage();

@@ -9,6 +9,7 @@ use App\Domain\Keirin\Scraping\DTO\RaceListEntryDto;
 use App\Domain\Keirin\Scraping\DTO\RaceListRaceDto;
 use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Exceptions\ParserException;
+use App\Domain\Keirin\Scraping\Exceptions\RaceEntryListUnavailableException;
 use App\Domain\Keirin\Scraping\Support\HtmlTextNormalizer;
 use App\Domain\Keirin\Scraping\Support\RaceCategoryPolicy;
 use App\Domain\Keirin\Scraping\Support\RaceEntrantCountPolicy;
@@ -31,13 +32,19 @@ class RaceEntryListParser
     public function parse(string $json): RaceEntryListPageDto
     {
         try {
+            $decodedRoot = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
             $root = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
             throw new ParserException('JSJ017 response was invalid JSON.', previous: $exception);
         }
-        if (! is_array($root) || (int) ($root['resultCd'] ?? -1) !== 0) {
+        if (! is_object($decodedRoot) || ! is_array($root) || $root === []) {
+            throw new ParserException('JSJ017 response root was not a JSON object.');
+        }
+        if (! $this->isZero($root['resultCd'] ?? null)) {
             throw new ParserException('JSJ017 result code was invalid.');
         }
+
+        $this->throwIfPostponed($root);
 
         $trackCode = $this->digits($root['keirinCd'] ?? null, 'keirinCd');
         $raceDate = $this->digits($root['kaisaihi'] ?? null, 'kaisaihi', 8);
@@ -109,6 +116,35 @@ class RaceEntryListParser
             lastUpdatedAt: HtmlTextNormalizer::normalize(is_string($root['lastUpdateTime'] ?? null) ? $root['lastUpdateTime'] : null),
             races: $races,
         );
+    }
+
+    /** @param array<string, mixed> $root */
+    private function throwIfPostponed(array $root): void
+    {
+        $displayFlag = $root['syusouDispFlag'] ?? null;
+        $rawMessage = $root['kaisaiMsg'] ?? null;
+        $message = HtmlTextNormalizer::normalize(is_string($rawMessage) ? $rawMessage : null);
+
+        if (! in_array($displayFlag, [false, 0, '0'], true)
+            || $message === null
+            || ! str_contains($message, '順延')) {
+            return;
+        }
+
+        throw new RaceEntryListUnavailableException(
+            reason: RaceEntryListUnavailableException::REASON_RACE_DAY_POSTPONED,
+            message: $message,
+            evidence: [
+                'resultCd' => $root['resultCd'],
+                'syusouDispFlag' => $displayFlag,
+                'kaisaiMsg' => $message,
+            ],
+        );
+    }
+
+    private function isZero(mixed $value): bool
+    {
+        return $value === 0 || $value === '0';
     }
 
     private function digits(mixed $value, string $key, ?int $length = null): string
