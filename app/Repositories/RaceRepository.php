@@ -19,6 +19,7 @@ use App\Models\RaceMeeting;
 use App\Models\Racetrack;
 use DateTimeImmutable;
 use DateTimeZone;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RaceRepository
@@ -26,9 +27,10 @@ class RaceRepository
     public function upsertScheduleItem(RaceScheduleItemDto $dto, DateTimeImmutable $fetchedAt): RaceMeeting
     {
         return DB::transaction(function () use ($dto, $fetchedAt): RaceMeeting {
+            $source = (string) config('keirin.source');
             $track = Racetrack::query()->updateOrCreate(
                 [
-                    'source' => (string) config('keirin.source'),
+                    'source' => $source,
                     'external_track_id' => $dto->trackCode,
                 ],
                 ['name' => $dto->trackName],
@@ -40,76 +42,213 @@ class RaceRepository
                 $dto->encryptedParameter ?: 'schedule',
             ]);
 
-            $meeting = RaceMeeting::query()->updateOrCreate(
-                [
-                    'source' => (string) config('keirin.source'),
+            $meeting = $this->findScheduleMeeting(
+                $source,
+                (int) $track->id,
+                $dto->encryptedParameter,
+                $externalMeetingId,
+            );
+            if (! $meeting instanceof RaceMeeting) {
+                $meeting = new RaceMeeting([
+                    'source' => $source,
                     'external_meeting_id' => $externalMeetingId,
-                ],
-                [
                     'racetrack_id' => $track->id,
-                    'meeting_name' => $dto->trackName.' '.$dto->grade,
-                    'grade' => $dto->grade,
                     'starts_on' => $dto->startsOn->format('Y-m-d'),
                     'ends_on' => $dto->startsOn->modify('+'.($dto->durationDays - 1).' days')->format('Y-m-d'),
                     'duration_days' => $dto->durationDays,
-                    'race_list_url' => $dto->raceListUrl,
-                    'encrypted_parameter' => $dto->encryptedParameter,
-                    'day_kind' => $dto->dayKind,
-                    'last_fetched_at' => $fetchedAt,
-                ],
-            );
+                ]);
+            }
+            $meeting->forceFill([
+                'meeting_name' => $dto->trackName.' '.$dto->grade,
+                'grade' => $dto->grade ?? $meeting->grade,
+                'race_list_url' => $dto->raceListUrl ?? $meeting->race_list_url,
+                'encrypted_parameter' => $dto->encryptedParameter ?? $meeting->encrypted_parameter,
+                'day_kind' => $dto->dayKind ?? $meeting->day_kind,
+                'last_fetched_at' => $fetchedAt,
+            ])->save();
 
             for ($offset = 0; $offset < $dto->durationDays; $offset++) {
                 $raceDate = $dto->startsOn->modify("+{$offset} days");
-                RaceDay::query()->updateOrCreate(
-                    [
-                        'external_race_day_id' => $externalMeetingId.':day:'.($offset + 1),
-                    ],
-                    [
+                $date = $raceDate->format('Y-m-d');
+                $day = RaceDay::query()
+                    ->where('race_meeting_id', $meeting->id)
+                    ->whereDate('race_date', $date)
+                    ->lockForUpdate()
+                    ->first();
+                if (! $day instanceof RaceDay) {
+                    $day = new RaceDay([
                         'race_meeting_id' => $meeting->id,
-                        'race_date' => $raceDate->format('Y-m-d'),
-                        'day_number' => $offset + 1,
-                        'race_list_url' => $dto->raceListUrl,
-                        'last_fetched_at' => $fetchedAt,
-                    ],
-                );
+                        'external_race_day_id' => $this->newRaceDayExternalId($meeting, $raceDate),
+                        'race_date' => $date,
+                        'day_number' => 1,
+                    ]);
+                }
+                $day->forceFill([
+                    'race_list_url' => $dto->raceListUrl ?? $day->race_list_url,
+                    'last_fetched_at' => $fetchedAt,
+                ])->save();
             }
 
-            return $meeting;
+            $days = RaceDay::query()
+                ->where('race_meeting_id', $meeting->id)
+                ->lockForUpdate()
+                ->orderBy('race_date')
+                ->get();
+            $this->renumberMeetingDays($days);
+            $this->updateMeetingDateRange($meeting, $days, $fetchedAt);
+
+            return $meeting->refresh();
         });
     }
 
     public function updateMeetingDayParameters(RaceMeeting $meeting, RaceDayMetadataPageDto $metadata, DateTimeImmutable $fetchedAt): void
     {
         DB::transaction(function () use ($meeting, $metadata, $fetchedAt): void {
+            $lockedMeeting = RaceMeeting::query()->whereKey($meeting->id)->lockForUpdate()->firstOrFail();
             $days = RaceDay::query()
-                ->where('race_meeting_id', $meeting->id)
+                ->where('race_meeting_id', $lockedMeeting->id)
                 ->lockForUpdate()
+                ->orderBy('race_date')
                 ->get()
                 ->keyBy(fn (RaceDay $day): string => $day->race_date->format('Ymd'));
-            $track = Racetrack::query()->findOrFail($meeting->racetrack_id);
+            $track = Racetrack::query()->findOrFail($lockedMeeting->racetrack_id);
             if ($track->external_track_id !== $metadata->trackCode) {
                 throw new ParserException('JSJ001 track did not match the stored race meeting.');
             }
-            $metadataDates = array_map(fn ($day): string => $day->raceDate, $metadata->days);
-            $databaseDates = $days->keys()->map(fn ($date): string => (string) $date)->sort()->values()->all();
-            sort($metadataDates);
 
-            if ($metadataDates !== $databaseDates) {
-                throw new ParserException('JSJ001 meeting dates did not match stored race_days.');
+            $metadataDates = array_map(fn ($day): string => $day->raceDate, $metadata->days);
+            if ($metadataDates === [] || count($metadataDates) !== count(array_unique($metadataDates))) {
+                throw new ParserException('JSJ001 meeting dates were empty or duplicated.');
+            }
+            $sortedMetadataDates = $metadataDates;
+            sort($sortedMetadataDates);
+            if ($metadataDates !== $sortedMetadataDates) {
+                throw new ParserException('JSJ001 meeting dates were not in ascending order.');
+            }
+            foreach ($metadataDates as $metadataDate) {
+                $date = DateTimeImmutable::createFromFormat('!Ymd', $metadataDate);
+                if (! $date instanceof DateTimeImmutable || $date->format('Ymd') !== $metadataDate) {
+                    throw new ParserException("JSJ001 meeting date {$metadataDate} was invalid.");
+                }
             }
 
+            $databaseOnlyDates = array_diff($days->keys()->all(), $metadataDates);
+            foreach ($databaseOnlyDates as $databaseOnlyDate) {
+                $day = $days->get($databaseOnlyDate);
+                $relatedRaceCount = $day instanceof RaceDay
+                    ? Race::query()->where('race_day_id', $day->id)->count()
+                    : 0;
+                if ($relatedRaceCount > 0) {
+                    throw new ParserException("Stored race_day {$databaseOnlyDate} had related races ({$relatedRaceCount}) and could not be removed.");
+                }
+            }
+            foreach ($metadataDates as $metadataDate) {
+                if ($days->has($metadataDate)) {
+                    continue;
+                }
+                $externalRaceDayId = $lockedMeeting->external_meeting_id.':date:'.$metadataDate;
+                if (RaceDay::query()->where('external_race_day_id', $externalRaceDayId)->exists()) {
+                    throw new ParserException("Race day external ID {$externalRaceDayId} already existed.");
+                }
+            }
+
+            foreach ($databaseOnlyDates as $databaseOnlyDate) {
+                $day = $days->get($databaseOnlyDate);
+                if ($day instanceof RaceDay) {
+                    $day->delete();
+                }
+            }
             foreach ($metadata->days as $dayParameter) {
                 $day = $days->get($dayParameter->raceDate);
                 if (! $day instanceof RaceDay) {
-                    throw new ParserException("JSJ001 race date {$dayParameter->raceDate} was not stored.");
+                    $raceDate = DateTimeImmutable::createFromFormat('!Ymd', $dayParameter->raceDate);
+                    if (! $raceDate instanceof DateTimeImmutable) {
+                        throw new ParserException("JSJ001 meeting date {$dayParameter->raceDate} was invalid.");
+                    }
+                    $day = new RaceDay([
+                        'race_meeting_id' => $lockedMeeting->id,
+                        'external_race_day_id' => $this->newRaceDayExternalId($lockedMeeting, $raceDate),
+                        'race_date' => $raceDate->format('Y-m-d'),
+                        'day_number' => 1,
+                        'race_list_url' => $lockedMeeting->race_list_url,
+                    ]);
                 }
                 $day->forceFill([
                     'encrypted_parameter' => $dayParameter->encryptedParameter,
                     'last_fetched_at' => $fetchedAt,
                 ])->save();
             }
+
+            $reconciledDays = RaceDay::query()
+                ->where('race_meeting_id', $lockedMeeting->id)
+                ->lockForUpdate()
+                ->orderBy('race_date')
+                ->get();
+            $this->renumberMeetingDays($reconciledDays);
+            $this->updateMeetingDateRange($lockedMeeting, $reconciledDays, $fetchedAt);
         });
+    }
+
+    private function findScheduleMeeting(
+        string $source,
+        int $racetrackId,
+        ?string $encryptedParameter,
+        string $externalMeetingId,
+    ): ?RaceMeeting {
+        if (is_string($encryptedParameter) && $encryptedParameter !== '') {
+            $matches = RaceMeeting::query()
+                ->where('source', $source)
+                ->where('racetrack_id', $racetrackId)
+                ->where('encrypted_parameter', $encryptedParameter)
+                ->lockForUpdate()
+                ->get();
+            if ($matches->count() > 1) {
+                throw new ParserException('Multiple race meetings had the same track and encrypted parameter.');
+            }
+
+            return $matches->first();
+        }
+
+        return RaceMeeting::query()
+            ->where('source', $source)
+            ->where('external_meeting_id', $externalMeetingId)
+            ->lockForUpdate()
+            ->first();
+    }
+
+    private function newRaceDayExternalId(RaceMeeting $meeting, DateTimeImmutable $raceDate): string
+    {
+        $externalRaceDayId = $meeting->external_meeting_id.':date:'.$raceDate->format('Ymd');
+        if (RaceDay::query()->where('external_race_day_id', $externalRaceDayId)->exists()) {
+            throw new ParserException("Race day external ID {$externalRaceDayId} already existed.");
+        }
+
+        return $externalRaceDayId;
+    }
+
+    /** @param Collection<int, RaceDay> $days */
+    private function renumberMeetingDays(Collection $days): void
+    {
+        foreach ($days->values() as $index => $day) {
+            if ($day->day_number !== $index + 1) {
+                $day->forceFill(['day_number' => $index + 1])->save();
+            }
+        }
+    }
+
+    /** @param Collection<int, RaceDay> $days */
+    private function updateMeetingDateRange(RaceMeeting $meeting, Collection $days, DateTimeImmutable $fetchedAt): void
+    {
+        if ($days->isEmpty()) {
+            throw new ParserException('Race meeting had no race_days after reconciliation.');
+        }
+
+        $meeting->forceFill([
+            'starts_on' => $days->first()->race_date,
+            'ends_on' => $days->last()->race_date,
+            'duration_days' => $days->count(),
+            'last_fetched_at' => $fetchedAt,
+        ])->save();
     }
 
     /**
