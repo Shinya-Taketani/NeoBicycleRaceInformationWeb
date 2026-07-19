@@ -13,6 +13,7 @@ use App\Domain\Keirin\Scraping\Exceptions\RaceEntryListUnavailableException;
 use App\Domain\Keirin\Scraping\Support\HtmlTextNormalizer;
 use App\Domain\Keirin\Scraping\Support\RaceCategoryPolicy;
 use App\Domain\Keirin\Scraping\Support\RaceEntrantCountPolicy;
+use DateTimeImmutable;
 use JsonException;
 
 class RaceEntryListParser
@@ -44,7 +45,7 @@ class RaceEntryListParser
             throw new ParserException('JSJ017 result code was invalid.');
         }
 
-        $this->throwIfPostponed($root);
+        $this->throwIfRaceDayUnavailable($root);
 
         $trackCode = $this->digits($root['keirinCd'] ?? null, 'keirinCd');
         $raceDate = $this->digits($root['kaisaihi'] ?? null, 'kaisaihi', 8);
@@ -119,27 +120,92 @@ class RaceEntryListParser
     }
 
     /** @param array<string, mixed> $root */
-    private function throwIfPostponed(array $root): void
+    private function throwIfRaceDayUnavailable(array $root): void
     {
         $displayFlag = $root['syusouDispFlag'] ?? null;
         $rawMessage = $root['kaisaiMsg'] ?? null;
         $message = HtmlTextNormalizer::normalize(is_string($rawMessage) ? $rawMessage : null);
 
-        if (! in_array($displayFlag, [false, 0, '0'], true)
-            || $message === null
-            || ! str_contains($message, '順延')) {
-            return;
+        if ($this->isCancelledRaceDay($root, $displayFlag, $message)) {
+            $request = $root['reqprm'];
+            throw new RaceEntryListUnavailableException(
+                reason: RaceEntryListUnavailableException::REASON_RACE_DAY_CANCELLED,
+                message: $message,
+                evidence: [
+                    'resultCd' => $root['resultCd'],
+                    'syusouDispFlag' => $displayFlag,
+                    'kaisaiMsg' => $message,
+                    'reqprm.bkcd' => (string) $request['bkcd'],
+                    'reqprm.kday' => (string) $request['kday'],
+                    'hasKeirinCd' => array_key_exists('keirinCd', $root),
+                    'hasKaisaihi' => array_key_exists('kaisaihi', $root),
+                    'rInfoState' => $this->rInfoState($root),
+                ],
+            );
         }
 
-        throw new RaceEntryListUnavailableException(
-            reason: RaceEntryListUnavailableException::REASON_RACE_DAY_POSTPONED,
-            message: $message,
-            evidence: [
-                'resultCd' => $root['resultCd'],
-                'syusouDispFlag' => $displayFlag,
-                'kaisaiMsg' => $message,
-            ],
-        );
+        if (in_array($displayFlag, [false, 0, '0'], true)
+            && $message !== null
+            && str_contains($message, '順延')) {
+            throw new RaceEntryListUnavailableException(
+                reason: RaceEntryListUnavailableException::REASON_RACE_DAY_POSTPONED,
+                message: $message,
+                evidence: [
+                    'resultCd' => $root['resultCd'],
+                    'syusouDispFlag' => $displayFlag,
+                    'kaisaiMsg' => $message,
+                ],
+            );
+        }
+    }
+
+    /** @param array<string, mixed> $root */
+    private function isCancelledRaceDay(array $root, mixed $displayFlag, ?string $message): bool
+    {
+        $request = $root['reqprm'] ?? null;
+        $rawRaces = $root['rInfo'] ?? null;
+
+        return in_array($displayFlag, [false, 0, '0'], true)
+            && in_array($message, ['中止となりました。', '中止となりました'], true)
+            && ! array_key_exists('keirinCd', $root)
+            && ! array_key_exists('kaisaihi', $root)
+            && (! array_key_exists('rInfo', $root) || $rawRaces === null || $rawRaces === [])
+            && is_array($request)
+            && $this->isDigits($request['bkcd'] ?? null)
+            && $this->isDate($request['kday'] ?? null);
+    }
+
+    /** @param array<string, mixed> $root */
+    private function rInfoState(array $root): string
+    {
+        if (! array_key_exists('rInfo', $root)) {
+            return 'missing';
+        }
+        if ($root['rInfo'] === null) {
+            return 'null';
+        }
+        if ($root['rInfo'] === []) {
+            return 'empty_array';
+        }
+
+        return is_array($root['rInfo']) ? 'populated_array' : 'invalid_type';
+    }
+
+    private function isDigits(mixed $value): bool
+    {
+        return (is_string($value) || is_int($value))
+            && preg_match('/^\d+$/', (string) $value) === 1;
+    }
+
+    private function isDate(mixed $value): bool
+    {
+        if (! $this->isDigits($value) || strlen((string) $value) !== 8) {
+            return false;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Ymd', (string) $value);
+
+        return $date instanceof DateTimeImmutable && $date->format('Ymd') === (string) $value;
     }
 
     private function isZero(mixed $value): bool

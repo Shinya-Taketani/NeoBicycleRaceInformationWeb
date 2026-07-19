@@ -19,4 +19,6 @@ The `synthetic/race-sync-*` fixtures are minimized from the key structures obser
 
 `synthetic/race-sync-jsj017-postponed.json` is a minimal synthetic reproduction of the public JSJ017 postponed response observed for Kochi on 2026-06-02. It retains only the three fields required to distinguish a postponed race day and excludes request parameters and other unnecessary response data.
 
+`synthetic/race-sync-jsj017-cancelled.json` is a minimal synthetic reproduction of the public JSJ017 race-day cancellation structure observed at Ito and Komatsushima. Its track code and date are adapted to the synthetic meeting used by tests. It retains the request context needed to reject a cancellation response returned for the wrong track or race day.
+
 Result-state variants for cancellation, section cancellation, under review, provisional, corrected, and undetermined states are synthetic test mutations. The confirmed-state flag combination mirrors the saved public PJ0326/PC0201 structure; the complete raw response remains excluded from fixtures.

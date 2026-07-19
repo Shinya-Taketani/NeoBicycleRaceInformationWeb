@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console\Keirin;
 
 use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
+use App\Domain\Keirin\Scraping\Parsers\RaceListConsistencyValidator;
 use App\Domain\Keirin\Scraping\Parsers\RaceLiveResultParser;
 use App\Models\BatchRun;
 use App\Models\BatchRunItem;
@@ -18,11 +19,13 @@ use App\Models\RaceResult;
 use App\Models\RaceResultImport;
 use App\Models\Racetrack;
 use App\Models\ScrapingFetchLog;
+use App\Repositories\RaceRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class SyncAutomatedRacesCommandTest extends TestCase
@@ -157,6 +160,166 @@ class SyncAutomatedRacesCommandTest extends TestCase
             'status' => 'SKIPPED',
             'skip_reason' => 'RACE_DAY_POSTPONED',
         ]);
+    }
+
+    public function test_cancelled_race_day_with_null_jsj001_races_is_skipped_and_audited_without_syncing(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $this->meetingWithDays();
+        $day = RaceDay::query()->whereDate('race_date', '2026-06-16')->firstOrFail();
+        $metadata = json_decode($this->fixture('race-sync-jsj001.json'), true, flags: JSON_THROW_ON_ERROR);
+        $metadata['C0201data']['selRaceNo'] = 0;
+        $metadata['C0201data']['C0201race'] = null;
+        $metadataResponse = json_encode($metadata, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $cancelledResponse = $this->fixture('race-sync-jsj017-cancelled.json');
+        $this->mock(RaceListConsistencyValidator::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('validate');
+        });
+        $this->partialMock(RaceRepository::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('syncRaceDay');
+        });
+        $this->fakeRaceListResponses($cancelledResponse, $metadataResponse);
+
+        $exitCode = Artisan::call('keirin:races:sync-race-list', [
+            '--date' => '2026-06-16',
+            '--sleep-ms' => '1',
+        ]);
+        $output = Artisan::output();
+
+        $this->assertSame(0, $exitCode, $output);
+        $this->assertStringContainsString(
+            'days=0 races=0 entries=0 unresolved_players=0 skipped=1 failed=0',
+            $output,
+        );
+        $this->assertSame(0, Race::query()->count());
+        $this->assertSame(0, RaceEntry::query()->count());
+        $item = BatchRunItem::query()->where('item_type', 'RACE_ENTRY_LIST')->firstOrFail();
+        $this->assertSame('SKIPPED', $item->status);
+        $this->assertSame('RACE_DAY_CANCELLED', $item->skip_reason);
+        $this->assertSame((int) $day->id, $item->metadata['race_day_id']);
+        $this->assertSame('2026-06-16', $item->metadata['race_date']);
+        $this->assertSame('RACE_DAY_CANCELLED', $item->metadata['reason']);
+        $this->assertSame('中止となりました。', $item->metadata['message']);
+        $this->assertSame('56', $item->metadata['evidence']['reqprm.bkcd']);
+        $this->assertSame('20260616', $item->metadata['evidence']['reqprm.kday']);
+
+        $metadataLog = ScrapingFetchLog::query()->where('request_url', 'like', '%type=JSJ001%')->firstOrFail();
+        $entryLog = ScrapingFetchLog::query()->where('request_url', 'like', '%type=JSJ017%')->firstOrFail();
+        $this->assertSame($entryLog->raw_file_path, $item->metadata['raw_file_path']);
+        $this->assertSame($metadataLog->raw_file_path, $item->metadata['metadata_raw_file_path']);
+        $this->assertSame($cancelledResponse, Storage::disk('local')->get($entryLog->raw_file_path));
+        $this->assertSame($metadataResponse, Storage::disk('local')->get($metadataLog->raw_file_path));
+
+        $run = BatchRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('SUCCEEDED', $run->status);
+        $this->assertSame(0, $run->success_count);
+        $this->assertSame(1, $run->skipped_count);
+        $this->assertSame(0, $run->failure_count);
+        $this->assertNotNull($run->finished_at);
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+    }
+
+    public function test_cancelled_race_day_with_normal_jsj001_preserves_existing_data_on_retries(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $player = Player::query()->create([
+            'source' => 'keirin_jp',
+            'external_player_id' => 'cancelled-player',
+            'name' => '既存選手',
+        ]);
+        $race = $this->raceWithEntries(1, 'existing-cancelled');
+        $race->forceFill([
+            'name' => '既存中止日レース',
+            'result_status' => 'CONFIRMED',
+            'result_confirmed_at' => now(),
+        ])->save();
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->firstOrFail();
+        RaceResult::query()->create([
+            'race_id' => $race->id,
+            'race_entry_id' => $entry->id,
+            'bike_number' => 1,
+            'rank' => 1,
+            'result_status' => 'FINISHED',
+            'raw_result_text' => 'existing cancelled-day result',
+            'source_url' => 'https://example.test/existing-result',
+            'fetched_at' => now(),
+        ]);
+        RacePayout::query()->create([
+            'race_id' => $race->id,
+            'bet_type_code' => 'WIN',
+            'combination' => '1',
+            'payout_amount' => 130,
+            'popularity' => 1,
+            'sequence' => 1,
+            'source_url' => 'https://example.test/existing-result',
+            'fetched_at' => now(),
+        ]);
+        $day = RaceDay::query()->findOrFail($race->race_day_id);
+        $before = [
+            'day' => $this->raceDayIdentity($day),
+            'player' => $player->refresh()->toArray(),
+            'race' => $race->refresh()->toArray(),
+            'entries' => RaceEntry::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray(),
+            'results' => RaceResult::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray(),
+            'payouts' => RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray(),
+        ];
+        $this->fakeRaceListResponses($this->fixture('race-sync-jsj017-cancelled.json'));
+        $arguments = ['--date' => '2026-06-16', '--sleep-ms' => '1'];
+
+        $this->artisan('keirin:races:sync-race-list', $arguments)
+            ->expectsOutputToContain('days=0 races=0 entries=0 unresolved_players=0 skipped=1 failed=0')
+            ->assertExitCode(0);
+        $this->artisan('keirin:races:sync-race-list', $arguments)->assertExitCode(0);
+
+        $this->assertSame($before['day'], $this->raceDayIdentity($day->refresh()));
+        $this->assertSame($before['player'], $player->refresh()->toArray());
+        $this->assertSame($before['race'], $race->refresh()->toArray());
+        $this->assertSame($before['entries'], RaceEntry::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray());
+        $this->assertSame($before['results'], RaceResult::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray());
+        $this->assertSame($before['payouts'], RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+        $this->assertSame(2, BatchRunItem::query()->where('status', 'SKIPPED')->where('skip_reason', 'RACE_DAY_CANCELLED')->count());
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+    }
+
+    public function test_cancelled_response_for_a_different_date_or_track_fails_instead_of_skipping(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $this->meetingWithDays();
+        $fixture = json_decode($this->fixture('race-sync-jsj017-cancelled.json'), true, flags: JSON_THROW_ON_ERROR);
+        $cases = [
+            'different date' => function (array &$json): void {
+                $json['reqprm']['kday'] = '20260617';
+            },
+            'different track' => function (array &$json): void {
+                $json['reqprm']['bkcd'] = '57';
+            },
+        ];
+
+        foreach ($cases as $case => $mutate) {
+            $json = $fixture;
+            $mutate($json);
+            $this->fakeRaceListResponses(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+            $exitCode = Artisan::call('keirin:races:sync-race-list', [
+                '--date' => '2026-06-16',
+                '--sleep-ms' => '1',
+            ]);
+            $output = Artisan::output();
+
+            $this->assertSame(1, $exitCode, $case.': '.$output);
+            $this->assertStringContainsString('skipped=0 failed=1', $output);
+            $item = BatchRunItem::query()->latest('id')->firstOrFail();
+            $this->assertSame('FAILED', $item->status);
+            $this->assertSame('RACE_DAY_CANCELLED', $item->metadata['reason']);
+            $this->assertStringContainsString('did not match the target race day', (string) $item->error_message);
+        }
+
+        $this->assertSame(0, Race::query()->count());
+        $this->assertSame(0, RaceEntry::query()->count());
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
     }
 
     public function test_race_list_sync_is_idempotent_and_preserves_unresolved_players(): void
@@ -680,15 +843,15 @@ class SyncAutomatedRacesCommandTest extends TestCase
         return $race;
     }
 
-    private function fakeRaceListResponses(?string $entryResponse = null): void
+    private function fakeRaceListResponses(?string $entryResponse = null, ?string $metadataResponse = null): void
     {
-        Http::fake(function (Request $request) use ($entryResponse) {
+        Http::fake(function (Request $request) use ($entryResponse, $metadataResponse) {
             if (str_contains($request->url(), '/pc/racelist')) {
                 return Http::response($this->fixture('race-sync-racelist.html'), 200, ['Content-Type' => 'text/html; charset=UTF-8']);
             }
 
             return str_contains($request->url(), 'type=JSJ001')
-                ? Http::response($this->fixture('race-sync-jsj001.json'), 200, ['Content-Type' => 'application/json; charset=UTF-8'])
+                ? Http::response($metadataResponse ?? $this->fixture('race-sync-jsj001.json'), 200, ['Content-Type' => 'application/json; charset=UTF-8'])
                 : Http::response($entryResponse ?? $this->fixture('race-sync-jsj017.json'), 200, ['Content-Type' => 'application/json; charset=UTF-8']);
         });
     }

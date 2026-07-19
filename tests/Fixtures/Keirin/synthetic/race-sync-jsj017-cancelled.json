@@ -1,0 +1,11 @@
+{
+  "syusouDispFlag": 0,
+  "kaisaiMsg": "中止となりました。",
+  "legendDspFlag": 0,
+  "resultCd": 0,
+  "reqprm": {
+    "bkcd": "56",
+    "kday": "20260616"
+  },
+  "writeANA": true
+}
