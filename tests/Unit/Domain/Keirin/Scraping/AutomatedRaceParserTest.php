@@ -119,6 +119,92 @@ class AutomatedRaceParserTest extends TestCase
         }
     }
 
+    public function test_it_reports_only_strict_race_day_cancellation_responses(): void
+    {
+        $fixture = json_decode($this->fixture('race-sync-jsj017-cancelled.json'), true, flags: JSON_THROW_ON_ERROR);
+        $cases = [
+            [$fixture, '中止となりました。', 'missing'],
+            [[...$fixture, 'syusouDispFlag' => false], '中止となりました。', 'missing'],
+            [[...$fixture, 'syusouDispFlag' => '0'], '中止となりました。', 'missing'],
+            [[...$fixture, 'resultCd' => '0'], '中止となりました。', 'missing'],
+            [[...$fixture, 'kaisaiMsg' => '  中止となりました。  '], '中止となりました。', 'missing'],
+            [[...$fixture, 'kaisaiMsg' => '中止となりました'], '中止となりました', 'missing'],
+            [[...$fixture, 'rInfo' => null], '中止となりました。', 'null'],
+            [[...$fixture, 'rInfo' => []], '中止となりました。', 'empty_array'],
+        ];
+
+        foreach ($cases as [$json, $expectedMessage, $expectedRaceInfoState]) {
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $this->fail('RaceEntryListUnavailableException was not thrown.');
+            } catch (RaceEntryListUnavailableException $exception) {
+                $this->assertSame(RaceEntryListUnavailableException::REASON_RACE_DAY_CANCELLED, $exception->reason);
+                $this->assertSame($expectedMessage, $exception->getMessage());
+                $this->assertSame($json['resultCd'], $exception->evidence['resultCd']);
+                $this->assertSame($json['syusouDispFlag'], $exception->evidence['syusouDispFlag']);
+                $this->assertSame($expectedMessage, $exception->evidence['kaisaiMsg']);
+                $this->assertSame('56', $exception->evidence['reqprm.bkcd']);
+                $this->assertSame('20260616', $exception->evidence['reqprm.kday']);
+                $this->assertFalse($exception->evidence['hasKeirinCd']);
+                $this->assertFalse($exception->evidence['hasKaisaihi']);
+                $this->assertSame($expectedRaceInfoState, $exception->evidence['rInfoState']);
+            }
+        }
+    }
+
+    public function test_it_rejects_responses_that_do_not_meet_every_race_day_cancellation_condition(): void
+    {
+        $fixture = json_decode($this->fixture('race-sync-jsj017-cancelled.json'), true, flags: JSON_THROW_ON_ERROR);
+        $invalidCases = [
+            'different message' => function (array &$json): void {
+                $json['kaisaiMsg'] = '開催情報を確認してください。';
+            },
+            'sales cancellation message' => function (array &$json): void {
+                $json['kaisaiMsg'] = '発売中止';
+            },
+            'enabled display flag' => function (array &$json): void {
+                $json['syusouDispFlag'] = 1;
+            },
+            'non-zero result code' => function (array &$json): void {
+                $json['resultCd'] = 1;
+            },
+            'keirinCd present' => function (array &$json): void {
+                $json['keirinCd'] = '56';
+            },
+            'kaisaihi present' => function (array &$json): void {
+                $json['kaisaihi'] = '20260616';
+            },
+            'normal race array present' => function (array &$json): void {
+                $json['rInfo'] = [['raceNo' => 1]];
+            },
+            'request parameters missing' => function (array &$json): void {
+                unset($json['reqprm']);
+            },
+            'track code invalid' => function (array &$json): void {
+                $json['reqprm']['bkcd'] = 'track';
+            },
+            'race date length invalid' => function (array &$json): void {
+                $json['reqprm']['kday'] = '2026061';
+            },
+            'race date calendar invalid' => function (array &$json): void {
+                $json['reqprm']['kday'] = '20260231';
+            },
+        ];
+
+        foreach ($invalidCases as $case => $mutate) {
+            $json = $fixture;
+            $mutate($json);
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (RaceEntryListUnavailableException) {
+                $this->fail("{$case} was incorrectly classified as a race-day cancellation.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
     public function test_it_accepts_only_five_through_nine_entrants_for_mens_races(): void
     {
         $fixture = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);

@@ -6,6 +6,7 @@ namespace App\Domain\Keirin\Scraping\Services;
 
 use App\Domain\Keirin\Scraping\DTO\RaceEntryListPageDto;
 use App\Domain\Keirin\Scraping\Enums\RaceCategory;
+use App\Domain\Keirin\Scraping\Exceptions\ParserException;
 use App\Domain\Keirin\Scraping\Exceptions\RaceEntryListUnavailableException;
 use App\Domain\Keirin\Scraping\Fetchers\RaceDayMetadataFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\RaceEntryListFetcher;
@@ -16,6 +17,7 @@ use App\Domain\Keirin\Scraping\Parsers\RaceListConsistencyValidator;
 use App\Models\BatchRun;
 use App\Models\RaceDay;
 use App\Models\RaceMeeting;
+use App\Models\Racetrack;
 use App\Repositories\RaceRepository;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -90,8 +92,8 @@ class RaceListSyncService
                             fn () => $this->entryListFetcher->fetch($day->encrypted_parameter, $options['sleep_ms'] ?? null),
                             (int) $run->id,
                         );
-                        $metadata = $this->metadataParser->parse($metadataRaw->utf8Body);
                         $entryPage = $this->entryListParser->parse($entriesRaw->utf8Body);
+                        $metadata = $this->metadataParser->parse($metadataRaw->utf8Body);
                         $parameters = $this->consistency->validate($metadata, $entryPage);
 
                         $menRaces = array_values(array_filter(
@@ -142,6 +144,23 @@ class RaceListSyncService
                         $unresolved += $counts['unresolved_players'];
                         $this->batchRuns->succeedItem($item, $counts);
                     } catch (RaceEntryListUnavailableException $exception) {
+                        try {
+                            $this->assertUnavailableContext($exception, $day, $meeting);
+                        } catch (Throwable $throwable) {
+                            $failed++;
+                            $lastError = $throwable->getMessage();
+                            $this->batchRuns->failItem($item, $throwable::class, $throwable->getMessage(), [
+                                'race_day_id' => (int) $day->id,
+                                'race_date' => $day->race_date->format('Y-m-d'),
+                                'reason' => $exception->reason,
+                                'message' => $exception->getMessage(),
+                                'evidence' => $exception->evidence,
+                                'raw_file_path' => $entriesRaw->rawFilePath,
+                                'metadata_raw_file_path' => $metadataRaw->rawFilePath,
+                            ]);
+
+                            continue;
+                        }
                         $skipped++;
                         $this->batchRuns->skipItem($item, $exception->reason, [
                             'race_day_id' => (int) $day->id,
@@ -150,6 +169,7 @@ class RaceListSyncService
                             'message' => $exception->getMessage(),
                             'evidence' => $exception->evidence,
                             'raw_file_path' => $entriesRaw->rawFilePath,
+                            'metadata_raw_file_path' => $metadataRaw->rawFilePath,
                         ]);
                     } catch (Throwable $throwable) {
                         $failed++;
@@ -183,6 +203,25 @@ class RaceListSyncService
             'entries' => $entryCount,
             'unresolved_players' => $unresolved,
         ];
+    }
+
+    private function assertUnavailableContext(
+        RaceEntryListUnavailableException $exception,
+        RaceDay $day,
+        RaceMeeting $meeting,
+    ): void {
+        if ($exception->reason !== RaceEntryListUnavailableException::REASON_RACE_DAY_CANCELLED) {
+            return;
+        }
+
+        $trackCode = Racetrack::query()->whereKey($meeting->racetrack_id)->value('external_track_id');
+        $responseTrackCode = $exception->evidence['reqprm.bkcd'] ?? null;
+        $responseRaceDate = $exception->evidence['reqprm.kday'] ?? null;
+        if (! is_string($trackCode)
+            || $responseTrackCode !== $trackCode
+            || $responseRaceDate !== $day->race_date->format('Ymd')) {
+            throw new ParserException('JSJ017 cancelled response request parameters did not match the target race day.');
+        }
     }
 
     private function days(DateTimeImmutable $from, DateTimeImmutable $to, array $options): Builder

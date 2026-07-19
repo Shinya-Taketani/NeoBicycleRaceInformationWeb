@@ -8,6 +8,8 @@ use RuntimeException;
 
 class RaceEntryListUnavailableException extends RuntimeException
 {
+    public const REASON_RACE_DAY_CANCELLED = 'RACE_DAY_CANCELLED';
+
     public const REASON_RACE_DAY_POSTPONED = 'RACE_DAY_POSTPONED';
 
     /** @param array<string, mixed> $evidence */
