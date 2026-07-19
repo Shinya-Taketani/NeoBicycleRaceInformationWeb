@@ -90,11 +90,6 @@ class RaceEntryListParser
 
             if ($category === RaceCategory::Men) {
                 $this->entrantCounts->assertSupported(count($entries), "JSJ017 race {$raceNumber}");
-                $sortedBikeNumbers = $bikeNumbers;
-                sort($sortedBikeNumbers);
-                if ($sortedBikeNumbers !== range(1, count($entries))) {
-                    throw new ParserException("JSJ017 race {$raceNumber} bike numbers were not contiguous from 1.");
-                }
             }
 
             $races[] = new RaceListRaceDto(

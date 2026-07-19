@@ -43,9 +43,6 @@ class RaceEntrantExpectationResolver
             }
 
             sort($bikeNumbers);
-            if ($bikeNumbers !== range(1, $entryCount)) {
-                throw new RaceResultCompletenessException('Race entry bike numbers were not contiguous from 1.');
-            }
 
             return new ExpectedRaceEntrantsDto(
                 count: $entryCount,

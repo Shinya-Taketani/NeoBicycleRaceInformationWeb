@@ -64,7 +64,7 @@ class AutomatedRaceParserTest extends TestCase
             $this->assertCount($count, $page->races[0]->entries);
         }
 
-        foreach ([1, 2, 3, 4] as $count) {
+        foreach ([0, 1, 2, 3, 4] as $count) {
             $json = $fixture;
             $json['rInfo'][0]['sInfo'] = array_slice($fixture['rInfo'][0]['sInfo'], 0, $count);
             try {
@@ -76,14 +76,28 @@ class AutomatedRaceParserTest extends TestCase
         }
     }
 
-    public function test_it_rejects_a_five_car_mens_race_with_non_contiguous_bike_numbers(): void
+    public function test_it_accepts_non_contiguous_bike_numbers_for_supported_mens_races(): void
     {
-        $json = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
-        $json['rInfo'][0]['sInfo'] = array_slice($json['rInfo'][0]['sInfo'], 0, 5);
-        $json['rInfo'][0]['sInfo'][4]['syaban'] = 6;
+        $fixture = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $cases = [
+            [1, 2, 3, 4, 6],
+            [1, 2, 3, 4, 5, 7],
+        ];
 
-        $this->expectException(ParserException::class);
-        (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+        foreach ($cases as $expectedBikeNumbers) {
+            $json = $fixture;
+            $json['rInfo'][0]['sInfo'] = array_values(array_filter(
+                $fixture['rInfo'][0]['sInfo'],
+                fn (array $entry): bool => in_array((int) $entry['syaban'], $expectedBikeNumbers, true),
+            ));
+
+            $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+
+            $this->assertSame($expectedBikeNumbers, array_map(
+                fn ($entry): int => $entry->bikeNumber,
+                $page->races[0]->entries,
+            ));
+        }
     }
 
     public function test_it_classifies_l_grade_and_girls_races_as_unsupported_categories(): void
@@ -125,6 +139,9 @@ class AutomatedRaceParserTest extends TestCase
             },
             'out of range bike number' => function (array &$json): void {
                 $json['rInfo'][0]['sInfo'][0]['syaban'] = 10;
+            },
+            'zero bike number' => function (array &$json): void {
+                $json['rInfo'][0]['sInfo'][0]['syaban'] = 0;
             },
             'invalid registration number' => function (array &$json): void {
                 $json['rInfo'][0]['sInfo'][0]['senNo'] = 'invalid';

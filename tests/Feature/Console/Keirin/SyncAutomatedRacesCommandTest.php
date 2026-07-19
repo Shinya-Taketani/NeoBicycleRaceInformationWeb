@@ -302,10 +302,11 @@ class SyncAutomatedRacesCommandTest extends TestCase
     {
         Storage::fake('local');
         config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
-        $race = $this->raceWithEntries(1, 'enc-five-result', 5);
+        $bikeNumbers = [1, 2, 3, 4, 6];
+        $race = $this->raceWithEntries(1, 'enc-five-result', 5, $bikeNumbers);
         $otherRace = $this->raceWithEntries(2, 'enc-other-result', 7);
-        $detailResponse = $this->fiveEntrantDetailHtml();
-        $completeResultResponse = $this->fiveEntrantResultHtml();
+        $detailResponse = $this->fiveEntrantDetailHtml($bikeNumbers);
+        $completeResultResponse = $this->fiveEntrantResultHtml($bikeNumbers);
         $resultResponse = $completeResultResponse;
         Http::fake(function (Request $request) use ($detailResponse, &$resultResponse) {
             parse_str($request->body(), $form);
@@ -326,14 +327,21 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $beforeResults = RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray();
         $beforePayouts = RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray();
         $this->assertCount(5, $beforeResults);
-        $this->assertSame(range(1, 5), array_column($beforeResults, 'bike_number'));
+        $this->assertSame($bikeNumbers, array_column($beforeResults, 'bike_number'));
         $this->assertCount(6, $beforePayouts);
-        $this->assertDatabaseHas('race_entries', ['race_id' => $race->id, 'bike_number' => 5, 'frame_number' => 4]);
+        $this->assertDatabaseHas('race_entries', ['race_id' => $race->id, 'bike_number' => 6]);
+        $this->assertDatabaseMissing('race_entries', ['race_id' => $race->id, 'bike_number' => 5]);
         $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'bet_type_code' => 'FRAME_QUINELLA']);
         $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'bet_type_code' => 'FRAME_EXACTA']);
         $this->assertSame(7, RaceEntry::query()->where('race_id', $otherRace->id)->count());
         $this->assertSame(0, RaceResult::query()->where('race_id', $otherRace->id)->count());
         $this->assertSame(0, RacePayout::query()->where('race_id', $otherRace->id)->count());
+
+        $resultResponse = $this->fiveEntrantResultHtml();
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+        $this->assertSame($beforeResults, RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray());
+        $this->assertSame($beforePayouts, RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
 
         $completeResult = (new EmbeddedJsonExtractor)->extract($completeResultResponse, 'PJ0326');
         $resultResponse = $this->resultHtmlWith(function (array $result) use ($completeResult): array {
@@ -502,7 +510,8 @@ class SyncAutomatedRacesCommandTest extends TestCase
         return $meeting;
     }
 
-    private function raceWithEntries(int $raceNumber, string $encryptedParameter, int $entrantCount = 7): Race
+    /** @param null|list<int> $bikeNumbers */
+    private function raceWithEntries(int $raceNumber, string $encryptedParameter, int $entrantCount = 7, ?array $bikeNumbers = null): Race
     {
         $meeting = RaceMeeting::query()->first() ?? $this->meetingWithDays();
         $day = RaceDay::query()->where('race_meeting_id', $meeting->id)->whereDate('race_date', '2026-06-16')->firstOrFail();
@@ -518,7 +527,7 @@ class SyncAutomatedRacesCommandTest extends TestCase
             'encrypted_parameter' => $encryptedParameter,
             'result_available' => true,
         ]);
-        foreach (range(1, $entrantCount) as $bikeNumber) {
+        foreach ($bikeNumbers ?? range(1, $entrantCount) as $bikeNumber) {
             RaceEntry::query()->create([
                 'race_id' => $race->id,
                 'bike_number' => $bikeNumber,
@@ -568,18 +577,21 @@ class SyncAutomatedRacesCommandTest extends TestCase
             .';</script></body></html>';
     }
 
-    private function fiveEntrantDetailHtml(): string
+    /** @param list<int> $bikeNumbers */
+    private function fiveEntrantDetailHtml(array $bikeNumbers = [1, 2, 3, 4, 5]): string
     {
         $extractor = new EmbeddedJsonExtractor;
         $fixture = $this->fixture('race-sync-pj0315.html');
         $context = $extractor->extract($fixture, 'PC0201');
         $detail = $extractor->extract($fixture, 'PJ0315');
-        $context['C0201data']['C0201racedtl']['C0201sensyu'] = array_slice(
+        $context['C0201data']['C0201racedtl']['C0201sensyu'] = array_values(array_filter(
             $context['C0201data']['C0201racedtl']['C0201sensyu'],
-            0,
-            5,
-        );
-        $detail['sensyuTypeInfo'] = array_slice($detail['sensyuTypeInfo'], 0, 5);
+            fn (array $entry): bool => in_array((int) $entry['carNum'], $bikeNumbers, true),
+        ));
+        $detail['sensyuTypeInfo'] = array_values(array_filter(
+            $detail['sensyuTypeInfo'],
+            fn (array $entry): bool => in_array((int) $entry['syaban'], $bikeNumbers, true),
+        ));
 
         return '<!doctype html><html><body><script>jsonData["PC0201"] = '
             .json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
@@ -588,12 +600,13 @@ class SyncAutomatedRacesCommandTest extends TestCase
             .';</script></body></html>';
     }
 
-    private function fiveEntrantResultHtml(): string
+    /** @param list<int> $bikeNumbers */
+    private function fiveEntrantResultHtml(array $bikeNumbers = [1, 2, 3, 4, 5]): string
     {
-        return $this->resultHtmlWith(function (array $result): array {
+        return $this->resultHtmlWith(function (array $result) use ($bikeNumbers): array {
             $result['tyakujyunItemSubData'] = array_values(array_filter(
                 $result['tyakujyunItemSubData'],
-                fn (array $row): bool => (int) $row['syaban'] <= 5,
+                fn (array $row): bool => in_array((int) $row['syaban'], $bikeNumbers, true),
             ));
             $unavailable = [[
                 'haraiGaku' => '【未発売】',
