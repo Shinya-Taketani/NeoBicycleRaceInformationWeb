@@ -162,6 +162,9 @@ class RaceLiveResultParser
                 if (! is_array($row)) {
                     throw new ParserException("PJ0326 payout {$key} row was invalid.");
                 }
+                if ($this->isExplicitlyUnavailablePayout($row)) {
+                    continue;
+                }
                 $combination = $this->text($row['kumiBan'] ?? null);
                 $amount = $this->unsignedIntegerText($row['haraiGaku'] ?? null, 'haraiGaku');
                 if ($combination === null || $amount === null) {
@@ -178,6 +181,16 @@ class RaceLiveResultParser
         }
 
         return $payouts;
+    }
+
+    private function isExplicitlyUnavailablePayout(array $row): bool
+    {
+        $combinationDisplayed = $row['kumiDispFlg'] ?? null;
+        $amount = $this->text($row['haraiGaku'] ?? null);
+
+        return in_array($combinationDisplayed, [false, 0, '0'], true)
+            && is_string($amount)
+            && str_contains($amount, '未発売');
     }
 
     private function status(string $state): RaceEntryResultStatus

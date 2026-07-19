@@ -88,6 +88,34 @@ class SyncAutomatedRacesCommandTest extends TestCase
             || $request->hasHeader('Referer', 'https://keirin.jp/pc/raceschedule'));
     }
 
+    public function test_five_car_race_entries_sync_idempotently_without_breaking_other_races(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $this->meetingWithDays();
+        $entries = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $entries['rInfo'][0]['sInfo'] = array_slice($entries['rInfo'][0]['sInfo'], 0, 5);
+        $this->fakeRaceListResponses(json_encode($entries, JSON_THROW_ON_ERROR));
+        $arguments = [
+            '--from' => '2026-06-16',
+            '--to' => '2026-06-16',
+            '--sleep-ms' => '1',
+        ];
+
+        $this->artisan('keirin:races:sync-race-list', $arguments)->assertExitCode(0);
+        $fiveCarRace = Race::query()->where('external_race_id', '56:20260616:01')->firstOrFail();
+        $otherRace = Race::query()->where('external_race_id', '56:20260616:02')->firstOrFail();
+        $fiveCarEntryIds = RaceEntry::query()->where('race_id', $fiveCarRace->id)->orderBy('bike_number')->pluck('id')->all();
+
+        $this->artisan('keirin:races:sync-race-list', $arguments)->assertExitCode(0);
+
+        $this->assertSame(5, $fiveCarRace->refresh()->entrant_count);
+        $this->assertSame(range(1, 5), RaceEntry::query()->where('race_id', $fiveCarRace->id)->orderBy('bike_number')->pluck('bike_number')->all());
+        $this->assertSame($fiveCarEntryIds, RaceEntry::query()->where('race_id', $fiveCarRace->id)->orderBy('bike_number')->pluck('id')->all());
+        $this->assertSame(9, $otherRace->refresh()->entrant_count);
+        $this->assertSame(range(1, 9), RaceEntry::query()->where('race_id', $otherRace->id)->orderBy('bike_number')->pluck('bike_number')->all());
+    }
+
     public function test_result_sync_updates_details_results_and_all_payouts(): void
     {
         Storage::fake('local');
@@ -270,6 +298,67 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $this->assertSame('CONFIRMED', $race->refresh()->result_status);
     }
 
+    public function test_five_car_detail_and_complete_result_sync_are_idempotent_and_reject_partial_results(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $bikeNumbers = [1, 2, 3, 4, 6];
+        $race = $this->raceWithEntries(1, 'enc-five-result', 5, $bikeNumbers);
+        $otherRace = $this->raceWithEntries(2, 'enc-other-result', 7);
+        $detailResponse = $this->fiveEntrantDetailHtml($bikeNumbers);
+        $completeResultResponse = $this->fiveEntrantResultHtml($bikeNumbers);
+        $resultResponse = $completeResultResponse;
+        Http::fake(function (Request $request) use ($detailResponse, &$resultResponse) {
+            parse_str($request->body(), $form);
+
+            return ($form['disp'] ?? null) === 'PJ0315'
+                ? Http::response($detailResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8'])
+                : Http::response($resultResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        });
+        $arguments = [
+            '--date' => '2026-06-16',
+            '--race-id' => (string) $race->id,
+            '--sleep-ms' => '1',
+        ];
+
+        $this->assertSame(0, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+        $this->assertSame(0, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+
+        $beforeResults = RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray();
+        $beforePayouts = RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray();
+        $this->assertCount(5, $beforeResults);
+        $this->assertSame($bikeNumbers, array_column($beforeResults, 'bike_number'));
+        $this->assertCount(6, $beforePayouts);
+        $this->assertDatabaseHas('race_entries', ['race_id' => $race->id, 'bike_number' => 6]);
+        $this->assertDatabaseMissing('race_entries', ['race_id' => $race->id, 'bike_number' => 5]);
+        $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'bet_type_code' => 'FRAME_QUINELLA']);
+        $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'bet_type_code' => 'FRAME_EXACTA']);
+        $this->assertSame(7, RaceEntry::query()->where('race_id', $otherRace->id)->count());
+        $this->assertSame(0, RaceResult::query()->where('race_id', $otherRace->id)->count());
+        $this->assertSame(0, RacePayout::query()->where('race_id', $otherRace->id)->count());
+
+        $resultResponse = $this->fiveEntrantResultHtml();
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+        $this->assertSame($beforeResults, RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray());
+        $this->assertSame($beforePayouts, RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+
+        $completeResult = (new EmbeddedJsonExtractor)->extract($completeResultResponse, 'PJ0326');
+        $resultResponse = $this->resultHtmlWith(function (array $result) use ($completeResult): array {
+            $result = $completeResult;
+            $result['tyakujyunItemSubData'] = array_slice($result['tyakujyunItemSubData'], 0, 4);
+
+            return $result;
+        });
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+
+        $this->assertSame($beforeResults, RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray());
+        $this->assertSame($beforePayouts, RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+        $this->assertSame(2, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'SUCCEEDED')->count());
+        $this->assertSame(1, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'FAILED')->count());
+    }
+
     public function test_undetermined_result_status_is_skipped_without_importing_or_confirming(): void
     {
         Storage::fake('local');
@@ -421,7 +510,8 @@ class SyncAutomatedRacesCommandTest extends TestCase
         return $meeting;
     }
 
-    private function raceWithEntries(int $raceNumber, string $encryptedParameter, int $entrantCount = 7): Race
+    /** @param null|list<int> $bikeNumbers */
+    private function raceWithEntries(int $raceNumber, string $encryptedParameter, int $entrantCount = 7, ?array $bikeNumbers = null): Race
     {
         $meeting = RaceMeeting::query()->first() ?? $this->meetingWithDays();
         $day = RaceDay::query()->where('race_meeting_id', $meeting->id)->whereDate('race_date', '2026-06-16')->firstOrFail();
@@ -437,7 +527,7 @@ class SyncAutomatedRacesCommandTest extends TestCase
             'encrypted_parameter' => $encryptedParameter,
             'result_available' => true,
         ]);
-        foreach (range(1, $entrantCount) as $bikeNumber) {
+        foreach ($bikeNumbers ?? range(1, $entrantCount) as $bikeNumber) {
             RaceEntry::query()->create([
                 'race_id' => $race->id,
                 'bike_number' => $bikeNumber,
@@ -485,6 +575,49 @@ class SyncAutomatedRacesCommandTest extends TestCase
             .'; jsonData["PJ0326"] = '
             .json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
             .';</script></body></html>';
+    }
+
+    /** @param list<int> $bikeNumbers */
+    private function fiveEntrantDetailHtml(array $bikeNumbers = [1, 2, 3, 4, 5]): string
+    {
+        $extractor = new EmbeddedJsonExtractor;
+        $fixture = $this->fixture('race-sync-pj0315.html');
+        $context = $extractor->extract($fixture, 'PC0201');
+        $detail = $extractor->extract($fixture, 'PJ0315');
+        $context['C0201data']['C0201racedtl']['C0201sensyu'] = array_values(array_filter(
+            $context['C0201data']['C0201racedtl']['C0201sensyu'],
+            fn (array $entry): bool => in_array((int) $entry['carNum'], $bikeNumbers, true),
+        ));
+        $detail['sensyuTypeInfo'] = array_values(array_filter(
+            $detail['sensyuTypeInfo'],
+            fn (array $entry): bool => in_array((int) $entry['syaban'], $bikeNumbers, true),
+        ));
+
+        return '<!doctype html><html><body><script>jsonData["PC0201"] = '
+            .json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .'; jsonData["PJ0315"] = '
+            .json_encode($detail, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .';</script></body></html>';
+    }
+
+    /** @param list<int> $bikeNumbers */
+    private function fiveEntrantResultHtml(array $bikeNumbers = [1, 2, 3, 4, 5]): string
+    {
+        return $this->resultHtmlWith(function (array $result) use ($bikeNumbers): array {
+            $result['tyakujyunItemSubData'] = array_values(array_filter(
+                $result['tyakujyunItemSubData'],
+                fn (array $row): bool => in_array((int) $row['syaban'], $bikeNumbers, true),
+            ));
+            $unavailable = [[
+                'haraiGaku' => '【未発売】',
+                'ninkiDispFlg' => false,
+                'kumiDispFlg' => false,
+            ]];
+            $result['haraiGakuSubData']['WH2HaraiGakuDispItemSubData'] = $unavailable;
+            $result['haraiGakuSubData']['WT2HaraiGakuDispItemSubData'] = $unavailable;
+
+            return $result;
+        });
     }
 
     private function eightEntrantDetailHtml(): string

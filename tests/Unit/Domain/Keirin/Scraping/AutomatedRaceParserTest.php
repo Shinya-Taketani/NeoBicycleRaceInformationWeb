@@ -40,7 +40,7 @@ class AutomatedRaceParserTest extends TestCase
         $this->assertCount(12, $page->races);
     }
 
-    public function test_it_parses_twelve_races_six_through_nine_car_fields_and_leading_zero_ids(): void
+    public function test_it_parses_twelve_races_five_through_nine_car_fields_and_leading_zero_ids(): void
     {
         $page = (new RaceEntryListParser)->parse($this->fixture('race-sync-jsj017.json'));
 
@@ -53,18 +53,18 @@ class AutomatedRaceParserTest extends TestCase
         $this->assertSame('000001', $page->races[0]->entries[0]->externalPlayerId);
     }
 
-    public function test_it_accepts_only_six_through_nine_entrants_for_mens_races(): void
+    public function test_it_accepts_only_five_through_nine_entrants_for_mens_races(): void
     {
         $fixture = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
 
-        foreach ([6, 7, 8, 9] as $count) {
+        foreach ([5, 6, 7, 8, 9] as $count) {
             $json = $fixture;
             $json['rInfo'][0]['sInfo'] = array_slice($fixture['rInfo'][1]['sInfo'], 0, $count);
             $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
             $this->assertCount($count, $page->races[0]->entries);
         }
 
-        foreach ([1, 2, 3, 4, 5] as $count) {
+        foreach ([0, 1, 2, 3, 4] as $count) {
             $json = $fixture;
             $json['rInfo'][0]['sInfo'] = array_slice($fixture['rInfo'][0]['sInfo'], 0, $count);
             try {
@@ -73,6 +73,30 @@ class AutomatedRaceParserTest extends TestCase
             } catch (ParserException) {
                 $this->addToAssertionCount(1);
             }
+        }
+    }
+
+    public function test_it_accepts_non_contiguous_bike_numbers_for_supported_mens_races(): void
+    {
+        $fixture = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $cases = [
+            [1, 2, 3, 4, 6],
+            [1, 2, 3, 4, 5, 7],
+        ];
+
+        foreach ($cases as $expectedBikeNumbers) {
+            $json = $fixture;
+            $json['rInfo'][0]['sInfo'] = array_values(array_filter(
+                $fixture['rInfo'][0]['sInfo'],
+                fn (array $entry): bool => in_array((int) $entry['syaban'], $expectedBikeNumbers, true),
+            ));
+
+            $page = (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR));
+
+            $this->assertSame($expectedBikeNumbers, array_map(
+                fn ($entry): int => $entry->bikeNumber,
+                $page->races[0]->entries,
+            ));
         }
     }
 
@@ -115,6 +139,9 @@ class AutomatedRaceParserTest extends TestCase
             },
             'out of range bike number' => function (array &$json): void {
                 $json['rInfo'][0]['sInfo'][0]['syaban'] = 10;
+            },
+            'zero bike number' => function (array &$json): void {
+                $json['rInfo'][0]['sInfo'][0]['syaban'] = 0;
             },
             'invalid registration number' => function (array &$json): void {
                 $json['rInfo'][0]['sInfo'][0]['senNo'] = 'invalid';
@@ -210,6 +237,37 @@ class AutomatedRaceParserTest extends TestCase
             'TRIFECTA',
             'QUINELLA_PLACE',
         ], array_unique(array_map(fn ($payout): string => $payout->betTypeCode, $page->resultPage->payouts)));
+    }
+
+    public function test_it_skips_explicitly_unavailable_frame_payouts_for_a_five_car_result(): void
+    {
+        $extractor = new EmbeddedJsonExtractor;
+        $fixture = $this->fixture('race-sync-pj0326.html');
+        $context = $extractor->extract($fixture, 'PC0201');
+        $result = $extractor->extract($fixture, 'PJ0326');
+        $result['tyakujyunItemSubData'] = array_values(array_filter(
+            $result['tyakujyunItemSubData'],
+            fn (array $row): bool => (int) $row['syaban'] <= 5,
+        ));
+        $unavailable = [[
+            'haraiGaku' => '【未発売】',
+            'ninkiDispFlg' => false,
+            'kumiDispFlg' => false,
+        ]];
+        $result['haraiGakuSubData']['WH2HaraiGakuDispItemSubData'] = $unavailable;
+        $result['haraiGakuSubData']['WT2HaraiGakuDispItemSubData'] = $unavailable;
+        $html = '<!doctype html><html><body><script>jsonData["PC0201"] = '
+            .json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .'; jsonData["PJ0326"] = '
+            .json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .';</script></body></html>';
+
+        $page = (new RaceLiveResultParser($extractor))->parse($html);
+
+        $this->assertCount(5, $page->resultPage->results);
+        $this->assertCount(6, $page->resultPage->payouts);
+        $this->assertNotContains('FRAME_QUINELLA', array_map(fn ($payout): string => $payout->betTypeCode, $page->resultPage->payouts));
+        $this->assertNotContains('FRAME_EXACTA', array_map(fn ($payout): string => $payout->betTypeCode, $page->resultPage->payouts));
     }
 
     private function metadataParser(): RaceDayMetadataParser
