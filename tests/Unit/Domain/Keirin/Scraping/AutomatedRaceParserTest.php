@@ -8,6 +8,7 @@ use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Enums\RaceEntryResultStatus;
 use App\Domain\Keirin\Scraping\Enums\RaceResultStatus;
 use App\Domain\Keirin\Scraping\Exceptions\ParserException;
+use App\Domain\Keirin\Scraping\Exceptions\RaceEntryListUnavailableException;
 use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
 use App\Domain\Keirin\Scraping\Parsers\RaceDayMetadataParser;
 use App\Domain\Keirin\Scraping\Parsers\RaceDetailParser;
@@ -51,6 +52,71 @@ class AutomatedRaceParserTest extends TestCase
         $this->assertCount(6, $page->races[3]->entries);
         $this->assertSame(RaceCategory::Men, $page->races[0]->category);
         $this->assertSame('000001', $page->races[0]->entries[0]->externalPlayerId);
+    }
+
+    public function test_it_reports_postponed_jsj017_responses_with_strict_evidence(): void
+    {
+        $fixture = json_decode($this->fixture('race-sync-jsj017-postponed.json'), true, flags: JSON_THROW_ON_ERROR);
+        $cases = [
+            [0, 0, '順延となりました。'],
+            ['0', false, '順延となりました。'],
+            [0, '0', '  順延となりました。  '],
+        ];
+
+        foreach ($cases as [$resultCode, $displayFlag, $message]) {
+            $json = $fixture;
+            $json['resultCd'] = $resultCode;
+            $json['syusouDispFlag'] = $displayFlag;
+            $json['kaisaiMsg'] = $message;
+
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $this->fail('RaceEntryListUnavailableException was not thrown.');
+            } catch (RaceEntryListUnavailableException $exception) {
+                $this->assertSame(RaceEntryListUnavailableException::REASON_RACE_DAY_POSTPONED, $exception->reason);
+                $this->assertSame('順延となりました。', $exception->getMessage());
+                $this->assertSame([
+                    'resultCd' => $resultCode,
+                    'syusouDispFlag' => $displayFlag,
+                    'kaisaiMsg' => '順延となりました。',
+                ], $exception->evidence);
+            }
+        }
+    }
+
+    public function test_it_rejects_responses_that_do_not_meet_every_postponed_condition(): void
+    {
+        $postponed = json_decode($this->fixture('race-sync-jsj017-postponed.json'), true, flags: JSON_THROW_ON_ERROR);
+        $normalWithoutTrackCode = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        unset($normalWithoutTrackCode['keirinCd']);
+        $cases = [
+            'non-zero result code' => [...$postponed, 'resultCd' => 1],
+            'missing display flag' => array_diff_key($postponed, ['syusouDispFlag' => true]),
+            'enabled display flag' => [...$postponed, 'syusouDispFlag' => 1],
+            'missing message' => array_diff_key($postponed, ['kaisaiMsg' => true]),
+            'different message' => [...$postponed, 'kaisaiMsg' => '発売を終了しました。'],
+            'normal response missing only track code' => $normalWithoutTrackCode,
+        ];
+
+        foreach ($cases as $case => $json) {
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (RaceEntryListUnavailableException) {
+                $this->fail("{$case} was incorrectly classified as postponed.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+
+        foreach (['{}', '[]', '{invalid'] as $json) {
+            try {
+                (new RaceEntryListParser)->parse($json);
+                $this->fail("ParserException was not thrown for {$json}.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
     }
 
     public function test_it_accepts_only_five_through_nine_entrants_for_mens_races(): void

@@ -17,4 +17,6 @@ Official race result detail pages have not yet been confirmed as full real-page 
 
 The `synthetic/race-sync-*` fixtures are minimized from the key structures observed in the saved JSJ001, JSJ017, PJ0315, PJ0326, and PC0201 research responses. Encrypted parameters, rider identities, and meeting names are fictional. They cover six meeting days, 12 complete 6-car, 7-car, 8-car, or 9-car fields, embedded race details, abnormal result statuses, all supported payout types, and the PC0201 cancellation/race-end/result-received flags used by the result status policy. Full research responses under `storage/app/private/research` are not fixtures and must not be committed.
 
+`synthetic/race-sync-jsj017-postponed.json` is a minimal synthetic reproduction of the public JSJ017 postponed response observed for Kochi on 2026-06-02. It retains only the three fields required to distinguish a postponed race day and excludes request parameters and other unnecessary response data.
+
 Result-state variants for cancellation, section cancellation, under review, provisional, corrected, and undetermined states are synthetic test mutations. The confirmed-state flag combination mirrors the saved public PJ0326/PC0201 structure; the complete raw response remains excluded from fixtures.
