@@ -17,6 +17,13 @@ use App\Domain\Keirin\Scraping\Support\RaceResultStatusPolicy;
 
 class RaceLiveResultParser
 {
+    private const NON_PAYABLE_PAYOUT_AMOUNTS = [
+        '【未発売】',
+        '未発売',
+        '【全返還】',
+        '全返還',
+    ];
+
     private const PAYOUT_TYPES = [
         'WH2HaraiGakuDispItemSubData' => 'FRAME_QUINELLA',
         'WT2HaraiGakuDispItemSubData' => 'FRAME_EXACTA',
@@ -162,7 +169,7 @@ class RaceLiveResultParser
                 if (! is_array($row)) {
                     throw new ParserException("PJ0326 payout {$key} row was invalid.");
                 }
-                if ($this->isExplicitlyUnavailablePayout($row)) {
+                if ($this->isExplicitlyNonPayablePayout($row)) {
                     continue;
                 }
                 $combination = $this->text($row['kumiBan'] ?? null);
@@ -183,14 +190,13 @@ class RaceLiveResultParser
         return $payouts;
     }
 
-    private function isExplicitlyUnavailablePayout(array $row): bool
+    private function isExplicitlyNonPayablePayout(array $row): bool
     {
         $combinationDisplayed = $row['kumiDispFlg'] ?? null;
         $amount = $this->text($row['haraiGaku'] ?? null);
 
         return in_array($combinationDisplayed, [false, 0, '0'], true)
-            && is_string($amount)
-            && str_contains($amount, '未発売');
+            && in_array($amount, self::NON_PAYABLE_PAYOUT_AMOUNTS, true);
     }
 
     private function status(string $state): RaceEntryResultStatus

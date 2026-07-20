@@ -422,9 +422,91 @@ class AutomatedRaceParserTest extends TestCase
         $this->assertNotContains('FRAME_EXACTA', array_map(fn ($payout): string => $payout->betTypeCode, $page->resultPage->payouts));
     }
 
+    public function test_it_skips_only_strict_unavailable_and_full_refund_payout_rows(): void
+    {
+        $keys = [
+            'WH2HaraiGakuDispItemSubData',
+            'WT2HaraiGakuDispItemSubData',
+            'SH2HaraiGakuDispItemSubData',
+            'ST2HaraiGakuDispItemSubData',
+            'RH3HaraiGakuDispItemSubData',
+            'RT3HaraiGakuDispItemSubData',
+            'WHaraiGakuDispItemSubData',
+        ];
+        $rows = [
+            ['haraiGaku' => '【未発売】', 'kumiDispFlg' => false],
+            ['haraiGaku' => '未発売', 'kumiDispFlg' => 0],
+            ['haraiGaku' => '【全返還】', 'kumiDispFlg' => false],
+            ['haraiGaku' => '全返還', 'kumiDispFlg' => 0],
+            ['haraiGaku' => '【全返還】', 'kumiDispFlg' => '0'],
+            ['haraiGaku' => '  【全返還】  ', 'kumiDispFlg' => false],
+            ['haraiGaku' => '【未発売】', 'kumiDispFlg' => '0'],
+        ];
+        $html = $this->liveResultHtmlWith(function (array $result) use ($keys, $rows): array {
+            foreach ($keys as $index => $key) {
+                $result['haraiGakuSubData'][$key] = [[
+                    ...$rows[$index],
+                    'ninkiDispFlg' => false,
+                ]];
+            }
+
+            return $result;
+        });
+
+        $page = (new RaceLiveResultParser(new EmbeddedJsonExtractor))->parse($html);
+
+        $this->assertCount(7, $page->resultPage->results);
+        $this->assertSame([], $page->resultPage->payouts);
+    }
+
+    public function test_it_rejects_non_exact_refund_markers_and_incomplete_payable_rows(): void
+    {
+        $invalidRows = [
+            'displayed boolean full refund' => ['haraiGaku' => '【全返還】', 'kumiDispFlg' => true],
+            'displayed integer full refund' => ['haraiGaku' => '【全返還】', 'kumiDispFlg' => 1],
+            'displayed string full refund' => ['haraiGaku' => '【全返還】', 'kumiDispFlg' => '1'],
+            'partial refund' => ['haraiGaku' => '【一部返還】', 'kumiDispFlg' => false],
+            'generic refund' => ['haraiGaku' => '【返還】', 'kumiDispFlg' => false],
+            'unknown refund amount' => ['haraiGaku' => '返還額不明', 'kumiDispFlg' => false],
+            'empty amount' => ['haraiGaku' => '', 'kumiDispFlg' => false],
+            'null amount' => ['haraiGaku' => null, 'kumiDispFlg' => false],
+            'unknown text' => ['haraiGaku' => '払戻情報なし', 'kumiDispFlg' => false],
+            'numeric amount without combination' => ['haraiGaku' => '1,110', 'kumiDispFlg' => true],
+        ];
+
+        foreach ($invalidRows as $case => $invalidRow) {
+            $html = $this->liveResultHtmlWith(function (array $result) use ($invalidRow): array {
+                $result['haraiGakuSubData']['WH2HaraiGakuDispItemSubData'] = [$invalidRow];
+
+                return $result;
+            });
+
+            try {
+                (new RaceLiveResultParser(new EmbeddedJsonExtractor))->parse($html);
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
     private function metadataParser(): RaceDayMetadataParser
     {
         return new RaceDayMetadataParser(new EmbeddedJsonExtractor);
+    }
+
+    private function liveResultHtmlWith(callable $mutate): string
+    {
+        $extractor = new EmbeddedJsonExtractor;
+        $fixture = $this->fixture('race-sync-pj0326.html');
+        $context = $extractor->extract($fixture, 'PC0201');
+        $result = $mutate($extractor->extract($fixture, 'PJ0326'));
+
+        return '<!doctype html><html><body><script>jsonData["PC0201"] = '
+            .json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .'; jsonData["PJ0326"] = '
+            .json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .';</script></body></html>';
     }
 
     private function fixture(string $name): string

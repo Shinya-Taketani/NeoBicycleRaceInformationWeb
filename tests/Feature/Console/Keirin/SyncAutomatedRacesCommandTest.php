@@ -436,6 +436,146 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $this->assertNotNull(RaceResultImport::query()->where('race_id', $race->id)->firstOrFail()->scraping_fetch_log_id);
     }
 
+    public function test_complete_results_with_only_unavailable_and_full_refund_payouts_sync_idempotently(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $race = $this->raceWithEntries(1, 'enc-full-refund');
+        $detailResponse = $this->fixture('race-sync-pj0315.html');
+        $resultResponse = $this->fullRefundResultHtml();
+        Http::fake(function (Request $request) use ($detailResponse, &$resultResponse) {
+            parse_str($request->body(), $form);
+
+            return ($form['disp'] ?? null) === 'PJ0315'
+                ? Http::response($detailResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8'])
+                : Http::response($resultResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        });
+        $arguments = [
+            '--date' => '2026-06-16',
+            '--race-id' => (string) $race->id,
+            '--sleep-ms' => '1',
+        ];
+
+        $this->artisan('keirin:races:sync-results', $arguments)
+            ->expectsOutputToContain('success=1 skipped=0 failed=0 results=7 payouts=0')
+            ->assertExitCode(0);
+        $resultIds = RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->pluck('id')->all();
+        $this->artisan('keirin:races:sync-results', $arguments)->assertExitCode(0);
+
+        $this->assertCount(7, $resultIds);
+        $this->assertSame($resultIds, RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->pluck('id')->all());
+        $this->assertSame(0, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'payout_amount' => 0]);
+        $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'payout_amount' => 100]);
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+        $this->assertSame(2, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'SUCCEEDED')->count());
+        foreach (RaceResultImport::query()->where('race_id', $race->id)->get() as $import) {
+            $this->assertNotNull($import->scraping_fetch_log_id);
+            $this->assertTrue(Storage::disk('local')->exists($import->raw_file_path));
+        }
+
+        $beforeResults = RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray();
+        $resultResponse = $this->fullRefundResultHtml(function (array $result): array {
+            $result['tyakujyunItemSubData'] = array_slice($result['tyakujyunItemSubData'], 0, 6);
+
+            return $result;
+        });
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+        $this->assertSame($beforeResults, RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray());
+        $this->assertSame(0, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+
+        $resultResponse = $this->fullRefundResultHtml(function (array $result): array {
+            foreach ($result['tyakujyunItemSubData'] as &$row) {
+                if ((int) $row['syaban'] === 7) {
+                    $row['syaban'] = '8';
+                    break;
+                }
+            }
+            unset($row);
+
+            return $result;
+        });
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+        $this->assertSame($beforeResults, RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray());
+        $this->assertSame(0, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+        $this->assertSame(2, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'SUCCEEDED')->count());
+        $this->assertSame(1, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'FAILED')->count());
+
+        $resultLogs = ScrapingFetchLog::query()->orderBy('id')->get()->filter(
+            fn (ScrapingFetchLog $log): bool => ($log->request_parameters['disp'] ?? null) === 'PJ0326',
+        );
+        $this->assertCount(4, $resultLogs);
+        foreach ($resultLogs as $log) {
+            $this->assertTrue(Storage::disk('local')->exists($log->raw_file_path));
+        }
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+    }
+
+    public function test_mixed_unavailable_full_refund_and_numeric_payouts_store_only_numeric_rows(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $race = $this->raceWithEntries(1, 'enc-mixed-refund');
+        $this->fakeResultResponses($this->mixedRefundResultHtml());
+
+        $this->artisan('keirin:races:sync-results', [
+            '--date' => '2026-06-16',
+            '--race-id' => (string) $race->id,
+            '--sleep-ms' => '1',
+        ])->expectsOutputToContain('success=1 skipped=0 failed=0 results=7 payouts=3')
+            ->assertExitCode(0);
+
+        $this->assertSame(7, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame(3, RacePayout::query()->where('race_id', $race->id)->count());
+        $this->assertDatabaseHas('race_payouts', ['race_id' => $race->id, 'bet_type_code' => 'QUINELLA_PLACE', 'payout_amount' => 1110]);
+        $this->assertDatabaseHas('race_payouts', ['race_id' => $race->id, 'bet_type_code' => 'QUINELLA', 'payout_amount' => 1940]);
+        $this->assertDatabaseHas('race_payouts', ['race_id' => $race->id, 'bet_type_code' => 'EXACTA', 'payout_amount' => 4060]);
+        $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'payout_amount' => 0]);
+        $this->assertDatabaseMissing('race_payouts', ['race_id' => $race->id, 'payout_amount' => 100]);
+        $this->assertSame(1, RaceResultImport::query()->where('race_id', $race->id)->where('import_status', 'SUCCEEDED')->count());
+    }
+
+    public function test_invalid_full_refund_row_preserves_existing_results_payouts_and_status(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $race = $this->raceWithEntries(1, 'enc-invalid-refund');
+        $resultResponse = $this->fixture('race-sync-pj0326.html');
+        Http::fake(function (Request $request) use (&$resultResponse) {
+            parse_str($request->body(), $form);
+
+            return ($form['disp'] ?? null) === 'PJ0315'
+                ? Http::response($this->fixture('race-sync-pj0315.html'), 200, ['Content-Type' => 'text/html; charset=UTF-8'])
+                : Http::response($resultResponse, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        });
+        $arguments = ['--date' => '2026-06-16', '--race-id' => (string) $race->id, '--sleep-ms' => '1'];
+        $this->artisan('keirin:races:sync-results', $arguments)->assertExitCode(0);
+        $beforeResults = RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray();
+        $beforePayouts = RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray();
+
+        $resultResponse = $this->resultHtmlWith(function (array $result): array {
+            $result['haraiGakuSubData']['WH2HaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '【全返還】',
+                'ninkiDispFlg' => false,
+                'kumiDispFlg' => true,
+            ]];
+
+            return $result;
+        });
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', $arguments), Artisan::output());
+
+        $this->assertSame($beforeResults, RaceResult::query()->where('race_id', $race->id)->orderBy('bike_number')->get()->toArray());
+        $this->assertSame($beforePayouts, RacePayout::query()->where('race_id', $race->id)->orderBy('id')->get()->toArray());
+        $this->assertSame('CONFIRMED', $race->refresh()->result_status);
+        $this->assertSame(1, RaceResultImport::query()->where('race_id', $race->id)->count());
+        $this->assertSame(2, ScrapingFetchLog::query()->get()->filter(
+            fn (ScrapingFetchLog $log): bool => ($log->request_parameters['disp'] ?? null) === 'PJ0326',
+        )->count());
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+    }
+
     public function test_result_sync_continues_after_one_race_http_failure(): void
     {
         Storage::fake('local');
@@ -907,6 +1047,79 @@ class SyncAutomatedRacesCommandTest extends TestCase
             .'; jsonData["PJ0326"] = '
             .json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
             .';</script></body></html>';
+    }
+
+    private function fullRefundResultHtml(?callable $mutate = null): string
+    {
+        return $this->resultHtmlWith(function (array $result) use ($mutate): array {
+            $rows = [
+                'WH2HaraiGakuDispItemSubData' => '【未発売】',
+                'WT2HaraiGakuDispItemSubData' => '【未発売】',
+                'SH2HaraiGakuDispItemSubData' => '【全返還】',
+                'ST2HaraiGakuDispItemSubData' => '【全返還】',
+                'RH3HaraiGakuDispItemSubData' => '【全返還】',
+                'RT3HaraiGakuDispItemSubData' => '【全返還】',
+                'WHaraiGakuDispItemSubData' => '【全返還】',
+            ];
+            foreach ($rows as $key => $amount) {
+                $result['haraiGakuSubData'][$key] = [[
+                    'haraiGaku' => $amount,
+                    'ninkiDispFlg' => false,
+                    'kumiDispFlg' => false,
+                ]];
+            }
+
+            return $mutate !== null ? $mutate($result) : $result;
+        });
+    }
+
+    private function mixedRefundResultHtml(): string
+    {
+        return $this->resultHtmlWith(function (array $result): array {
+            $result['haraiGakuSubData']['WH2HaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '【未発売】',
+                'ninkiDispFlg' => false,
+                'kumiDispFlg' => false,
+            ]];
+            $result['haraiGakuSubData']['WT2HaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '【未発売】',
+                'ninkiDispFlg' => false,
+                'kumiDispFlg' => false,
+            ]];
+            $result['haraiGakuSubData']['SH2HaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '1,940',
+                'ninkiDispFlg' => true,
+                'kumiDispFlg' => true,
+                'kumiBan' => '2=4',
+                'ninki' => '(6)',
+            ]];
+            $result['haraiGakuSubData']['ST2HaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '4,060',
+                'ninkiDispFlg' => true,
+                'kumiDispFlg' => true,
+                'kumiBan' => '4-2',
+                'ninki' => '(12)',
+            ]];
+            $result['haraiGakuSubData']['RH3HaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '【全返還】',
+                'ninkiDispFlg' => false,
+                'kumiDispFlg' => false,
+            ]];
+            $result['haraiGakuSubData']['RT3HaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '【全返還】',
+                'ninkiDispFlg' => false,
+                'kumiDispFlg' => false,
+            ]];
+            $result['haraiGakuSubData']['WHaraiGakuDispItemSubData'] = [[
+                'haraiGaku' => '1,110',
+                'ninkiDispFlg' => true,
+                'kumiDispFlg' => true,
+                'kumiBan' => '2=4',
+                'ninki' => '(6)',
+            ]];
+
+            return $result;
+        });
     }
 
     /** @param list<int> $bikeNumbers */
