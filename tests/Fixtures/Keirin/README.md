@@ -21,4 +21,6 @@ The `synthetic/race-sync-*` fixtures are minimized from the key structures obser
 
 `synthetic/race-sync-jsj017-cancelled.json` is a minimal synthetic reproduction of the public JSJ017 race-day cancellation structure observed at Ito and Komatsushima. Its track code and date are adapted to the synthetic meeting used by tests. It retains the request context needed to reject a cancellation response returned for the wrong track or race day.
 
+`synthetic/race-sync-pj0301-meeting-cancelled.html` is a minimal synthetic reproduction based on the saved public PJ0301 structure for the cancelled Omiya meeting from 2025-12-03 through 2025-12-05. Meeting names and encrypted parameters are fictional; the three-day schedule, cancellation flags, zero race count, cancellation message, and missing `C0201race` shape needed for regression coverage are retained.
+
 Result-state variants for cancellation, section cancellation, under review, provisional, corrected, and undetermined states are synthetic test mutations. The confirmed-state flag combination mirrors the saved public PJ0326/PC0201 structure; the complete raw response remains excluded from fixtures.

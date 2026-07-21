@@ -7,6 +7,7 @@ namespace App\Domain\Keirin\Scraping\Services;
 use App\Domain\Keirin\Scraping\DTO\RaceEntryListPageDto;
 use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Exceptions\ParserException;
+use App\Domain\Keirin\Scraping\Exceptions\RaceDayMetadataUnavailableException;
 use App\Domain\Keirin\Scraping\Exceptions\RaceEntryListUnavailableException;
 use App\Domain\Keirin\Scraping\Fetchers\RaceDayMetadataFetcher;
 use App\Domain\Keirin\Scraping\Fetchers\RaceEntryListFetcher;
@@ -69,6 +70,29 @@ class RaceListSyncService
                     $this->races->updateMeetingDayParameters($meeting, $meetingMetadata, new DateTimeImmutable('now'));
                     $targetDays = $this->reconciledTargetDays($meeting, $targetDays, $from, $to, $options);
                     $this->batchRuns->succeedItem($meetingItem, ['days' => count($meetingMetadata->days)]);
+                } catch (RaceDayMetadataUnavailableException $exception) {
+                    try {
+                        $this->assertMeetingUnavailableContext($exception, $meeting);
+                    } catch (Throwable $throwable) {
+                        $failed += $targetDays->count();
+                        $lastError = $throwable->getMessage();
+                        $this->batchRuns->failItem(
+                            $meetingItem,
+                            $throwable::class,
+                            $throwable->getMessage(),
+                            $this->meetingUnavailableMetadata($exception, $meeting, $targetDays->count(), $raceListRaw->rawFilePath),
+                        );
+
+                        continue;
+                    }
+                    $skipped += $targetDays->count();
+                    $this->batchRuns->skipItem(
+                        $meetingItem,
+                        $exception->reason,
+                        $this->meetingUnavailableMetadata($exception, $meeting, $targetDays->count(), $raceListRaw->rawFilePath),
+                    );
+
+                    continue;
                 } catch (Throwable $throwable) {
                     $failed += $targetDays->count();
                     $lastError = $throwable->getMessage();
@@ -202,6 +226,53 @@ class RaceListSyncService
             'races' => $raceCount,
             'entries' => $entryCount,
             'unresolved_players' => $unresolved,
+        ];
+    }
+
+    private function assertMeetingUnavailableContext(
+        RaceDayMetadataUnavailableException $exception,
+        RaceMeeting $meeting,
+    ): void {
+        if ($exception->reason !== RaceDayMetadataUnavailableException::REASON_RACE_MEETING_CANCELLED) {
+            throw new ParserException('PJ0301 meeting metadata unavailable reason was unsupported.');
+        }
+
+        $trackCode = Racetrack::query()->whereKey($meeting->racetrack_id)->value('external_track_id');
+        $storedDates = RaceDay::query()
+            ->where('race_meeting_id', $meeting->id)
+            ->orderBy('race_date')
+            ->get()
+            ->map(fn (RaceDay $day): string => $day->race_date->format('Ymd'))
+            ->all();
+        $meetingStart = $meeting->starts_on?->format('Ymd');
+        $firstStoredDate = $storedDates[0] ?? null;
+        if (! is_string($trackCode)
+            || ($exception->evidence['selKjyoCd'] ?? null) !== $trackCode
+            || ! in_array($exception->evidence['selKaisai'] ?? null, [$meetingStart, $firstStoredDate], true)
+            || ($exception->evidence['raceDates'] ?? null) !== $storedDates) {
+            throw new ParserException('PJ0301 cancelled meeting metadata did not match the stored race meeting.');
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function meetingUnavailableMetadata(
+        RaceDayMetadataUnavailableException $exception,
+        RaceMeeting $meeting,
+        int $targetDayCount,
+        string $rawFilePath,
+    ): array {
+        return [
+            'race_meeting_id' => (int) $meeting->id,
+            'external_meeting_id' => $meeting->external_meeting_id,
+            'starts_on' => $meeting->starts_on?->format('Y-m-d'),
+            'ends_on' => $meeting->ends_on?->format('Y-m-d'),
+            'target_day_count' => $targetDayCount,
+            'reason' => $exception->reason,
+            'message' => $exception->getMessage(),
+            'evidence' => $exception->evidence,
+            'raw_file_path' => $rawFilePath,
         ];
     }
 
