@@ -8,6 +8,7 @@ use App\Domain\Keirin\Scraping\DTO\RaceDayMetadataPageDto;
 use App\Domain\Keirin\Scraping\DTO\RaceDayParameterDto;
 use App\Domain\Keirin\Scraping\DTO\RaceParameterDto;
 use App\Domain\Keirin\Scraping\Exceptions\ParserException;
+use App\Domain\Keirin\Scraping\Exceptions\RaceDayMetadataUnavailableException;
 use App\Domain\Keirin\Scraping\Support\HtmlTextNormalizer;
 use DateTimeImmutable;
 use JsonException;
@@ -19,13 +20,15 @@ class RaceDayMetadataParser
     public function parse(string $source): RaceDayMetadataPageDto
     {
         $root = $this->root($source);
-        if (array_key_exists('resultCd', $root) && (int) $root['resultCd'] !== 0) {
+        if (array_key_exists('resultCd', $root) && ! $this->isZero($root['resultCd'])) {
             throw new ParserException('JSJ001 result code was invalid.');
         }
         $data = $root['C0201data'] ?? null;
         if (! is_array($data)) {
             throw new ParserException('JSJ001 C0201data was missing.');
         }
+
+        $this->throwIfMeetingUnavailable($root, $data);
 
         $selectedDate = $this->requiredDigits($data, 'selKaisai', 8);
         $trackCode = $this->requiredDigits($data, 'selKjyoCd');
@@ -86,14 +89,145 @@ class RaceDayMetadataParser
     private function root(string $source): array
     {
         try {
+            $decodedObject = json_decode($source, false, 512, JSON_THROW_ON_ERROR);
             $decoded = json_decode($source, true, 512, JSON_THROW_ON_ERROR);
-            if (is_array($decoded)) {
+            if (is_object($decodedObject) && is_array($decoded)) {
                 return $decoded;
             }
         } catch (JsonException) {
         }
 
         return $this->embeddedJson->extract($source, 'PC0201');
+    }
+
+    /**
+     * @param  array<string, mixed>  $root
+     * @param  array<string, mixed>  $data
+     */
+    private function throwIfMeetingUnavailable(array $root, array $data): void
+    {
+        $message = HtmlTextNormalizer::normalize($this->nullableString($data, 'hhMessage'));
+        $cancellationSignalled = $this->boolean($data['flgRaceCancel'] ?? false)
+            || $this->boolean($data['flgSectionCancel'] ?? false)
+            || ($message !== null && str_contains($message, '中止'));
+        if (! $cancellationSignalled) {
+            return;
+        }
+
+        $evidence = $this->cancelledMeetingEvidence($root, $data, $message);
+        if ($evidence === null) {
+            throw new ParserException('PJ0301 race meeting cancellation metadata was invalid.');
+        }
+
+        throw new RaceDayMetadataUnavailableException(
+            reason: RaceDayMetadataUnavailableException::REASON_RACE_MEETING_CANCELLED,
+            message: $message,
+            evidence: $evidence,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $root
+     * @param  array<string, mixed>  $data
+     * @return null|array<string, mixed>
+     */
+    private function cancelledMeetingEvidence(array $root, array $data, ?string $message): ?array
+    {
+        $selectedDate = $this->digitText($data['selKaisai'] ?? null, 8);
+        $trackCode = $this->digitText($data['selKjyoCd'] ?? null);
+        $rawDays = $data['C0201kaisai'] ?? null;
+        $rawRaces = $data['C0201race'] ?? null;
+        if (! $this->isZero($root['resultCd'] ?? null)
+            || ! $this->boolean($data['flgRaceCancel'] ?? false)
+            || ! $this->isDisabled($data['flgSectionCancel'] ?? null)
+            || ! in_array($message, ['中止となりました。', '中止となりました'], true)
+            || ! $this->isZero($data['selRaceNo'] ?? null)
+            || ! $this->isZero($data['cntRace'] ?? null)
+            || ! is_array($rawDays)
+            || $rawDays === []
+            || (array_key_exists('C0201race', $data) && $rawRaces !== null && $rawRaces !== [])
+            || $selectedDate === null
+            || $trackCode === null) {
+            return null;
+        }
+
+        $selected = DateTimeImmutable::createFromFormat('!Ymd', $selectedDate);
+        if (! $selected instanceof DateTimeImmutable || $selected->format('Ymd') !== $selectedDate) {
+            return null;
+        }
+
+        $dates = [];
+        foreach ($rawDays as $rawDay) {
+            if (! is_array($rawDay)) {
+                return null;
+            }
+            $monthDay = $this->nullableString($rawDay, 'txtEventDate');
+            $encryptedParameter = $rawDay['encParaK'] ?? null;
+            if ($monthDay === null
+                || preg_match('#^\d{2}/\d{2}$#', $monthDay) !== 1
+                || ! is_string($encryptedParameter)
+                || trim($encryptedParameter) === '') {
+                return null;
+            }
+            try {
+                $dates[] = $this->resolveDayDate($selected, $monthDay);
+            } catch (ParserException) {
+                return null;
+            }
+        }
+
+        return [
+            'resultCd' => $root['resultCd'],
+            'selKaisai' => $selectedDate,
+            'selKjyoCd' => $trackCode,
+            'selRaceNo' => $data['selRaceNo'],
+            'hhMessage' => $message,
+            'flgRaceCancel' => $data['flgRaceCancel'],
+            'flgSectionCancel' => $data['flgSectionCancel'],
+            'cntRace' => $data['cntRace'],
+            'raceDates' => $dates,
+            'raceDayCount' => count($dates),
+            'raceInfoState' => $this->raceInfoState($data),
+        ];
+    }
+
+    /** @param array<string, mixed> $data */
+    private function raceInfoState(array $data): string
+    {
+        if (! array_key_exists('C0201race', $data)) {
+            return 'missing';
+        }
+        if ($data['C0201race'] === null) {
+            return 'null';
+        }
+        if ($data['C0201race'] === []) {
+            return 'empty_array';
+        }
+
+        return is_array($data['C0201race']) ? 'populated_array' : 'invalid_type';
+    }
+
+    private function digitText(mixed $value, ?int $length = null): ?string
+    {
+        if (! is_string($value) && ! is_int($value)) {
+            return null;
+        }
+        $text = (string) $value;
+
+        return preg_match('/^\d+$/', $text) === 1
+            && ($length === null || strlen($text) === $length)
+            ? $text
+            : null;
+    }
+
+    private function isZero(mixed $value): bool
+    {
+        return $value === 0 || $value === '0';
+    }
+
+    private function isDisabled(mixed $value): bool
+    {
+        return in_array($value, [false, 0, '0'], true);
     }
 
     private function resolveDayDate(DateTimeImmutable $selected, string $monthDay): string
