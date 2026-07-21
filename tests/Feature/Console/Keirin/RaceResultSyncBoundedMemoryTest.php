@@ -24,10 +24,17 @@ class RaceResultSyncBoundedMemoryTest extends TestCase
         Storage::fake('local');
         Http::fake();
         $track = $this->track('56');
-        $expectedIds = [];
+        $races = [];
         foreach (range(1, 205) as $sequence) {
-            $expectedIds[] = (int) $this->race($track, $sequence)->id;
+            [$raceDate, $raceNumber] = match (true) {
+                $sequence <= 40 => ['2026-01-02', 1],
+                $sequence <= 65 => ['2026-01-01', 2],
+                $sequence <= 185 => ['2026-01-01', 1],
+                default => ['2026-01-01', 2],
+            };
+            $races[] = $this->race($track, $sequence, raceDate: $raceDate, raceNumber: $raceNumber);
         }
+        $expectedIds = $this->sortedRaceIds($races);
         $candidateQueries = [];
         DB::listen(function (QueryExecuted $query) use (&$candidateQueries): void {
             $sql = strtolower($query->sql);
@@ -37,7 +44,8 @@ class RaceResultSyncBoundedMemoryTest extends TestCase
         });
 
         $this->artisan('keirin:races:sync-results', [
-            '--date' => '2026-01-01',
+            '--from' => '2026-01-01',
+            '--to' => '2026-01-02',
             '--sleep-ms' => '1',
         ])->expectsOutputToContain('success=0 skipped=205 failed=0 results=0 payouts=0')
             ->assertExitCode(0);
@@ -46,8 +54,12 @@ class RaceResultSyncBoundedMemoryTest extends TestCase
         $this->assertSame($expectedIds, $processedIds);
         $this->assertCount(205, array_unique($processedIds));
         $this->assertCount(3, $candidateQueries);
+        $this->assertStringContainsString('"races"."race_number" >', $candidateQueries[1]);
         $this->assertStringContainsString('"races"."id" >', $candidateQueries[1]);
+        $this->assertStringContainsString('"races"."race_number" >', $candidateQueries[2]);
         $this->assertStringContainsString('"races"."id" >', $candidateQueries[2]);
+        $this->assertStringNotContainsString(' offset ', strtolower($candidateQueries[1]));
+        $this->assertStringNotContainsString(' offset ', strtolower($candidateQueries[2]));
         Http::assertNothingSent();
         $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
     }
@@ -57,16 +69,27 @@ class RaceResultSyncBoundedMemoryTest extends TestCase
         Storage::fake('local');
         Http::fake();
         $track = $this->track('56');
-        $expectedIds = [];
+        $races = [];
         foreach (range(1, 150) as $sequence) {
-            $race = $this->race($track, $sequence);
-            if ($sequence <= 101) {
-                $expectedIds[] = (int) $race->id;
-            }
+            $races[] = $this->race(
+                $track,
+                $sequence,
+                raceDate: $sequence <= 30 ? '2026-01-02' : '2026-01-01',
+                raceNumber: $sequence % 2 === 0 ? 2 : 1,
+            );
         }
+        $expectedIds = array_slice($this->sortedRaceIds($races), 0, 101);
+        $candidateQueries = [];
+        DB::listen(function (QueryExecuted $query) use (&$candidateQueries): void {
+            $sql = strtolower($query->sql);
+            if (str_contains($sql, 'from "races"') && str_contains($sql, 'join "racetracks"')) {
+                $candidateQueries[] = $query->sql;
+            }
+        });
 
         $this->artisan('keirin:races:sync-results', [
-            '--date' => '2026-01-01',
+            '--from' => '2026-01-01',
+            '--to' => '2026-01-02',
             '--limit' => '101',
             '--sleep-ms' => '1',
         ])->expectsOutputToContain('success=0 skipped=101 failed=0 results=0 payouts=0')
@@ -74,6 +97,38 @@ class RaceResultSyncBoundedMemoryTest extends TestCase
 
         $this->assertSame($expectedIds, $this->latestProcessedRaceIds());
         $this->assertSame(101, BatchRun::query()->latest('id')->firstOrFail()->skipped_count);
+        $this->assertCount(2, $candidateQueries);
+        Http::assertNothingSent();
+    }
+
+    public function test_limit_uses_date_number_and_id_order_instead_of_insertion_order(): void
+    {
+        Storage::fake('local');
+        Http::fake();
+        $track = $this->track('56');
+        $laterRace = $this->race($track, 1, raceDate: '2025-12-01', raceNumber: 1);
+        $earlySecondRace = $this->race($track, 2, raceDate: '2025-01-01', raceNumber: 2);
+        $earlyFirstRaceA = $this->race($track, 3, raceDate: '2025-01-01', raceNumber: 1);
+        $earlyFirstRaceB = $this->race($track, 4, raceDate: '2025-01-01', raceNumber: 1);
+
+        $this->artisan('keirin:races:sync-results', [
+            '--from' => '2025-01-01',
+            '--to' => '2025-12-31',
+            '--limit' => '1',
+        ])->assertExitCode(0);
+        $this->assertSame([(int) $earlyFirstRaceA->id], $this->latestProcessedRaceIds());
+
+        $this->artisan('keirin:races:sync-results', [
+            '--from' => '2025-01-01',
+            '--to' => '2025-12-31',
+            '--limit' => '3',
+        ])->assertExitCode(0);
+        $this->assertSame([
+            (int) $earlyFirstRaceA->id,
+            (int) $earlyFirstRaceB->id,
+            (int) $earlySecondRace->id,
+        ], $this->latestProcessedRaceIds());
+        $this->assertNotContains((int) $laterRace->id, $this->latestProcessedRaceIds());
         Http::assertNothingSent();
     }
 
@@ -189,6 +244,27 @@ class RaceResultSyncBoundedMemoryTest extends TestCase
             'race_type' => $raceType,
             'result_available' => $resultAvailable,
         ]);
+    }
+
+    /**
+     * @param  list<Race>  $races
+     * @return list<int>
+     */
+    private function sortedRaceIds(array $races): array
+    {
+        usort($races, function (Race $left, Race $right): int {
+            return [
+                $left->race_date->format('Y-m-d'),
+                (int) $left->race_number,
+                (int) $left->id,
+            ] <=> [
+                $right->race_date->format('Y-m-d'),
+                (int) $right->race_number,
+                (int) $right->id,
+            ];
+        });
+
+        return array_map(fn (Race $race): int => (int) $race->id, $races);
     }
 
     /** @return list<int> */

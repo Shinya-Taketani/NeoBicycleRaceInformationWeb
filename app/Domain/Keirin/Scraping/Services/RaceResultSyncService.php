@@ -48,16 +48,7 @@ class RaceResultSyncService
         $outerException = null;
 
         try {
-            $races = $this->raceQuery($from, $to, $options)->lazyById(
-                self::RACE_CHUNK_SIZE,
-                'races.id',
-                'id',
-            );
-            if (isset($options['limit'])) {
-                $races = $races->take((int) $options['limit']);
-            }
-
-            foreach ($races as $race) {
+            foreach ($this->racesForSync($from, $to, $options) as $race) {
                 $item = $this->batchRuns->startItem($run, 'RACE_RESULT', 'race:'.$race->id);
                 try {
                     $category = $this->categories->classify($race->race_type);
@@ -149,6 +140,66 @@ class RaceResultSyncService
             'results' => $resultCount,
             'payouts' => $payoutCount,
         ];
+    }
+
+    /** @return \Generator<int, Race> */
+    private function racesForSync(DateTimeImmutable $from, DateTimeImmutable $to, array $options): \Generator
+    {
+        $remaining = isset($options['limit']) ? max(0, (int) $options['limit']) : null;
+        $lastRaceDate = null;
+        $lastRaceNumber = null;
+        $lastId = null;
+
+        while ($remaining === null || $remaining > 0) {
+            $pageSize = $remaining === null
+                ? self::RACE_CHUNK_SIZE
+                : min(self::RACE_CHUNK_SIZE, $remaining);
+            $races = $this->raceQuery($from, $to, $options)
+                ->when($lastRaceDate !== null, function (Builder $query) use ($lastRaceDate, $lastRaceNumber, $lastId): void {
+                    $query->where(function (Builder $cursor) use ($lastRaceDate, $lastRaceNumber, $lastId): void {
+                        $cursor->whereDate('races.race_date', '>', $lastRaceDate)
+                            ->orWhere(function (Builder $sameDate) use ($lastRaceDate, $lastRaceNumber): void {
+                                $sameDate->whereDate('races.race_date', $lastRaceDate)
+                                    ->where('races.race_number', '>', $lastRaceNumber);
+                            })
+                            ->orWhere(function (Builder $sameRace) use ($lastRaceDate, $lastRaceNumber, $lastId): void {
+                                $sameRace->whereDate('races.race_date', $lastRaceDate)
+                                    ->where('races.race_number', $lastRaceNumber)
+                                    ->where('races.id', '>', $lastId);
+                            });
+                    });
+                })
+                ->orderBy('races.race_date')
+                ->orderBy('races.race_number')
+                ->orderBy('races.id')
+                ->limit($pageSize)
+                ->get();
+
+            if ($races->isEmpty()) {
+                return;
+            }
+
+            foreach ($races as $race) {
+                yield $race;
+            }
+
+            $lastRace = $races->last();
+            $lastRaceDate = $lastRace->race_date->format('Y-m-d');
+            $lastRaceNumber = (int) $lastRace->race_number;
+            $lastId = (int) $lastRace->id;
+            $fetchedCount = $races->count();
+            unset($races);
+
+            if ($remaining !== null) {
+                $remaining -= $fetchedCount;
+                if ($remaining <= 0) {
+                    return;
+                }
+            }
+            if ($fetchedCount < $pageSize) {
+                return;
+            }
+        }
     }
 
     private function raceQuery(DateTimeImmutable $from, DateTimeImmutable $to, array $options): Builder
