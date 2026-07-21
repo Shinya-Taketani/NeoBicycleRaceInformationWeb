@@ -21,6 +21,8 @@ use Throwable;
 
 class RaceResultSyncService
 {
+    private const RACE_CHUNK_SIZE = 100;
+
     public function __construct(
         private readonly BatchRunService $batchRuns,
         private readonly RaceLiveFetcher $fetcher,
@@ -46,7 +48,16 @@ class RaceResultSyncService
         $outerException = null;
 
         try {
-            foreach ($this->raceQuery($from, $to, $options)->get() as $race) {
+            $races = $this->raceQuery($from, $to, $options)->lazyById(
+                self::RACE_CHUNK_SIZE,
+                'races.id',
+                'id',
+            );
+            if (isset($options['limit'])) {
+                $races = $races->take((int) $options['limit']);
+            }
+
+            foreach ($races as $race) {
                 $item = $this->batchRuns->startItem($run, 'RACE_RESULT', 'race:'.$race->id);
                 try {
                     $category = $this->categories->classify($race->race_type);
@@ -150,10 +161,7 @@ class RaceResultSyncService
             ->when(! ($options['force'] ?? false), fn (Builder $query): Builder => $query->where('races.result_available', true))
             ->when(isset($options['race_id']), fn (Builder $query): Builder => $query->where('races.id', $options['race_id']))
             ->when(isset($options['track_code']), fn (Builder $query): Builder => $query->where('racetracks.external_track_id', $options['track_code']))
-            ->when(isset($options['race_number']), fn (Builder $query): Builder => $query->where('races.race_number', $options['race_number']))
-            ->orderBy('races.race_date')
-            ->orderBy('races.race_number')
-            ->limit(isset($options['limit']) ? (int) $options['limit'] : PHP_INT_MAX);
+            ->when(isset($options['race_number']), fn (Builder $query): Builder => $query->where('races.race_number', $options['race_number']));
     }
 
     private function assertResultContext(Race $race, string $date, string $trackCode, int $raceNumber): void
