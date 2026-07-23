@@ -106,14 +106,11 @@ class RaceDayMetadataParser
      */
     private function throwIfMeetingUnavailable(array $root, array $data): void
     {
-        $message = HtmlTextNormalizer::normalize($this->nullableString($data, 'hhMessage'));
-        $cancellationSignalled = $this->boolean($data['flgRaceCancel'] ?? false)
-            || $this->boolean($data['flgSectionCancel'] ?? false)
-            || ($message !== null && str_contains($message, '中止'));
-        if (! $cancellationSignalled) {
+        if (! $this->boolean($data['flgRaceCancel'] ?? false)) {
             return;
         }
 
+        $message = HtmlTextNormalizer::normalize($this->nullableString($data, 'hhMessage'));
         $evidence = $this->cancelledMeetingEvidence($root, $data, $message);
         if ($evidence === null) {
             throw new ParserException('PJ0301 race meeting cancellation metadata was invalid.');

@@ -570,6 +570,102 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
     }
 
+    public function test_race_specific_cancellation_syncs_all_eleven_races_and_entries_idempotently(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $meeting = $this->partialCancellationMeetingWithDays();
+        $day = RaceDay::query()
+            ->where('race_meeting_id', $meeting->id)
+            ->whereDate('race_date', '2024-03-31')
+            ->firstOrFail();
+        $metadataResponse = $this->fixture('race-sync-jsj001-partial-race-cancelled.json');
+        $entryResponse = $this->partialRaceCancelledEntries();
+        $entries = json_decode($entryResponse, true, flags: JSON_THROW_ON_ERROR);
+        $existingRace = Race::query()->create([
+            'source' => 'keirin_jp',
+            'external_race_id' => '22:20240331:11',
+            'race_day_id' => $day->id,
+            'racetrack_id' => $meeting->racetrack_id,
+            'race_date' => '2024-03-31',
+            'race_number' => 11,
+            'race_type' => '既存11R',
+            'entrant_count' => 1,
+            'encrypted_parameter' => 'existing-r11',
+            'result_available' => false,
+        ]);
+        $firstEntrant = $entries['rInfo'][10]['sInfo'][0];
+        $existingEntry = RaceEntry::query()->create([
+            'race_id' => $existingRace->id,
+            'bike_number' => (int) $firstEntrant['syaban'],
+            'external_player_id' => $firstEntrant['senNo'],
+            'fetched_at' => now(),
+        ]);
+        $this->fakeRaceListResponses(
+            entryResponse: $entryResponse,
+            metadataResponse: $metadataResponse,
+            raceListResponse: $metadataResponse,
+        );
+        $arguments = [
+            '--date' => '2024-03-31',
+            '--sleep-ms' => '1',
+        ];
+
+        $this->artisan('keirin:races:sync-race-list', $arguments)
+            ->expectsOutputToContain('days=1 races=11 entries=72 unresolved_players=72 skipped=0 failed=0')
+            ->assertExitCode(0);
+
+        $this->assertSame(range(1, 11), Race::query()->where('race_day_id', $day->id)->orderBy('race_number')->pluck('race_number')->all());
+        $race11 = Race::query()->where('external_race_id', '22:20240331:11')->firstOrFail();
+        $this->assertSame((int) $existingRace->id, (int) $race11->id);
+        $this->assertSame('enc-partial-r11', $race11->encrypted_parameter);
+        $this->assertTrue($race11->result_available);
+        $this->assertSame(6, RaceEntry::query()->where('race_id', $race11->id)->count());
+        $this->assertSame((int) $existingEntry->id, (int) RaceEntry::query()
+            ->where('race_id', $race11->id)
+            ->where('bike_number', $existingEntry->bike_number)
+            ->value('id'));
+        $this->assertSame(72, RaceEntry::query()->whereIn(
+            'race_id',
+            Race::query()->where('race_day_id', $day->id)->select('id'),
+        )->count());
+        $raceIds = Race::query()->where('race_day_id', $day->id)->orderBy('race_number')->pluck('id')->all();
+        $entryIds = RaceEntry::query()->whereIn('race_id', $raceIds)->orderBy('race_id')->orderBy('bike_number')->pluck('id')->all();
+
+        $this->artisan('keirin:races:sync-race-list', $arguments)
+            ->expectsOutputToContain('days=1 races=11 entries=72 unresolved_players=72 skipped=0 failed=0')
+            ->assertExitCode(0);
+
+        $this->assertSame($raceIds, Race::query()->where('race_day_id', $day->id)->orderBy('race_number')->pluck('id')->all());
+        $this->assertSame(
+            $entryIds,
+            RaceEntry::query()->whereIn('race_id', $raceIds)->orderBy('race_id')->orderBy('bike_number')->pluck('id')->all(),
+        );
+        $items = BatchRunItem::query()->where('item_type', 'RACE_ENTRY_LIST')->orderBy('id')->get();
+        $this->assertCount(2, $items);
+        foreach ($items as $item) {
+            $this->assertSame('SUCCEEDED', $item->status);
+            $this->assertNull($item->skip_reason);
+            $this->assertSame(11, $item->metadata['races']);
+            $this->assertSame(72, $item->metadata['entries']);
+        }
+
+        $metadataLogs = ScrapingFetchLog::query()->where('request_url', 'like', '%type=JSJ001%')->get();
+        $entryLogs = ScrapingFetchLog::query()->where('request_url', 'like', '%type=JSJ017%')->get();
+        $raceListLogs = ScrapingFetchLog::query()->where('request_url', 'like', '%/pc/racelist%')->get();
+        $this->assertCount(2, $metadataLogs);
+        $this->assertCount(2, $entryLogs);
+        $this->assertCount(2, $raceListLogs);
+        foreach ($metadataLogs->merge($raceListLogs) as $log) {
+            $this->assertSame($metadataResponse, Storage::disk('local')->get($log->raw_file_path));
+        }
+        foreach ($entryLogs as $log) {
+            $this->assertSame($entryResponse, Storage::disk('local')->get($log->raw_file_path));
+        }
+        $this->assertSame(2, BatchRun::query()->where('status', 'SUCCEEDED')->whereNotNull('finished_at')->count());
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+    }
+
     public function test_race_list_sync_is_idempotent_and_preserves_unresolved_players(): void
     {
         Storage::fake('local');
@@ -1217,6 +1313,31 @@ class SyncAutomatedRacesCommandTest extends TestCase
         return $meeting;
     }
 
+    private function partialCancellationMeetingWithDays(): RaceMeeting
+    {
+        $track = Racetrack::query()->create(['source' => 'keirin_jp', 'external_track_id' => '22', 'name' => '合成部分中止競輪場']);
+        $meeting = RaceMeeting::query()->create([
+            'source' => 'keirin_jp',
+            'external_meeting_id' => '22:20240329:synthetic-partial-cancellation',
+            'racetrack_id' => $track->id,
+            'meeting_name' => '合成部分中止開催',
+            'starts_on' => '2024-03-29',
+            'ends_on' => '2024-03-31',
+            'duration_days' => 3,
+            'encrypted_parameter' => 'enc-partial-meeting',
+        ]);
+        foreach (range(1, 3) as $day) {
+            RaceDay::query()->create([
+                'race_meeting_id' => $meeting->id,
+                'external_race_day_id' => "synthetic-partial-cancellation-day-{$day}",
+                'race_date' => '2024-03-'.str_pad((string) ($day + 28), 2, '0', STR_PAD_LEFT),
+                'day_number' => $day,
+            ]);
+        }
+
+        return $meeting;
+    }
+
     /** @return array{id:int,race_date:string,day_number:int} */
     private function raceDayIdentity(RaceDay $day): array
     {
@@ -1298,6 +1419,20 @@ class SyncAutomatedRacesCommandTest extends TestCase
 
             return Http::response($entries, 200, ['Content-Type' => 'application/json; charset=UTF-8']);
         });
+    }
+
+    private function partialRaceCancelledEntries(): string
+    {
+        $json = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $json['keirinCd'] = '22';
+        $json['kaisaihi'] = '20240331';
+        $json['reqprm']['bkcd'] = '22';
+        $json['reqprm']['kday'] = '20240331';
+        $json['syusouDispFlag'] = 1;
+        $json['kaisaiMsg'] = '11レースは中止となりました。';
+        $json['rInfo'] = array_slice($json['rInfo'], 0, 11);
+
+        return json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 
     private function fakeResultResponses(?string $resultResponse = null): void
