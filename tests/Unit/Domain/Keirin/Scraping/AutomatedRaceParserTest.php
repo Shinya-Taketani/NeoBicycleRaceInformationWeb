@@ -42,6 +42,27 @@ class AutomatedRaceParserTest extends TestCase
         $this->assertCount(12, $page->races);
     }
 
+    public function test_it_parses_race_specific_cancellation_metadata_as_a_normal_page(): void
+    {
+        $metadata = $this->metadataParser()->parse(
+            $this->fixture('race-sync-jsj001-partial-race-cancelled.json'),
+        );
+        $entries = (new RaceEntryListParser)->parse($this->partialRaceCancelledEntries());
+        $parameters = (new RaceListConsistencyValidator)->validate($metadata, $entries);
+
+        $this->assertSame('20240331', $metadata->selectedDate);
+        $this->assertSame('22', $metadata->trackCode);
+        $this->assertSame(11, $metadata->selectedRaceNumber);
+        $this->assertCount(3, $metadata->days);
+        $this->assertCount(11, $metadata->races);
+        $this->assertCount(11, $entries->races);
+        $this->assertSame(range(1, 11), array_map(fn ($race): int => $race->raceNumber, $entries->races));
+        $this->assertCount(11, $parameters);
+        $this->assertSame('enc-partial-r11', $parameters[11]->encryptedParameter);
+        $this->assertTrue($parameters[11]->raceEnded);
+        $this->assertTrue($parameters[11]->resultAvailable);
+    }
+
     public function test_it_reports_only_strict_race_meeting_cancellation_responses(): void
     {
         $fixture = $this->cancelledMeetingFixture();
@@ -621,6 +642,20 @@ class AutomatedRaceParserTest extends TestCase
         ];
 
         return $json;
+    }
+
+    private function partialRaceCancelledEntries(): string
+    {
+        $json = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+        $json['keirinCd'] = '22';
+        $json['kaisaihi'] = '20240331';
+        $json['reqprm']['bkcd'] = '22';
+        $json['reqprm']['kday'] = '20240331';
+        $json['syusouDispFlag'] = 1;
+        $json['kaisaiMsg'] = '11レースは中止となりました。';
+        $json['rInfo'] = array_slice($json['rInfo'], 0, 11);
+
+        return json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 
     private function liveResultHtmlWith(callable $mutate): string
