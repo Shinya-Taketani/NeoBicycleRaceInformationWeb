@@ -7,7 +7,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StatisticCalculationRun extends Model
 {
@@ -48,18 +47,13 @@ class StatisticCalculationRun extends Model
         return $this->belongsTo(Race::class, 'target_race_id');
     }
 
-    public function createdResults(): HasMany
-    {
-        return $this->hasMany(StatisticEntryResult::class, 'calculation_run_id');
-    }
-
-    public function results(): BelongsToMany
+    public function featureSnapshots(): BelongsToMany
     {
         return $this->belongsToMany(
-            StatisticEntryResult::class,
-            'statistic_run_entry_results',
+            StatFeatureSnapshot::class,
+            'statistic_run_feature_snapshots',
             'calculation_run_id',
-            'statistic_entry_result_id',
+            'stat_feature_snapshot_id',
         );
     }
 }

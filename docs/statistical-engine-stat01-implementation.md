@@ -1,142 +1,210 @@
-# 統計エンジン第1製造単位 実装仕様
+# 統計エンジン共通基盤・STAT-01 実装仕様
 
 ## 1. 対象範囲
 
-この製造単位では、統計計算の実行履歴・入力監査・冪等保存を行う共通基盤と、STAT-01「競走得点による基礎実力評価」を実装する。
+この製造単位は、統計特徴量の実行・時点値・出典を監査する共通基盤と、STAT-01「競走得点による基礎実力評価」を実装する。
 
-STAT-01の入力は、対象レース自身の出走表からPJ0315 `heikinTokuten`として取得され、`race_entries.race_score`へ保存された値だけである。`players`の現在値、`player_stat_snapshots`、`race_results`、`race_payouts`は入力にも品質判定にも使用しない。
+STAT-01の入力は、対象レースのPJ0315出走表から`race_entries.race_score`へ保存された値だけである。`players`の現在値、`player_stat_snapshots`、`race_results`、`race_payouts`は参照しない。
 
-## 2. テーブル
+## 2. ER関係
+
+```text
+statistic_calculation_runs
+  --< statistic_run_feature_snapshots >-- stat_feature_snapshots
+                                              |--< stat_feature_values
+                                              `--< stat_feature_sources
+                                                        |
+race_entries --< race_entry_snapshots --< race_entry_snapshot_sources
+                       |                          |
+                       `--------------------------+-- scraping_fetch_logs
+
+stat_feature_definitions
+  (stat_code + feature_code + definition_version)
+```
+
+計算実行IDは特徴量本体へ保存しない。実行と再利用可能な特徴量snapshotは`statistic_run_feature_snapshots`で関連付ける。
+
+## 3. テーブル構成
 
 ### statistic_calculation_runs
 
-STATコード、計算バージョン、対象期間または対象レース、実行パラメータ、実行状態、開始・終了日時、対象レース数、処理済みレース数、対象出走数、品質別件数、レース処理エラー数と概要を保持する。
+STATコード、計算バージョン、対象期間・レース、実行パラメータ、状態、開始・終了日時、対象・品質・エラー件数を保持する。
 
-実行状態は次のいずれかとする。
+### race_entry_snapshots
 
-- `RUNNING`
-- `SUCCEEDED`
-- `PARTIALLY_FAILED`
-- `FAILED`
-- `NO_TARGETS`
+`race_entries`の時点値を保持する。競走得点は元表現を`race_score_raw_text`、検証済み値を`race_score`へ分離する。
 
-### statistic_entry_results
+- 数値かつ0より大きい: `VALID`
+- `NULL`または空: `MISSING`
+- 数値形式でない: `INVALID_FORMAT`
+- 0以下: `NON_POSITIVE`
+- `numeric(12,4)`へ保存できない: `OUT_OF_STORAGE_RANGE`
+- 情報源間競合: `SOURCE_CONFLICT`
 
-レース・出走・選手・車番、入力競走得点、レース内特徴量、品質状態、取得モード、入力スナップショットとSHA-256、情報源・取得日時、計算日時を保持する。
+`0.00`はraw textを保持し、数値列は`NULL`とする。ドメイン上の固定上限は設けず、DB保存範囲だけを検査する。外れ値判定は今回未実装のため`NOT_CHECKED`である。
 
-`raw_points`、`confidence`、`effective_points`は配点方式が未決定のため常に`NULL`とする。未採点を0点として保存しない。
+同一`race_entry_id + snapshot_hash`は再利用する。内容変更時は新snapshotを作り、以前の`is_current`をfalseにする。
 
-### statistic_run_entry_results
+### race_entry_snapshot_sources
 
-再実行時に既存の同一結果を再利用しても、どの計算実行がその結果を参照したかを保持する中間テーブルである。`statistic_entry_results.calculation_run_id`は結果を最初に作成した実行を示し、この中間テーブルは初回を含むすべての実行を示す。
+出走snapshotへ寄与したページとFetch Logを保持する。既存`race_entries`からの移行時は次の値を使う。
 
-## 3. STAT-01-v1計算式
+- `snapshot_type`: `LEGACY_BACKFILL`
+- `input_snapshot_type`: `HISTORICAL_RACE_CARD_BACKFILL`
+- `source_page_type`: `RACE_DETAIL`
+- `context_verification_status`: `VERIFIED_LEGACY_RECONCILED`
+- `historical_backfill_scope`: `STATIC_RACE_CARD_FIELDS_ONLY`
+- `eligible_fields`: `race_score`
 
-計算対象は同一レース内の有効な`race_score`だけとする。`NULL`を欠損、0以下または数値形式でない値を無効とし、0、平均、最下位へ補完しない。
+既存行からFetch Logを一意に決定できないため、`scraping_fetch_log_id`は推測せず`NULL`とする。`context_evidence.source_link_status`へ`SOURCE_LINK_MISSING`を保存する。
 
-有効得点を \(x_1,\ldots,x_N\)、対象選手の得点を \(x\) とする。
+### stat_feature_snapshots
 
-- 標準競争順位: `1 + xより高い有効得点の人数`
-- dense rank: `1 + xより高い異なる有効得点の個数`
-- strength percentile: `N = 1`なら`1.0`、それ以外は`(N - 標準競争順位) / (N - 1)`
-- 平均: `sum(x_i) / N`
-- 最高値: `max(x_i)`
-- 平均との差: `x - 平均`
-- 最高値との差: `x - 最高値`
-- 母標準偏差: `sqrt(sum((x_i - 平均)^2) / N)`
-- z-score: `(x - 平均) / 母標準偏差`
+統計評価単位のヘッダーである。`scope_type`は`RACE`、`RACE_ENTRY`、`PLAYER_PAIR`を持ち、scopeごとのFK組合せをPostgreSQL CHECK制約で検証する。STAT-01は`RACE_ENTRY`を使う。
 
-percentileは最高順位を1.0、単独最下位を0.0とする。同点は同じ標準競争順位とpercentileを持つ。全員同点では全員1.0、1車だけの場合も1.0とする。母標準偏差が0の場合、z-scoreは`NULL`とする。
+主な監査項目:
 
-計算結果の意味を将来変更する場合は既存の`STAT-01-v1`を書き換えず、新しい計算バージョンを追加する。
+- `input_as_of`と決定policy
+- `input_snapshot_type`
+- レース全体の入力ハッシュ
+- 計算バージョン
+- 特徴量状態とデータ品質
+- sample count、coverage rate、最大取得日時
 
-## 4. データ品質
+レース全体の入力JSONは保持せず、順序正規化した`race_entry_snapshots.snapshot_hash`の集合からSHA-256を作る。
 
-- `VALID`: 全出走の得点が有効で、発走前取得または取得時点不明のレース固有出走表
-- `HISTORICAL_SNAPSHOT`: 全出走の得点が有効で、対象レース後に取得したレース固有の過去出走表
-- `PARTIAL`: 同一レースに欠損または無効値がある中で計算できた有効選手
-- `MISSING_INPUT`: 一部欠損レースの得点欠損選手
-- `INVALID_INPUT`: 0以下または不正形式の得点
-- `BLOCKED`: 全員欠損で相対特徴量を計算できない選手
-- `LEAKAGE_RISK`: 将来の入力経路追加時に、対象レースと無関係な現在値しかない場合の予約状態
-- `ERROR`: 結果単位エラーの予約状態
+### stat_feature_values
 
-レース処理そのものの例外は計算実行の`error_count`と`error_summary`へ記録し、後続レースを継続する。DB接続・クエリ等の構造的な失敗は実行を`FAILED`で終了して再送出する。
+特徴量をfeature code単位で縦持ちする。`INTEGER`、`NUMERIC`、`TEXT`、`BOOLEAN`、`JSON`に対応する値列のうち、value typeに対応する1列だけを非NULLにする。NaNと正負InfinityはアプリケーションとPostgreSQL CHECKの両方で拒否する。
 
-## 5. 取得モード
+窓なしは`snapshot + feature_code`、窓ありは`snapshot + feature_code + window_type + window_value`で一意にする。window type/valueは両方NULLまたは両方非NULLである。
 
-- `LIVE_PRE_RACE`: `race_entries.fetched_at`が`races.scheduled_start_at`以前
-- `HISTORICAL_RACE_CARD`: 発走後、または発走時刻不明で取得日がレース日より後
-- `UNKNOWN_ACQUISITION_MODE`: 発走時刻がなく、レース当日以前のため前後を確定できない場合
+### stat_feature_sources
 
-2024年バックフィルは取得処理日時がレース後でも、入力値がそのレースに紐づくPJ0315出走表の値であるため、現在値の混入とは扱わない。`fetched_at`は取得日時であり、値が表す対象レース日時とは別に監査する。
+特徴量snapshotから入力元を追跡する。対象選手自身は`PRIMARY_INPUT`、レース内比較に使った他選手は`CONTEXT_INPUT`とする。各行から`race_entry_snapshot_id`、必要なら`scraping_fetch_log_id`、URL、Raw path、SHA-256、parser versionまで追跡できる。
 
-## 6. 入力ハッシュと冪等性
+レガシー移行でFetch Logがない場合は`source_timing_status = SOURCE_LINK_MISSING`とし、Raw情報を捏造しない。
 
-入力スナップショットは次を含み、race_entry ID順で正規化する。
+### stat_feature_definitions
 
-- レースID、情報源、レース日、発走予定日時
-- 全出走のrace_entry ID、選手ID、車番、競走得点、取得日時、取得モード
-- STATコードと計算バージョン
+feature code、型、単位、説明、definition versionを保持する。`StatFeatureDefinitionSeeder`がSTAT-01-v1を冪等登録する。定義不足・型不一致では計算を開始せず、runを`FAILED`で終了する。
 
-このJSONからSHA-256を作る。相対特徴量は他選手の得点にも依存するため、個人値だけでなくレース全体をハッシュ対象とする。
+## 4. STAT-01-v1特徴量
 
-結果の一意制約は次の4項目である。
+| feature_code | 型 | 単位 |
+|---|---|---|
+| RACE_SCORE_RAW | NUMERIC | SCORE |
+| RACE_SCORE_AVAILABLE | BOOLEAN | NONE |
+| RACE_SCORE_RANK | INTEGER | RANK |
+| RACE_SCORE_DENSE_RANK | INTEGER | RANK |
+| RACE_SCORE_RANK_PERCENTILE | NUMERIC | PERCENTILE |
+| RACE_SCORE_MEAN | NUMERIC | SCORE |
+| RACE_SCORE_MAX | NUMERIC | SCORE |
+| RACE_SCORE_DIFF_FROM_MEAN | NUMERIC | SCORE |
+| RACE_SCORE_GAP_TO_MAX | NUMERIC | SCORE |
+| RACE_SCORE_STDDEV_POP | NUMERIC | SCORE |
+| RACE_SCORE_Z | NUMERIC | NONE |
+
+計算式:
+
+- 標準競争順位: `1 + 対象より高い得点の人数`
+- dense rank: `1 + 対象より高い異なる得点の個数`
+- percentile: `N=1なら1.0、それ以外は(N-rank)/(N-1)`
+- 平均: `sum(score) / N`
+- 平均との差: `score - mean`
+- 最高得点との差: `maximum - score`
+- 母標準偏差: `sqrt(sum((score-mean)^2) / N)`
+- z-score: `(score-mean) / stddev`
+
+全員同点または1車の場合も0除算しない。標準偏差0では`RACE_SCORE_Z`を保存しない。欠損・非正値を0、平均、最下位へ補完しない。
+
+## 5. input_as_of
+
+次の優先順位で決定する。
+
+1. `races.sales_close_at`: `SALES_CLOSE`
+2. `races.scheduled_start_at`: `START_TIME`
+3. どちらもない: `INPUT_AS_OF_UNAVAILABLE`
+
+3の場合、日時を捏造せず`input_as_of = NULL`、特徴量statusとqualityを`BLOCKED`にする。レース日23:59:59は使用しない。新しい日時列はPostgreSQL `timestamptz`である。
+
+## 6. 入力種別と品質
+
+過去出走表であることは`input_snapshot_type = HISTORICAL_RACE_CARD_BACKFILL`で表し、品質状態へ`HISTORICAL_SNAPSHOT`を入れない。
+
+特徴量status:
 
 ```text
-stat_code
-calculation_version
+VALID / MISSING_INPUT / DEGRADED / CONFLICTED_INPUT /
+INVALID_INPUT / LEAKAGE_RISK / BLOCKED / ERROR ...
+```
+
+データ品質:
+
+```text
+VALID / PARTIAL / DEGRADED / BLOCKED / LEAKAGE_RISK / ERROR
+```
+
+Fetch Log未特定、またはplayer未解決の場合は`DEGRADED`とする。一部得点欠損では有効選手を`PARTIAL`、欠損選手を`MISSING_INPUT`とする。PLAYER_PROFILEだけを過去レース得点へ使う入力は`LEAKAGE_RISK`である。
+
+## 7. 冪等性と再計算
+
+RACE_ENTRY scopeの論理一意キー:
+
+```text
 race_entry_id
+stat_code
+input_as_of
+calculation_version
 input_hash
 ```
 
-同じ入力の通常再実行は結果を再利用し、`statistic_run_entry_results`だけへ実行との関連を追加する。`--recalculate`も同じ一意行を更新し、同一スナップショットの結果行を増殖させない。レース内のいずれかの入力が変わった場合は全体ハッシュが変わり、新しい監査可能な結果を作る。
+通常再実行は既存snapshot・values・sourcesを再利用し、新しいrun関連だけを追加する。
 
-## 7. コマンド
+`--recalculate`は同じ入力を再計算し、保存済みfeature code、型、値、分子・分母、sample、statusと比較する。一致すれば再利用し、不一致なら過去値や`calculated_at`を上書きせず整合性エラーにする。計算式変更時はcalculation versionを上げる。
 
-2024年全体:
+## 8. 配点・confidence
+
+特徴量基盤には`raw_points`、`confidence`、`effective_points`を置かない。配点、confidence、総合化は将来の`stat_score_snapshots`等で、特徴量生成とは別のバージョン・監査単位として実装する。
+
+## 9. コマンド
 
 ```bash
+php artisan db:seed --class=StatFeatureDefinitionSeeder
+
 php artisan keirin:statistics:build-stat01 \
   --from=2024-01-01 \
   --to=2024-12-31 \
   --chunk=500
-```
 
-単一レース:
-
-```bash
 php artisan keirin:statistics:build-stat01 --race-id=12345
-```
-
-保存しない確認:
-
-```bash
-php artisan keirin:statistics:build-stat01 \
-  --from=2024-01-01 \
-  --to=2024-01-31 \
-  --dry-run
-```
-
-同一スナップショットを再計算:
-
-```bash
+php artisan keirin:statistics:build-stat01 --race-id=12345 --dry-run
 php artisan keirin:statistics:build-stat01 --race-id=12345 --recalculate
 ```
 
-対象レースはIDベースでchunk処理し、各chunkで`race_entries`を一括Eager Loadする。全レースを単一Collectionへ保持しない。対象0件は`NO_TARGETS`として明示し、コマンドは失敗コードを返す。
+raceはIDベースでchunk処理し、`race_entries`はchunkごとにEager Loadする。dry-runではrun、出走snapshot、特徴量、source、run関連へ書き込まない。
 
-## 8. 今回の対象外
+## 10. 開発DBの旧派生結果
+
+旧Migrationで生成した`statistic_entry_results`等は新スキーマと互換性がないが、元データではなく再生成可能な派生データである。
+
+PRマージ前の開発環境を新定義へ合わせる際は、環境とバックアップを確認した管理者が次の順で実施する。
+
+1. 必要なら旧統計テーブルとMigration履歴をバックアップする。
+2. 旧`000004`だけが未マージMigration由来であり、後続Migrationや依存処理がないことを確認する。
+3. 元の`races`、`race_entries`、`race_results`、`race_payouts`等を対象にしない方法で、旧`000004`の派生テーブルを安全に戻す。
+4. 修正版`000004`を通常Migrationで適用する。
+5. `StatFeatureDefinitionSeeder`を実行する。
+6. 対象範囲のSTAT-01を再生成し、件数と品質状態を照合する。
+
+`migrate:fresh`、`db:wipe`、元レースデータ削除は不要であり、使用しない。共有・本番相当環境では具体的なrollbackコマンドを事前確認なしに実行しない。
+
+## 11. 今回の対象外
 
 - STAT-02以降
-- 総合点、0から100への正規化、配点、confidence
-- 閾値・機械学習・勝率・着順確率
-- オッズ・買い目・資金配分
-- UI・API
+- 外れ値判定
+- 配点、confidence、総合点
+- バックテスト、勝率・着順確率
+- オッズ、買い目、資金配分
+- UI、API
 - スクレイピング変更
-- 最終予測保存
-- 2024年結果を説明変数にしたバックテスト
-
-## 9. 次の製造候補
-
-次の製造単位では、確定要件に従ってSTAT-02以降を1項目ずつ追加し、共通run/result監査基盤を再利用する。配点や総合化は、各特徴量のバックテスト結果とバージョン管理方針が確定してから別製造単位で実装する。

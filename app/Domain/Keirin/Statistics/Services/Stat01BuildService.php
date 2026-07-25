@@ -6,19 +6,24 @@ namespace App\Domain\Keirin\Statistics\Services;
 
 use App\Domain\Keirin\Statistics\Calculators\Stat01Calculator;
 use App\Domain\Keirin\Statistics\DTO\Stat01BuildSummaryDto;
-use App\Domain\Keirin\Statistics\Enums\StatisticQualityStatus;
+use App\Domain\Keirin\Statistics\DTO\Stat01RaceCalculationDto;
+use App\Domain\Keirin\Statistics\Enums\StatDataQualityStatus;
+use App\Domain\Keirin\Statistics\Enums\StatFeatureStatus;
 use App\Domain\Keirin\Statistics\Enums\StatisticRunStatus;
 use App\Models\Race;
 use App\Models\StatisticCalculationRun;
-use App\Repositories\StatisticRepository;
+use App\Repositories\StatisticFeatureRepository;
 use DateTimeImmutable;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class Stat01BuildService
 {
     public function __construct(
-        private readonly StatisticRepository $statistics,
+        private readonly StatisticFeatureRepository $statistics,
+        private readonly RaceEntrySnapshotService $entrySnapshots,
+        private readonly StatInputAsOfResolver $inputAsOf,
         private readonly Stat01RaceInputFactory $inputs,
         private readonly Stat01Calculator $calculator,
     ) {}
@@ -62,6 +67,7 @@ class Stat01BuildService
         $errors = [];
 
         try {
+            $this->statistics->assertStat01Definitions();
             $this->statistics->eachTargetRace(
                 $from,
                 $to,
@@ -71,28 +77,29 @@ class Stat01BuildService
                     $counts['target_races']++;
                     $counts['targets'] += $race->entries->count();
                     try {
-                        $calculation = $this->calculator->calculate($this->inputs->make($race));
-                        if (! $dryRun && $run instanceof StatisticCalculationRun) {
-                            $this->statistics->persistStat01(
+                        $calculation = $dryRun
+                            ? $this->calculateWithoutPersistence($race)
+                            : DB::transaction(fn (): Stat01RaceCalculationDto => $this->calculateAndPersist(
                                 $run,
                                 $race,
-                                $calculation,
-                                new DateTimeImmutable('now'),
                                 $recalculate,
-                            );
-                        }
+                            ));
                         $counts['processed_races']++;
                         foreach ($calculation->results as $result) {
-                            match ($result->qualityStatus) {
-                                StatisticQualityStatus::Valid,
-                                StatisticQualityStatus::HistoricalSnapshot => $counts['success']++,
-                                StatisticQualityStatus::Partial => $counts['partial']++,
-                                StatisticQualityStatus::MissingInput,
-                                StatisticQualityStatus::Blocked => $counts['missing']++,
-                                StatisticQualityStatus::InvalidInput => $counts['invalid']++,
-                                StatisticQualityStatus::LeakageRisk,
-                                StatisticQualityStatus::Error => $counts['errors']++,
-                            };
+                            if ($result->status === StatFeatureStatus::InvalidInput
+                                || $result->status === StatFeatureStatus::ConflictedInput) {
+                                $counts['invalid']++;
+                            } elseif ($result->status === StatFeatureStatus::MissingInput
+                                || $result->status === StatFeatureStatus::Blocked) {
+                                $counts['missing']++;
+                            } elseif ($result->dataQualityStatus === StatDataQualityStatus::Partial) {
+                                $counts['partial']++;
+                            } elseif ($result->status === StatFeatureStatus::LeakageRisk
+                                || $result->status === StatFeatureStatus::Error) {
+                                $counts['errors']++;
+                            } else {
+                                $counts['success']++;
+                            }
                         }
                     } catch (QueryException $exception) {
                         throw $exception;
@@ -118,6 +125,7 @@ class Stat01BuildService
 
         $status = match (true) {
             $counts['target_races'] === 0 => StatisticRunStatus::NoTargets,
+            $counts['errors'] > 0 && $counts['processed_races'] === 0 => StatisticRunStatus::Failed,
             $counts['errors'] > 0 => StatisticRunStatus::PartiallyFailed,
             default => StatisticRunStatus::Succeeded,
         };
@@ -138,6 +146,40 @@ class Stat01BuildService
             errors: $errors,
             dryRun: $dryRun,
         );
+    }
+
+    private function calculateWithoutPersistence(Race $race): Stat01RaceCalculationDto
+    {
+        $asOf = $this->inputAsOf->resolve($race);
+        $snapshots = $this->entrySnapshots->snapshotsForRace($race, false);
+
+        return $this->calculator->calculate($this->inputs->make($race, $snapshots, $asOf));
+    }
+
+    private function calculateAndPersist(
+        ?StatisticCalculationRun $run,
+        Race $race,
+        bool $recalculate,
+    ): Stat01RaceCalculationDto {
+        if (! $run instanceof StatisticCalculationRun) {
+            throw new \LogicException('A persisted STAT-01 build requires a calculation run.');
+        }
+        $asOf = $this->inputAsOf->resolve($race);
+        $snapshots = $this->entrySnapshots->snapshotsForRace($race, true);
+        $input = $this->inputs->make($race, $snapshots, $asOf);
+        $calculatedAt = new DateTimeImmutable('now');
+        $calculation = $this->calculator->calculate($input);
+        $this->statistics->persistStat01(
+            $run,
+            $race,
+            $input,
+            $calculation,
+            $snapshots,
+            $calculatedAt,
+            $recalculate,
+        );
+
+        return $calculation;
     }
 
     /**

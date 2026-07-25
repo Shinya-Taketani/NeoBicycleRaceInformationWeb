@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Statistics\DTO;
 
+use App\Domain\Keirin\Statistics\Enums\StatInputAsOfPolicy;
 use DateTimeImmutable;
 
 final readonly class Stat01RaceInputDto
@@ -14,8 +15,8 @@ final readonly class Stat01RaceInputDto
     public function __construct(
         public int $raceId,
         public string $source,
-        public string $raceDate,
-        public ?DateTimeImmutable $scheduledStartAt,
+        public ?DateTimeImmutable $inputAsOf,
+        public StatInputAsOfPolicy $inputAsOfPolicy,
         public array $entries,
     ) {}
 }
