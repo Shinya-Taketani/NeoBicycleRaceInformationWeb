@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RaceEntry extends Model
 {
@@ -30,5 +31,15 @@ class RaceEntry extends Model
             'race_score' => 'decimal:2',
             'fetched_at' => 'immutable_datetime',
         ];
+    }
+
+    public function race(): BelongsTo
+    {
+        return $this->belongsTo(Race::class);
+    }
+
+    public function player(): BelongsTo
+    {
+        return $this->belongsTo(Player::class);
     }
 }
