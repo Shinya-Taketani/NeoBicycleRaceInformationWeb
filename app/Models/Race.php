@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Race extends Model
 {
@@ -41,5 +42,10 @@ class Race extends Model
             'result_confirmed_at' => 'immutable_datetime',
             'last_fetched_at' => 'immutable_datetime',
         ];
+    }
+
+    public function entries(): HasMany
+    {
+        return $this->hasMany(RaceEntry::class);
     }
 }
