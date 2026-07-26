@@ -108,11 +108,11 @@ source状態はrace card値のsnapshot hashへ混在させず、決定的な`sou
 - UTC正規化したcontext検証日時
 - 再帰的にcanonicalizeしたcontext evidence
 
-field配列は文字列だけに絞り、重複を除去して辞書順にソートする。context evidenceは連想配列とobjectのキーを再帰的に辞書順へ正規化し、listの順序とscalarの型は保持する。`context_verified_at`はUTCマイクロ秒表現へ正規化し、検証日時を特定できないレガシーsourceでは`NULL`のままとして現在時刻を補完しない。`raceScoreEligible`、`input_snapshot_type`、`input_as_of`、`source_reference_at`のような計算時コンテキストと、snapshot hash由来で循環する`source_identity_key`は含めない。`sourceLinkMissing`と`context_evidence.source_link_status`は最終templateのFetch Log IDだけから導出する。source stateの一意キーは`snapshot + source role + source fingerprint`、identity keyは`race-entry-source:{snapshot_id}:{fingerprint}`である。
+field配列は文字列だけに絞り、重複を除去して辞書順にソートする。context evidenceは連想配列とobjectのキーを再帰的に辞書順へ正規化し、listの順序とscalarの型は保持する。`context_verified_at`と`source_fetched_at`は`NULL`または`DateTimeImmutable`だけを許可し、UTCマイクロ秒表現へ正規化する。不正型を`NULL`へ縮退させない。検証日時を特定できないレガシーsourceでは`context_verified_at = NULL`のままとして現在時刻を補完しない。`raceScoreEligible`、`input_snapshot_type`、`input_as_of`、`source_reference_at`のような計算時コンテキストと、snapshot hash由来で循環する`source_identity_key`は含めない。`sourceLinkMissing`と`context_evidence.source_link_status`は最終templateのFetch Log IDだけから導出する。source stateの一意キーは`snapshot + source role + source fingerprint`、identity keyは`race-entry-source:{snapshot_id}:{fingerprint}`である。
 
 source stateはappend-onlyであり、page type、context、eligibility、Fetch Log、固定証跡、fingerprint、identity keyを更新しない。sourceが変化した場合は`RaceEntrySnapshotSourceFactory`が共通fingerprint実装を使って一致stateを再利用するか、新stateを追加する。過去stateを削除・上書きしない。現在選択中のsourceだけは`race_entry_snapshot_source_heads`に分離し、同じfingerprintへ戻った場合もsource state本体を複製せずheadだけを切り替える。
 
-Factoryの低水準`findOrCreate`はprivateとし、公開経路は永続化済みFetch LogをDBから再読込する`appendWithFetchLog`、固定証跡をすべてNULLへ強制する`createUnlinked`、既存sourceの固定証跡だけを別content snapshotへ複製する`copyToSnapshot`へ限定する。未保存Fetch Logと、SHA-256、parser version、取得日時などの固定証跡overrideは拒否する。これによりFetch Log行が後から更新された場合やdirtyなmodelが渡された場合も、既存source stateは変化せず、新sourceにはDBへ永続化された証跡だけが保存される。
+Factoryの低水準`findOrCreate`はprivateとし、公開経路は永続化済みFetch LogをDBから再読込する`appendWithFetchLog`、固定証跡をすべてNULLへ強制する`createUnlinked`、既存sourceの固定証跡だけを別content snapshotへ複製する`copyToSnapshot`へ限定する。既存sourceを受け取る全公開経路は、dirty modelと未保存modelを拒否した後、IDでDB行を再取得する。削除済みsourceも拒否し、`syncOriginal()`された偽装modelの属性は使用しない。未保存Fetch Logと、SHA-256、parser version、取得日時などの固定証跡overrideも拒否する。これにより既存source stateを変更せず、新sourceにはDBへ永続化された証跡だけが保存される。
 
 ### stat_feature_snapshots
 

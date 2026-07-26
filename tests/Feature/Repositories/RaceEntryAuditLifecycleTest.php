@@ -31,6 +31,7 @@ use App\Models\StatFeatureSnapshot;
 use App\Models\StatFeatureSource;
 use App\Repositories\RaceRepository;
 use Database\Seeders\StatFeatureDefinitionSeeder;
+use DateTime;
 use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -923,6 +924,9 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $verifiedAtChanged = $factory->appendFromExisting($linked, [
             'context_verified_at' => new DateTimeImmutable('2026-07-26 10:06:00+09:00'),
         ]);
+        $sameVerifiedInstant = $factory->appendFromExisting($verifiedAtChanged, [
+            'context_verified_at' => new DateTimeImmutable('2026-07-26 01:06:00+00:00'),
+        ]);
 
         $this->assertSame((int) $linked->id, (int) $reordered->id);
         $this->assertSame($linked->source_fingerprint, $reordered->source_fingerprint);
@@ -930,6 +934,11 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertNotSame($linked->source_fingerprint, $changed->source_fingerprint);
         $this->assertNotSame($linked->source_fingerprint, $listChanged->source_fingerprint);
         $this->assertNotSame($linked->source_fingerprint, $verifiedAtChanged->source_fingerprint);
+        $this->assertSame((int) $verifiedAtChanged->id, (int) $sameVerifiedInstant->id);
+        $this->assertSame(
+            $verifiedAtChanged->source_fingerprint,
+            $sameVerifiedInstant->source_fingerprint,
+        );
         $this->assertDatabaseHas('race_entry_snapshot_sources', ['id' => $linked->id]);
         $this->assertDatabaseHas('race_entry_snapshot_sources', ['id' => $changed->id]);
         $this->assertSame('SOURCE_LINKED', $linked->context_evidence['source_link_status']);
@@ -1010,6 +1019,242 @@ class RaceEntryAuditLifecycleTest extends TestCase
         }
         $this->assertTrue(
             (new \ReflectionMethod(RaceEntrySnapshotSourceFactory::class, 'findOrCreate'))->isPrivate(),
+        );
+    }
+
+    public function test_factory_rejects_dirty_source_models_without_changing_audit_state(): void
+    {
+        [$race, $entry, $snapshot, $source, $factory, $fetchLog] = $this->sourceFactoryContext(true);
+        $sourceCount = RaceEntrySnapshotSource::query()->count();
+        $headId = DB::table('race_entry_snapshot_source_heads')
+            ->where('race_entry_snapshot_id', $snapshot->id)
+            ->value('race_entry_snapshot_source_id');
+        $featureSources = DB::table('stat_feature_sources')->orderBy('id')->get()->all();
+        $runAudits = DB::table('statistic_run_feature_snapshot_occurrences')
+            ->orderBy('id')
+            ->get()
+            ->all();
+        $dirtyValues = [
+            'raw_sha256' => str_repeat('f', 64),
+            'parser_version' => 'forged-parser',
+            'source_fetched_at' => new DateTimeImmutable('2099-01-01 00:00:00+00:00'),
+            'source_url' => 'https://example.invalid/forged',
+            'context_evidence' => ['forged' => true],
+        ];
+
+        foreach (['copy', 'append-fetch-log', 'append-existing'] as $operation) {
+            foreach ($dirtyValues as $field => $value) {
+                $dirty = RaceEntrySnapshotSource::query()->findOrFail($source->id);
+                $dirty->forceFill([$field => $value]);
+                $this->assertTrue($dirty->isDirty());
+
+                try {
+                    match ($operation) {
+                        'copy' => $factory->copyToSnapshot($snapshot, $race, $entry, $dirty),
+                        'append-fetch-log' => $factory->appendWithFetchLog($dirty, $fetchLog),
+                        'append-existing' => $factory->appendFromExisting($dirty, [
+                            'context_verification_status' => 'VERIFIED_EXACT',
+                        ]),
+                    };
+                    $this->fail("Dirty {$field} should have been rejected by {$operation}.");
+                } catch (InvalidArgumentException $exception) {
+                    $this->assertSame(
+                        'Source state model contained unsaved changes.',
+                        $exception->getMessage(),
+                    );
+                }
+            }
+        }
+
+        $this->assertSame($sourceCount, RaceEntrySnapshotSource::query()->count());
+        $this->assertSame(
+            (int) $headId,
+            (int) DB::table('race_entry_snapshot_source_heads')
+                ->where('race_entry_snapshot_id', $snapshot->id)
+                ->value('race_entry_snapshot_source_id'),
+        );
+        $this->assertEquals(
+            $featureSources,
+            DB::table('stat_feature_sources')->orderBy('id')->get()->all(),
+        );
+        $this->assertEquals(
+            $runAudits,
+            DB::table('statistic_run_feature_snapshot_occurrences')
+                ->orderBy('id')
+                ->get()
+                ->all(),
+        );
+        $persisted = RaceEntrySnapshotSource::query()->findOrFail($source->id);
+        $this->assertNull($persisted->raw_sha256);
+        $this->assertNull($persisted->parser_version);
+        $this->assertNull($persisted->source_fetched_at);
+        $this->assertNull($persisted->source_url);
+        $this->assertArrayNotHasKey('forged', $persisted->context_evidence);
+    }
+
+    public function test_factory_rejects_unpersisted_source_models_on_all_public_copy_paths(): void
+    {
+        [$race, $entry, $snapshot, $source, $factory, $fetchLog] = $this->sourceFactoryContext();
+        $sourceCount = RaceEntrySnapshotSource::query()->count();
+        $headId = DB::table('race_entry_snapshot_source_heads')
+            ->where('race_entry_snapshot_id', $snapshot->id)
+            ->value('race_entry_snapshot_source_id');
+
+        foreach (['copy', 'append-fetch-log', 'append-existing'] as $operation) {
+            $unpersisted = new RaceEntrySnapshotSource;
+            $unpersisted->forceFill(['id' => $source->id]);
+
+            try {
+                match ($operation) {
+                    'copy' => $factory->copyToSnapshot($snapshot, $race, $entry, $unpersisted),
+                    'append-fetch-log' => $factory->appendWithFetchLog($unpersisted, $fetchLog),
+                    'append-existing' => $factory->appendFromExisting($unpersisted, []),
+                };
+                $this->fail("An unpersisted source should have been rejected by {$operation}.");
+            } catch (InvalidArgumentException $exception) {
+                $this->assertSame(
+                    'Source state model must be persisted.',
+                    $exception->getMessage(),
+                );
+            }
+        }
+
+        $this->assertSame($sourceCount, RaceEntrySnapshotSource::query()->count());
+        $this->assertSame(
+            (int) $headId,
+            (int) DB::table('race_entry_snapshot_source_heads')
+                ->where('race_entry_snapshot_id', $snapshot->id)
+                ->value('race_entry_snapshot_source_id'),
+        );
+    }
+
+    public function test_factory_reloads_a_forged_clean_model_before_using_source_evidence(): void
+    {
+        [$race, $entry, $snapshot, $source, $factory, $fetchLog] = $this->sourceFactoryContext();
+        $forged = new RaceEntrySnapshotSource;
+        $forged->setRawAttributes($source->getAttributes(), true);
+        $forged->exists = true;
+        $forged->forceFill([
+            'raw_sha256' => str_repeat('f', 64),
+            'parser_version' => 'forged-parser',
+            'source_fetched_at' => new DateTimeImmutable('2099-01-01 00:00:00+00:00'),
+            'context_evidence' => ['forged' => true],
+        ]);
+        $forged->syncOriginal();
+        $this->assertFalse($forged->isDirty());
+
+        $copied = $factory->copyToSnapshot($snapshot, $race, $entry, $forged);
+        $reclassified = $factory->appendFromExisting($forged, [
+            'context_verified_at' => new DateTimeImmutable('2026-07-26 10:06:00+09:00'),
+        ]);
+        $linked = $factory->appendWithFetchLog($forged, $fetchLog);
+
+        $this->assertSame((int) $source->id, (int) $copied->id);
+        $this->assertNull($reclassified->raw_sha256);
+        $this->assertNull($reclassified->parser_version);
+        $this->assertNull($reclassified->source_fetched_at);
+        $this->assertArrayNotHasKey('forged', $reclassified->context_evidence);
+        $this->assertSame($fetchLog->sha256, $linked->raw_sha256);
+        $this->assertSame($fetchLog->parser_version, $linked->parser_version);
+        $this->assertSame(
+            $fetchLog->fetched_at->getTimestamp(),
+            $linked->source_fetched_at?->getTimestamp(),
+        );
+        $this->assertArrayNotHasKey('forged', $linked->context_evidence);
+        $this->assertDatabaseMissing('race_entry_snapshot_sources', [
+            'raw_sha256' => str_repeat('f', 64),
+        ]);
+        $this->assertDatabaseMissing('race_entry_snapshot_sources', [
+            'parser_version' => 'forged-parser',
+        ]);
+    }
+
+    public function test_factory_rejects_a_source_model_whose_database_row_was_deleted(): void
+    {
+        [$race, $entry, $snapshot, $source, $factory, $fetchLog] = $this->sourceFactoryContext();
+        DB::table('race_entry_snapshot_source_heads')
+            ->where('race_entry_snapshot_source_id', $source->id)
+            ->delete();
+        DB::table('race_entry_snapshot_sources')->where('id', $source->id)->delete();
+        $sourceCount = RaceEntrySnapshotSource::query()->count();
+
+        foreach (['copy', 'append-fetch-log', 'append-existing'] as $operation) {
+            try {
+                match ($operation) {
+                    'copy' => $factory->copyToSnapshot($snapshot, $race, $entry, $source),
+                    'append-fetch-log' => $factory->appendWithFetchLog($source, $fetchLog),
+                    'append-existing' => $factory->appendFromExisting($source, []),
+                };
+                $this->fail("A deleted source should have been rejected by {$operation}.");
+            } catch (InvalidArgumentException $exception) {
+                $this->assertSame(
+                    'Source state no longer existed.',
+                    $exception->getMessage(),
+                );
+            }
+        }
+
+        $this->assertSame($sourceCount, RaceEntrySnapshotSource::query()->count());
+        $this->assertDatabaseMissing('race_entry_snapshot_source_heads', [
+            'race_entry_snapshot_id' => $snapshot->id,
+        ]);
+    }
+
+    public function test_factory_rejects_invalid_timestamp_types_without_changing_source_head(): void
+    {
+        [$race, $entry, $snapshot, $source, $factory] = $this->sourceFactoryContext();
+        $sourceCount = RaceEntrySnapshotSource::query()->count();
+        $headId = DB::table('race_entry_snapshot_source_heads')
+            ->where('race_entry_snapshot_id', $snapshot->id)
+            ->value('race_entry_snapshot_source_id');
+        $invalidContextValues = [
+            '2026-07-26 10:00:00+09:00',
+            new DateTime('2026-07-26 10:00:00+09:00'),
+            123,
+            ['at' => '2026-07-26 10:00:00+09:00'],
+            (object) ['at' => '2026-07-26 10:00:00+09:00'],
+        ];
+        foreach ($invalidContextValues as $value) {
+            try {
+                $factory->appendFromExisting($source, ['context_verified_at' => $value]);
+                $this->fail('An invalid context_verified_at type should have been rejected.');
+            } catch (InvalidArgumentException $exception) {
+                $this->assertSame(
+                    'Source state context_verified_at must be null or DateTimeImmutable.',
+                    $exception->getMessage(),
+                );
+            }
+        }
+
+        $template = $this->sourceTemplate($source);
+        foreach ([
+            '2026-07-26 10:05:00+09:00',
+            new DateTime('2026-07-26 10:05:00+09:00'),
+            123,
+            ['at' => '2026-07-26 10:05:00+09:00'],
+        ] as $value) {
+            try {
+                $factory->createUnlinked(
+                    $snapshot,
+                    $race,
+                    $entry,
+                    array_replace($template, ['source_fetched_at' => $value]),
+                );
+                $this->fail('An invalid source_fetched_at type should have been rejected.');
+            } catch (InvalidArgumentException $exception) {
+                $this->assertSame(
+                    'Source state source_fetched_at must be null or DateTimeImmutable.',
+                    $exception->getMessage(),
+                );
+            }
+        }
+
+        $this->assertSame($sourceCount, RaceEntrySnapshotSource::query()->count());
+        $this->assertSame(
+            (int) $headId,
+            (int) DB::table('race_entry_snapshot_source_heads')
+                ->where('race_entry_snapshot_id', $snapshot->id)
+                ->value('race_entry_snapshot_source_id'),
         );
     }
 
@@ -1434,6 +1679,72 @@ class RaceEntryAuditLifecycleTest extends TestCase
         }
 
         return $scores;
+    }
+
+    /**
+     * @return array{
+     *     Race,
+     *     RaceEntry,
+     *     RaceEntrySnapshot,
+     *     RaceEntrySnapshotSource,
+     *     RaceEntrySnapshotSourceFactory,
+     *     ScrapingFetchLog
+     * }
+     */
+    private function sourceFactoryContext(bool $withAudit = false): array
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:00:00+09:00');
+        $race = Race::query()->sole();
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($this->scores(5)),
+            new DateTimeImmutable('2026-07-26 10:05:00+09:00'),
+        );
+        $entry = RaceEntry::query()
+            ->where('race_id', $race->id)
+            ->where('bike_number', 1)
+            ->sole();
+        $input = $this->snapshotForEntry($race, (int) $entry->id);
+        $snapshot = RaceEntrySnapshot::query()->findOrFail($input->id);
+        $source = RaceEntrySnapshotSource::query()->findOrFail($input->sourceStateId);
+        if ($withAudit) {
+            $this->buildStat01($race->refresh(), 0);
+        }
+
+        return [
+            $race,
+            $entry,
+            $snapshot,
+            $source,
+            $this->app->make(RaceEntrySnapshotSourceFactory::class),
+            $this->fetchLog('source-factory-boundary'),
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function sourceTemplate(RaceEntrySnapshotSource $source): array
+    {
+        return [
+            'source_role' => $source->source_role,
+            'scraping_fetch_log_id' => $source->scraping_fetch_log_id,
+            'contributed_fields' => $source->contributed_fields ?? [],
+            'source_page_type' => $source->source_page_type,
+            'source_race_context_key' => $source->source_race_context_key,
+            'context_match_method' => $source->context_match_method,
+            'context_verification_status' => $source->context_verification_status,
+            'historical_backfill_scope' => $source->historical_backfill_scope,
+            'eligible_fields' => $source->eligible_fields ?? [],
+            'context_verified_at' => $source->context_verified_at,
+            'source_fetched_at' => $source->source_fetched_at,
+            'parser_version' => $source->parser_version,
+            'source_url' => $source->source_url,
+            'raw_file_path' => $source->raw_file_path,
+            'raw_sha256' => $source->raw_sha256,
+            'context_evidence' => $source->context_evidence,
+        ];
     }
 
     private function buildStat01(Race $race, int $exitCode): void

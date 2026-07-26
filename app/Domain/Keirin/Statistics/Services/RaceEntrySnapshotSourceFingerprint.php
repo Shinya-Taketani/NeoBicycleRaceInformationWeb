@@ -6,6 +6,7 @@ namespace App\Domain\Keirin\Statistics\Services;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use InvalidArgumentException;
 use JsonException;
 
 final class RaceEntrySnapshotSourceFingerprint
@@ -59,9 +60,18 @@ final class RaceEntrySnapshotSourceFingerprint
 
     private function canonicalTimestamp(mixed $value): ?string
     {
-        return $value instanceof DateTimeImmutable
-            ? $value->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u\Z')
-            : null;
+        if ($value === null) {
+            return null;
+        }
+        if (! $value instanceof DateTimeImmutable) {
+            throw new InvalidArgumentException(
+                'Source state timestamp must be null or DateTimeImmutable.',
+            );
+        }
+
+        return $value
+            ->setTimezone(new DateTimeZone('UTC'))
+            ->format('Y-m-d\TH:i:s.u\Z');
     }
 
     private function canonicalValue(mixed $value): mixed

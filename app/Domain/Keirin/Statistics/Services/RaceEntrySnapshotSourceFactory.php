@@ -10,6 +10,7 @@ use App\Models\RaceEntrySnapshot;
 use App\Models\RaceEntrySnapshotSource;
 use App\Models\RaceEntrySnapshotSourceHead;
 use App\Models\ScrapingFetchLog;
+use DateTimeImmutable;
 use InvalidArgumentException;
 
 final class RaceEntrySnapshotSourceFactory
@@ -56,9 +57,6 @@ final class RaceEntrySnapshotSourceFactory
         RaceEntry $entry,
         array $template,
     ): RaceEntrySnapshotSource {
-        foreach (self::FETCH_EVIDENCE_FIELDS as $field) {
-            $template[$field] = null;
-        }
         $template['scraping_fetch_log_id'] = null;
 
         return $this->findOrCreate($snapshot, $race, $entry, $template);
@@ -70,6 +68,7 @@ final class RaceEntrySnapshotSourceFactory
         RaceEntry $entry,
         RaceEntrySnapshotSource $source,
     ): RaceEntrySnapshotSource {
+        $source = $this->persistedSource($source);
         if ((int) $source->race_id !== (int) $race->id
             || (int) $source->race_entry_id !== (int) $entry->id) {
             throw new InvalidArgumentException(
@@ -146,6 +145,7 @@ final class RaceEntrySnapshotSourceFactory
         ScrapingFetchLog $fetchLog,
         array $overrides = [],
     ): RaceEntrySnapshotSource {
+        $base = $this->persistedSource($base);
         $this->assertAllowedOverrides($overrides, self::CLASSIFICATION_OVERRIDE_FIELDS);
         $fetchLog = $this->persistedFetchLog($fetchLog);
 
@@ -170,6 +170,7 @@ final class RaceEntrySnapshotSourceFactory
         RaceEntrySnapshotSource $base,
         array $overrides,
     ): RaceEntrySnapshotSource {
+        $base = $this->persistedSource($base);
         $this->assertAllowedOverrides(
             $overrides,
             [...self::CLASSIFICATION_OVERRIDE_FIELDS, 'scraping_fetch_log_id'],
@@ -253,6 +254,14 @@ final class RaceEntrySnapshotSourceFactory
                 throw new InvalidArgumentException("Source state template field {$field} was missing.");
             }
         }
+        $this->assertNullableImmutableDateTime(
+            $template['context_verified_at'],
+            'context_verified_at',
+        );
+        $this->assertNullableImmutableDateTime(
+            $template['source_fetched_at'],
+            'source_fetched_at',
+        );
 
         if ($template['scraping_fetch_log_id'] === null) {
             foreach (self::FETCH_EVIDENCE_FIELDS as $field) {
@@ -284,6 +293,23 @@ final class RaceEntrySnapshotSourceFactory
         return $template;
     }
 
+    private function persistedSource(RaceEntrySnapshotSource $source): RaceEntrySnapshotSource
+    {
+        $key = $source->getKey();
+        if (! $source->exists || $key === null || (int) $key < 1) {
+            throw new InvalidArgumentException('Source state model must be persisted.');
+        }
+        if ($source->isDirty()) {
+            throw new InvalidArgumentException('Source state model contained unsaved changes.');
+        }
+        $persisted = RaceEntrySnapshotSource::query()->find($key);
+        if (! $persisted instanceof RaceEntrySnapshotSource) {
+            throw new InvalidArgumentException('Source state no longer existed.');
+        }
+
+        return $persisted;
+    }
+
     private function persistedFetchLog(ScrapingFetchLog $fetchLog): ScrapingFetchLog
     {
         $key = $fetchLog->getKey();
@@ -296,6 +322,15 @@ final class RaceEntrySnapshotSourceFactory
         }
 
         return $persisted;
+    }
+
+    private function assertNullableImmutableDateTime(mixed $value, string $field): void
+    {
+        if ($value !== null && ! $value instanceof DateTimeImmutable) {
+            throw new InvalidArgumentException(
+                "Source state {$field} must be null or DateTimeImmutable.",
+            );
+        }
     }
 
     /**
