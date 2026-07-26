@@ -53,7 +53,7 @@ class StatFeatureSnapshot extends Model
 
     public function raceEntry(): BelongsTo
     {
-        return $this->belongsTo(RaceEntry::class);
+        return $this->belongsTo(RaceEntry::class)->withTrashed();
     }
 
     public function values(): HasMany

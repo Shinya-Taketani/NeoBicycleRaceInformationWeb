@@ -17,7 +17,6 @@ use DateTimeImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use JsonException;
-use RuntimeException;
 
 final class RaceEntrySnapshotService
 {
@@ -96,10 +95,8 @@ final class RaceEntrySnapshotService
             ->when($persist, fn ($query) => $query->lockForUpdate())
             ->first();
         $sourceTemplate = $this->sourceTemplate($race, $entry, $current);
-        $observedAt = $entry->fetched_at;
-        if (! $observedAt instanceof DateTimeImmutable) {
-            throw new RuntimeException("Race entry {$entry->id} fetched_at was unavailable.");
-        }
+        $observedAt = $entry->race_score_fetched_at;
+        $observedAt = $observedAt instanceof DateTimeImmutable ? $observedAt : null;
 
         $inputSnapshotType = $this->inputSnapshotType($sourceTemplate, $observedAt, $inputAsOf);
         $rawScore = $entry->race_score;
@@ -171,7 +168,8 @@ final class RaceEntrySnapshotService
         } else {
             $lastObservedAt = $snapshot->last_observed_at;
             $snapshot->forceFill([
-                'last_observed_at' => ! $lastObservedAt instanceof DateTimeImmutable || $observedAt > $lastObservedAt
+                'last_observed_at' => $observedAt instanceof DateTimeImmutable
+                    && (! $lastObservedAt instanceof DateTimeImmutable || $observedAt > $lastObservedAt)
                     ? $observedAt
                     : $lastObservedAt,
                 'effective_to' => null,
@@ -219,13 +217,13 @@ final class RaceEntrySnapshotService
      */
     private function inputSnapshotType(
         array $source,
-        DateTimeImmutable $observedAt,
+        ?DateTimeImmutable $observedAt,
         StatInputAsOfDto $inputAsOf,
     ): StatInputSnapshotType {
         if ($source['source_page_type'] === 'PLAYER_PROFILE') {
             return StatInputSnapshotType::CurrentPlayerProfile;
         }
-        if ($inputAsOf->value === null) {
+        if ($inputAsOf->value === null || ! $observedAt instanceof DateTimeImmutable) {
             return StatInputSnapshotType::UnknownSourceTiming;
         }
         if ($observedAt <= $inputAsOf->value) {
@@ -328,7 +326,7 @@ final class RaceEntrySnapshotService
         NormalizedRaceScoreDto $score,
         StatInputSnapshotType $inputSnapshotType,
         string $hash,
-        DateTimeImmutable $observedAt,
+        ?DateTimeImmutable $observedAt,
         string $sourceIdentityKey,
         array $sourceTemplate,
         ?RaceEntrySnapshotSource $source = null,

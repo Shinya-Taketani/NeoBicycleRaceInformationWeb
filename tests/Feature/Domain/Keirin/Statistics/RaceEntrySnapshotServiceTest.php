@@ -35,7 +35,10 @@ class RaceEntrySnapshotServiceTest extends TestCase
         $this->assertDatabaseCount('race_entry_snapshots', 1);
         $this->assertDatabaseCount('race_entry_snapshot_sources', 1);
 
-        $entry->forceFill(['fetched_at' => '2026-07-25 13:00:00+09:00'])->save();
+        $entry->forceFill([
+            'fetched_at' => '2026-07-25 13:00:00+09:00',
+            'race_score_fetched_at' => '2026-07-25 13:00:00+09:00',
+        ])->save();
         $observedAgain = $this->snapshots($service, $race)[0];
         $this->assertSame($first->id, $observedAgain->id);
         $this->assertSame(
@@ -47,6 +50,7 @@ class RaceEntrySnapshotServiceTest extends TestCase
         $entry->forceFill([
             'race_score' => '101.25',
             'fetched_at' => '2026-07-26 13:00:00+09:00',
+            'race_score_fetched_at' => '2026-07-26 13:00:00+09:00',
         ])->save();
         $changed = $this->snapshots($service, $race)[0];
 
@@ -302,6 +306,7 @@ class RaceEntrySnapshotServiceTest extends TestCase
             'bike_number' => 1,
             'race_score' => $score,
             'fetched_at' => $fetchedAt,
+            'race_score_fetched_at' => $fetchedAt,
         ]);
 
         return [$race, $entry];

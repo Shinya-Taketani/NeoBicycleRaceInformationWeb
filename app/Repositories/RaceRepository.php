@@ -321,17 +321,30 @@ class RaceRepository
                     if (! $player instanceof Player) {
                         $unresolved++;
                     }
-                    RaceEntry::query()->updateOrCreate(
-                        ['race_id' => $race->id, 'bike_number' => $entryDto->bikeNumber],
-                        [
-                            'player_id' => $player?->id,
-                            'external_player_id' => $entryDto->externalPlayerId,
-                            'player_name' => $entryDto->playerName,
-                            'prefecture' => $entryDto->prefecture,
-                            'riding_style' => $entryDto->ridingStyle,
-                            'fetched_at' => $fetchedAt,
-                        ],
-                    );
+                    $entry = RaceEntry::withTrashed()
+                        ->where('race_id', $race->id)
+                        ->where('bike_number', $entryDto->bikeNumber)
+                        ->lockForUpdate()
+                        ->first();
+                    if (! $entry instanceof RaceEntry) {
+                        $entry = new RaceEntry([
+                            'race_id' => $race->id,
+                            'bike_number' => $entryDto->bikeNumber,
+                        ]);
+                    }
+                    $entry->forceFill([
+                        'player_id' => $player?->id,
+                        'external_player_id' => $entryDto->externalPlayerId,
+                        'player_name' => $entryDto->playerName,
+                        'prefecture' => $entryDto->prefecture,
+                        'riding_style' => $entryDto->ridingStyle,
+                        'fetched_at' => $fetchedAt,
+                    ]);
+                    if ($entry->trashed()) {
+                        $entry->restore();
+                    } else {
+                        $entry->save();
+                    }
                     $entryCount++;
                 }
                 RaceEntry::query()->where('race_id', $race->id)->whereNotIn('bike_number', $seenBikes)->delete();
@@ -380,7 +393,7 @@ class RaceRepository
                 if (! $entry instanceof RaceEntry || $entry->external_player_id !== $detailEntry->externalPlayerId) {
                     throw new ParserException("PJ0315 player did not match bike {$detailEntry->bikeNumber} for race {$lockedRace->external_race_id}.");
                 }
-                $entry->forceFill([
+                $attributes = [
                     'frame_number' => $detailEntry->frameNumber,
                     'player_name' => $detailEntry->playerName,
                     'prefecture' => $detailEntry->prefecture,
@@ -388,7 +401,15 @@ class RaceRepository
                     'riding_style' => $detailEntry->ridingStyle,
                     'race_score' => $detailEntry->raceScore,
                     'fetched_at' => $fetchedAt,
-                ])->save();
+                ];
+                if ($entry->race_score_fetched_at === null
+                    || ! $this->raceScoresEqual(
+                        $entry->race_score === null ? null : (string) $entry->race_score,
+                        $detailEntry->raceScore,
+                    )) {
+                    $attributes['race_score_fetched_at'] = $fetchedAt;
+                }
+                $entry->forceFill($attributes)->save();
             }
 
             $lockedRace->forceFill([
@@ -417,6 +438,18 @@ class RaceRepository
         }
 
         return $dateTime;
+    }
+
+    private function raceScoresEqual(?string $stored, ?string $incoming): bool
+    {
+        if ($stored === null || $incoming === null) {
+            return $stored === $incoming;
+        }
+        if (! is_numeric($stored) || ! is_numeric($incoming)) {
+            return $stored === $incoming;
+        }
+
+        return number_format((float) $stored, 2, '.', '') === number_format((float) $incoming, 2, '.', '');
     }
 
     private function raceLiveUrl(): string

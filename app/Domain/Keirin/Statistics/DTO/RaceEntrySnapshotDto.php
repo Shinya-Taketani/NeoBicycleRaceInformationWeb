@@ -23,7 +23,7 @@ final readonly class RaceEntrySnapshotDto
         public string $snapshotType,
         public string $inputSnapshotType,
         public string $snapshotHash,
-        public DateTimeImmutable $observedAt,
+        public ?DateTimeImmutable $observedAt,
         public ?string $parserVersion,
         public bool $sourceLinkMissing,
         public bool $raceScoreEligible,

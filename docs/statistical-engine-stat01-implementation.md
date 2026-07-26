@@ -4,7 +4,7 @@
 
 この製造単位は、統計特徴量の実行・時点値・出典を監査する共通基盤と、STAT-01「競走得点による基礎実力評価」を実装する。
 
-STAT-01の入力は、対象レースのPJ0315出走表から`race_entries.race_score`へ保存された値だけである。`players`の現在値、`player_stat_snapshots`、`race_results`、`race_payouts`は参照しない。
+STAT-01の入力は、対象レースのPJ0315出走表から`race_entries.race_score`へ保存された値だけである。競走得点の観測日時には`race_score_fetched_at`だけを使い、JSJ017でも更新される汎用`fetched_at`は使わない。`players`の現在値、`player_stat_snapshots`、`race_results`、`race_payouts`は参照しない。
 
 ## 2. ER関係
 
@@ -30,6 +30,14 @@ stat_feature_definitions
 
 STATコード、計算バージョン、対象期間・レース、実行パラメータ、状態、開始・終了日時、対象・品質・エラー件数を保持する。
 
+### race_entries
+
+`fetched_at`はJSJ017/PJ0315を含む出走行全体の最終取得日時、`race_score_fetched_at`はPJ0315競走得点の専用観測日時である。PJ0315で初めて観測した場合、または得点が数値的に変わった場合だけ専用日時を更新する。`100.0`と`100.00`のようなdecimal表現差は変更とみなさない。NULLと値ありの遷移は変更として扱う。
+
+既存行の`fetched_at`は後続JSJ017で更新された可能性があるため、Migrationで`race_score_fetched_at`へコピーしない。専用日時がNULLの既存得点は`UNKNOWN_SOURCE_TIMING`となり、STAT-01で`VALID`にしない。
+
+`race_entries`はsoft deleteする。JSJ017から消えた車番は`deleted_at`を設定し、統計監査FKが参照する行を物理削除しない。同じ`race_id + bike_number`が再出現した場合はtrashed行をロックして更新・restoreし、同じ`race_entries.id`を再利用する。通常のレース入力、結果完全性検証、STAT-01対象にはactive行だけを使う。
+
 ### race_entry_snapshots
 
 `race_entries`の時点値を保持する。競走得点は元表現を`race_score_raw_text`、検証済み値を`race_score`へ分離する。
@@ -43,7 +51,7 @@ STATコード、計算バージョン、対象期間・レース、実行パラ�
 
 `0.00`はraw textを保持し、数値列は`NULL`とする。ドメイン上の固定上限は設けず、DB保存範囲だけを検査する。外れ値判定は今回未実装のため`NOT_CHECKED`である。
 
-同一`race_entry_id + snapshot_hash`は再利用する。内容変更時は新snapshotを作り、以前の`is_current`をfalseにして`effective_to`を設定する。再観測時は履歴を増やさず、`last_observed_at`だけを最新日時へ進める。
+同一`race_entry_id + snapshot_hash`は再利用する。内容変更時は新snapshotを作り、以前の`is_current`をfalseにして`effective_to`を設定する。再観測時は履歴を増やさず、`last_observed_at`だけを最新の`race_score_fetched_at`へ進める。専用日時不明時の`first_observed_at`と`last_observed_at`はNULLであり、汎用`fetched_at`で補完しない。
 
 `race_entry_snapshots_current_unique`は`is_current = true`の行だけを対象とする部分UNIQUE INDEXであり、1つの`race_entry_id`にcurrentが最大1件であることをDBでも保証する。`is_current = false`の履歴行は複数保持できる。
 
@@ -139,11 +147,11 @@ feature code、型、単位、説明、definition versionを保持する。`Stat
 
 1. `source_page_type = PLAYER_PROFILE`: `CURRENT_PLAYER_PROFILE`
 2. `input_as_of = NULL`: `UNKNOWN_SOURCE_TIMING`
-3. `observed_at <= input_as_of`: `LIVE_PRE_RACE_CARD`
-4. `observed_at > input_as_of`で、レース固有ページ、context検証、backfill scope、`race_score`対象項目をすべて確認できる: `HISTORICAL_RACE_CARD_BACKFILL`
+3. `race_score_fetched_at <= input_as_of`: `LIVE_PRE_RACE_CARD`
+4. `race_score_fetched_at > input_as_of`で、レース固有ページ、context検証、backfill scope、`race_score`対象項目をすべて確認できる: `HISTORICAL_RACE_CARD_BACKFILL`
 5. それ以外: `UNKNOWN_SOURCE_TIMING`
 
-`CURRENT_PLAYER_PROFILE`と安全性を確認できない`UNKNOWN_SOURCE_TIMING`は`raceScoreEligible = false`である。前者はSTAT-01で`LEAKAGE_RISK`、as-of不明の後者は`BLOCKED`になる。後日取得した検証済みレース固有出走表はhistorical backfillとして利用できる。
+`race_score_fetched_at`がNULLの場合も`UNKNOWN_SOURCE_TIMING`である。`CURRENT_PLAYER_PROFILE`と安全性を確認できない`UNKNOWN_SOURCE_TIMING`は`raceScoreEligible = false`である。前者はSTAT-01で`LEAKAGE_RISK`、as-of不明の後者は`BLOCKED`になる。後日取得した検証済みレース固有出走表はhistorical backfillとして利用できる。
 
 `snapshot_hash`には`input_snapshot_type`を含める。DB上のrace entry snapshot自体が入力分類を監査項目として持つため、同じ観測値でも分類が変わった場合は新snapshotにし、旧分類を履歴として残す。`snapshot_type`は引き続きsource originを表し、`input_snapshot_type`とは混同しない。
 
@@ -176,7 +184,7 @@ calculation_version
 input_hash
 ```
 
-通常再実行は既存snapshot・values・sourcesを再利用し、新しいrun関連だけを追加する。
+通常再実行は既存snapshot・values・sourcesを再利用し、新しいrun関連だけを追加する。JSJ017だけを再同期して汎用`fetched_at`が進んでも、競走得点専用日時、入力種別、snapshot hash、feature snapshotは変化しない。
 
 `--recalculate`は同じ入力を再計算し、保存済みfeature code、型、値、分子・分母、sample、statusと比較する。一致すれば再利用し、不一致なら過去値や`calculated_at`を上書きせず整合性エラーにする。計算式変更時はcalculation versionを上げる。
 
@@ -239,4 +247,4 @@ PRマージ前の開発環境を新定義へ合わせる際は、環境とバッ
 - 実INSERT: current重複、NULL as-of論理キー重複、value type不整合、window片側NULL、NaN、正負Infinity、不正scope/status/source roleの拒否
 - 実INSERT: 非current履歴複数と、異なるinput hashの許可
 
-PostgreSQL 18.4でMigrationは成功し、専用テストは3 tests / 132 assertionsで成功した。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。
+PostgreSQL 18.4で`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`を含むMigrationは成功し、専用テストは4 tests / 144 assertionsで成功した。`race_entries.race_score_fetched_at`、`race_entries.deleted_at`、snapshotの`first_observed_at`、`last_observed_at`がnullable `timestamp with time zone`であることもcatalogで検証する。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。

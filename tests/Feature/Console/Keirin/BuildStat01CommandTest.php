@@ -353,6 +353,7 @@ class BuildStat01CommandTest extends TestCase
                 'bike_number' => $index + 1,
                 'race_score' => $score,
                 'fetched_at' => $fetchedAt,
+                'race_score_fetched_at' => $fetchedAt,
             ]);
         }
 

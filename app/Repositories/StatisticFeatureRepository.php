@@ -198,6 +198,9 @@ class StatisticFeatureRepository
 
     private function sourceTimingStatus(RaceEntrySnapshotDto $source, Stat01RaceInputDto $input): string
     {
+        if ($source->observedAt === null) {
+            return 'UNKNOWN_SOURCE_TIMING';
+        }
         if ($source->sourceLinkMissing) {
             return 'SOURCE_LINK_MISSING';
         }

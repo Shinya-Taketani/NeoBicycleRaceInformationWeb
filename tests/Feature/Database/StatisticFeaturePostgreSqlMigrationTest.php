@@ -35,6 +35,34 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_race_entry_lifecycle_and_score_observation_columns_are_nullable_timestamptz(): void
+    {
+        $columns = collect(DB::select(
+            <<<'SQL'
+                SELECT table_name, column_name, data_type, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND (
+                    (table_name = 'race_entries' AND column_name IN ('race_score_fetched_at', 'deleted_at'))
+                    OR
+                    (table_name = 'race_entry_snapshots' AND column_name IN ('first_observed_at', 'last_observed_at'))
+                  )
+                SQL,
+        ))->keyBy(fn (object $column): string => "{$column->table_name}.{$column->column_name}");
+
+        foreach ([
+            'race_entries.race_score_fetched_at',
+            'race_entries.deleted_at',
+            'race_entry_snapshots.first_observed_at',
+            'race_entry_snapshots.last_observed_at',
+        ] as $columnName) {
+            $column = $columns->get($columnName);
+            $this->assertNotNull($column, $columnName);
+            $this->assertSame('timestamp with time zone', $column->data_type, $columnName);
+            $this->assertSame('YES', $column->is_nullable, $columnName);
+        }
+    }
+
     public function test_postgresql_indexes_are_unique_valid_partial_and_nulls_not_distinct_where_required(): void
     {
         $expected = [

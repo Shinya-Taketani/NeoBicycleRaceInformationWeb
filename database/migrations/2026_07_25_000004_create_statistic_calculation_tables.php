@@ -52,8 +52,8 @@ return new class extends Migration
             $table->string('snapshot_type', 40);
             $table->string('input_snapshot_type', 80);
             $table->char('snapshot_hash', 64);
-            $table->timestampTz('first_observed_at');
-            $table->timestampTz('last_observed_at');
+            $table->timestampTz('first_observed_at')->nullable();
+            $table->timestampTz('last_observed_at')->nullable();
             $table->timestampTz('effective_from')->nullable();
             $table->timestampTz('effective_to')->nullable();
             $table->boolean('is_current');
