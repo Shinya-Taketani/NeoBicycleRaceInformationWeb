@@ -151,7 +151,7 @@ class Stat01BuildService
     private function calculateWithoutPersistence(Race $race): Stat01RaceCalculationDto
     {
         $asOf = $this->inputAsOf->resolve($race);
-        $snapshots = $this->entrySnapshots->snapshotsForRace($race, false);
+        $snapshots = $this->entrySnapshots->snapshotsForRace($race, $asOf, false);
 
         return $this->calculator->calculate($this->inputs->make($race, $snapshots, $asOf));
     }
@@ -165,7 +165,7 @@ class Stat01BuildService
             throw new \LogicException('A persisted STAT-01 build requires a calculation run.');
         }
         $asOf = $this->inputAsOf->resolve($race);
-        $snapshots = $this->entrySnapshots->snapshotsForRace($race, true);
+        $snapshots = $this->entrySnapshots->snapshotsForRace($race, $asOf, true);
         $input = $this->inputs->make($race, $snapshots, $asOf);
         $calculatedAt = new DateTimeImmutable('now');
         $calculation = $this->calculator->calculate($input);

@@ -43,18 +43,23 @@ STATコード、計算バージョン、対象期間・レース、実行パラ�
 
 `0.00`はraw textを保持し、数値列は`NULL`とする。ドメイン上の固定上限は設けず、DB保存範囲だけを検査する。外れ値判定は今回未実装のため`NOT_CHECKED`である。
 
-同一`race_entry_id + snapshot_hash`は再利用する。内容変更時は新snapshotを作り、以前の`is_current`をfalseにする。
+同一`race_entry_id + snapshot_hash`は再利用する。内容変更時は新snapshotを作り、以前の`is_current`をfalseにして`effective_to`を設定する。再観測時は履歴を増やさず、`last_observed_at`だけを最新日時へ進める。
+
+`race_entry_snapshots_current_unique`は`is_current = true`の行だけを対象とする部分UNIQUE INDEXであり、1つの`race_entry_id`にcurrentが最大1件であることをDBでも保証する。`is_current = false`の履歴行は複数保持できる。
+
+永続化はtransaction内で行い、`race_entries`の対象行をID順に`lockForUpdate`してからcurrent snapshotもロックする。旧currentの終了、新snapshotの作成または既存hashの再利用、current化を同じtransactionで完了する。並列実行は`race_entry_id`単位で直列化され、サービス外からの競合も部分UNIQUE INDEXが拒否する。期待したhash以外の一意制約違反は正常扱いにせず、そのまま再送出する。
 
 ### race_entry_snapshot_sources
 
-出走snapshotへ寄与したページとFetch Logを保持する。既存`race_entries`からの移行時は次の値を使う。
+出走snapshotへ寄与したページとFetch Logを保持する。既存`race_entries`からの移行元は次の値を使う。
 
 - `snapshot_type`: `LEGACY_BACKFILL`
-- `input_snapshot_type`: `HISTORICAL_RACE_CARD_BACKFILL`
 - `source_page_type`: `RACE_DETAIL`
 - `context_verification_status`: `VERIFIED_LEGACY_RECONCILED`
 - `historical_backfill_scope`: `STATIC_RACE_CARD_FIELDS_ONLY`
 - `eligible_fields`: `race_score`
+
+`snapshot_type`は「既存race entryから復元した」というsource originであり、発走前後を表さない。`input_snapshot_type`は後述の`input_as_of`、観測日時、source監査情報から別に決定する。
 
 既存行からFetch Logを一意に決定できないため、`scraping_fetch_log_id`は推測せず`NULL`とする。`context_evidence.source_link_status`へ`SOURCE_LINK_MISSING`を保存する。
 
@@ -120,17 +125,29 @@ feature code、型、単位、説明、definition versionを保持する。`Stat
 
 ## 5. input_as_of
 
-次の優先順位で決定する。
+`StatInputAsOfResolver`が次の優先順位で一度だけ決定する。
 
 1. `races.sales_close_at`: `SALES_CLOSE`
 2. `races.scheduled_start_at`: `START_TIME`
 3. どちらもない: `INPUT_AS_OF_UNAVAILABLE`
 
-3の場合、日時を捏造せず`input_as_of = NULL`、特徴量statusとqualityを`BLOCKED`にする。レース日23:59:59は使用しない。新しい日時列はPostgreSQL `timestamptz`である。
+3の場合、日時を捏造せず`input_as_of = NULL`、特徴量statusとqualityを`BLOCKED`にする。レース日23:59:59は使用しない。同じ`StatInputAsOfDto`をrace entry snapshot生成、STAT-01計算、feature snapshot保存、source timing判定へ渡す。新しい日時列はPostgreSQL `timestamptz`である。
 
 ## 6. 入力種別と品質
 
-過去出走表であることは`input_snapshot_type = HISTORICAL_RACE_CARD_BACKFILL`で表し、品質状態へ`HISTORICAL_SNAPSHOT`を入れない。
+`input_snapshot_type`は次の順で決定する。
+
+1. `source_page_type = PLAYER_PROFILE`: `CURRENT_PLAYER_PROFILE`
+2. `input_as_of = NULL`: `UNKNOWN_SOURCE_TIMING`
+3. `observed_at <= input_as_of`: `LIVE_PRE_RACE_CARD`
+4. `observed_at > input_as_of`で、レース固有ページ、context検証、backfill scope、`race_score`対象項目をすべて確認できる: `HISTORICAL_RACE_CARD_BACKFILL`
+5. それ以外: `UNKNOWN_SOURCE_TIMING`
+
+`CURRENT_PLAYER_PROFILE`と安全性を確認できない`UNKNOWN_SOURCE_TIMING`は`raceScoreEligible = false`である。前者はSTAT-01で`LEAKAGE_RISK`、as-of不明の後者は`BLOCKED`になる。後日取得した検証済みレース固有出走表はhistorical backfillとして利用できる。
+
+`snapshot_hash`には`input_snapshot_type`を含める。DB上のrace entry snapshot自体が入力分類を監査項目として持つため、同じ観測値でも分類が変わった場合は新snapshotにし、旧分類を履歴として残す。`snapshot_type`は引き続きsource originを表し、`input_snapshot_type`とは混同しない。
+
+過去出走表であることは`input_snapshot_type`で表し、品質状態へ`HISTORICAL_SNAPSHOT`を入れない。
 
 特徴量status:
 
@@ -145,7 +162,7 @@ INVALID_INPUT / LEAKAGE_RISK / BLOCKED / ERROR ...
 VALID / PARTIAL / DEGRADED / BLOCKED / LEAKAGE_RISK / ERROR
 ```
 
-Fetch Log未特定、またはplayer未解決の場合は`DEGRADED`とする。一部得点欠損では有効選手を`PARTIAL`、欠損選手を`MISSING_INPUT`とする。PLAYER_PROFILEだけを過去レース得点へ使う入力は`LEAKAGE_RISK`である。
+Fetch Log未特定、またはplayer未解決の場合は`DEGRADED`とする。`LIVE_PRE_RACE_CARD`でも`SOURCE_LINK_MISSING`なら`VALID`へ昇格しない。一部得点欠損では有効選手を`PARTIAL`、欠損選手を`MISSING_INPUT`とする。PLAYER_PROFILEだけを過去レース得点へ使う入力は`LEAKAGE_RISK`である。入力の時間分類と情報源追跡品質は別の列で監査する。
 
 ## 7. 冪等性と再計算
 
@@ -208,3 +225,18 @@ PRマージ前の開発環境を新定義へ合わせる際は、環境とバッ
 - オッズ、買い目、資金配分
 - UI、API
 - スクレイピング変更
+
+## 12. PostgreSQL 18 Migration検証
+
+開発DBとは別の`/tmp`配下一時クラスタをPostgreSQL 18.4で初期化し、専用ポート・空DBへ`php artisan migrate --force`を適用した。開発DBへのMigration、rollback、データコピーは実行していない。
+
+`StatisticFeaturePostgreSqlMigrationTest`はPostgreSQL以外ではskipし、PostgreSQLでは次を実DBで検証する。
+
+- `pg_indexes`: 6つの部分UNIQUE INDEXの定義
+- `pg_index`: `indisunique`、`indisvalid`、`indpred`、3つのscope indexの`indnullsnotdistinct`
+- `pg_constraint`: 13個の指定CHECK制約の存在と`convalidated`
+- 外部キー: source table/column、参照先、`CASCADE`、`RESTRICT`、`SET NULL`の削除規則
+- 実INSERT: current重複、NULL as-of論理キー重複、value type不整合、window片側NULL、NaN、正負Infinity、不正scope/status/source roleの拒否
+- 実INSERT: 非current履歴複数と、異なるinput hashの許可
+
+PostgreSQL 18.4でMigrationは成功し、専用テストは3 tests / 132 assertionsで成功した。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。

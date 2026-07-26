@@ -112,6 +112,14 @@ class BuildStat01CommandTest extends TestCase
             StatFeatureSnapshot::query()->distinct()->pluck('input_as_of_policy')->all(),
         );
         $this->assertSame(
+            ['LIVE_PRE_RACE_CARD'],
+            StatFeatureSnapshot::query()->distinct()->pluck('input_snapshot_type')->all(),
+        );
+        $this->assertSame(
+            ['DEGRADED'],
+            StatFeatureSnapshot::query()->distinct()->pluck('data_quality_status')->all(),
+        );
+        $this->assertSame(
             [(int) $target->id],
             StatFeatureSnapshot::query()->distinct()->pluck('race_id')->map(fn ($id): int => (int) $id)->all(),
         );
@@ -212,6 +220,10 @@ class BuildStat01CommandTest extends TestCase
         $this->assertSame(
             ['INPUT_AS_OF_UNAVAILABLE'],
             StatFeatureSnapshot::query()->where('race_id', $blocked->id)->distinct()->pluck('input_as_of_policy')->all(),
+        );
+        $this->assertSame(
+            ['UNKNOWN_SOURCE_TIMING'],
+            StatFeatureSnapshot::query()->where('race_id', $blocked->id)->distinct()->pluck('input_snapshot_type')->all(),
         );
     }
 

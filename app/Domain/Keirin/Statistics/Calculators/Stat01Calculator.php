@@ -13,6 +13,7 @@ use App\Domain\Keirin\Statistics\Enums\RaceScoreValidationStatus;
 use App\Domain\Keirin\Statistics\Enums\StatDataQualityStatus;
 use App\Domain\Keirin\Statistics\Enums\StatFeatureStatus;
 use App\Domain\Keirin\Statistics\Enums\StatFeatureValueType;
+use App\Domain\Keirin\Statistics\Enums\StatInputSnapshotType;
 use InvalidArgumentException;
 use JsonException;
 
@@ -184,6 +185,9 @@ final class Stat01Calculator
         int $validCount,
         int $entrantCount,
     ): array {
+        if ($entry->inputSnapshotType === StatInputSnapshotType::CurrentPlayerProfile->value) {
+            return [StatFeatureStatus::LeakageRisk, StatDataQualityStatus::LeakageRisk];
+        }
         if ($race->inputAsOf === null) {
             return [StatFeatureStatus::Blocked, StatDataQualityStatus::Blocked];
         }

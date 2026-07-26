@@ -217,6 +217,7 @@ return new class extends Migration
     private function createPartialIndexes(): void
     {
         $nullsNotDistinct = DB::getDriverName() === 'pgsql' ? ' NULLS NOT DISTINCT' : '';
+        DB::statement('CREATE UNIQUE INDEX race_entry_snapshots_current_unique ON race_entry_snapshots (race_entry_id) WHERE is_current = true');
         DB::statement("CREATE UNIQUE INDEX stat_feature_snapshot_race_unique ON stat_feature_snapshots (race_id, stat_code, input_as_of, calculation_version, input_hash){$nullsNotDistinct} WHERE scope_type = 'RACE'");
         DB::statement("CREATE UNIQUE INDEX stat_feature_snapshot_entry_unique ON stat_feature_snapshots (race_entry_id, stat_code, input_as_of, calculation_version, input_hash){$nullsNotDistinct} WHERE scope_type = 'RACE_ENTRY'");
         DB::statement("CREATE UNIQUE INDEX stat_feature_snapshot_pair_unique ON stat_feature_snapshots (race_entry_id, opponent_race_entry_id, stat_code, input_as_of, calculation_version, input_hash){$nullsNotDistinct} WHERE scope_type = 'PLAYER_PAIR'");
