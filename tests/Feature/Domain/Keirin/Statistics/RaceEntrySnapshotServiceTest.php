@@ -262,9 +262,6 @@ class RaceEntrySnapshotServiceTest extends TestCase
                 'source_page_type' => 'PLAYER_PROFILE',
                 'historical_backfill_scope' => 'NOT_ELIGIBLE',
             ],
-            null,
-            true,
-            false,
         );
 
         $asOf = $this->app->make(StatInputAsOfResolver::class)->resolve($race);

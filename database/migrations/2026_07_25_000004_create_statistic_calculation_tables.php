@@ -89,7 +89,11 @@ return new class extends Migration
             $table->string('context_verification_status', 60);
             $table->string('historical_backfill_scope', 60);
             $table->jsonb('eligible_fields')->nullable();
-            $table->timestampTz('source_reference_at')->nullable();
+            $table->timestampTz('source_fetched_at')->nullable();
+            $table->string('parser_version', 80)->nullable();
+            $table->text('source_url')->nullable();
+            $table->string('raw_file_path')->nullable();
+            $table->char('raw_sha256', 64)->nullable();
             $table->timestampTz('context_verified_at')->nullable();
             $table->jsonb('context_evidence')->nullable();
             $table->timestampTz('created_at');

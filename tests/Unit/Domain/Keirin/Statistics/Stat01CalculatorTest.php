@@ -180,9 +180,73 @@ class Stat01CalculatorTest extends TestCase
         }
     }
 
+    public function test_calculation_classification_changes_input_hash_without_changing_source_fingerprint(): void
+    {
+        $race = $this->race([100.0, 95.0, 90.0, 85.0, 80.0]);
+        $baseline = $this->calculator()->calculate($race)->inputHash;
+        $typeChanged = $this->calculator()->calculate($this->withFirstClassification(
+            $race,
+            inputSnapshotType: 'CURRENT_PLAYER_PROFILE',
+        ))->inputHash;
+        $linkChanged = $this->calculator()->calculate($this->withFirstClassification(
+            $race,
+            sourceLinkMissing: true,
+        ))->inputHash;
+        $eligibilityChanged = $this->calculator()->calculate($this->withFirstClassification(
+            $race,
+            raceScoreEligible: false,
+        ))->inputHash;
+
+        $this->assertCount(4, array_unique([
+            $baseline,
+            $typeChanged,
+            $linkChanged,
+            $eligibilityChanged,
+        ]));
+        $this->assertSame(
+            $race->entries[0]->sourceFingerprint,
+            $this->withFirstClassification($race, sourceLinkMissing: true)
+                ->entries[0]
+                ->sourceFingerprint,
+        );
+    }
+
     private function calculator(): Stat01Calculator
     {
         return new Stat01Calculator;
+    }
+
+    private function withFirstClassification(
+        Stat01RaceInputDto $race,
+        ?string $inputSnapshotType = null,
+        ?bool $sourceLinkMissing = null,
+        ?bool $raceScoreEligible = null,
+    ): Stat01RaceInputDto {
+        $entries = $race->entries;
+        $first = $entries[0];
+        $entries[0] = new Stat01EntryInputDto(
+            raceEntryId: $first->raceEntryId,
+            raceEntrySnapshotId: $first->raceEntrySnapshotId,
+            sourceStateId: $first->sourceStateId,
+            playerId: $first->playerId,
+            bikeNumber: $first->bikeNumber,
+            raceScore: $first->raceScore,
+            validationStatus: $first->validationStatus,
+            snapshotHash: $first->snapshotHash,
+            sourceFingerprint: $first->sourceFingerprint,
+            inputSnapshotType: $inputSnapshotType ?? $first->inputSnapshotType,
+            sourceLinkMissing: $sourceLinkMissing ?? $first->sourceLinkMissing,
+            raceScoreEligible: $raceScoreEligible ?? $first->raceScoreEligible,
+            fetchedAt: $first->fetchedAt,
+        );
+
+        return new Stat01RaceInputDto(
+            $race->raceId,
+            $race->source,
+            $race->inputAsOf,
+            $race->inputAsOfPolicy,
+            $entries,
+        );
     }
 
     /**

@@ -17,8 +17,6 @@ final class RaceEntrySnapshotSourceFingerprint
      */
     public function calculate(
         array $source,
-        bool $sourceLinkMissing,
-        bool $raceScoreEligible,
     ): string {
         return hash('sha256', json_encode([
             'source_role' => $source['source_role'],
@@ -30,11 +28,12 @@ final class RaceEntrySnapshotSourceFingerprint
             'historical_backfill_scope' => $source['historical_backfill_scope'],
             'contributed_fields' => $this->normalizedStringList($source['contributed_fields']),
             'eligible_fields' => $this->normalizedStringList($source['eligible_fields']),
-            'source_link_missing' => $sourceLinkMissing,
-            'race_score_eligible' => $raceScoreEligible,
-            'raw_sha256' => $source['raw_sha256'],
-            'parser_version' => $source['parser_version'],
+            'source_link_missing' => $source['scraping_fetch_log_id'] === null,
             'source_fetched_at' => $this->canonicalTimestamp($source['source_fetched_at']),
+            'parser_version' => $source['parser_version'],
+            'source_url' => $source['source_url'],
+            'raw_file_path' => $source['raw_file_path'],
+            'raw_sha256' => $source['raw_sha256'],
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 

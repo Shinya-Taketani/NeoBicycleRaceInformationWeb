@@ -74,6 +74,109 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         );
     }
 
+    public function test_snapshot_source_has_fixed_fetch_evidence_columns_without_calculation_reference_time(): void
+    {
+        $columns = collect(DB::select(
+            <<<'SQL'
+                SELECT
+                    column_name,
+                    data_type,
+                    character_maximum_length,
+                    is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'race_entry_snapshot_sources'
+                  AND column_name IN (
+                      'source_fetched_at',
+                      'parser_version',
+                      'source_url',
+                      'raw_file_path',
+                      'raw_sha256',
+                      'source_reference_at'
+                  )
+                SQL,
+        ))->keyBy('column_name');
+
+        $this->assertSame([
+            'source_fetched_at',
+            'parser_version',
+            'source_url',
+            'raw_file_path',
+            'raw_sha256',
+        ], array_values(array_intersect([
+            'source_fetched_at',
+            'parser_version',
+            'source_url',
+            'raw_file_path',
+            'raw_sha256',
+        ], $columns->keys()->all())));
+        $this->assertFalse($columns->has('source_reference_at'));
+        $this->assertSame('timestamp with time zone', $columns->get('source_fetched_at')->data_type);
+        $this->assertSame('character varying', $columns->get('parser_version')->data_type);
+        $this->assertSame(80, $columns->get('parser_version')->character_maximum_length);
+        $this->assertSame('text', $columns->get('source_url')->data_type);
+        $this->assertSame('character varying', $columns->get('raw_file_path')->data_type);
+        $this->assertSame(255, $columns->get('raw_file_path')->character_maximum_length);
+        $this->assertSame('character', $columns->get('raw_sha256')->data_type);
+        $this->assertSame(64, $columns->get('raw_sha256')->character_maximum_length);
+        foreach ($columns as $column) {
+            $this->assertSame('YES', $column->is_nullable, $column->column_name);
+        }
+    }
+
+    public function test_snapshot_source_stores_fixed_fetch_evidence_and_restricts_fetch_log_deletion(): void
+    {
+        [$raceId, $raceEntryId] = $this->raceEntry();
+        $snapshotId = $this->insertRaceEntrySnapshot($raceId, $raceEntryId, 'f', true);
+        $fetchLogId = (int) DB::table('scraping_fetch_logs')->insertGetId([
+            'source' => 'keirin_jp',
+            'request_method' => 'POST',
+            'request_url' => 'https://example.invalid/fixed-source',
+            'request_key' => 'fixed-source',
+            'fetched_at' => '2026-07-26 10:05:00+09:00',
+            'utf8_conversion_succeeded' => true,
+            'response_size' => 123,
+            'sha256' => str_repeat('f', 64),
+            'raw_file_path' => 'scraping/raw/fixed-source.html',
+            'retry_count' => 0,
+            'parser_version' => 'parser-fixed',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $sourceId = (int) DB::table('race_entry_snapshot_sources')->insertGetId([
+            'race_entry_snapshot_id' => $snapshotId,
+            'race_id' => $raceId,
+            'race_entry_id' => $raceEntryId,
+            'scraping_fetch_log_id' => $fetchLogId,
+            'source_role' => 'LEGACY_RACE_CARD',
+            'source_identity_key' => "fixed-source:{$snapshotId}",
+            'source_fingerprint' => str_repeat('e', 64),
+            'contributed_fields' => json_encode(['race_score'], JSON_THROW_ON_ERROR),
+            'source_page_type' => 'RACE_DETAIL',
+            'source_race_context_key' => "race:{$raceId}",
+            'context_match_method' => 'RACE_ENTRY_FOREIGN_KEY',
+            'context_verification_status' => 'VERIFIED_EXACT',
+            'historical_backfill_scope' => 'STATIC_RACE_CARD_FIELDS_ONLY',
+            'eligible_fields' => json_encode(['race_score'], JSON_THROW_ON_ERROR),
+            'source_fetched_at' => '2026-07-26 10:05:00+09:00',
+            'parser_version' => 'parser-fixed',
+            'source_url' => 'https://example.invalid/fixed-source',
+            'raw_file_path' => 'scraping/raw/fixed-source.html',
+            'raw_sha256' => str_repeat('f', 64),
+            'created_at' => now(),
+        ]);
+
+        $source = DB::table('race_entry_snapshot_sources')->find($sourceId);
+        $this->assertSame($fetchLogId, (int) $source->scraping_fetch_log_id);
+        $this->assertSame('parser-fixed', $source->parser_version);
+        $this->assertSame('https://example.invalid/fixed-source', $source->source_url);
+        $this->assertSame('scraping/raw/fixed-source.html', $source->raw_file_path);
+        $this->assertSame(str_repeat('f', 64), $source->raw_sha256);
+        $this->assertDatabaseRejects(
+            fn () => DB::table('scraping_fetch_logs')->where('id', $fetchLogId)->delete(),
+        );
+    }
+
     public function test_snapshot_external_player_id_matches_race_entry_identity_column(): void
     {
         $columns = collect(DB::select(

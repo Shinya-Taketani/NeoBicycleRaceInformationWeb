@@ -128,16 +128,7 @@ final class RaceEntrySnapshotService
             'race_score_validation_status' => $score->status->value,
             'snapshot_type' => self::SNAPSHOT_TYPE,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION));
-        $sourceLinkMissing = $sourceTemplate['scraping_fetch_log_id'] === null;
-        $raceScoreEligible = in_array($inputSnapshotType, [
-            StatInputSnapshotType::LivePreRaceCard,
-            StatInputSnapshotType::HistoricalRaceCardBackfill,
-        ], true) && $this->isEligibleRaceCardSource($sourceTemplate);
-        $sourceFingerprint = $this->sourceFactory->fingerprint(
-            $sourceTemplate,
-            $sourceLinkMissing,
-            $raceScoreEligible,
-        );
+        $sourceFingerprint = $this->sourceFactory->fingerprint($sourceTemplate);
 
         if (! $persist) {
             return $this->dto(
@@ -211,9 +202,6 @@ final class RaceEntrySnapshotService
             $race,
             $entry,
             $sourceTemplate,
-            $inputAsOf->value,
-            $sourceLinkMissing,
-            $raceScoreEligible,
         );
         $sourceIdentityKey = $snapshotSource->source_identity_key;
 
@@ -323,10 +311,6 @@ final class RaceEntrySnapshotService
      */
     private function sourceTemplateFromModel(RaceEntrySnapshotSource $source): array
     {
-        $fetchLog = $source->scraping_fetch_log_id === null
-            ? null
-            : $source->fetchLog()->first();
-
         return [
             'source_role' => $source->source_role,
             'scraping_fetch_log_id' => $source->scraping_fetch_log_id,
@@ -338,11 +322,11 @@ final class RaceEntrySnapshotService
             'historical_backfill_scope' => $source->historical_backfill_scope,
             'eligible_fields' => $source->eligible_fields ?? [],
             'context_verified_at' => $source->context_verified_at,
-            'source_fetched_at' => $fetchLog?->fetched_at,
-            'parser_version' => $fetchLog?->parser_version,
-            'source_url' => $fetchLog?->request_url,
-            'raw_file_path' => $fetchLog?->raw_file_path,
-            'raw_sha256' => $fetchLog?->sha256,
+            'source_fetched_at' => $source->source_fetched_at,
+            'parser_version' => $source->parser_version,
+            'source_url' => $source->source_url,
+            'raw_file_path' => $source->raw_file_path,
+            'raw_sha256' => $source->raw_sha256,
             'context_evidence' => $source->context_evidence,
         ];
     }
@@ -408,6 +392,7 @@ final class RaceEntrySnapshotService
             snapshotHash: $hash,
             sourceFingerprint: $sourceFingerprint,
             observedAt: $observedAt,
+            sourceFetchedAt: $sourceTemplate['source_fetched_at'],
             parserVersion: $sourceTemplate['parser_version'],
             sourceLinkMissing: $sourceLinkMissing,
             raceScoreEligible: $raceScoreEligible,

@@ -199,7 +199,7 @@ class StatisticFeatureRepository
                 'source_url' => $source->sourceUrl,
                 'raw_file_path' => $source->rawFilePath,
                 'raw_sha256' => $source->rawSha256,
-                'source_fetched_at' => $source->observedAt,
+                'source_fetched_at' => $source->sourceFetchedAt,
                 'source_reference_at' => $input->inputAsOf,
                 'parser_version' => $source->parserVersion,
                 'source_timing_status' => $this->sourceTimingStatus($source, $input),

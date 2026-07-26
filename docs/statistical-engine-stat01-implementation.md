@@ -82,7 +82,9 @@ snapshot内容が有効だった連続期間を表す。`race_id`、`race_entry_
 
 ### race_entry_snapshot_sources
 
-出走snapshotへ寄与したページとFetch Logを保持する。既存`race_entries`からの移行元は次の値を使う。
+出走snapshotへ寄与したページとFetch Logを保持する。`scraping_fetch_log_id`は出典参照であり、Fetch Log行の現在値をfingerprint再現に使わない。作成時点の`source_fetched_at`、`parser_version`、`source_url`、`raw_file_path`、`raw_sha256`をsource stateへ複製し、append-onlyな固定証跡として保持する。Fetch LogのFKは`RESTRICT ON DELETE`を維持する。
+
+既存`race_entries`からの移行元は次の値を使う。
 
 - `snapshot_type`: `LEGACY_BACKFILL`
 - `source_page_type`: `RACE_DETAIL`
@@ -101,12 +103,12 @@ source状態はrace card値のsnapshot hashへ混在させず、決定的な`sou
 - source role、Fetch Log ID、page type、race context key
 - context match method、context verification status、historical backfill scope
 - contributed fields、eligible fields
-- source link missing、race score eligible
-- Fetch Logがある場合のRaw SHA-256、parser version、UTC正規化した取得日時
+- Fetch Log IDから導出したsource link missing
+- source stateへ固定保存したRaw SHA-256、parser version、URL、Raw path、UTC正規化した取得日時
 
-field配列は文字列だけに絞り、重複を除去して辞書順にソートする。`context_verified_at`のような可変時刻と、snapshot hash由来で循環する`source_identity_key`は含めない。source stateの一意キーは`snapshot + source role + source fingerprint`、identity keyは`race-entry-source:{snapshot_id}:{fingerprint}`である。
+field配列は文字列だけに絞り、重複を除去して辞書順にソートする。`raceScoreEligible`、`input_snapshot_type`、`input_as_of`、`source_reference_at`、`context_verified_at`のような計算時または可変の値と、snapshot hash由来で循環する`source_identity_key`は含めない。`sourceLinkMissing`は最終templateのFetch Log IDがNULLかどうかだけから導出する。source stateの一意キーは`snapshot + source role + source fingerprint`、identity keyは`race-entry-source:{snapshot_id}:{fingerprint}`である。
 
-source stateはappend-onlyであり、page type、context、eligibility、Fetch Log、fingerprint、identity keyを更新しない。sourceが変化した場合は`RaceEntrySnapshotSourceFactory`が共通fingerprint実装を使って一致stateを再利用するか、新stateを追加する。過去stateを削除・上書きしない。現在選択中のsourceだけは`race_entry_snapshot_source_heads`に分離し、同じfingerprintへ戻った場合もsource state本体を複製せずheadだけを切り替える。
+source stateはappend-onlyであり、page type、context、eligibility、Fetch Log、固定証跡、fingerprint、identity keyを更新しない。sourceが変化した場合は`RaceEntrySnapshotSourceFactory`が共通fingerprint実装を使って一致stateを再利用するか、新stateを追加する。過去stateを削除・上書きしない。現在選択中のsourceだけは`race_entry_snapshot_source_heads`に分離し、同じfingerprintへ戻った場合もsource state本体を複製せずheadだけを切り替える。Fetch Log行が後から更新されても、source state、DTO、STAT入力、feature sourceは複製済み固定証跡を使用するため変化しない。
 
 ### stat_feature_snapshots
 
@@ -121,7 +123,7 @@ source stateはappend-onlyであり、page type、context、eligibility、Fetch 
 - 特徴量状態とデータ品質
 - sample count、coverage rate、最大取得日時
 
-レース全体の入力JSONは保持せず、順序正規化した各entryの`race_entry_snapshots.snapshot_hash`と`source fingerprint`からSHA-256を作る。
+レース全体の入力JSONは保持せず、順序正規化した各entryの`race_entry_snapshots.snapshot_hash`、`source fingerprint`、`input_snapshot_type`、`sourceLinkMissing`、`raceScoreEligible`からSHA-256を作る。後ろ3項目は計算時コンテキストであり、source evidenceが同じでも分類が変われば入力hashを分離する。
 
 ### stat_feature_values
 
@@ -131,9 +133,11 @@ source stateはappend-onlyであり、page type、context、eligibility、Fetch 
 
 ### stat_feature_sources
 
-特徴量snapshotから入力元を追跡する。対象選手自身は`PRIMARY_INPUT`、レース内比較に使った他選手は`CONTEXT_INPUT`とする。各行から`race_entry_snapshot_id`と`race_entry_snapshot_source_id`、必要なら`scraping_fetch_log_id`、URL、Raw path、SHA-256、parser versionまで追跡できる。PostgreSQL CHECKによりsnapshot/source IDは両方NULLまたは両方非NULLで、`RACE_ENTRY_SNAPSHOT`では両方必須である。
+特徴量snapshotから入力元を追跡する。対象選手自身は`PRIMARY_INPUT`、レース内比較に使った他選手は`CONTEXT_INPUT`とする。各行から`race_entry_snapshot_id`と`race_entry_snapshot_source_id`、必要なら`scraping_fetch_log_id`、固定済みURL、Raw path、SHA-256、parser versionまで追跡できる。PostgreSQL CHECKによりsnapshot/source IDは両方NULLまたは両方非NULLで、`RACE_ENTRY_SNAPSHOT`では両方必須である。
 
 レガシー移行でFetch Logがない場合は`source_timing_status = SOURCE_LINK_MISSING`とし、Raw情報を捏造しない。
+
+`source_reference_at`はsource evidenceではなく計算時コンテキストであるため、`race_entry_snapshot_sources`には置かない。各feature snapshotが使用した`input_as_of`を`stat_feature_sources.source_reference_at`へ保存し、同じsource stateを異なる基準時刻で再利用しても過去の参照時刻を上書きしない。`raceScoreEligible`もsource state属性ではなく、入力種別、page type、eligible fields、backfill scope、context verificationから計算時に導出する。
 
 ### statistic_run_feature_snapshot_occurrences
 
@@ -297,6 +301,7 @@ PRマージ前の開発環境を新定義へ合わせる際は、環境とバッ
 
 - `pg_indexes`: 6つの部分UNIQUE INDEXの定義
 - `pg_index`: `indisunique`、`indisvalid`、`indpred`、3つのscope indexの`indnullsnotdistinct`
+- source state: 固定Fetch Log証跡列の型、`source_reference_at`の不在、Fetch Log削除の`RESTRICT`
 - `pg_constraint`: source IDのNULL整合性、PRIMARY/CONTEXTを含む指定CHECK制約の存在と`convalidated`
 - 外部キー: source table/column、参照先、`CASCADE`、`RESTRICT`、`SET NULL`の削除規則
 - 実INSERT: current重複、NULL as-of論理キー重複、value type不整合、window片側NULL、NaN、正負Infinity、不正scope/status/source roleの拒否
@@ -306,4 +311,4 @@ PRマージ前の開発環境を新定義へ合わせる際は、環境とバッ
 - source-only変更: occurrenceを維持したまま別source stateを正常に関連付け
 - `stat_feature_sources`: snapshot/source IDの片側NULLを拒否
 
-PostgreSQL 18で`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`を含むMigrationは成功し、専用テストは11 tests / 245 assertionsで成功した。`race_entries.race_score_fetched_at`、`race_entries.deleted_at`、snapshotの`first_observed_at`、`last_observed_at`がnullable `timestamp with time zone`であること、`race_entry_snapshots.external_player_id`が`race_entries.external_player_id`と同じ型・長さでnullableであることをcatalogで検証する。occurrenceのcurrent部分UNIQUE INDEX、期間・状態CHECK、run-occurrence/source関連の複合FKも実DBで検証する。実DDLでは、000005と000004をrollback可能条件でrollback後に再適用できること、専用得点時刻、soft delete、snapshot選手同一性、NULL観測日時がある場合は000005 rollbackを全DDL前に拒否してデータと列を維持することを確認した。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。
+PostgreSQL 18で`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`を含むMigrationは成功し、専用テストは13 tests / 266 assertionsで成功した。`race_entries.race_score_fetched_at`、`race_entries.deleted_at`、snapshotの`first_observed_at`、`last_observed_at`がnullable `timestamp with time zone`であること、`race_entry_snapshots.external_player_id`が`race_entries.external_player_id`と同じ型・長さでnullableであることをcatalogで検証する。source stateの固定Fetch Log証跡列と`source_reference_at`の不在、Fetch Log FKの`RESTRICT`、occurrenceのcurrent部分UNIQUE INDEX、期間・状態CHECK、run-occurrence/source関連の複合FKも実DBで検証する。実DDLでは、000005と000004をrollback可能条件でrollback後に再適用できること、専用得点時刻、soft delete、snapshot選手同一性、NULL観測日時がある場合は000005 rollbackを全DDL前に拒否してデータと列を維持することを確認した。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。
