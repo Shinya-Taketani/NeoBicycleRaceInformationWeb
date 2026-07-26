@@ -62,6 +62,16 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             $this->assertSame('timestamp with time zone', $column->data_type, $columnName);
             $this->assertSame('YES', $column->is_nullable, $columnName);
         }
+
+        $this->assertFalse(
+            DB::getSchemaBuilder()->hasColumn(
+                'race_entry_snapshot_occurrences',
+                'race_entry_snapshot_source_id',
+            ),
+        );
+        $this->assertFalse(
+            DB::getSchemaBuilder()->hasColumn('race_entry_snapshots', 'input_snapshot_type'),
+        );
     }
 
     public function test_snapshot_external_player_id_matches_race_entry_identity_column(): void
@@ -245,7 +255,10 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'stat_feature_values_window_check',
             'stat_feature_values_finite_check',
             'stat_feature_sources_role_check',
+            'stat_feature_sources_snapshot_source_null_check',
+            'stat_feature_sources_race_entry_source_check',
             'stat_run_feature_occurrences_role_check',
+            'stat_run_feature_occurrences_entry_role_check',
         ];
         $checks = collect(DB::select(
             <<<'SQL'
@@ -267,13 +280,9 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
 
         $expectedForeignKeys = [
             'statistic_calculation_runs.target_race_id' => ['races', 'n'],
-            'race_entry_snapshots.race_entry_id' => ['race_entries', 'r'],
             'race_entry_snapshots.race_id' => ['races', 'r'],
             'race_entry_snapshots.player_id' => ['players', 'n'],
-            'race_entry_snapshot_occurrences.race_entry_id' => ['race_entries', 'r'],
-            'race_entry_snapshot_occurrences.race_entry_snapshot_id' => ['race_entry_snapshots', 'r'],
-            'race_entry_snapshot_sources.race_entry_snapshot_id' => ['race_entry_snapshots', 'c'],
-            'race_entry_snapshot_sources.scraping_fetch_log_id' => ['scraping_fetch_logs', 'n'],
+            'race_entry_snapshot_sources.scraping_fetch_log_id' => ['scraping_fetch_logs', 'r'],
             'stat_feature_snapshots.race_id' => ['races', 'r'],
             'stat_feature_snapshots.race_entry_id' => ['race_entries', 'r'],
             'stat_feature_snapshots.player_id' => ['players', 'n'],
@@ -281,16 +290,9 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'stat_feature_snapshots.opponent_player_id' => ['players', 'n'],
             'stat_feature_values.stat_feature_snapshot_id' => ['stat_feature_snapshots', 'c'],
             'stat_feature_sources.stat_feature_snapshot_id' => ['stat_feature_snapshots', 'c'],
-            'stat_feature_sources.race_entry_snapshot_id' => ['race_entry_snapshots', 'r'],
             'stat_feature_sources.scraping_fetch_log_id' => ['scraping_fetch_logs', 'n'],
             'statistic_run_feature_snapshots.calculation_run_id' => ['statistic_calculation_runs', 'c'],
-            'statistic_run_feature_snapshots.stat_feature_snapshot_id' => ['stat_feature_snapshots', 'r'],
-            'statistic_run_feature_snapshots.race_id' => ['races', 'r'],
             'statistic_run_feature_snapshot_occurrences.calculation_run_id' => ['statistic_calculation_runs', 'c'],
-            'statistic_run_feature_snapshot_occurrences.stat_feature_snapshot_id' => ['stat_feature_snapshots', 'r'],
-            'statistic_run_feature_snapshot_occurrences.race_entry_snapshot_occurrence_id' => ['race_entry_snapshot_occurrences', 'r'],
-            'statistic_run_feature_snapshot_occurrences.race_id' => ['races', 'r'],
-            'statistic_run_feature_snapshot_occurrences.race_entry_id' => ['race_entries', 'r'],
         ];
         $foreignKeys = collect(DB::select(
             <<<'SQL'
@@ -312,6 +314,7 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
                       'race_entry_snapshots',
                       'race_entry_snapshot_occurrences',
                       'race_entry_snapshot_sources',
+                      'race_entry_snapshot_source_heads',
                       'stat_feature_snapshots',
                       'stat_feature_values',
                       'stat_feature_sources',
@@ -326,6 +329,36 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             $this->assertNotNull($constraint, $sourceKey);
             $this->assertSame($targetTable, $constraint->target_table, $sourceKey);
             $this->assertSame($deleteRule, $constraint->confdeltype, $sourceKey);
+        }
+
+        $expectedCompositeForeignKeys = [
+            'race_entry_snapshots_entry_race_foreign',
+            'race_entry_snapshot_sources_snapshot_foreign',
+            'race_entry_snapshot_occurrences_snapshot_foreign',
+            'race_entry_snapshot_source_heads_snapshot_foreign',
+            'race_entry_snapshot_source_heads_source_foreign',
+            'stat_feature_sources_snapshot_source_foreign',
+            'stat_run_feature_snapshots_feature_race_foreign',
+            'stat_run_feature_occurrences_feature_foreign',
+            'stat_run_feature_occurrences_occurrence_foreign',
+            'stat_run_feature_occurrences_source_foreign',
+        ];
+        $compositeForeignKeys = collect(DB::select(
+            <<<'SQL'
+                SELECT constraint_data.conname, constraint_data.convalidated, constraint_data.confdeltype
+                FROM pg_constraint AS constraint_data
+                JOIN pg_namespace AS namespace ON namespace.oid = constraint_data.connamespace
+                WHERE namespace.nspname = current_schema()
+                  AND constraint_data.contype = 'f'
+                  AND constraint_data.conname = ANY (?::text[])
+                SQL,
+            ['{'.implode(',', $expectedCompositeForeignKeys).'}'],
+        ))->keyBy('conname');
+        foreach ($expectedCompositeForeignKeys as $constraintName) {
+            $constraint = $compositeForeignKeys->get($constraintName);
+            $this->assertNotNull($constraint, $constraintName);
+            $this->assertTrue((bool) $constraint->convalidated, $constraintName);
+            $this->assertSame('r', $constraint->confdeltype, $constraintName);
         }
     }
 
@@ -451,6 +484,176 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         ]));
     }
 
+    public function test_postgresql_run_audit_rejects_mixed_identities_and_accepts_context_and_source_changes(): void
+    {
+        [$raceId, $entryA] = $this->raceEntry();
+        $entryB = $this->insertRaceEntryForRace($raceId, 2);
+        [$otherRaceId, $otherEntry] = $this->raceEntry();
+        $snapshotA = $this->insertRaceEntrySnapshot($raceId, $entryA, '1', true);
+        $snapshotB = $this->insertRaceEntrySnapshot($raceId, $entryB, '2', true);
+        $otherSnapshot = $this->insertRaceEntrySnapshot($otherRaceId, $otherEntry, '3', true);
+        $occurrenceA = (int) DB::table('race_entry_snapshot_occurrences')
+            ->where('race_entry_snapshot_id', $snapshotA)
+            ->value('id');
+        $occurrenceB = (int) DB::table('race_entry_snapshot_occurrences')
+            ->where('race_entry_snapshot_id', $snapshotB)
+            ->value('id');
+        $otherOccurrence = (int) DB::table('race_entry_snapshot_occurrences')
+            ->where('race_entry_snapshot_id', $otherSnapshot)
+            ->value('id');
+        $sourceA1 = $this->insertSnapshotSource($raceId, $entryA, $snapshotA, '4');
+        $sourceA2 = $this->insertSnapshotSource($raceId, $entryA, $snapshotA, '5');
+        $sourceB = $this->insertSnapshotSource($raceId, $entryB, $snapshotB, '6');
+        $otherSource = $this->insertSnapshotSource($otherRaceId, $otherEntry, $otherSnapshot, '7');
+        $featureA = $this->insertFeatureSnapshot($raceId, $entryA, '8');
+        $otherFeature = $this->insertFeatureSnapshot($otherRaceId, $otherEntry, '9');
+        $runId = $this->insertCalculationRun();
+
+        $this->assertDatabaseRejects(fn () => DB::table('race_entry_snapshot_occurrences')->insert([
+            'race_id' => $raceId,
+            'race_entry_id' => $entryA,
+            'race_entry_snapshot_id' => $snapshotB,
+            'effective_from' => now(),
+            'effective_to' => null,
+            'is_current' => true,
+            'state_observed_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]));
+
+        $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceA,
+            $sourceA1,
+            $snapshotA,
+            $raceId,
+            $entryA,
+            $entryA,
+            'PRIMARY_INPUT',
+        );
+        $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceB,
+            $sourceB,
+            $snapshotB,
+            $raceId,
+            $entryA,
+            $entryB,
+            'CONTEXT_INPUT',
+        );
+        $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceA,
+            $sourceA2,
+            $snapshotA,
+            $raceId,
+            $entryA,
+            $entryA,
+            'PRIMARY_INPUT',
+        );
+
+        $this->assertDatabaseRejects(fn () => $this->insertRunAudit(
+            $runId,
+            $otherFeature,
+            $occurrenceA,
+            $sourceA1,
+            $snapshotA,
+            $otherRaceId,
+            $otherEntry,
+            $entryA,
+            'CONTEXT_INPUT',
+        ));
+        $this->assertDatabaseRejects(fn () => $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceA,
+            $sourceB,
+            $snapshotB,
+            $raceId,
+            $entryA,
+            $entryA,
+            'PRIMARY_INPUT',
+        ));
+        $this->assertDatabaseRejects(fn () => $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceA,
+            $sourceA1,
+            $snapshotA,
+            $raceId,
+            $entryA,
+            $entryB,
+            'CONTEXT_INPUT',
+        ));
+        $this->assertDatabaseRejects(fn () => $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceB,
+            $sourceA1,
+            $snapshotB,
+            $raceId,
+            $entryA,
+            $entryB,
+            'CONTEXT_INPUT',
+        ));
+        $this->assertDatabaseRejects(fn () => $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $otherOccurrence,
+            $otherSource,
+            $otherSnapshot,
+            $otherRaceId,
+            $entryA,
+            $otherEntry,
+            'CONTEXT_INPUT',
+        ));
+        $this->assertDatabaseRejects(fn () => $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceB,
+            $sourceB,
+            $snapshotB,
+            $raceId,
+            $entryA,
+            $entryB,
+            'PRIMARY_INPUT',
+        ));
+        $this->assertDatabaseRejects(fn () => $this->insertRunAudit(
+            $runId,
+            $featureA,
+            $occurrenceA,
+            $sourceA1,
+            $snapshotA,
+            $raceId,
+            $entryA,
+            $entryA,
+            'CONTEXT_INPUT',
+        ));
+
+        $featureSource = [
+            'stat_feature_snapshot_id' => $featureA,
+            'source_role' => 'PRIMARY_INPUT',
+            'source_identity_key' => 'null-consistency',
+            'source_type' => 'RACE_ENTRY_SNAPSHOT',
+            'source_timing_status' => 'AT_OR_BEFORE_INPUT_AS_OF',
+            'created_at' => now(),
+        ];
+        $this->assertDatabaseRejects(fn () => DB::table('stat_feature_sources')->insert([
+            ...$featureSource,
+            'race_entry_snapshot_id' => null,
+            'race_entry_snapshot_source_id' => $sourceA1,
+        ]));
+        $this->assertDatabaseRejects(fn () => DB::table('stat_feature_sources')->insert([
+            ...$featureSource,
+            'source_identity_key' => 'null-consistency-reverse',
+            'race_entry_snapshot_id' => $snapshotA,
+            'race_entry_snapshot_source_id' => null,
+        ]));
+    }
+
     /**
      * @return array{int,int}
      */
@@ -478,6 +681,85 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         ]);
 
         return [(int) $raceId, (int) $raceEntryId];
+    }
+
+    private function insertRaceEntryForRace(int $raceId, int $bikeNumber): int
+    {
+        $now = now();
+
+        return (int) DB::table('race_entries')->insertGetId([
+            'race_id' => $raceId,
+            'external_player_id' => sprintf('same-%d-%d', $raceId, $bikeNumber),
+            'bike_number' => $bikeNumber,
+            'race_score' => 100.00 - $bikeNumber,
+            'fetched_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function insertSnapshotSource(
+        int $raceId,
+        int $raceEntryId,
+        int $snapshotId,
+        string $hashCharacter,
+    ): int {
+        $fingerprint = str_repeat($hashCharacter, 64);
+
+        return (int) DB::table('race_entry_snapshot_sources')->insertGetId([
+            'race_entry_snapshot_id' => $snapshotId,
+            'race_id' => $raceId,
+            'race_entry_id' => $raceEntryId,
+            'source_role' => 'LEGACY_RACE_CARD',
+            'source_identity_key' => "source:{$snapshotId}:{$fingerprint}",
+            'source_fingerprint' => $fingerprint,
+            'contributed_fields' => json_encode(['race_score'], JSON_THROW_ON_ERROR),
+            'source_page_type' => 'RACE_DETAIL',
+            'source_race_context_key' => "race:{$raceId}",
+            'context_match_method' => 'RACE_ENTRY_FOREIGN_KEY',
+            'context_verification_status' => 'VERIFIED_EXACT',
+            'historical_backfill_scope' => 'STATIC_RACE_CARD_FIELDS_ONLY',
+            'eligible_fields' => json_encode(['race_score'], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+        ]);
+    }
+
+    private function insertCalculationRun(): int
+    {
+        return (int) DB::table('statistic_calculation_runs')->insertGetId([
+            'stat_code' => 'STAT-01',
+            'calculation_version' => 'STAT-01-v1',
+            'status' => 'RUNNING',
+            'parameters' => json_encode([], JSON_THROW_ON_ERROR),
+            'started_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function insertRunAudit(
+        int $runId,
+        int $featureSnapshotId,
+        int $occurrenceId,
+        int $sourceId,
+        int $snapshotId,
+        int $raceId,
+        int $featureEntryId,
+        int $sourceEntryId,
+        string $role,
+    ): void {
+        DB::table('statistic_run_feature_snapshot_occurrences')->insert([
+            'calculation_run_id' => $runId,
+            'stat_feature_snapshot_id' => $featureSnapshotId,
+            'race_entry_snapshot_occurrence_id' => $occurrenceId,
+            'race_entry_snapshot_source_id' => $sourceId,
+            'race_entry_snapshot_id' => $snapshotId,
+            'race_id' => $raceId,
+            'feature_race_entry_id' => $featureEntryId,
+            'source_race_entry_id' => $sourceEntryId,
+            'source_role' => $role,
+            'created_at' => now(),
+        ]);
     }
 
     private function insertRaceEntrySnapshot(
@@ -523,7 +805,12 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         string $effectiveFrom,
         ?string $effectiveTo,
     ): int {
+        $raceId = (int) DB::table('race_entry_snapshots')
+            ->where('id', $snapshotId)
+            ->value('race_id');
+
         return (int) DB::table('race_entry_snapshot_occurrences')->insertGetId([
+            'race_id' => $raceId,
             'race_entry_id' => $raceEntryId,
             'race_entry_snapshot_id' => $snapshotId,
             'effective_from' => $effectiveFrom,

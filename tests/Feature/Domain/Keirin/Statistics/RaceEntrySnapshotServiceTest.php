@@ -9,6 +9,7 @@ use App\Domain\Keirin\Statistics\DTO\RaceEntrySnapshotDto;
 use App\Domain\Keirin\Statistics\Enums\RaceScoreValidationStatus;
 use App\Domain\Keirin\Statistics\Enums\StatFeatureStatus;
 use App\Domain\Keirin\Statistics\Services\RaceEntrySnapshotService;
+use App\Domain\Keirin\Statistics\Services\RaceEntrySnapshotSourceFactory;
 use App\Domain\Keirin\Statistics\Services\Stat01RaceInputFactory;
 use App\Domain\Keirin\Statistics\Services\StatInputAsOfResolver;
 use App\Models\Race;
@@ -18,6 +19,7 @@ use App\Models\RaceEntrySnapshotOccurrence;
 use App\Models\RaceEntrySnapshotSource;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
 use Tests\TestCase;
 
 class RaceEntrySnapshotServiceTest extends TestCase
@@ -103,6 +105,18 @@ class RaceEntrySnapshotServiceTest extends TestCase
 
         $this->expectException(QueryException::class);
         $duplicate->save();
+    }
+
+    public function test_persisted_source_state_is_append_only(): void
+    {
+        [$race] = $this->raceEntry('100.00');
+        $this->snapshots($this->app->make(RaceEntrySnapshotService::class), $race);
+        $source = RaceEntrySnapshotSource::query()->sole();
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('is append-only');
+
+        $source->forceFill(['source_page_type' => 'PLAYER_PROFILE'])->save();
     }
 
     public function test_database_allows_multiple_non_current_history_snapshots(): void
@@ -241,10 +255,17 @@ class RaceEntrySnapshotServiceTest extends TestCase
         );
         $service = $this->app->make(RaceEntrySnapshotService::class);
         $this->snapshots($service, $race);
-        RaceEntrySnapshotSource::query()->sole()->forceFill([
-            'source_page_type' => 'PLAYER_PROFILE',
-            'historical_backfill_scope' => 'NOT_ELIGIBLE',
-        ])->save();
+        $source = RaceEntrySnapshotSource::query()->sole();
+        $this->app->make(RaceEntrySnapshotSourceFactory::class)->appendFromExisting(
+            $source,
+            [
+                'source_page_type' => 'PLAYER_PROFILE',
+                'historical_backfill_scope' => 'NOT_ELIGIBLE',
+            ],
+            null,
+            true,
+            false,
+        );
 
         $asOf = $this->app->make(StatInputAsOfResolver::class)->resolve($race);
         $snapshot = $service->snapshotsForRace(

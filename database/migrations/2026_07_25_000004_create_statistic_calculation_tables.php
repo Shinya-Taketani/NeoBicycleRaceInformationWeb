@@ -78,7 +78,7 @@ return new class extends Migration
             $table->unsignedBigInteger('race_entry_snapshot_id');
             $table->unsignedBigInteger('race_id');
             $table->unsignedBigInteger('race_entry_id');
-            $table->foreignId('scraping_fetch_log_id')->nullable()->constrained('scraping_fetch_logs')->nullOnDelete();
+            $table->foreignId('scraping_fetch_log_id')->nullable()->constrained('scraping_fetch_logs')->restrictOnDelete();
             $table->string('source_role', 40);
             $table->string('source_identity_key', 255);
             $table->char('source_fingerprint', 64);
@@ -120,7 +120,6 @@ return new class extends Migration
             $table->unsignedBigInteger('race_id');
             $table->unsignedBigInteger('race_entry_id');
             $table->unsignedBigInteger('race_entry_snapshot_id');
-            $table->unsignedBigInteger('race_entry_snapshot_source_id');
             $table->timestampTz('effective_from');
             $table->timestampTz('effective_to')->nullable();
             $table->boolean('is_current');
@@ -137,6 +136,25 @@ return new class extends Migration
             )->references(['id', 'race_id', 'race_entry_id'])
                 ->on('race_entry_snapshots')
                 ->restrictOnDelete();
+            $table->index(
+                ['race_entry_snapshot_id', 'effective_from'],
+                'race_entry_snapshot_occurrences_snapshot_from_index',
+            );
+        });
+
+        Schema::create('race_entry_snapshot_source_heads', function (Blueprint $table): void {
+            $table->unsignedBigInteger('race_entry_snapshot_id')->primary();
+            $table->unsignedBigInteger('race_entry_snapshot_source_id');
+            $table->unsignedBigInteger('race_id');
+            $table->unsignedBigInteger('race_entry_id');
+            $table->timestampsTz();
+
+            $table->foreign(
+                ['race_entry_snapshot_id', 'race_id', 'race_entry_id'],
+                'race_entry_snapshot_source_heads_snapshot_foreign',
+            )->references(['id', 'race_id', 'race_entry_id'])
+                ->on('race_entry_snapshots')
+                ->restrictOnDelete();
             $table->foreign(
                 [
                     'race_entry_snapshot_source_id',
@@ -144,14 +162,10 @@ return new class extends Migration
                     'race_entry_id',
                     'race_entry_snapshot_id',
                 ],
-                'race_entry_snapshot_occurrences_source_foreign',
+                'race_entry_snapshot_source_heads_source_foreign',
             )->references(['id', 'race_id', 'race_entry_id', 'race_entry_snapshot_id'])
                 ->on('race_entry_snapshot_sources')
                 ->restrictOnDelete();
-            $table->index(
-                ['race_entry_snapshot_id', 'effective_from'],
-                'race_entry_snapshot_occurrences_snapshot_from_index',
-            );
         });
 
         Schema::create('stat_feature_definitions', function (Blueprint $table): void {
@@ -349,6 +363,7 @@ return new class extends Migration
         Schema::dropIfExists('stat_feature_values');
         Schema::dropIfExists('stat_feature_snapshots');
         Schema::dropIfExists('stat_feature_definitions');
+        Schema::dropIfExists('race_entry_snapshot_source_heads');
         Schema::dropIfExists('race_entry_snapshot_occurrences');
         Schema::dropIfExists('race_entry_snapshot_sources');
         Schema::dropIfExists('race_entry_snapshots');
@@ -396,6 +411,8 @@ return new class extends Migration
         DB::statement('ALTER TABLE stat_feature_values ADD CONSTRAINT stat_feature_values_window_check CHECK ((window_type IS NULL AND window_value IS NULL) OR (window_type IS NOT NULL AND window_value IS NOT NULL))');
         DB::statement("ALTER TABLE stat_feature_values ADD CONSTRAINT stat_feature_values_finite_check CHECK (feature_value_numeric IS NULL OR (feature_value_numeric <> 'NaN'::double precision AND feature_value_numeric <> 'Infinity'::double precision AND feature_value_numeric <> '-Infinity'::double precision))");
         DB::statement("ALTER TABLE stat_feature_sources ADD CONSTRAINT stat_feature_sources_role_check CHECK (source_role IN ('PRIMARY_INPUT', 'CONTEXT_INPUT', 'HISTORICAL_INPUT', 'RESULT_INPUT', 'MASTER_INPUT', 'AUDIT_ONLY'))");
+        DB::statement('ALTER TABLE stat_feature_sources ADD CONSTRAINT stat_feature_sources_snapshot_source_null_check CHECK ((race_entry_snapshot_id IS NULL AND race_entry_snapshot_source_id IS NULL) OR (race_entry_snapshot_id IS NOT NULL AND race_entry_snapshot_source_id IS NOT NULL))');
+        DB::statement("ALTER TABLE stat_feature_sources ADD CONSTRAINT stat_feature_sources_race_entry_source_check CHECK (source_type <> 'RACE_ENTRY_SNAPSHOT' OR (race_entry_snapshot_id IS NOT NULL AND race_entry_snapshot_source_id IS NOT NULL))");
         DB::statement("ALTER TABLE statistic_run_feature_snapshot_occurrences ADD CONSTRAINT stat_run_feature_occurrences_role_check CHECK (source_role IN ('PRIMARY_INPUT', 'CONTEXT_INPUT'))");
         DB::statement("ALTER TABLE statistic_run_feature_snapshot_occurrences ADD CONSTRAINT stat_run_feature_occurrences_entry_role_check CHECK ((source_role = 'PRIMARY_INPUT' AND feature_race_entry_id = source_race_entry_id) OR (source_role = 'CONTEXT_INPUT' AND feature_race_entry_id <> source_race_entry_id))");
     }

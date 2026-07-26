@@ -14,7 +14,6 @@ class RaceEntrySnapshotOccurrence extends Model
         'race_id',
         'race_entry_id',
         'race_entry_snapshot_id',
-        'race_entry_snapshot_source_id',
         'effective_from',
         'effective_to',
         'is_current',
@@ -44,14 +43,6 @@ class RaceEntrySnapshotOccurrence extends Model
     public function snapshot(): BelongsTo
     {
         return $this->belongsTo(RaceEntrySnapshot::class, 'race_entry_snapshot_id');
-    }
-
-    public function sourceState(): BelongsTo
-    {
-        return $this->belongsTo(
-            RaceEntrySnapshotSource::class,
-            'race_entry_snapshot_source_id',
-        );
     }
 
     public function runFeatureSnapshotOccurrences(): HasMany

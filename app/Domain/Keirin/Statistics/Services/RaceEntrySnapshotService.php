@@ -25,7 +25,7 @@ final class RaceEntrySnapshotService
     private const SNAPSHOT_TYPE = 'LEGACY_BACKFILL';
 
     public function __construct(
-        private readonly RaceEntrySnapshotSourceFingerprint $sourceFingerprint,
+        private readonly RaceEntrySnapshotSourceFactory $sourceFactory,
     ) {}
 
     /**
@@ -98,7 +98,7 @@ final class RaceEntrySnapshotService
         $currentOccurrence = RaceEntrySnapshotOccurrence::query()
             ->where('race_entry_id', $entry->id)
             ->where('is_current', true)
-            ->with(['snapshot', 'sourceState.fetchLog'])
+            ->with('snapshot')
             ->when($persist, fn ($query) => $query->lockForUpdate())
             ->first();
         $currentSnapshot = $currentOccurrence?->snapshot;
@@ -106,7 +106,6 @@ final class RaceEntrySnapshotService
             $race,
             $entry,
             $currentSnapshot,
-            $currentOccurrence?->sourceState,
         );
         $scoreObservedAt = $entry->race_score_fetched_at;
         $scoreObservedAt = $scoreObservedAt instanceof DateTimeImmutable ? $scoreObservedAt : null;
@@ -134,7 +133,7 @@ final class RaceEntrySnapshotService
             StatInputSnapshotType::LivePreRaceCard,
             StatInputSnapshotType::HistoricalRaceCardBackfill,
         ], true) && $this->isEligibleRaceCardSource($sourceTemplate);
-        $sourceFingerprint = $this->sourceFingerprint->calculate(
+        $sourceFingerprint = $this->sourceFactory->fingerprint(
             $sourceTemplate,
             $sourceLinkMissing,
             $raceScoreEligible,
@@ -207,37 +206,22 @@ final class RaceEntrySnapshotService
             ])->save();
         }
 
-        $sourceIdentityKey = "race-entry-source:{$snapshot->id}:{$sourceFingerprint}";
-        $snapshotSource = RaceEntrySnapshotSource::query()->firstOrCreate(
-            [
-                'race_entry_snapshot_id' => $snapshot->id,
-                'source_role' => $sourceTemplate['source_role'],
-                'source_fingerprint' => $sourceFingerprint,
-            ],
-            [
-                'race_id' => $race->id,
-                'race_entry_id' => $entry->id,
-                'scraping_fetch_log_id' => $sourceTemplate['scraping_fetch_log_id'],
-                'source_identity_key' => $sourceIdentityKey,
-                'contributed_fields' => $sourceTemplate['contributed_fields'],
-                'source_page_type' => $sourceTemplate['source_page_type'],
-                'source_race_context_key' => $sourceTemplate['source_race_context_key'],
-                'context_match_method' => $sourceTemplate['context_match_method'],
-                'context_verification_status' => $sourceTemplate['context_verification_status'],
-                'historical_backfill_scope' => $sourceTemplate['historical_backfill_scope'],
-                'eligible_fields' => $sourceTemplate['eligible_fields'],
-                'source_reference_at' => $inputAsOf->value,
-                'context_verified_at' => $sourceTemplate['context_verified_at'],
-                'context_evidence' => $sourceTemplate['context_evidence'],
-            ],
+        $snapshotSource = $this->sourceFactory->findOrCreate(
+            $snapshot,
+            $race,
+            $entry,
+            $sourceTemplate,
+            $inputAsOf->value,
+            $sourceLinkMissing,
+            $raceScoreEligible,
         );
+        $sourceIdentityKey = $snapshotSource->source_identity_key;
 
         $occurrence = $contentChanged
             ? RaceEntrySnapshotOccurrence::query()->create([
                 'race_id' => $race->id,
                 'race_entry_id' => $entry->id,
                 'race_entry_snapshot_id' => $snapshot->id,
-                'race_entry_snapshot_source_id' => $snapshotSource->id,
                 'effective_from' => $stateObservedAt,
                 'effective_to' => null,
                 'is_current' => true,
@@ -248,11 +232,6 @@ final class RaceEntrySnapshotService
             throw new RuntimeException(
                 "Race entry {$entry->id} current snapshot occurrence was unavailable.",
             );
-        }
-        if ((int) $occurrence->race_entry_snapshot_source_id !== (int) $snapshotSource->id) {
-            $occurrence->forceFill([
-                'race_entry_snapshot_source_id' => $snapshotSource->id,
-            ])->save();
         }
 
         return $this->dto(
@@ -302,12 +281,16 @@ final class RaceEntrySnapshotService
         Race $race,
         RaceEntry $entry,
         ?RaceEntrySnapshot $current,
-        ?RaceEntrySnapshotSource $currentSource,
     ): array {
         if ($current instanceof RaceEntrySnapshot
-            && $current->external_player_id === $entry->external_player_id
-            && $currentSource instanceof RaceEntrySnapshotSource) {
-            return $this->sourceTemplateFromModel($currentSource);
+            && $current->external_player_id === $entry->external_player_id) {
+            $currentSource = $current->sourceHead()
+                ->with('sourceState.fetchLog')
+                ->first()
+                ?->sourceState;
+            if ($currentSource instanceof RaceEntrySnapshotSource) {
+                return $this->sourceTemplateFromModel($currentSource);
+            }
         }
 
         return [
@@ -405,6 +388,7 @@ final class RaceEntrySnapshotService
             StatInputSnapshotType::LivePreRaceCard,
             StatInputSnapshotType::HistoricalRaceCardBackfill,
         ], true) && $this->isEligibleRaceCardSource($sourceTemplate);
+
         return new RaceEntrySnapshotDto(
             id: $id,
             occurrenceId: $occurrenceId,

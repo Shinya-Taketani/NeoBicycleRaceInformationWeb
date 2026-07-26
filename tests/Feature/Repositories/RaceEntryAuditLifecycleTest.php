@@ -15,6 +15,7 @@ use App\Domain\Keirin\Scraping\DTO\RaceParameterDto;
 use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Statistics\DTO\RaceEntrySnapshotDto;
 use App\Domain\Keirin\Statistics\Services\RaceEntrySnapshotService;
+use App\Domain\Keirin\Statistics\Services\RaceEntrySnapshotSourceFactory;
 use App\Domain\Keirin\Statistics\Services\StatInputAsOfResolver;
 use App\Models\Player;
 use App\Models\Race;
@@ -470,7 +471,8 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $oldSource = RaceEntrySnapshotSource::query()
             ->where('race_entry_snapshot_id', $oldSnapshot->id)
             ->sole();
-        $oldSource->forceFill(['scraping_fetch_log_id' => $fetchLog->id])->save();
+        $oldSource = $this->app->make(RaceEntrySnapshotSourceFactory::class)
+            ->appendWithFetchLog($oldSource, $fetchLog, $fetchLog->fetched_at, true);
 
         $this->syncRaceDay(
             $day,
@@ -529,7 +531,8 @@ class RaceEntryAuditLifecycleTest extends TestCase
             ->whereHas('snapshot', fn ($query) => $query->where('race_entry_id', $entry->id))
             ->sole();
         $fetchLog = $this->fetchLog('linked-source');
-        $source->forceFill(['scraping_fetch_log_id' => $fetchLog->id])->save();
+        $source = $this->app->make(RaceEntrySnapshotSourceFactory::class)
+            ->appendWithFetchLog($source, $fetchLog, $fetchLog->fetched_at, true);
 
         $linkedInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
         $this->buildStat01($race->refresh(), 0);
@@ -539,7 +542,20 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertSame('VALID', $linkedFeature->status);
         $this->assertSame('VALID', $linkedFeature->data_quality_status);
 
-        $fetchLog->delete();
+        $this->app->make(RaceEntrySnapshotSourceFactory::class)->appendFromExisting(
+            $source,
+            [
+                'scraping_fetch_log_id' => null,
+                'source_fetched_at' => null,
+                'parser_version' => null,
+                'source_url' => null,
+                'raw_file_path' => null,
+                'raw_sha256' => null,
+            ],
+            $fetchLog->fetched_at,
+            true,
+            true,
+        );
         $missingInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
         $this->buildStat01($race->refresh(), 0);
 
@@ -573,15 +589,22 @@ class RaceEntryAuditLifecycleTest extends TestCase
         );
         $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 5)->sole();
         $eligibleInput = $this->snapshotForEntry($race, (int) $entry->id);
+        $occurrenceBeforeSourceChange = RaceEntrySnapshotOccurrence::query()
+            ->findOrFail($eligibleInput->occurrenceId);
         $this->buildStat01($race->refresh(), 0);
         $oldFeature = StatFeatureSnapshot::query()
             ->where('race_entry_id', $entry->id)
             ->sole();
-        RaceEntrySnapshotSource::query()
+        $source = RaceEntrySnapshotSource::query()
             ->where('race_entry_snapshot_id', $eligibleInput->id)
-            ->sole()
-            ->forceFill(['eligible_fields' => []])
-            ->save();
+            ->sole();
+        $this->app->make(RaceEntrySnapshotSourceFactory::class)->appendFromExisting(
+            $source,
+            ['eligible_fields' => []],
+            null,
+            true,
+            false,
+        );
 
         $ineligibleInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
         $this->buildStat01($race->refresh(), 1);
@@ -590,6 +613,20 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertNotSame($eligibleInput->sourceStateId, $ineligibleInput->sourceStateId);
         $this->assertSame($eligibleInput->id, $ineligibleInput->id);
         $this->assertSame($eligibleInput->occurrenceId, $ineligibleInput->occurrenceId);
+        $occurrenceAfterSourceChange = $occurrenceBeforeSourceChange->fresh();
+        $this->assertNotNull($occurrenceAfterSourceChange);
+        $this->assertEquals(
+            $occurrenceBeforeSourceChange->effective_from,
+            $occurrenceAfterSourceChange->effective_from,
+        );
+        $this->assertEquals(
+            $occurrenceBeforeSourceChange->effective_to,
+            $occurrenceAfterSourceChange->effective_to,
+        );
+        $this->assertEquals(
+            $occurrenceBeforeSourceChange->updated_at,
+            $occurrenceAfterSourceChange->updated_at,
+        );
         $this->assertSame(
             1,
             RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->count(),
@@ -605,6 +642,11 @@ class RaceEntryAuditLifecycleTest extends TestCase
                 ->count(),
         );
         $latestRun = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
+        $this->assertDatabaseHas('statistic_calculation_runs', [
+            'id' => $latestRun,
+            'status' => 'PARTIALLY_FAILED',
+            'error_count' => 1,
+        ]);
         $this->assertSame(
             $eligibleInput->occurrenceId,
             $this->primaryOccurrenceId($latestRun, (int) $entry->id),
@@ -638,20 +680,33 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $source = RaceEntrySnapshotSource::query()
             ->whereHas('snapshot', fn ($query) => $query->where('race_entry_id', $entry->id))
             ->sole();
-        $source->forceFill([
-            'contributed_fields' => ['grade', 'race_score', 'frame_number'],
-            'eligible_fields' => ['grade', 'race_score'],
-        ])->save();
+        $factory = $this->app->make(RaceEntrySnapshotSourceFactory::class);
+        $source = $factory->appendFromExisting(
+            $source,
+            [
+                'contributed_fields' => ['grade', 'race_score', 'frame_number'],
+                'eligible_fields' => ['grade', 'race_score'],
+            ],
+            null,
+            true,
+            true,
+        );
         $firstInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
         $this->buildStat01($race->refresh(), 0);
         $featureInputHash = StatFeatureSnapshot::query()
             ->where('race_entry_id', $entry->id)
             ->value('input_hash');
 
-        $source->forceFill([
-            'contributed_fields' => ['race_score', 'frame_number', 'grade', 'race_score'],
-            'eligible_fields' => ['race_score', 'grade', 'race_score'],
-        ])->save();
+        $factory->appendFromExisting(
+            $source,
+            [
+                'contributed_fields' => ['race_score', 'frame_number', 'grade', 'race_score'],
+                'eligible_fields' => ['race_score', 'grade', 'race_score'],
+            ],
+            null,
+            true,
+            true,
+        );
         $reorderedInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
         $this->buildStat01($race->refresh(), 0);
 
@@ -716,9 +771,14 @@ class RaceEntryAuditLifecycleTest extends TestCase
             $this->detail($scores),
             new DateTimeImmutable('2026-07-26 10:00:00+09:00'),
         );
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        $inputA1 = $this->snapshotForEntry($race, (int) $entry->id);
+        $sourceA1 = $this->appendEligibleSource(
+            $inputA1,
+            $this->fetchLog('source-a1', '2026-07-26 10:00:00+09:00', '1', 'parser-v1'),
+        );
         $this->buildStat01($race, 0);
         $runA1 = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
-        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
         $snapshotA = RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->sole();
         $occurrenceA1 = RaceEntrySnapshotOccurrence::query()
             ->where('race_entry_id', $entry->id)
@@ -728,6 +788,11 @@ class RaceEntryAuditLifecycleTest extends TestCase
             $race,
             $this->detail($scores, grades: [1 => 'S2']),
             new DateTimeImmutable('2026-07-26 10:30:00+09:00'),
+        );
+        $inputB = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
+        $sourceB = $this->appendEligibleSource(
+            $inputB,
+            $this->fetchLog('source-b', '2026-07-26 10:30:00+09:00', '2', 'parser-v2'),
         );
         $this->buildStat01($race->refresh(), 0);
         $runB = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
@@ -739,17 +804,16 @@ class RaceEntryAuditLifecycleTest extends TestCase
             ->where('race_entry_id', $entry->id)
             ->where('race_entry_snapshot_id', $snapshotB->id)
             ->sole();
-        $sourceA1 = $this->primarySourceStateId($runA1, (int) $entry->id);
-        $sourceB = $this->primarySourceStateId($runB, (int) $entry->id);
-        $occurrenceB->sourceState->forceFill([
-            'source_page_type' => 'PLAYER_PROFILE',
-            'historical_backfill_scope' => 'NOT_ELIGIBLE',
-        ])->save();
 
         $this->races->updateRaceDetail(
             $race,
             $this->detail($scores),
             new DateTimeImmutable('2026-07-26 11:00:00+09:00'),
+        );
+        $inputA2 = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
+        $sourceA2 = $this->appendEligibleSource(
+            $inputA2,
+            $this->fetchLog('source-a2', '2026-07-26 11:00:00+09:00', '3', 'parser-v3'),
         );
         $this->buildStat01($race->refresh(), 0);
         $runA2 = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
@@ -758,7 +822,19 @@ class RaceEntryAuditLifecycleTest extends TestCase
             ->where('race_entry_snapshot_id', $snapshotA->id)
             ->where('is_current', true)
             ->sole();
-        $sourceA2 = $this->primarySourceStateId($runA2, (int) $entry->id);
+        foreach ([$runA1, $runB, $runA2] as $runId) {
+            $this->assertDatabaseHas('statistic_calculation_runs', [
+                'id' => $runId,
+                'status' => 'SUCCEEDED',
+                'error_count' => 0,
+            ]);
+            $this->assertDatabaseHas('stat_feature_snapshots', [
+                'id' => $this->featureSnapshotIdForRun($runId, (int) $entry->id),
+                'input_snapshot_type' => 'LIVE_PRE_RACE_CARD',
+                'status' => 'DEGRADED',
+                'data_quality_status' => 'DEGRADED',
+            ]);
+        }
 
         $this->assertSame('2026-07-26 10:00:00', $occurrenceA1->effective_from->format('Y-m-d H:i:s'));
         $this->assertSame(
@@ -789,14 +865,27 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertSame((int) $occurrenceA1->id, $this->primaryOccurrenceId($runA1, (int) $entry->id));
         $this->assertSame((int) $occurrenceB->id, $this->primaryOccurrenceId($runB, (int) $entry->id));
         $this->assertSame((int) $occurrenceA2->id, $this->primaryOccurrenceId($runA2, (int) $entry->id));
-        $this->assertNotSame($sourceA1, $sourceB);
-        $this->assertNotSame($sourceA1, $sourceA2);
-        $this->assertNotSame($sourceB, $sourceA2);
-        $this->assertSame($sourceA2, (int) $occurrenceA2->race_entry_snapshot_source_id);
-        $this->assertSame(
-            3,
-            RaceEntrySnapshotSource::query()->where('race_entry_id', $entry->id)->count(),
-        );
+        $this->assertNotSame((int) $sourceA1->id, (int) $sourceB->id);
+        $this->assertNotSame((int) $sourceA1->id, (int) $sourceA2->id);
+        $this->assertNotSame((int) $sourceB->id, (int) $sourceA2->id);
+        $this->assertNotSame($sourceA1->source_fingerprint, $sourceB->source_fingerprint);
+        $this->assertNotSame($sourceA1->source_fingerprint, $sourceA2->source_fingerprint);
+        $this->assertNotSame($sourceB->source_fingerprint, $sourceA2->source_fingerprint);
+        foreach ([
+            [$sourceA1, 'parser-v1'],
+            [$sourceB, 'parser-v2'],
+            [$sourceA2, 'parser-v3'],
+        ] as [$sourceState, $parserVersion]) {
+            $sourceState->refresh();
+            $this->assertSame('RACE_DETAIL', $sourceState->source_page_type);
+            $this->assertSame('VERIFIED_EXACT', $sourceState->context_verification_status);
+            $this->assertSame('STATIC_RACE_CARD_FIELDS_ONLY', $sourceState->historical_backfill_scope);
+            $this->assertSame(['race_score'], $sourceState->eligible_fields);
+            $this->assertSame($parserVersion, $sourceState->fetchLog->parser_version);
+        }
+        $this->assertSame((int) $sourceA1->id, $this->primarySourceStateId($runA1, (int) $entry->id));
+        $this->assertSame((int) $sourceB->id, $this->primarySourceStateId($runB, (int) $entry->id));
+        $this->assertSame((int) $sourceA2->id, $this->primarySourceStateId($runA2, (int) $entry->id));
         $this->assertNotSame(
             $this->primaryOccurrenceId($runA1, (int) $entry->id),
             $this->primaryOccurrenceId($runA2, (int) $entry->id),
@@ -817,7 +906,7 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertNull($occurrenceA2->effective_to);
         $this->assertSame($featureValueCount, DB::table('stat_feature_values')->count());
         $this->assertSame((int) $occurrenceA2->id, $this->primaryOccurrenceId($rerun, (int) $entry->id));
-        $this->assertSame($sourceA2, $this->primarySourceStateId($rerun, (int) $entry->id));
+        $this->assertSame((int) $sourceA2->id, $this->primarySourceStateId($rerun, (int) $entry->id));
         $this->assertSame($runA2Feature, $this->featureSnapshotIdForRun($rerun, (int) $entry->id));
     }
 
@@ -1077,21 +1166,40 @@ class RaceEntryAuditLifecycleTest extends TestCase
         throw new \RuntimeException("Race entry snapshot {$raceEntryId} was missing.");
     }
 
-    private function fetchLog(string $requestKey): ScrapingFetchLog
-    {
+    private function appendEligibleSource(
+        RaceEntrySnapshotDto $input,
+        ScrapingFetchLog $fetchLog,
+    ): RaceEntrySnapshotSource {
+        $base = RaceEntrySnapshotSource::query()->findOrFail($input->sourceStateId);
+
+        return $this->app->make(RaceEntrySnapshotSourceFactory::class)->appendWithFetchLog(
+            $base,
+            $fetchLog,
+            $fetchLog->fetched_at,
+            true,
+            ['context_verification_status' => 'VERIFIED_EXACT'],
+        );
+    }
+
+    private function fetchLog(
+        string $requestKey,
+        string $fetchedAt = '2026-07-26 10:05:00+09:00',
+        string $hashCharacter = 'b',
+        string $parserVersion = 'source-fingerprint-test',
+    ): ScrapingFetchLog {
         return ScrapingFetchLog::query()->create([
             'source' => 'keirin_jp',
             'request_method' => 'POST',
             'request_url' => "https://example.invalid/{$requestKey}",
             'request_key' => $requestKey,
             'http_status' => 200,
-            'fetched_at' => '2026-07-26 10:05:00+09:00',
+            'fetched_at' => $fetchedAt,
             'utf8_conversion_succeeded' => true,
             'response_size' => 123,
-            'sha256' => str_repeat('b', 64),
+            'sha256' => str_repeat($hashCharacter, 64),
             'raw_file_path' => "scraping/raw/{$requestKey}.html",
             'retry_count' => 0,
-            'parser_version' => 'source-fingerprint-test',
+            'parser_version' => $parserVersion,
         ]);
     }
 

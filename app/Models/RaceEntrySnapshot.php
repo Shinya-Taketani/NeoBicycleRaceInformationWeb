@@ -66,4 +66,12 @@ class RaceEntrySnapshot extends Model
         return $this->hasOne(RaceEntrySnapshotOccurrence::class)
             ->where('is_current', true);
     }
+
+    public function sourceHead(): HasOne
+    {
+        return $this->hasOne(
+            RaceEntrySnapshotSourceHead::class,
+            'race_entry_snapshot_id',
+        );
+    }
 }
