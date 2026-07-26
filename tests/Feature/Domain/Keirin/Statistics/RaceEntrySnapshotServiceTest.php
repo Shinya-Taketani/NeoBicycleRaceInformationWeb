@@ -190,6 +190,7 @@ class RaceEntrySnapshotServiceTest extends TestCase
         ]);
         $source = RaceEntrySnapshotSource::query()->sole();
         $this->assertSame(['race_score'], $source->eligible_fields);
+        $this->assertNull($source->context_verified_at);
         $this->assertSame('SOURCE_LINK_MISSING', $source->context_evidence['source_link_status']);
     }
 

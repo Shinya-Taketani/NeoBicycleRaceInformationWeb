@@ -841,6 +841,101 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertSame('LIVE_PRE_RACE_CARD', $secondFeature->input_snapshot_type);
     }
 
+    public function test_score_observation_and_fixed_source_fetch_times_have_separate_audit_roles(): void
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 09:50:00+09:00');
+        $race = Race::query()->sole();
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($this->scores(5)),
+            new DateTimeImmutable('2026-07-26 10:00:00+09:00'),
+        );
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        $initial = $this->snapshotForEntry($race, (int) $entry->id);
+        $source = $this->appendEligibleSource(
+            $initial,
+            $this->fetchLog('later-source-evidence', '2026-07-26 10:30:00+09:00'),
+        );
+        $race->forceFill([
+            'sales_close_at' => new DateTimeImmutable('2026-07-26 10:15:00+09:00'),
+        ])->save();
+
+        $this->buildStat01($race->refresh(), 0);
+
+        $feature = StatFeatureSnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->sole();
+        $featureSource = StatFeatureSource::query()
+            ->where('stat_feature_snapshot_id', $feature->id)
+            ->where('source_role', 'PRIMARY_INPUT')
+            ->sole();
+        $this->assertSame('LIVE_PRE_RACE_CARD', $feature->input_snapshot_type);
+        $this->assertSame('2026-07-26 10:00:00', $entry->refresh()->race_score_fetched_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-07-26 10:30:00', $source->source_fetched_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-07-26 10:30:00', $featureSource->source_fetched_at->format('Y-m-d H:i:s'));
+        $this->assertSame('HISTORICAL_AFTER_INPUT_AS_OF', $featureSource->source_timing_status);
+        $this->assertSame('2026-07-26 10:30:00', $feature->source_max_fetched_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_context_evidence_is_canonicalized_and_participates_in_source_identity(): void
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:00:00+09:00');
+        $race = Race::query()->sole();
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($this->scores(5)),
+            new DateTimeImmutable('2026-07-26 10:05:00+09:00'),
+        );
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        $initial = $this->snapshotForEntry($race, (int) $entry->id);
+        $base = RaceEntrySnapshotSource::query()->findOrFail($initial->sourceStateId);
+        $factory = $this->app->make(RaceEntrySnapshotSourceFactory::class);
+        $linked = $factory->appendWithFetchLog(
+            $base,
+            $this->fetchLog('context-evidence'),
+            [
+                'context_evidence' => [
+                    'nested' => (object) ['beta' => 2, 'alpha' => 1],
+                    'ordered' => ['first', 'second'],
+                ],
+            ],
+        );
+        $reordered = $factory->appendFromExisting($linked, [
+            'context_evidence' => [
+                'ordered' => ['first', 'second'],
+                'nested' => ['alpha' => 1, 'beta' => 2],
+            ],
+        ]);
+        $changed = $factory->appendFromExisting($linked, [
+            'context_evidence' => [
+                'nested' => ['alpha' => 1, 'beta' => 3],
+                'ordered' => ['first', 'second'],
+            ],
+        ]);
+        $listChanged = $factory->appendFromExisting($linked, [
+            'context_evidence' => [
+                'nested' => ['alpha' => 1, 'beta' => 2],
+                'ordered' => ['second', 'first'],
+            ],
+        ]);
+        $verifiedAtChanged = $factory->appendFromExisting($linked, [
+            'context_verified_at' => new DateTimeImmutable('2026-07-26 10:06:00+09:00'),
+        ]);
+
+        $this->assertSame((int) $linked->id, (int) $reordered->id);
+        $this->assertSame($linked->source_fingerprint, $reordered->source_fingerprint);
+        $this->assertNotSame((int) $linked->id, (int) $changed->id);
+        $this->assertNotSame($linked->source_fingerprint, $changed->source_fingerprint);
+        $this->assertNotSame($linked->source_fingerprint, $listChanged->source_fingerprint);
+        $this->assertNotSame($linked->source_fingerprint, $verifiedAtChanged->source_fingerprint);
+        $this->assertDatabaseHas('race_entry_snapshot_sources', ['id' => $linked->id]);
+        $this->assertDatabaseHas('race_entry_snapshot_sources', ['id' => $changed->id]);
+        $this->assertSame('SOURCE_LINKED', $linked->context_evidence['source_link_status']);
+        $this->assertSame('SOURCE_LINKED', $changed->context_evidence['source_link_status']);
+    }
+
     public function test_factory_rejects_fetch_evidence_overrides_and_normalizes_unlinked_sources(): void
     {
         [$day, $metadata] = $this->context();
@@ -862,6 +957,7 @@ class RaceEntryAuditLifecycleTest extends TestCase
             ['scraping_fetch_log_id' => $secondLog->id],
             ['raw_sha256' => str_repeat('7', 64)],
             ['parser_version' => 'forged-parser'],
+            ['source_fetched_at' => new DateTimeImmutable('2026-07-26 11:00:00+09:00')],
         ] as $overrides) {
             try {
                 $factory->appendWithFetchLog($base, $firstLog, $overrides);
@@ -871,7 +967,19 @@ class RaceEntryAuditLifecycleTest extends TestCase
             }
         }
 
+        $firstLog->forceFill([
+            'fetched_at' => new DateTimeImmutable('2026-07-26 12:00:00+09:00'),
+            'parser_version' => 'dirty-model-parser',
+            'sha256' => str_repeat('8', 64),
+        ]);
         $linked = $factory->appendWithFetchLog($base, $firstLog);
+        $this->assertSame('SOURCE_LINKED', $linked->context_evidence['source_link_status']);
+        $this->assertSame(
+            (new DateTimeImmutable('2026-07-26 10:05:00+09:00'))->getTimestamp(),
+            $linked->source_fetched_at?->getTimestamp(),
+        );
+        $this->assertNotSame('dirty-model-parser', $linked->parser_version);
+        $this->assertSame(str_repeat('5', 64), $linked->raw_sha256);
         try {
             $factory->appendFromExisting($linked, [
                 'scraping_fetch_log_id' => null,
@@ -891,7 +999,18 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertNull($unlinked->source_url);
         $this->assertNull($unlinked->raw_file_path);
         $this->assertNull($unlinked->raw_sha256);
+        $this->assertSame('SOURCE_LINK_MISSING', $unlinked->context_evidence['source_link_status']);
         $this->assertNotSame($linked->source_fingerprint, $unlinked->source_fingerprint);
+
+        try {
+            $factory->appendWithFetchLog($base, new ScrapingFetchLog);
+            $this->fail('An unpersisted Fetch Log should have been rejected.');
+        } catch (InvalidArgumentException) {
+            $this->addToAssertionCount(1);
+        }
+        $this->assertTrue(
+            (new \ReflectionMethod(RaceEntrySnapshotSourceFactory::class, 'findOrCreate'))->isPrivate(),
+        );
     }
 
     public function test_grade_only_detail_change_uses_state_fetch_time_for_effective_end(): void
@@ -1161,7 +1280,7 @@ class RaceEntryAuditLifecycleTest extends TestCase
             StatFeatureSnapshot::query()->where('race_id', $race->id)->distinct()->pluck('source_max_fetched_at')->all(),
         );
         $this->assertSame(
-            ['UNKNOWN_SOURCE_TIMING'],
+            ['SOURCE_LINK_MISSING'],
             DB::table('stat_feature_sources')->distinct()->pluck('source_timing_status')->all(),
         );
     }

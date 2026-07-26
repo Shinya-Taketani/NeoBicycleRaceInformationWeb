@@ -23,9 +23,11 @@ class Stat01CalculatorTest extends TestCase
     public function test_it_calculates_supported_race_sizes(int $entrantCount): void
     {
         $scores = array_map(static fn (int $index): float => 110.0 - $index, range(0, $entrantCount - 1));
-        $results = $this->calculator()->calculate($this->race($scores))->results;
+        $race = $this->race($scores);
+        $results = $this->calculator()->calculate($race)->results;
 
         $this->assertCount($entrantCount, $results);
+        $this->assertSame($race->entries[0]->sourceFetchedAt, $results[0]->sourceFetchedAt);
         $this->assertSame(range(1, $entrantCount), array_map(
             fn (Stat01EntryResultDto $result): int => (int) $this->feature($result, 'RACE_SCORE_RANK')->value,
             $results,
@@ -141,6 +143,7 @@ class Stat01CalculatorTest extends TestCase
             sourceLinkMissing: false,
             raceScoreEligible: false,
             fetchedAt: $first->fetchedAt,
+            sourceFetchedAt: $first->sourceFetchedAt,
         );
         $race = new Stat01RaceInputDto(
             $original->raceId,
@@ -238,6 +241,7 @@ class Stat01CalculatorTest extends TestCase
             sourceLinkMissing: $sourceLinkMissing ?? $first->sourceLinkMissing,
             raceScoreEligible: $raceScoreEligible ?? $first->raceScoreEligible,
             fetchedAt: $first->fetchedAt,
+            sourceFetchedAt: $first->sourceFetchedAt,
         );
 
         return new Stat01RaceInputDto(
@@ -284,6 +288,7 @@ class Stat01CalculatorTest extends TestCase
                         sourceLinkMissing: $sourceLinkMissing,
                         raceScoreEligible: true,
                         fetchedAt: new DateTimeImmutable('2026-07-24 12:00:00 Asia/Tokyo'),
+                        sourceFetchedAt: new DateTimeImmutable('2026-07-24 12:00:00 Asia/Tokyo'),
                     );
                 },
                 $scores,

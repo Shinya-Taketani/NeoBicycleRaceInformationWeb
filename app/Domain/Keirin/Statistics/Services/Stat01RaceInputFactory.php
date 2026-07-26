@@ -36,6 +36,7 @@ final class Stat01RaceInputFactory
                 sourceLinkMissing: $snapshot->sourceLinkMissing,
                 raceScoreEligible: $snapshot->raceScoreEligible,
                 fetchedAt: $snapshot->observedAt,
+                sourceFetchedAt: $snapshot->sourceFetchedAt,
             ), $snapshots),
         );
     }

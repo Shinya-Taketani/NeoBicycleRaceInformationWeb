@@ -64,7 +64,7 @@ STATコード、計算バージョン、対象期間・レース、実行パラ�
 
 `input_snapshot_type`はcontentではなくsourceと入力基準時刻から計算する分類なので、`race_entry_snapshots`へ保存せず、snapshot hashにも含めない。分類はDTO、STAT-01入力、`stat_feature_snapshots`へ保存する。
 
-時刻は用途ごとに分離する。`scoreObservedAt = race_score_fetched_at`は競走得点の`first_observed_at`、`last_observed_at`、入力時点判定、source取得時点監査に使う。`stateObservedAt = fetched_at`は出走行の属性変更を観測した時刻として、occurrenceの開始と変更前current occurrenceの終了に使う。`stateObservedAt`はsnapshot hashへ含めないため、同一内容のJSJ017再取得では内容行・occurrenceを増やさず、期間も変更しない。
+時刻は用途ごとに分離する。`scoreObservedAt = race_score_fetched_at`は競走得点の`first_observed_at`、`last_observed_at`、入力種別と得点利用可否の判定に使う。`sourceFetchedAt = race_entry_snapshot_sources.source_fetched_at`は固定済みFetch Log証跡であり、特徴量sourceの取得日時、source timing status、feature snapshotの最大取得日時に使う。`stateObservedAt = fetched_at`は出走行の属性変更を観測した時刻として、occurrenceの開始と変更前current occurrenceの終了に使う。`stateObservedAt`はsnapshot hashへ含めないため、同一内容のJSJ017再取得では内容行・occurrenceを増やさず、期間も変更しない。
 
 状態変更時刻がcurrent snapshotの得点観測時刻や既存の終了済みoccurrenceより古い場合、日時を補正せず整合性例外にする。current occurrenceと監査期間はtransaction rollbackで維持する。
 
@@ -105,10 +105,14 @@ source状態はrace card値のsnapshot hashへ混在させず、決定的な`sou
 - contributed fields、eligible fields
 - Fetch Log IDから導出したsource link missing
 - source stateへ固定保存したRaw SHA-256、parser version、URL、Raw path、UTC正規化した取得日時
+- UTC正規化したcontext検証日時
+- 再帰的にcanonicalizeしたcontext evidence
 
-field配列は文字列だけに絞り、重複を除去して辞書順にソートする。`raceScoreEligible`、`input_snapshot_type`、`input_as_of`、`source_reference_at`、`context_verified_at`のような計算時または可変の値と、snapshot hash由来で循環する`source_identity_key`は含めない。`sourceLinkMissing`は最終templateのFetch Log IDがNULLかどうかだけから導出する。source stateの一意キーは`snapshot + source role + source fingerprint`、identity keyは`race-entry-source:{snapshot_id}:{fingerprint}`である。
+field配列は文字列だけに絞り、重複を除去して辞書順にソートする。context evidenceは連想配列とobjectのキーを再帰的に辞書順へ正規化し、listの順序とscalarの型は保持する。`context_verified_at`はUTCマイクロ秒表現へ正規化し、検証日時を特定できないレガシーsourceでは`NULL`のままとして現在時刻を補完しない。`raceScoreEligible`、`input_snapshot_type`、`input_as_of`、`source_reference_at`のような計算時コンテキストと、snapshot hash由来で循環する`source_identity_key`は含めない。`sourceLinkMissing`と`context_evidence.source_link_status`は最終templateのFetch Log IDだけから導出する。source stateの一意キーは`snapshot + source role + source fingerprint`、identity keyは`race-entry-source:{snapshot_id}:{fingerprint}`である。
 
-source stateはappend-onlyであり、page type、context、eligibility、Fetch Log、固定証跡、fingerprint、identity keyを更新しない。sourceが変化した場合は`RaceEntrySnapshotSourceFactory`が共通fingerprint実装を使って一致stateを再利用するか、新stateを追加する。過去stateを削除・上書きしない。現在選択中のsourceだけは`race_entry_snapshot_source_heads`に分離し、同じfingerprintへ戻った場合もsource state本体を複製せずheadだけを切り替える。Fetch Log行が後から更新されても、source state、DTO、STAT入力、feature sourceは複製済み固定証跡を使用するため変化しない。
+source stateはappend-onlyであり、page type、context、eligibility、Fetch Log、固定証跡、fingerprint、identity keyを更新しない。sourceが変化した場合は`RaceEntrySnapshotSourceFactory`が共通fingerprint実装を使って一致stateを再利用するか、新stateを追加する。過去stateを削除・上書きしない。現在選択中のsourceだけは`race_entry_snapshot_source_heads`に分離し、同じfingerprintへ戻った場合もsource state本体を複製せずheadだけを切り替える。
+
+Factoryの低水準`findOrCreate`はprivateとし、公開経路は永続化済みFetch LogをDBから再読込する`appendWithFetchLog`、固定証跡をすべてNULLへ強制する`createUnlinked`、既存sourceの固定証跡だけを別content snapshotへ複製する`copyToSnapshot`へ限定する。未保存Fetch Logと、SHA-256、parser version、取得日時などの固定証跡overrideは拒否する。これによりFetch Log行が後から更新された場合やdirtyなmodelが渡された場合も、既存source stateは変化せず、新sourceにはDBへ永続化された証跡だけが保存される。
 
 ### stat_feature_snapshots
 
@@ -135,7 +139,7 @@ source stateはappend-onlyであり、page type、context、eligibility、Fetch 
 
 特徴量snapshotから入力元を追跡する。対象選手自身は`PRIMARY_INPUT`、レース内比較に使った他選手は`CONTEXT_INPUT`とする。各行から`race_entry_snapshot_id`と`race_entry_snapshot_source_id`、必要なら`scraping_fetch_log_id`、固定済みURL、Raw path、SHA-256、parser versionまで追跡できる。PostgreSQL CHECKによりsnapshot/source IDは両方NULLまたは両方非NULLで、`RACE_ENTRY_SNAPSHOT`では両方必須である。
 
-レガシー移行でFetch Logがない場合は`source_timing_status = SOURCE_LINK_MISSING`とし、Raw情報を捏造しない。
+レガシー移行でFetch Logがない場合は`source_timing_status = SOURCE_LINK_MISSING`とし、Raw情報を捏造しない。Fetch Logが紐付く場合の時系列判定はcontent側の`race_score_fetched_at`ではなく、source stateへ固定保存した`source_fetched_at`を`input_as_of`と比較する。`stat_feature_snapshots.source_max_fetched_at`も、各入力sourceの固定`source_fetched_at`の最大値である。
 
 `source_reference_at`はsource evidenceではなく計算時コンテキストであるため、`race_entry_snapshot_sources`には置かない。各feature snapshotが使用した`input_as_of`を`stat_feature_sources.source_reference_at`へ保存し、同じsource stateを異なる基準時刻で再利用しても過去の参照時刻を上書きしない。`raceScoreEligible`もsource state属性ではなく、入力種別、page type、eligible fields、backfill scope、context verificationから計算時に導出する。
 

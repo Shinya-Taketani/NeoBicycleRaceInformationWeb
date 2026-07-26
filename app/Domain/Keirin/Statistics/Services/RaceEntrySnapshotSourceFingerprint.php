@@ -34,6 +34,8 @@ final class RaceEntrySnapshotSourceFingerprint
             'source_url' => $source['source_url'],
             'raw_file_path' => $source['raw_file_path'],
             'raw_sha256' => $source['raw_sha256'],
+            'context_verified_at' => $this->canonicalTimestamp($source['context_verified_at']),
+            'context_evidence' => $this->canonicalValue($source['context_evidence']),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
@@ -60,5 +62,22 @@ final class RaceEntrySnapshotSourceFingerprint
         return $value instanceof DateTimeImmutable
             ? $value->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u\Z')
             : null;
+    }
+
+    private function canonicalValue(mixed $value): mixed
+    {
+        if (is_object($value)) {
+            $value = get_object_vars($value);
+        }
+        if (! is_array($value)) {
+            return $value;
+        }
+        if (array_is_list($value)) {
+            return array_map(fn (mixed $item): mixed => $this->canonicalValue($item), $value);
+        }
+
+        ksort($value, SORT_STRING);
+
+        return array_map(fn (mixed $item): mixed => $this->canonicalValue($item), $value);
     }
 }

@@ -144,7 +144,7 @@ final class Stat01Calculator
                 missingScoreCount: $missingCount,
                 invalidScoreCount: $invalidCount,
                 entrantCount: $entrantCount,
-                sourceFetchedAt: $entry->fetchedAt,
+                sourceFetchedAt: $entry->sourceFetchedAt,
                 features: $features,
             );
         }

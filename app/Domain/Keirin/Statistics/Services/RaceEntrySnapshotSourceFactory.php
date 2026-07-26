@@ -50,7 +50,45 @@ final class RaceEntrySnapshotSourceFactory
     /**
      * @param  array<string,mixed>  $template
      */
-    public function findOrCreate(
+    public function createUnlinked(
+        RaceEntrySnapshot $snapshot,
+        Race $race,
+        RaceEntry $entry,
+        array $template,
+    ): RaceEntrySnapshotSource {
+        foreach (self::FETCH_EVIDENCE_FIELDS as $field) {
+            $template[$field] = null;
+        }
+        $template['scraping_fetch_log_id'] = null;
+
+        return $this->findOrCreate($snapshot, $race, $entry, $template);
+    }
+
+    public function copyToSnapshot(
+        RaceEntrySnapshot $snapshot,
+        Race $race,
+        RaceEntry $entry,
+        RaceEntrySnapshotSource $source,
+    ): RaceEntrySnapshotSource {
+        if ((int) $source->race_id !== (int) $race->id
+            || (int) $source->race_entry_id !== (int) $entry->id) {
+            throw new InvalidArgumentException(
+                'A source state may only be copied within its audited race entry.',
+            );
+        }
+
+        return $this->findOrCreate(
+            $snapshot,
+            $race,
+            $entry,
+            $this->templateFromSource($source),
+        );
+    }
+
+    /**
+     * @param  array<string,mixed>  $template
+     */
+    private function findOrCreate(
         RaceEntrySnapshot $snapshot,
         Race $race,
         RaceEntry $entry,
@@ -109,6 +147,7 @@ final class RaceEntrySnapshotSourceFactory
         array $overrides = [],
     ): RaceEntrySnapshotSource {
         $this->assertAllowedOverrides($overrides, self::CLASSIFICATION_OVERRIDE_FIELDS);
+        $fetchLog = $this->persistedFetchLog($fetchLog);
 
         return $this->createFromExisting(
             $base,
@@ -226,7 +265,37 @@ final class RaceEntrySnapshotSourceFactory
             throw new InvalidArgumentException('Source state Fetch Log ID was invalid.');
         }
 
+        $contextEvidence = $template['context_evidence'];
+        if (is_object($contextEvidence)) {
+            $contextEvidence = get_object_vars($contextEvidence);
+        }
+        if ($contextEvidence === null) {
+            $contextEvidence = [];
+        }
+        if (! is_array($contextEvidence)
+            || ($contextEvidence !== [] && array_is_list($contextEvidence))) {
+            throw new InvalidArgumentException('Source state context evidence must be an object.');
+        }
+        $contextEvidence['source_link_status'] = $template['scraping_fetch_log_id'] === null
+            ? 'SOURCE_LINK_MISSING'
+            : 'SOURCE_LINKED';
+        $template['context_evidence'] = $contextEvidence;
+
         return $template;
+    }
+
+    private function persistedFetchLog(ScrapingFetchLog $fetchLog): ScrapingFetchLog
+    {
+        $key = $fetchLog->getKey();
+        if (! $fetchLog->exists || $key === null || (int) $key < 1) {
+            throw new InvalidArgumentException('Source state Fetch Log must be persisted.');
+        }
+        $persisted = ScrapingFetchLog::query()->find($key);
+        if (! $persisted instanceof ScrapingFetchLog) {
+            throw new InvalidArgumentException('Source state Fetch Log no longer existed.');
+        }
+
+        return $persisted;
     }
 
     /**

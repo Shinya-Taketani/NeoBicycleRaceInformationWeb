@@ -102,11 +102,10 @@ final class RaceEntrySnapshotService
             ->when($persist, fn ($query) => $query->lockForUpdate())
             ->first();
         $currentSnapshot = $currentOccurrence?->snapshot;
-        $sourceTemplate = $this->sourceTemplate(
-            $race,
-            $entry,
-            $currentSnapshot,
-        );
+        $currentSource = $this->currentSource($currentSnapshot, $entry);
+        $sourceTemplate = $currentSource instanceof RaceEntrySnapshotSource
+            ? $this->sourceTemplateFromModel($currentSource)
+            : $this->legacySourceTemplate($race, $entry);
         $scoreObservedAt = $entry->race_score_fetched_at;
         $scoreObservedAt = $scoreObservedAt instanceof DateTimeImmutable ? $scoreObservedAt : null;
         $stateObservedAt = $entry->fetched_at;
@@ -197,12 +196,9 @@ final class RaceEntrySnapshotService
             ])->save();
         }
 
-        $snapshotSource = $this->sourceFactory->findOrCreate(
-            $snapshot,
-            $race,
-            $entry,
-            $sourceTemplate,
-        );
+        $snapshotSource = $currentSource instanceof RaceEntrySnapshotSource
+            ? $this->sourceFactory->copyToSnapshot($snapshot, $race, $entry, $currentSource)
+            : $this->sourceFactory->createUnlinked($snapshot, $race, $entry, $sourceTemplate);
         $sourceIdentityKey = $snapshotSource->source_identity_key;
 
         $occurrence = $contentChanged
@@ -262,25 +258,26 @@ final class RaceEntrySnapshotService
         return StatInputSnapshotType::UnknownSourceTiming;
     }
 
+    private function currentSource(
+        ?RaceEntrySnapshot $current,
+        RaceEntry $entry,
+    ): ?RaceEntrySnapshotSource {
+        if ($current instanceof RaceEntrySnapshot
+            && $current->external_player_id === $entry->external_player_id) {
+            return $current->sourceHead()
+                ->with('sourceState')
+                ->first()
+                ?->sourceState;
+        }
+
+        return null;
+    }
+
     /**
      * @return array<string,mixed>
      */
-    private function sourceTemplate(
-        Race $race,
-        RaceEntry $entry,
-        ?RaceEntrySnapshot $current,
-    ): array {
-        if ($current instanceof RaceEntrySnapshot
-            && $current->external_player_id === $entry->external_player_id) {
-            $currentSource = $current->sourceHead()
-                ->with('sourceState.fetchLog')
-                ->first()
-                ?->sourceState;
-            if ($currentSource instanceof RaceEntrySnapshotSource) {
-                return $this->sourceTemplateFromModel($currentSource);
-            }
-        }
-
+    private function legacySourceTemplate(Race $race, RaceEntry $entry): array
+    {
         return [
             'source_role' => 'LEGACY_RACE_CARD',
             'scraping_fetch_log_id' => null,
@@ -291,7 +288,7 @@ final class RaceEntrySnapshotService
             'context_verification_status' => 'VERIFIED_LEGACY_RECONCILED',
             'historical_backfill_scope' => 'STATIC_RACE_CARD_FIELDS_ONLY',
             'eligible_fields' => ['race_score'],
-            'context_verified_at' => new DateTimeImmutable('now'),
+            'context_verified_at' => null,
             'source_fetched_at' => null,
             'parser_version' => null,
             'source_url' => null,

@@ -245,17 +245,17 @@ class StatisticFeatureRepository
 
     private function sourceTimingStatus(RaceEntrySnapshotDto $source, Stat01RaceInputDto $input): string
     {
-        if ($source->observedAt === null) {
-            return 'UNKNOWN_SOURCE_TIMING';
-        }
         if ($source->sourceLinkMissing) {
             return 'SOURCE_LINK_MISSING';
+        }
+        if ($source->sourceFetchedAt === null) {
+            return 'UNKNOWN_SOURCE_TIMING';
         }
         if ($input->inputAsOf === null) {
             return 'INPUT_AS_OF_UNAVAILABLE';
         }
 
-        return $source->observedAt <= $input->inputAsOf
+        return $source->sourceFetchedAt <= $input->inputAsOf
             ? 'AT_OR_BEFORE_INPUT_AS_OF'
             : 'HISTORICAL_AFTER_INPUT_AS_OF';
     }
@@ -264,8 +264,9 @@ class StatisticFeatureRepository
     {
         $maximum = null;
         foreach ($input->entries as $entry) {
-            if ($entry->fetchedAt !== null && ($maximum === null || $entry->fetchedAt > $maximum)) {
-                $maximum = $entry->fetchedAt;
+            if ($entry->sourceFetchedAt !== null
+                && ($maximum === null || $entry->sourceFetchedAt > $maximum)) {
+                $maximum = $entry->sourceFetchedAt;
             }
         }
 

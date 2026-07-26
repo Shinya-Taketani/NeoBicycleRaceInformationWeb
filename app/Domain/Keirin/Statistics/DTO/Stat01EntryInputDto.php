@@ -23,5 +23,6 @@ final readonly class Stat01EntryInputDto
         public bool $sourceLinkMissing,
         public bool $raceScoreEligible,
         public ?DateTimeImmutable $fetchedAt,
+        public ?DateTimeImmutable $sourceFetchedAt,
     ) {}
 }
