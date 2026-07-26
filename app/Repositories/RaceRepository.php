@@ -332,14 +332,26 @@ class RaceRepository
                             'bike_number' => $entryDto->bikeNumber,
                         ]);
                     }
-                    $entry->forceFill([
+                    $playerIdentityChanged = $entry->exists
+                        && $entry->external_player_id !== $entryDto->externalPlayerId;
+                    $attributes = [
                         'player_id' => $player?->id,
                         'external_player_id' => $entryDto->externalPlayerId,
                         'player_name' => $entryDto->playerName,
                         'prefecture' => $entryDto->prefecture,
                         'riding_style' => $entryDto->ridingStyle,
                         'fetched_at' => $fetchedAt,
-                    ]);
+                    ];
+                    if ($playerIdentityChanged) {
+                        $attributes = [
+                            ...$attributes,
+                            'frame_number' => null,
+                            'grade' => null,
+                            'race_score' => null,
+                            'race_score_fetched_at' => null,
+                        ];
+                    }
+                    $entry->forceFill($attributes);
                     if ($entry->trashed()) {
                         $entry->restore();
                     } else {

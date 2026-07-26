@@ -14,6 +14,7 @@ final readonly class RaceEntrySnapshotDto
         public int $raceEntryId,
         public int $raceId,
         public ?int $playerId,
+        public ?string $externalPlayerId,
         public int $bikeNumber,
         public ?int $frameNumber,
         public ?string $grade,

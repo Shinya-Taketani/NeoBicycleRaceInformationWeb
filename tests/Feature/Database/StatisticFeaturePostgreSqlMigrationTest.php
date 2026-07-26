@@ -63,6 +63,42 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         }
     }
 
+    public function test_snapshot_external_player_id_matches_race_entry_identity_column(): void
+    {
+        $columns = collect(DB::select(
+            <<<'SQL'
+                SELECT table_name, column_name, data_type, character_maximum_length, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name IN ('race_entries', 'race_entry_snapshots')
+                  AND column_name = 'external_player_id'
+                SQL,
+        ))->keyBy('table_name');
+
+        $entryColumn = $columns->get('race_entries');
+        $snapshotColumn = $columns->get('race_entry_snapshots');
+        $this->assertNotNull($entryColumn);
+        $this->assertNotNull($snapshotColumn);
+        $this->assertSame($entryColumn->data_type, $snapshotColumn->data_type);
+        $this->assertSame($entryColumn->character_maximum_length, $snapshotColumn->character_maximum_length);
+        $this->assertSame('YES', $snapshotColumn->is_nullable);
+    }
+
+    public function test_audit_lifecycle_migration_can_rollback_and_reapply_without_rows(): void
+    {
+        $migration = require database_path('migrations/2026_07_26_000005_add_race_entry_audit_lifecycle_fields.php');
+
+        $migration->down();
+        $this->assertFalse(DB::getSchemaBuilder()->hasColumn('race_entry_snapshots', 'external_player_id'));
+        $this->assertFalse(DB::getSchemaBuilder()->hasColumn('race_entries', 'race_score_fetched_at'));
+        $this->assertFalse(DB::getSchemaBuilder()->hasColumn('race_entries', 'deleted_at'));
+
+        $migration->up();
+        $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entry_snapshots', 'external_player_id'));
+        $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entries', 'race_score_fetched_at'));
+        $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entries', 'deleted_at'));
+    }
+
     public function test_postgresql_indexes_are_unique_valid_partial_and_nulls_not_distinct_where_required(): void
     {
         $expected = [

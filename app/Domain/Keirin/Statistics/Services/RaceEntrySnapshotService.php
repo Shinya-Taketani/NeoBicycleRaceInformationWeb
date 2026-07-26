@@ -105,6 +105,7 @@ final class RaceEntrySnapshotService
             'race_entry_id' => (int) $entry->id,
             'race_id' => (int) $race->id,
             'player_id' => $entry->player_id === null ? null : (int) $entry->player_id,
+            'external_player_id' => $entry->external_player_id,
             'bike_number' => (int) $entry->bike_number,
             'frame_number' => $entry->frame_number === null ? null : (int) $entry->frame_number,
             'grade' => $entry->grade,
@@ -147,6 +148,7 @@ final class RaceEntrySnapshotService
                 'race_entry_id' => $entry->id,
                 'race_id' => $race->id,
                 'player_id' => $entry->player_id,
+                'external_player_id' => $entry->external_player_id,
                 'bike_number' => $entry->bike_number,
                 'frame_number' => $entry->frame_number,
                 'grade' => $entry->grade,
@@ -244,7 +246,8 @@ final class RaceEntrySnapshotService
         RaceEntry $entry,
         ?RaceEntrySnapshot $current,
     ): array {
-        if ($current instanceof RaceEntrySnapshot) {
+        if ($current instanceof RaceEntrySnapshot
+            && $current->external_player_id === $entry->external_player_id) {
             $source = $current->sources()
                 ->orderBy('id')
                 ->get()
@@ -272,6 +275,7 @@ final class RaceEntrySnapshotService
             'context_evidence' => [
                 'race_id' => (int) $race->id,
                 'race_entry_id' => (int) $entry->id,
+                'external_player_id' => $entry->external_player_id,
                 'source_link_status' => 'SOURCE_LINK_MISSING',
             ],
         ];
@@ -342,6 +346,7 @@ final class RaceEntrySnapshotService
             raceEntryId: (int) $entry->id,
             raceId: (int) $race->id,
             playerId: $entry->player_id === null ? null : (int) $entry->player_id,
+            externalPlayerId: $entry->external_player_id,
             bikeNumber: (int) $entry->bike_number,
             frameNumber: $entry->frame_number === null ? null : (int) $entry->frame_number,
             grade: $entry->grade,

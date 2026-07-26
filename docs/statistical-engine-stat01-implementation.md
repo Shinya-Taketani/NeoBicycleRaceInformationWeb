@@ -36,6 +36,8 @@ STATコード、計算バージョン、対象期間・レース、実行パラ�
 
 既存行の`fetched_at`は後続JSJ017で更新された可能性があるため、Migrationで`race_score_fetched_at`へコピーしない。専用日時がNULLの既存得点は`UNKNOWN_SOURCE_TIMING`となり、STAT-01で`VALID`にしない。
 
+`race_entries.id`は同一レース・同一車番の出走スロットとして再利用する。選手同一性は`player_id`だけでなく`external_player_id`でも判定し、JSJ017で外部選手IDが変わった場合は、旧選手のPJ0315由来の`frame_number`、`grade`、`race_score`、`race_score_fetched_at`をクリアする。同じ外部選手IDがソフトデリート後に再出現した場合は、同じIDとPJ0315情報を維持して復元する。
+
 `race_entries`はsoft deleteする。JSJ017から消えた車番は`deleted_at`を設定し、統計監査FKが参照する行を物理削除しない。同じ`race_id + bike_number`が再出現した場合はtrashed行をロックして更新・restoreし、同じ`race_entries.id`を再利用する。通常のレース入力、結果完全性検証、STAT-01対象にはactive行だけを使う。
 
 ### race_entry_snapshots
@@ -52,6 +54,8 @@ STATコード、計算バージョン、対象期間・レース、実行パラ�
 `0.00`はraw textを保持し、数値列は`NULL`とする。ドメイン上の固定上限は設けず、DB保存範囲だけを検査する。外れ値判定は今回未実装のため`NOT_CHECKED`である。
 
 同一`race_entry_id + snapshot_hash`は再利用する。内容変更時は新snapshotを作り、以前の`is_current`をfalseにして`effective_to`を設定する。再観測時は履歴を増やさず、`last_observed_at`だけを最新の`race_score_fetched_at`へ進める。専用日時不明時の`first_observed_at`と`last_observed_at`はNULLであり、汎用`fetched_at`で補完しない。
+
+snapshotは作成時点の`external_player_id`を保持し、`snapshot_hash`の構成要素にも含める。これにより、`player_id`が未解決のまま同じ車番・同じ得点を持つ別選手へ交代しても、異なる入力として監査できる。既存snapshotへ現在の`race_entries.external_player_id`をバックフィルしない。
 
 `race_entry_snapshots_current_unique`は`is_current = true`の行だけを対象とする部分UNIQUE INDEXであり、1つの`race_entry_id`にcurrentが最大1件であることをDBでも保証する。`is_current = false`の履歴行は複数保持できる。
 
@@ -70,6 +74,8 @@ STATコード、計算バージョン、対象期間・レース、実行パラ�
 `snapshot_type`は「既存race entryから復元した」というsource originであり、発走前後を表さない。`input_snapshot_type`は後述の`input_as_of`、観測日時、source監査情報から別に決定する。
 
 既存行からFetch Logを一意に決定できないため、`scraping_fetch_log_id`は推測せず`NULL`とする。`context_evidence.source_link_status`へ`SOURCE_LINK_MISSING`を保存する。
+
+current snapshotの`external_player_id`と現在の出走行が一致する場合だけ入力sourceを再利用する。異なる選手へ変更された場合は、旧選手のFetch Log、parser version、Raw path、SHA-256を新選手へ継承せず、新しい汎用sourceの`context_evidence`へ`race_id`、`race_entry_id`、`external_player_id`を記録する。
 
 ### stat_feature_snapshots
 
@@ -247,4 +253,4 @@ PRマージ前の開発環境を新定義へ合わせる際は、環境とバッ
 - 実INSERT: current重複、NULL as-of論理キー重複、value type不整合、window片側NULL、NaN、正負Infinity、不正scope/status/source roleの拒否
 - 実INSERT: 非current履歴複数と、異なるinput hashの許可
 
-PostgreSQL 18.4で`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`を含むMigrationは成功し、専用テストは4 tests / 144 assertionsで成功した。`race_entries.race_score_fetched_at`、`race_entries.deleted_at`、snapshotの`first_observed_at`、`last_observed_at`がnullable `timestamp with time zone`であることもcatalogで検証する。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。
+PostgreSQL 18で`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`を含むMigrationは成功し、専用テストは6 tests / 155 assertionsで成功した。`race_entries.race_score_fetched_at`、`race_entries.deleted_at`、snapshotの`first_observed_at`、`last_observed_at`がnullable `timestamp with time zone`であること、`race_entry_snapshots.external_player_id`が`race_entries.external_player_id`と同じ型・長さでnullableであること、データがない安全な条件でMigrationをrollback・再適用できることもcatalogと実DDLで検証する。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。

@@ -14,6 +14,7 @@ class RaceEntrySnapshot extends Model
         'race_entry_id',
         'race_id',
         'player_id',
+        'external_player_id',
         'bike_number',
         'frame_number',
         'grade',

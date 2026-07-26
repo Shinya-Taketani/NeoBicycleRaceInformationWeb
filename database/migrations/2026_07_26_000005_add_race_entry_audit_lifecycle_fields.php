@@ -18,6 +18,10 @@ return new class extends Migration
             $table->softDeletesTz();
         });
 
+        Schema::table('race_entry_snapshots', function (Blueprint $table): void {
+            $table->string('external_player_id', 32)->nullable();
+        });
+
         if (DB::getDriverName() === 'pgsql') {
             Schema::table('race_entry_snapshots', function (Blueprint $table): void {
                 $table->timestampTz('first_observed_at')->nullable()->change();
@@ -44,6 +48,10 @@ return new class extends Migration
                 $table->timestampTz('last_observed_at')->nullable(false)->change();
             });
         }
+
+        Schema::table('race_entry_snapshots', function (Blueprint $table): void {
+            $table->dropColumn('external_player_id');
+        });
 
         Schema::table('race_entries', function (Blueprint $table): void {
             $table->dropColumn(['race_score_fetched_at', 'deleted_at']);
