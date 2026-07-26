@@ -185,9 +185,13 @@ class StatisticFeatureRepository
             if ($source->id === null) {
                 throw new RuntimeException('Persisted STAT-01 features require persisted race-entry snapshots.');
             }
+            if ($source->sourceStateId === null) {
+                throw new RuntimeException('Persisted STAT-01 features require persisted source states.');
+            }
             StatFeatureSource::query()->create([
                 'stat_feature_snapshot_id' => $featureSnapshot->id,
                 'race_entry_snapshot_id' => $source->id,
+                'race_entry_snapshot_source_id' => $source->sourceStateId,
                 'scraping_fetch_log_id' => $source->scrapingFetchLogId,
                 'source_role' => $source->raceEntryId === $result->raceEntryId ? 'PRIMARY_INPUT' : 'CONTEXT_INPUT',
                 'source_identity_key' => $source->sourceIdentityKey,
@@ -216,9 +220,9 @@ class StatisticFeatureRepository
         DateTimeImmutable $createdAt,
     ): void {
         foreach ($entrySnapshots as $source) {
-            if ($source->occurrenceId === null) {
+            if ($source->occurrenceId === null || $source->id === null || $source->sourceStateId === null) {
                 throw new RuntimeException(
-                    'Persisted STAT-01 runs require persisted race-entry snapshot occurrences.',
+                    'Persisted STAT-01 runs require persisted occurrences and source states.',
                 );
             }
 
@@ -226,8 +230,11 @@ class StatisticFeatureRepository
                 'calculation_run_id' => $run->id,
                 'stat_feature_snapshot_id' => $featureSnapshot->id,
                 'race_entry_snapshot_occurrence_id' => $source->occurrenceId,
+                'race_entry_snapshot_source_id' => $source->sourceStateId,
+                'race_entry_snapshot_id' => $source->id,
                 'race_id' => $race->id,
-                'race_entry_id' => $source->raceEntryId,
+                'feature_race_entry_id' => $result->raceEntryId,
+                'source_race_entry_id' => $source->raceEntryId,
                 'source_role' => $source->raceEntryId === $result->raceEntryId
                     ? 'PRIMARY_INPUT'
                     : 'CONTEXT_INPUT',

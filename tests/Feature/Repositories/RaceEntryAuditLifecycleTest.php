@@ -72,7 +72,6 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $snapshotIdentity = [
             'id' => (int) $snapshot->id,
             'hash' => $snapshot->snapshot_hash,
-            'type' => $snapshot->input_snapshot_type,
         ];
         $featureInputHash = StatFeatureSnapshot::query()
             ->where('race_entry_id', $entry->id)
@@ -98,7 +97,6 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertSame($snapshotIdentity, [
             'id' => (int) $current->id,
             'hash' => $current->snapshot_hash,
-            'type' => $current->input_snapshot_type,
         ]);
         $this->assertSame((int) $occurrence->id, (int) $currentOccurrence->id);
         $this->assertNull($currentOccurrence->effective_to);
@@ -589,8 +587,17 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->buildStat01($race->refresh(), 1);
 
         $this->assertNotSame($eligibleInput->sourceFingerprint, $ineligibleInput->sourceFingerprint);
+        $this->assertNotSame($eligibleInput->sourceStateId, $ineligibleInput->sourceStateId);
         $this->assertSame($eligibleInput->id, $ineligibleInput->id);
         $this->assertSame($eligibleInput->occurrenceId, $ineligibleInput->occurrenceId);
+        $this->assertSame(
+            1,
+            RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->count(),
+        );
+        $this->assertSame(
+            2,
+            RaceEntrySnapshotSource::query()->where('race_entry_id', $entry->id)->count(),
+        );
         $this->assertSame(
             1,
             RaceEntrySnapshotOccurrence::query()
@@ -601,6 +608,10 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertSame(
             $eligibleInput->occurrenceId,
             $this->primaryOccurrenceId($latestRun, (int) $entry->id),
+        );
+        $this->assertSame(
+            $ineligibleInput->sourceStateId,
+            $this->primarySourceStateId($latestRun, (int) $entry->id),
         );
         $newFeature = StatFeatureSnapshot::query()
             ->where('race_entry_id', $entry->id)
@@ -728,6 +739,12 @@ class RaceEntryAuditLifecycleTest extends TestCase
             ->where('race_entry_id', $entry->id)
             ->where('race_entry_snapshot_id', $snapshotB->id)
             ->sole();
+        $sourceA1 = $this->primarySourceStateId($runA1, (int) $entry->id);
+        $sourceB = $this->primarySourceStateId($runB, (int) $entry->id);
+        $occurrenceB->sourceState->forceFill([
+            'source_page_type' => 'PLAYER_PROFILE',
+            'historical_backfill_scope' => 'NOT_ELIGIBLE',
+        ])->save();
 
         $this->races->updateRaceDetail(
             $race,
@@ -741,6 +758,7 @@ class RaceEntryAuditLifecycleTest extends TestCase
             ->where('race_entry_snapshot_id', $snapshotA->id)
             ->where('is_current', true)
             ->sole();
+        $sourceA2 = $this->primarySourceStateId($runA2, (int) $entry->id);
 
         $this->assertSame('2026-07-26 10:00:00', $occurrenceA1->effective_from->format('Y-m-d H:i:s'));
         $this->assertSame(
@@ -771,12 +789,21 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertSame((int) $occurrenceA1->id, $this->primaryOccurrenceId($runA1, (int) $entry->id));
         $this->assertSame((int) $occurrenceB->id, $this->primaryOccurrenceId($runB, (int) $entry->id));
         $this->assertSame((int) $occurrenceA2->id, $this->primaryOccurrenceId($runA2, (int) $entry->id));
+        $this->assertNotSame($sourceA1, $sourceB);
+        $this->assertNotSame($sourceA1, $sourceA2);
+        $this->assertNotSame($sourceB, $sourceA2);
+        $this->assertSame($sourceA2, (int) $occurrenceA2->race_entry_snapshot_source_id);
+        $this->assertSame(
+            3,
+            RaceEntrySnapshotSource::query()->where('race_entry_id', $entry->id)->count(),
+        );
         $this->assertNotSame(
             $this->primaryOccurrenceId($runA1, (int) $entry->id),
             $this->primaryOccurrenceId($runA2, (int) $entry->id),
         );
         $runA1Feature = $this->featureSnapshotIdForRun($runA1, (int) $entry->id);
-        $this->assertSame($runA1Feature, $this->featureSnapshotIdForRun($runA2, (int) $entry->id));
+        $runA2Feature = $this->featureSnapshotIdForRun($runA2, (int) $entry->id);
+        $this->assertNotSame($runA1Feature, $runA2Feature);
         $featureValueCount = DB::table('stat_feature_values')->count();
         $occurrenceCount = RaceEntrySnapshotOccurrence::query()->count();
         $effectiveFrom = $occurrenceA2->effective_from;
@@ -790,7 +817,8 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->assertNull($occurrenceA2->effective_to);
         $this->assertSame($featureValueCount, DB::table('stat_feature_values')->count());
         $this->assertSame((int) $occurrenceA2->id, $this->primaryOccurrenceId($rerun, (int) $entry->id));
-        $this->assertSame($runA1Feature, $this->featureSnapshotIdForRun($rerun, (int) $entry->id));
+        $this->assertSame($sourceA2, $this->primarySourceStateId($rerun, (int) $entry->id));
+        $this->assertSame($runA2Feature, $this->featureSnapshotIdForRun($rerun, (int) $entry->id));
     }
 
     public function test_state_observation_older_than_snapshot_history_is_rejected_without_rewriting_audit(): void
@@ -845,9 +873,16 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->buildStat01($race, 1);
 
         $snapshot = RaceEntrySnapshot::query()->where('race_id', $race->id)->oldest('id')->firstOrFail();
-        $this->assertSame('UNKNOWN_SOURCE_TIMING', $snapshot->input_snapshot_type);
         $this->assertNull($snapshot->first_observed_at);
         $this->assertNull($snapshot->last_observed_at);
+        $this->assertSame(
+            ['UNKNOWN_SOURCE_TIMING'],
+            StatFeatureSnapshot::query()
+                ->where('race_id', $race->id)
+                ->distinct()
+                ->pluck('input_snapshot_type')
+                ->all(),
+        );
         $this->assertSame(
             ['LEAKAGE_RISK'],
             StatFeatureSnapshot::query()->where('race_id', $race->id)->distinct()->pluck('status')->all(),
@@ -1064,10 +1099,20 @@ class RaceEntryAuditLifecycleTest extends TestCase
     {
         return (int) DB::table('statistic_run_feature_snapshot_occurrences')
             ->where('calculation_run_id', $runId)
-            ->where('race_entry_id', $raceEntryId)
+            ->where('source_race_entry_id', $raceEntryId)
             ->where('source_role', 'PRIMARY_INPUT')
             ->sole()
             ->race_entry_snapshot_occurrence_id;
+    }
+
+    private function primarySourceStateId(int $runId, int $raceEntryId): int
+    {
+        return (int) DB::table('statistic_run_feature_snapshot_occurrences')
+            ->where('calculation_run_id', $runId)
+            ->where('source_race_entry_id', $raceEntryId)
+            ->where('source_role', 'PRIMARY_INPUT')
+            ->sole()
+            ->race_entry_snapshot_source_id;
     }
 
     private function featureSnapshotIdForRun(int $runId, int $raceEntryId): int

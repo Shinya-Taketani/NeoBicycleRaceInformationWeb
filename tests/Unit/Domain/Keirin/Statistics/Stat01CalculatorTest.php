@@ -130,6 +130,7 @@ class Stat01CalculatorTest extends TestCase
         $entries[0] = new Stat01EntryInputDto(
             raceEntryId: $first->raceEntryId,
             raceEntrySnapshotId: $first->raceEntrySnapshotId,
+            sourceStateId: $first->sourceStateId,
             playerId: $first->playerId,
             bikeNumber: $first->bikeNumber,
             raceScore: $first->raceScore,
@@ -208,6 +209,7 @@ class Stat01CalculatorTest extends TestCase
                     return new Stat01EntryInputDto(
                         raceEntryId: 1001 + $index,
                         raceEntrySnapshotId: 3001 + $index,
+                        sourceStateId: 4001 + $index,
                         playerId: 2001 + $index,
                         bikeNumber: 1 + $index,
                         raceScore: $status === RaceScoreValidationStatus::Valid ? $score : null,

@@ -497,7 +497,6 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'race_score_validation_status' => 'VALID',
             'race_score_anomaly_status' => 'NOT_CHECKED',
             'snapshot_type' => 'LEGACY_BACKFILL',
-            'input_snapshot_type' => 'HISTORICAL_RACE_CARD_BACKFILL',
             'snapshot_hash' => str_repeat($hashCharacter, 64),
             'first_observed_at' => $now,
             'last_observed_at' => $now,

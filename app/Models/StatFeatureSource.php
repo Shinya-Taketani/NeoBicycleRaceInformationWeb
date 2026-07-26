@@ -13,6 +13,7 @@ class StatFeatureSource extends Model
     protected $fillable = [
         'stat_feature_snapshot_id',
         'race_entry_snapshot_id',
+        'race_entry_snapshot_source_id',
         'scraping_fetch_log_id',
         'source_role',
         'source_identity_key',

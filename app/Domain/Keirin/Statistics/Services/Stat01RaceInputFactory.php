@@ -25,6 +25,7 @@ final class Stat01RaceInputFactory
             entries: array_map(static fn (RaceEntrySnapshotDto $snapshot): Stat01EntryInputDto => new Stat01EntryInputDto(
                 raceEntryId: $snapshot->raceEntryId,
                 raceEntrySnapshotId: $snapshot->id,
+                sourceStateId: $snapshot->sourceStateId,
                 playerId: $snapshot->playerId,
                 bikeNumber: $snapshot->bikeNumber,
                 raceScore: $snapshot->raceScore,

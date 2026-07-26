@@ -61,6 +61,7 @@ class RaceEntrySnapshotServiceTest extends TestCase
         $this->assertNotSame($first->id, $changed->id);
         $this->assertNotSame($first->occurrenceId, $changed->occurrenceId);
         $this->assertDatabaseCount('race_entry_snapshots', 2);
+        $this->assertDatabaseCount('race_entry_snapshot_sources', 2);
         $this->assertDatabaseCount('race_entry_snapshot_occurrences', 2);
         $old = RaceEntrySnapshotOccurrence::query()->findOrFail($first->occurrenceId);
         $this->assertFalse($old->is_current);
@@ -258,7 +259,9 @@ class RaceEntrySnapshotServiceTest extends TestCase
         $this->assertSame('PLAYER_PROFILE', $snapshot->sourcePageType);
         $this->assertFalse($snapshot->raceScoreEligible);
         $this->assertSame(StatFeatureStatus::LeakageRisk, $result->status);
-        $this->assertDatabaseCount('race_entry_snapshots', 2);
+        $this->assertDatabaseCount('race_entry_snapshots', 1);
+        $this->assertDatabaseCount('race_entry_snapshot_occurrences', 1);
+        $this->assertDatabaseCount('race_entry_snapshot_sources', 2);
         $this->assertSame(
             1,
             RaceEntrySnapshotOccurrence::query()->where('is_current', true)->count(),

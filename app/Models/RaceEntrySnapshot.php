@@ -24,7 +24,6 @@ class RaceEntrySnapshot extends Model
         'race_score_validation_status',
         'race_score_anomaly_status',
         'snapshot_type',
-        'input_snapshot_type',
         'snapshot_hash',
         'first_observed_at',
         'last_observed_at',

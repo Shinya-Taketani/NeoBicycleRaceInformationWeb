@@ -11,8 +11,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class RaceEntrySnapshotOccurrence extends Model
 {
     protected $fillable = [
+        'race_id',
         'race_entry_id',
         'race_entry_snapshot_id',
+        'race_entry_snapshot_source_id',
         'effective_from',
         'effective_to',
         'is_current',
@@ -34,9 +36,22 @@ class RaceEntrySnapshotOccurrence extends Model
         return $this->belongsTo(RaceEntry::class)->withTrashed();
     }
 
+    public function race(): BelongsTo
+    {
+        return $this->belongsTo(Race::class);
+    }
+
     public function snapshot(): BelongsTo
     {
         return $this->belongsTo(RaceEntrySnapshot::class, 'race_entry_snapshot_id');
+    }
+
+    public function sourceState(): BelongsTo
+    {
+        return $this->belongsTo(
+            RaceEntrySnapshotSource::class,
+            'race_entry_snapshot_source_id',
+        );
     }
 
     public function runFeatureSnapshotOccurrences(): HasMany

@@ -13,9 +13,12 @@ class RaceEntrySnapshotSource extends Model
 
     protected $fillable = [
         'race_entry_snapshot_id',
+        'race_id',
+        'race_entry_id',
         'scraping_fetch_log_id',
         'source_role',
         'source_identity_key',
+        'source_fingerprint',
         'contributed_fields',
         'source_page_type',
         'source_race_context_key',
@@ -43,6 +46,16 @@ class RaceEntrySnapshotSource extends Model
     public function snapshot(): BelongsTo
     {
         return $this->belongsTo(RaceEntrySnapshot::class, 'race_entry_snapshot_id');
+    }
+
+    public function race(): BelongsTo
+    {
+        return $this->belongsTo(Race::class);
+    }
+
+    public function raceEntry(): BelongsTo
+    {
+        return $this->belongsTo(RaceEntry::class)->withTrashed();
     }
 
     public function fetchLog(): BelongsTo

@@ -15,8 +15,11 @@ class StatisticRunFeatureSnapshotOccurrence extends Model
         'calculation_run_id',
         'stat_feature_snapshot_id',
         'race_entry_snapshot_occurrence_id',
+        'race_entry_snapshot_source_id',
+        'race_entry_snapshot_id',
         'race_id',
-        'race_entry_id',
+        'feature_race_entry_id',
+        'source_race_entry_id',
         'source_role',
     ];
 
@@ -45,13 +48,26 @@ class StatisticRunFeatureSnapshotOccurrence extends Model
         );
     }
 
+    public function sourceState(): BelongsTo
+    {
+        return $this->belongsTo(
+            RaceEntrySnapshotSource::class,
+            'race_entry_snapshot_source_id',
+        );
+    }
+
     public function race(): BelongsTo
     {
         return $this->belongsTo(Race::class);
     }
 
-    public function raceEntry(): BelongsTo
+    public function featureRaceEntry(): BelongsTo
     {
-        return $this->belongsTo(RaceEntry::class)->withTrashed();
+        return $this->belongsTo(RaceEntry::class, 'feature_race_entry_id')->withTrashed();
+    }
+
+    public function sourceRaceEntry(): BelongsTo
+    {
+        return $this->belongsTo(RaceEntry::class, 'source_race_entry_id')->withTrashed();
     }
 }
