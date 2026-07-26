@@ -7,6 +7,7 @@ namespace Tests\Feature\Database;
 use Closure;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 use Tests\TestCase;
 
 class StatisticFeaturePostgreSqlMigrationTest extends TestCase
@@ -88,15 +89,80 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
     {
         $migration = require database_path('migrations/2026_07_26_000005_add_race_entry_audit_lifecycle_fields.php');
 
+        $this->assertObservationColumnsNullable(true);
         $migration->down();
+        $this->assertObservationColumnsNullable(false);
         $this->assertFalse(DB::getSchemaBuilder()->hasColumn('race_entry_snapshots', 'external_player_id'));
         $this->assertFalse(DB::getSchemaBuilder()->hasColumn('race_entries', 'race_score_fetched_at'));
         $this->assertFalse(DB::getSchemaBuilder()->hasColumn('race_entries', 'deleted_at'));
 
         $migration->up();
+        $this->assertObservationColumnsNullable(true);
         $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entry_snapshots', 'external_player_id'));
         $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entries', 'race_score_fetched_at'));
         $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entries', 'deleted_at'));
+    }
+
+    public function test_audit_lifecycle_rollback_rejects_score_observation_data_before_ddl(): void
+    {
+        [, $raceEntryId] = $this->raceEntry();
+        DB::table('race_entries')->where('id', $raceEntryId)->update([
+            'race_score_fetched_at' => now(),
+        ]);
+
+        $this->assertAuditLifecycleRollbackRejected('race_score_fetched_at=1');
+
+        $this->assertNotNull(
+            DB::table('race_entries')->where('id', $raceEntryId)->value('race_score_fetched_at'),
+        );
+    }
+
+    public function test_audit_lifecycle_rollback_rejects_soft_deleted_entries_before_ddl(): void
+    {
+        [, $raceEntryId] = $this->raceEntry();
+        DB::table('race_entries')->where('id', $raceEntryId)->update([
+            'deleted_at' => now(),
+        ]);
+
+        $this->assertAuditLifecycleRollbackRejected('deleted_at=1');
+
+        $this->assertNotNull(
+            DB::table('race_entries')->where('id', $raceEntryId)->value('deleted_at'),
+        );
+    }
+
+    public function test_audit_lifecycle_rollback_rejects_snapshot_player_identity_before_ddl(): void
+    {
+        [$raceId, $raceEntryId] = $this->raceEntry();
+        $snapshotId = $this->insertRaceEntrySnapshot($raceId, $raceEntryId, 'a', true);
+        DB::table('race_entry_snapshots')->where('id', $snapshotId)->update([
+            'external_player_id' => 'audit-player-identity',
+        ]);
+
+        $this->assertAuditLifecycleRollbackRejected('snapshot_external_player_id=1');
+
+        $this->assertSame(
+            'audit-player-identity',
+            DB::table('race_entry_snapshots')->where('id', $snapshotId)->value('external_player_id'),
+        );
+    }
+
+    public function test_audit_lifecycle_rollback_rejects_null_observation_times_before_ddl(): void
+    {
+        [$raceId, $raceEntryId] = $this->raceEntry();
+        $snapshotId = $this->insertRaceEntrySnapshot($raceId, $raceEntryId, 'a', true);
+        DB::table('race_entry_snapshots')->where('id', $snapshotId)->update([
+            'first_observed_at' => null,
+            'last_observed_at' => null,
+        ]);
+
+        $this->assertAuditLifecycleRollbackRejected(
+            'first_observed_at_null=1, last_observed_at_null=1',
+        );
+
+        $snapshot = DB::table('race_entry_snapshots')->find($snapshotId);
+        $this->assertNull($snapshot->first_observed_at);
+        $this->assertNull($snapshot->last_observed_at);
     }
 
     public function test_postgresql_indexes_are_unique_valid_partial_and_nulls_not_distinct_where_required(): void
@@ -479,5 +545,35 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         DB::statement("ROLLBACK TO SAVEPOINT {$savepoint}");
         DB::statement("RELEASE SAVEPOINT {$savepoint}");
         $this->fail('PostgreSQL accepted a row that should violate a database constraint.');
+    }
+
+    private function assertAuditLifecycleRollbackRejected(string $expectedDetails): void
+    {
+        $migration = require database_path('migrations/2026_07_26_000005_add_race_entry_audit_lifecycle_fields.php');
+
+        try {
+            $migration->down();
+            $this->fail('The audit lifecycle rollback should have rejected protected data.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString($expectedDetails, $exception->getMessage());
+        }
+
+        $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entry_snapshots', 'external_player_id'));
+        $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entries', 'race_score_fetched_at'));
+        $this->assertTrue(DB::getSchemaBuilder()->hasColumn('race_entries', 'deleted_at'));
+        $this->assertObservationColumnsNullable(true);
+    }
+
+    private function assertObservationColumnsNullable(bool $expected): void
+    {
+        $columns = DB::table('information_schema.columns')
+            ->whereRaw('table_schema = current_schema()')
+            ->where('table_name', 'race_entry_snapshots')
+            ->whereIn('column_name', ['first_observed_at', 'last_observed_at'])
+            ->pluck('is_nullable', 'column_name');
+
+        $this->assertCount(2, $columns);
+        $this->assertSame($expected ? 'YES' : 'NO', $columns->get('first_observed_at'));
+        $this->assertSame($expected ? 'YES' : 'NO', $columns->get('last_observed_at'));
     }
 }

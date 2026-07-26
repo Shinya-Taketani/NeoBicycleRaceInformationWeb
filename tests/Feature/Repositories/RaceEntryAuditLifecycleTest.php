@@ -13,6 +13,10 @@ use App\Domain\Keirin\Scraping\DTO\RaceListEntryDto;
 use App\Domain\Keirin\Scraping\DTO\RaceListRaceDto;
 use App\Domain\Keirin\Scraping\DTO\RaceParameterDto;
 use App\Domain\Keirin\Scraping\Enums\RaceCategory;
+use App\Domain\Keirin\Statistics\DTO\RaceEntrySnapshotDto;
+use App\Domain\Keirin\Statistics\Services\RaceEntrySnapshotService;
+use App\Domain\Keirin\Statistics\Services\StatInputAsOfResolver;
+use App\Models\Player;
 use App\Models\Race;
 use App\Models\RaceDay;
 use App\Models\RaceEntry;
@@ -65,6 +69,9 @@ class RaceEntryAuditLifecycleTest extends TestCase
             'hash' => $snapshot->snapshot_hash,
             'type' => $snapshot->input_snapshot_type,
         ];
+        $featureInputHash = StatFeatureSnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->value('input_hash');
         $scoreFetchedAt = $entry->race_score_fetched_at;
 
         $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:30:00+09:00');
@@ -84,6 +91,11 @@ class RaceEntryAuditLifecycleTest extends TestCase
             'hash' => $current->snapshot_hash,
             'type' => $current->input_snapshot_type,
         ]);
+        $this->assertNull($current->effective_to);
+        $this->assertSame(
+            $featureInputHash,
+            StatFeatureSnapshot::query()->where('race_entry_id', $entry->id)->value('input_hash'),
+        );
         $this->assertDatabaseCount('race_entry_snapshots', 5);
         $this->assertDatabaseCount('stat_feature_snapshots', 5);
         $this->assertDatabaseCount('stat_feature_values', 55);
@@ -266,6 +278,7 @@ class RaceEntryAuditLifecycleTest extends TestCase
 
         $oldSnapshot->refresh();
         $this->assertFalse($oldSnapshot->is_current);
+        $this->assertSame('2026-07-26 10:30:00', $oldSnapshot->effective_to->format('Y-m-d H:i:s'));
         $this->assertSame('000005', $oldSnapshot->external_player_id);
         $newSnapshot = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entryId)
@@ -273,6 +286,8 @@ class RaceEntryAuditLifecycleTest extends TestCase
             ->sole();
         $this->assertSame('900005', $newSnapshot->external_player_id);
         $this->assertSame('MISSING', $newSnapshot->race_score_validation_status);
+        $this->assertNull($newSnapshot->first_observed_at);
+        $this->assertNull($newSnapshot->last_observed_at);
         $newFeature = StatFeatureSnapshot::query()
             ->where('race_entry_id', $entryId)
             ->latest('id')
@@ -477,6 +492,204 @@ class RaceEntryAuditLifecycleTest extends TestCase
         ]);
     }
 
+    public function test_fetch_log_set_null_changes_source_fingerprint_and_creates_current_feature_audit(): void
+    {
+        Player::query()->create([
+            'source' => 'keirin_jp',
+            'external_player_id' => '000005',
+            'name' => '監査選手5',
+        ]);
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:00:00+09:00');
+        $race = Race::query()->sole();
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($this->scores(5)),
+            new DateTimeImmutable('2026-07-26 10:05:00+09:00'),
+        );
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 5)->sole();
+        $this->snapshotForEntry($race, (int) $entry->id);
+        $source = RaceEntrySnapshotSource::query()
+            ->whereHas('snapshot', fn ($query) => $query->where('race_entry_id', $entry->id))
+            ->sole();
+        $fetchLog = $this->fetchLog('linked-source');
+        $source->forceFill(['scraping_fetch_log_id' => $fetchLog->id])->save();
+
+        $linkedInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
+        $this->buildStat01($race->refresh(), 0);
+        $linkedFeature = StatFeatureSnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->sole();
+        $this->assertSame('VALID', $linkedFeature->status);
+        $this->assertSame('VALID', $linkedFeature->data_quality_status);
+
+        $fetchLog->delete();
+        $missingInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
+        $this->buildStat01($race->refresh(), 0);
+
+        $this->assertNotSame($linkedInput->sourceFingerprint, $missingInput->sourceFingerprint);
+        $missingFeature = StatFeatureSnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertNotSame($linkedFeature->input_hash, $missingFeature->input_hash);
+        $this->assertSame('DEGRADED', $missingFeature->status);
+        $this->assertSame('DEGRADED', $missingFeature->data_quality_status);
+        $this->assertSame(2, StatFeatureSnapshot::query()->where('race_entry_id', $entry->id)->count());
+        $this->assertDatabaseHas('stat_feature_snapshots', ['id' => $linkedFeature->id]);
+        $this->assertDatabaseHas('stat_feature_sources', [
+            'stat_feature_snapshot_id' => $missingFeature->id,
+            'source_role' => 'PRIMARY_INPUT',
+            'scraping_fetch_log_id' => null,
+            'source_timing_status' => 'SOURCE_LINK_MISSING',
+        ]);
+    }
+
+    public function test_ineligible_source_changes_fingerprint_and_preserves_old_feature_audit(): void
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:00:00+09:00');
+        $race = Race::query()->sole();
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($this->scores(5)),
+            new DateTimeImmutable('2026-07-26 10:05:00+09:00'),
+        );
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 5)->sole();
+        $eligibleInput = $this->snapshotForEntry($race, (int) $entry->id);
+        $this->buildStat01($race->refresh(), 0);
+        $oldFeature = StatFeatureSnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->sole();
+        RaceEntrySnapshotSource::query()
+            ->where('race_entry_snapshot_id', $eligibleInput->id)
+            ->sole()
+            ->forceFill(['eligible_fields' => []])
+            ->save();
+
+        $ineligibleInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
+        $this->buildStat01($race->refresh(), 1);
+
+        $this->assertNotSame($eligibleInput->sourceFingerprint, $ineligibleInput->sourceFingerprint);
+        $newFeature = StatFeatureSnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertNotSame($oldFeature->input_hash, $newFeature->input_hash);
+        $this->assertSame('LEAKAGE_RISK', $newFeature->status);
+        $this->assertSame('LEAKAGE_RISK', $newFeature->data_quality_status);
+        $this->assertDatabaseHas('stat_feature_snapshots', ['id' => $oldFeature->id]);
+    }
+
+    public function test_source_field_array_order_does_not_change_fingerprint_or_feature_input_hash(): void
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:00:00+09:00');
+        $race = Race::query()->sole();
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($this->scores(5)),
+            new DateTimeImmutable('2026-07-26 10:05:00+09:00'),
+        );
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 5)->sole();
+        $this->snapshotForEntry($race, (int) $entry->id);
+        $source = RaceEntrySnapshotSource::query()
+            ->whereHas('snapshot', fn ($query) => $query->where('race_entry_id', $entry->id))
+            ->sole();
+        $source->forceFill([
+            'contributed_fields' => ['grade', 'race_score', 'frame_number'],
+            'eligible_fields' => ['grade', 'race_score'],
+        ])->save();
+        $firstInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
+        $this->buildStat01($race->refresh(), 0);
+        $featureInputHash = StatFeatureSnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->value('input_hash');
+
+        $source->forceFill([
+            'contributed_fields' => ['race_score', 'frame_number', 'grade', 'race_score'],
+            'eligible_fields' => ['race_score', 'grade', 'race_score'],
+        ])->save();
+        $reorderedInput = $this->snapshotForEntry($race->refresh(), (int) $entry->id);
+        $this->buildStat01($race->refresh(), 0);
+
+        $this->assertSame($firstInput->sourceFingerprint, $reorderedInput->sourceFingerprint);
+        $this->assertSame(
+            $featureInputHash,
+            StatFeatureSnapshot::query()->where('race_entry_id', $entry->id)->sole()->input_hash,
+        );
+        $this->assertDatabaseCount('stat_feature_snapshots', 5);
+    }
+
+    public function test_grade_only_detail_change_uses_state_fetch_time_for_effective_end(): void
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:00:00+09:00');
+        $race = Race::query()->sole();
+        $scores = $this->scores(5);
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($scores),
+            new DateTimeImmutable('2026-07-26 10:05:00+09:00'),
+        );
+        $this->buildStat01($race, 0);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        $oldSnapshot = RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->sole();
+
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($scores, grades: [1 => 'S2']),
+            new DateTimeImmutable('2026-07-26 10:40:00+09:00'),
+        );
+        $this->buildStat01($race->refresh(), 0);
+
+        $oldSnapshot->refresh();
+        $this->assertSame('2026-07-26 10:40:00', $oldSnapshot->effective_to->format('Y-m-d H:i:s'));
+        $newSnapshot = RaceEntrySnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->where('is_current', true)
+            ->sole();
+        $this->assertSame('S2', $newSnapshot->grade);
+        $this->assertSame('2026-07-26 10:05:00', $newSnapshot->first_observed_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-07-26 10:05:00', $newSnapshot->last_observed_at->format('Y-m-d H:i:s'));
+        $this->assertSame(
+            '2026-07-26 10:05:00',
+            RaceEntry::query()->findOrFail($entry->id)->race_score_fetched_at->format('Y-m-d H:i:s'),
+        );
+    }
+
+    public function test_state_observation_older_than_snapshot_history_is_rejected_without_rewriting_audit(): void
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 10:00:00+09:00');
+        $race = Race::query()->sole();
+        $scores = $this->scores(5);
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($scores),
+            new DateTimeImmutable('2026-07-26 10:05:00+09:00'),
+        );
+        $this->buildStat01($race, 0);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        $snapshot = RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->sole();
+
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($scores, grades: [1 => 'S2']),
+            new DateTimeImmutable('2026-07-26 10:00:00+09:00'),
+        );
+        $this->buildStat01($race->refresh(), 1);
+
+        $snapshot->refresh();
+        $this->assertTrue($snapshot->is_current);
+        $this->assertNull($snapshot->effective_to);
+        $this->assertSame(1, RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->count());
+        $this->assertStringContainsString(
+            'preceded audited snapshot history',
+            (string) DB::table('statistic_calculation_runs')->latest('id')->value('error_summary'),
+        );
+    }
+
     public function test_legacy_score_without_dedicated_time_never_uses_general_fetch_time_as_live_input(): void
     {
         [$day, $metadata] = $this->context();
@@ -602,18 +815,22 @@ class RaceEntryAuditLifecycleTest extends TestCase
      * @param  array<int,string>  $scores
      * @param  array<int,string>  $externalPlayerIds
      */
-    private function detail(array $scores, array $externalPlayerIds = []): RaceDetailPageDto
-    {
+    private function detail(
+        array $scores,
+        array $externalPlayerIds = [],
+        array $frameNumbers = [],
+        array $grades = [],
+    ): RaceDetailPageDto {
         $entries = [];
         foreach ($scores as $bikeNumber => $score) {
             $entries[] = new RaceDetailEntryDto(
                 bikeNumber: $bikeNumber,
-                frameNumber: $bikeNumber,
+                frameNumber: $frameNumbers[$bikeNumber] ?? $bikeNumber,
                 externalPlayerId: $externalPlayerIds[$bikeNumber] ?? sprintf('%06d', $bikeNumber),
                 playerName: "監査選手{$bikeNumber}",
                 prefecture: '東京',
                 previousGrade: null,
-                grade: 'S1',
+                grade: $grades[$bikeNumber] ?? 'S1',
                 ridingStyle: '両',
                 graduationPeriod: null,
                 age: 30,
@@ -663,5 +880,41 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->artisan('keirin:statistics:build-stat01', [
             '--race-id' => (string) $race->id,
         ])->assertExitCode($exitCode);
+    }
+
+    private function snapshotForEntry(Race $race, int $raceEntryId): RaceEntrySnapshotDto
+    {
+        $race = $race->unsetRelation('entries')->load('entries');
+        $snapshots = $this->app->make(RaceEntrySnapshotService::class)->snapshotsForRace(
+            $race,
+            $this->app->make(StatInputAsOfResolver::class)->resolve($race),
+            true,
+        );
+
+        foreach ($snapshots as $snapshot) {
+            if ($snapshot->raceEntryId === $raceEntryId) {
+                return $snapshot;
+            }
+        }
+
+        throw new \RuntimeException("Race entry snapshot {$raceEntryId} was missing.");
+    }
+
+    private function fetchLog(string $requestKey): ScrapingFetchLog
+    {
+        return ScrapingFetchLog::query()->create([
+            'source' => 'keirin_jp',
+            'request_method' => 'POST',
+            'request_url' => "https://example.invalid/{$requestKey}",
+            'request_key' => $requestKey,
+            'http_status' => 200,
+            'fetched_at' => '2026-07-26 10:05:00+09:00',
+            'utf8_conversion_succeeded' => true,
+            'response_size' => 123,
+            'sha256' => str_repeat('b', 64),
+            'raw_file_path' => "scraping/raw/{$requestKey}.html",
+            'retry_count' => 0,
+            'parser_version' => 'source-fingerprint-test',
+        ]);
     }
 }

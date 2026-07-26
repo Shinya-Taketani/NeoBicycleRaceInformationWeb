@@ -169,6 +169,7 @@ final class Stat01Calculator
                 static fn (Stat01EntryInputDto $entry): array => [
                     'race_entry_id' => $entry->raceEntryId,
                     'snapshot_hash' => $entry->snapshotHash,
+                    'source_fingerprint' => $entry->sourceFingerprint,
                 ],
                 $entries,
             ),

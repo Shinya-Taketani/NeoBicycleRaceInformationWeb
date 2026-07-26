@@ -14,9 +14,11 @@ use App\Models\RaceEntry;
 use App\Models\RaceEntrySnapshot;
 use App\Models\RaceEntrySnapshotSource;
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use JsonException;
+use RuntimeException;
 
 final class RaceEntrySnapshotService
 {
@@ -95,10 +97,12 @@ final class RaceEntrySnapshotService
             ->when($persist, fn ($query) => $query->lockForUpdate())
             ->first();
         $sourceTemplate = $this->sourceTemplate($race, $entry, $current);
-        $observedAt = $entry->race_score_fetched_at;
-        $observedAt = $observedAt instanceof DateTimeImmutable ? $observedAt : null;
+        $scoreObservedAt = $entry->race_score_fetched_at;
+        $scoreObservedAt = $scoreObservedAt instanceof DateTimeImmutable ? $scoreObservedAt : null;
+        $stateObservedAt = $entry->fetched_at;
+        $stateObservedAt = $stateObservedAt instanceof DateTimeImmutable ? $stateObservedAt : null;
 
-        $inputSnapshotType = $this->inputSnapshotType($sourceTemplate, $observedAt, $inputAsOf);
+        $inputSnapshotType = $this->inputSnapshotType($sourceTemplate, $scoreObservedAt, $inputAsOf);
         $rawScore = $entry->race_score;
         $score = $this->normalizeRaceScore($rawScore);
         $hash = hash('sha256', json_encode([
@@ -125,16 +129,17 @@ final class RaceEntrySnapshotService
                 $score,
                 $inputSnapshotType,
                 $hash,
-                $observedAt,
+                $scoreObservedAt,
                 $sourceIdentityKey,
                 $sourceTemplate,
             );
         }
 
         if ($current instanceof RaceEntrySnapshot && $current->snapshot_hash !== $hash) {
+            $this->assertStateObservationIsMonotonic($entry, $current, $stateObservedAt);
             $current->forceFill([
                 'is_current' => false,
-                'effective_to' => $observedAt,
+                'effective_to' => $stateObservedAt,
             ])->save();
         }
 
@@ -159,8 +164,8 @@ final class RaceEntrySnapshotService
                 'snapshot_type' => self::SNAPSHOT_TYPE,
                 'input_snapshot_type' => $inputSnapshotType->value,
                 'snapshot_hash' => $hash,
-                'first_observed_at' => $observedAt,
-                'last_observed_at' => $observedAt,
+                'first_observed_at' => $scoreObservedAt,
+                'last_observed_at' => $scoreObservedAt,
                 'effective_from' => null,
                 'effective_to' => null,
                 'is_current' => true,
@@ -170,9 +175,9 @@ final class RaceEntrySnapshotService
         } else {
             $lastObservedAt = $snapshot->last_observed_at;
             $snapshot->forceFill([
-                'last_observed_at' => $observedAt instanceof DateTimeImmutable
-                    && (! $lastObservedAt instanceof DateTimeImmutable || $observedAt > $lastObservedAt)
-                    ? $observedAt
+                'last_observed_at' => $scoreObservedAt instanceof DateTimeImmutable
+                    && (! $lastObservedAt instanceof DateTimeImmutable || $scoreObservedAt > $lastObservedAt)
+                    ? $scoreObservedAt
                     : $lastObservedAt,
                 'effective_to' => null,
                 'is_current' => true,
@@ -207,10 +212,9 @@ final class RaceEntrySnapshotService
             $score,
             $inputSnapshotType,
             $hash,
-            $observedAt,
+            $scoreObservedAt,
             $sourceIdentityKey,
             $this->sourceTemplateFromModel($snapshotSource),
-            $snapshotSource,
         );
     }
 
@@ -272,6 +276,11 @@ final class RaceEntrySnapshotService
             'historical_backfill_scope' => 'STATIC_RACE_CARD_FIELDS_ONLY',
             'eligible_fields' => ['race_score'],
             'context_verified_at' => new DateTimeImmutable('now'),
+            'source_fetched_at' => null,
+            'parser_version' => null,
+            'source_url' => null,
+            'raw_file_path' => null,
+            'raw_sha256' => null,
             'context_evidence' => [
                 'race_id' => (int) $race->id,
                 'race_entry_id' => (int) $entry->id,
@@ -286,6 +295,10 @@ final class RaceEntrySnapshotService
      */
     private function sourceTemplateFromModel(RaceEntrySnapshotSource $source): array
     {
+        $fetchLog = $source->scraping_fetch_log_id === null
+            ? null
+            : $source->fetchLog()->first();
+
         return [
             'source_role' => $source->source_role,
             'scraping_fetch_log_id' => $source->scraping_fetch_log_id,
@@ -297,6 +310,11 @@ final class RaceEntrySnapshotService
             'historical_backfill_scope' => $source->historical_backfill_scope,
             'eligible_fields' => $source->eligible_fields ?? [],
             'context_verified_at' => $source->context_verified_at,
+            'source_fetched_at' => $fetchLog?->fetched_at,
+            'parser_version' => $fetchLog?->parser_version,
+            'source_url' => $fetchLog?->request_url,
+            'raw_file_path' => $fetchLog?->raw_file_path,
+            'raw_sha256' => $fetchLog?->sha256,
             'context_evidence' => $source->context_evidence,
         ];
     }
@@ -333,13 +351,17 @@ final class RaceEntrySnapshotService
         ?DateTimeImmutable $observedAt,
         string $sourceIdentityKey,
         array $sourceTemplate,
-        ?RaceEntrySnapshotSource $source = null,
     ): RaceEntrySnapshotDto {
-        $fetchLog = $source?->scraping_fetch_log_id === null ? null : $source->fetchLog()->first();
+        $sourceLinkMissing = $sourceTemplate['scraping_fetch_log_id'] === null;
         $raceScoreEligible = in_array($inputSnapshotType, [
             StatInputSnapshotType::LivePreRaceCard,
             StatInputSnapshotType::HistoricalRaceCardBackfill,
         ], true) && $this->isEligibleRaceCardSource($sourceTemplate);
+        $sourceFingerprint = $this->sourceFingerprint(
+            $sourceTemplate,
+            $sourceLinkMissing,
+            $raceScoreEligible,
+        );
 
         return new RaceEntrySnapshotDto(
             id: $id,
@@ -356,16 +378,105 @@ final class RaceEntrySnapshotService
             snapshotType: self::SNAPSHOT_TYPE,
             inputSnapshotType: $inputSnapshotType->value,
             snapshotHash: $hash,
+            sourceFingerprint: $sourceFingerprint,
             observedAt: $observedAt,
-            parserVersion: $fetchLog?->parser_version,
-            sourceLinkMissing: $sourceTemplate['scraping_fetch_log_id'] === null,
+            parserVersion: $sourceTemplate['parser_version'],
+            sourceLinkMissing: $sourceLinkMissing,
             raceScoreEligible: $raceScoreEligible,
             scrapingFetchLogId: $sourceTemplate['scraping_fetch_log_id'],
             sourceIdentityKey: $sourceIdentityKey,
             sourcePageType: $sourceTemplate['source_page_type'],
-            sourceUrl: $fetchLog?->request_url,
-            rawFilePath: $fetchLog?->raw_file_path,
-            rawSha256: $fetchLog?->sha256,
+            sourceUrl: $sourceTemplate['source_url'],
+            rawFilePath: $sourceTemplate['raw_file_path'],
+            rawSha256: $sourceTemplate['raw_sha256'],
         );
+    }
+
+    /**
+     * @param  array<string,mixed>  $source
+     *
+     * @throws JsonException
+     */
+    private function sourceFingerprint(
+        array $source,
+        bool $sourceLinkMissing,
+        bool $raceScoreEligible,
+    ): string {
+        return hash('sha256', json_encode([
+            'source_role' => $source['source_role'],
+            'scraping_fetch_log_id' => $source['scraping_fetch_log_id'],
+            'source_page_type' => $source['source_page_type'],
+            'source_race_context_key' => $source['source_race_context_key'],
+            'context_match_method' => $source['context_match_method'],
+            'context_verification_status' => $source['context_verification_status'],
+            'historical_backfill_scope' => $source['historical_backfill_scope'],
+            'contributed_fields' => $this->normalizedStringList($source['contributed_fields']),
+            'eligible_fields' => $this->normalizedStringList($source['eligible_fields']),
+            'source_link_missing' => $sourceLinkMissing,
+            'race_score_eligible' => $raceScoreEligible,
+            'raw_sha256' => $source['raw_sha256'],
+            'parser_version' => $source['parser_version'],
+            'source_fetched_at' => $this->canonicalTimestamp($source['source_fetched_at']),
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedStringList(mixed $values): array
+    {
+        if (! is_array($values)) {
+            return [];
+        }
+
+        $normalized = array_values(array_unique(array_filter(
+            $values,
+            static fn (mixed $value): bool => is_string($value),
+        )));
+        sort($normalized, SORT_STRING);
+
+        return $normalized;
+    }
+
+    private function canonicalTimestamp(mixed $value): ?string
+    {
+        return $value instanceof DateTimeImmutable
+            ? $value->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u\Z')
+            : null;
+    }
+
+    private function assertStateObservationIsMonotonic(
+        RaceEntry $entry,
+        RaceEntrySnapshot $current,
+        ?DateTimeImmutable $stateObservedAt,
+    ): void {
+        if (! $stateObservedAt instanceof DateTimeImmutable) {
+            throw new RuntimeException(
+                "Race entry {$entry->id} state observation time was unavailable while closing snapshot {$current->id}.",
+            );
+        }
+
+        $boundaries = array_filter([
+            $current->first_observed_at,
+            $current->last_observed_at,
+            $current->effective_from,
+            RaceEntrySnapshot::query()
+                ->where('race_entry_id', $entry->id)
+                ->where('is_current', false)
+                ->whereNotNull('effective_to')
+                ->orderByDesc('effective_to')
+                ->value('effective_to'),
+        ]);
+        foreach ($boundaries as $boundary) {
+            $boundary = $boundary instanceof DateTimeImmutable
+                ? $boundary
+                : new DateTimeImmutable((string) $boundary);
+            if ($stateObservedAt < $boundary) {
+                throw new RuntimeException(
+                    "Race entry {$entry->id} state observation time {$stateObservedAt->format(DATE_ATOM)} "
+                    ."preceded audited snapshot history {$boundary->format(DATE_ATOM)}.",
+                );
+            }
+        }
     }
 }

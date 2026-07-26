@@ -24,6 +24,7 @@ final readonly class RaceEntrySnapshotDto
         public string $snapshotType,
         public string $inputSnapshotType,
         public string $snapshotHash,
+        public string $sourceFingerprint,
         public ?DateTimeImmutable $observedAt,
         public ?string $parserVersion,
         public bool $sourceLinkMissing,

@@ -17,6 +17,7 @@ final readonly class Stat01EntryInputDto
         public ?float $raceScore,
         public RaceScoreValidationStatus $validationStatus,
         public string $snapshotHash,
+        public string $sourceFingerprint,
         public string $inputSnapshotType,
         public bool $sourceLinkMissing,
         public bool $raceScoreEligible,

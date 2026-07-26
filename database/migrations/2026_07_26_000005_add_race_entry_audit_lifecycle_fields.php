@@ -22,32 +22,35 @@ return new class extends Migration
             $table->string('external_player_id', 32)->nullable();
         });
 
-        if (DB::getDriverName() === 'pgsql') {
-            Schema::table('race_entry_snapshots', function (Blueprint $table): void {
-                $table->timestampTz('first_observed_at')->nullable()->change();
-                $table->timestampTz('last_observed_at')->nullable()->change();
-            });
-        }
+        $this->changeObservationNullability(true);
     }
 
     public function down(): void
     {
-        if (DB::getDriverName() === 'pgsql') {
-            $unknownObservationCount = DB::table('race_entry_snapshots')
-                ->whereNull('first_observed_at')
-                ->orWhereNull('last_observed_at')
-                ->count();
-            if ($unknownObservationCount > 0) {
-                throw new RuntimeException(
-                    "Cannot make race entry snapshot observation times required: {$unknownObservationCount} row(s) have unknown timing.",
-                );
+        $protectedData = [
+            'race_score_fetched_at' => DB::table('race_entries')->whereNotNull('race_score_fetched_at')->count(),
+            'deleted_at' => DB::table('race_entries')->whereNotNull('deleted_at')->count(),
+            'snapshot_external_player_id' => DB::table('race_entry_snapshots')->whereNotNull('external_player_id')->count(),
+            'first_observed_at_null' => DB::table('race_entry_snapshots')->whereNull('first_observed_at')->count(),
+            'last_observed_at_null' => DB::table('race_entry_snapshots')->whereNull('last_observed_at')->count(),
+        ];
+        $blockingData = array_filter(
+            $protectedData,
+            static fn (int $count): bool => $count > 0,
+        );
+        if ($blockingData !== []) {
+            $details = [];
+            foreach ($blockingData as $field => $count) {
+                $details[] = "{$field}={$count}";
             }
 
-            Schema::table('race_entry_snapshots', function (Blueprint $table): void {
-                $table->timestampTz('first_observed_at')->nullable(false)->change();
-                $table->timestampTz('last_observed_at')->nullable(false)->change();
-            });
+            throw new RuntimeException(
+                'Cannot rollback race entry audit lifecycle migration because protected data exists: '
+                .implode(', ', $details).'.',
+            );
         }
+
+        $this->changeObservationNullability(false);
 
         Schema::table('race_entry_snapshots', function (Blueprint $table): void {
             $table->dropColumn('external_player_id');
@@ -56,5 +59,21 @@ return new class extends Migration
         Schema::table('race_entries', function (Blueprint $table): void {
             $table->dropColumn(['race_score_fetched_at', 'deleted_at']);
         });
+    }
+
+    private function changeObservationNullability(bool $nullable): void
+    {
+        Schema::table('race_entry_snapshots', function (Blueprint $table) use ($nullable): void {
+            $table->timestampTz('first_observed_at')->nullable($nullable)->change();
+            $table->timestampTz('last_observed_at')->nullable($nullable)->change();
+        });
+
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('DROP INDEX IF EXISTS race_entry_snapshots_current_unique');
+            DB::statement(
+                'CREATE UNIQUE INDEX race_entry_snapshots_current_unique '
+                .'ON race_entry_snapshots (race_entry_id) WHERE is_current = true',
+            );
+        }
     }
 };

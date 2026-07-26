@@ -30,6 +30,7 @@ final class Stat01RaceInputFactory
                 raceScore: $snapshot->raceScore,
                 validationStatus: $snapshot->validationStatus,
                 snapshotHash: $snapshot->snapshotHash,
+                sourceFingerprint: $snapshot->sourceFingerprint,
                 inputSnapshotType: $snapshot->inputSnapshotType,
                 sourceLinkMissing: $snapshot->sourceLinkMissing,
                 raceScoreEligible: $snapshot->raceScoreEligible,
