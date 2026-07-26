@@ -11,6 +11,7 @@ final readonly class RaceEntrySnapshotDto
 {
     public function __construct(
         public ?int $id,
+        public ?int $occurrenceId,
         public int $raceEntryId,
         public int $raceId,
         public ?int $playerId,

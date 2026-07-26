@@ -11,18 +11,25 @@ STAT-01の入力は、対象レースのPJ0315出走表から`race_entries.race_
 ```text
 statistic_calculation_runs
   --< statistic_run_feature_snapshots >-- stat_feature_snapshots
+  --< statistic_run_feature_snapshot_occurrences
+                    |                         |
+                    |                         `-- race_entry_snapshot_occurrences
+                    |                                      |
+                    `-------------------------- stat_feature_snapshots
                                               |--< stat_feature_values
                                               `--< stat_feature_sources
                                                         |
 race_entries --< race_entry_snapshots --< race_entry_snapshot_sources
-                       |                          |
-                       `--------------------------+-- scraping_fetch_logs
+       |               |                          |
+       |               `--< race_entry_snapshot_occurrences
+       |                                          |
+       `------------------------------------------+-- scraping_fetch_logs
 
 stat_feature_definitions
   (stat_code + feature_code + definition_version)
 ```
 
-計算実行IDは特徴量本体へ保存しない。実行と再利用可能な特徴量snapshotは`statistic_run_feature_snapshots`で関連付ける。
+計算実行IDは特徴量本体へ保存しない。実行と再利用可能な特徴量snapshotは`statistic_run_feature_snapshots`で関連付け、各実行が実際に使用した時間上の入力は`statistic_run_feature_snapshot_occurrences`で関連付ける。
 
 ## 3. テーブル構成
 
@@ -53,17 +60,23 @@ STATコード、計算バージョン、対象期間・レース、実行パラ�
 
 `0.00`はraw textを保持し、数値列は`NULL`とする。ドメイン上の固定上限は設けず、DB保存範囲だけを検査する。外れ値判定は今回未実装のため`NOT_CHECKED`である。
 
-同一`race_entry_id + snapshot_hash`は再利用する。内容変更時は新snapshotを作り、以前の`is_current`をfalseにして`effective_to`を設定する。再観測時は履歴を増やさず、`last_observed_at`だけを最新の`race_score_fetched_at`へ進める。専用日時不明時の`first_observed_at`と`last_observed_at`はNULLであり、汎用`fetched_at`で補完しない。
+同一`race_entry_id + snapshot_hash`は入力内容として再利用する。snapshot本体は期間を表さず、`is_current`、`effective_from`、`effective_to`を持たない。同じ内容の再観測では内容行を増やさず、`last_observed_at`だけを最新の`race_score_fetched_at`へ進める。専用日時不明時の`first_observed_at`と`last_observed_at`はNULLであり、汎用`fetched_at`で補完しない。
 
-時刻は用途ごとに分離する。`scoreObservedAt = race_score_fetched_at`は競走得点の`first_observed_at`、`last_observed_at`、入力時点判定、source取得時点監査に使う。`stateObservedAt = fetched_at`は出走行の属性変更を観測した時刻として、変更前current snapshotの`effective_to`だけに使う。`stateObservedAt`はsnapshot hashへ含めないため、同一内容のJSJ017再取得では履歴を増やさず、`effective_to`も変更しない。
+時刻は用途ごとに分離する。`scoreObservedAt = race_score_fetched_at`は競走得点の`first_observed_at`、`last_observed_at`、入力時点判定、source取得時点監査に使う。`stateObservedAt = fetched_at`は出走行の属性変更を観測した時刻として、occurrenceの開始と変更前current occurrenceの終了に使う。`stateObservedAt`はsnapshot hashへ含めないため、同一内容のJSJ017再取得では内容行・occurrenceを増やさず、期間も変更しない。
 
-状態変更時刻がcurrent snapshotの得点観測時刻や既存の終了済み履歴より古い場合、日時を補正せず整合性例外にする。旧snapshotのcurrent状態と監査期間はtransaction rollbackで維持する。
+状態変更時刻がcurrent snapshotの得点観測時刻や既存の終了済みoccurrenceより古い場合、日時を補正せず整合性例外にする。current occurrenceと監査期間はtransaction rollbackで維持する。
 
 snapshotは作成時点の`external_player_id`を保持し、`snapshot_hash`の構成要素にも含める。これにより、`player_id`が未解決のまま同じ車番・同じ得点を持つ別選手へ交代しても、異なる入力として監査できる。既存snapshotへ現在の`race_entries.external_player_id`をバックフィルしない。
 
-`race_entry_snapshots_current_unique`は`is_current = true`の行だけを対象とする部分UNIQUE INDEXであり、1つの`race_entry_id`にcurrentが最大1件であることをDBでも保証する。`is_current = false`の履歴行は複数保持できる。
+### race_entry_snapshot_occurrences
 
-永続化はtransaction内で行い、`race_entries`の対象行をID順に`lockForUpdate`してからcurrent snapshotもロックする。旧currentの終了、新snapshotの作成または既存hashの再利用、current化を同じtransactionで完了する。並列実行は`race_entry_id`単位で直列化され、サービス外からの競合も部分UNIQUE INDEXが拒否する。期待したhash以外の一意制約違反は正常扱いにせず、そのまま再送出する。
+snapshot内容が有効だった連続期間を表す。`race_entry_id`、内容を指す`race_entry_snapshot_id`、`effective_from`、`effective_to`、`is_current`、`state_observed_at`を保持する。
+
+状態AからBへ変わった後にAへ戻った場合、Aのsnapshot内容行は再利用するが、Aの2回目のoccurrenceは必ず新規作成する。最初のA occurrenceの`effective_to`は消去せず、終了済みoccurrenceを再current化しない。
+
+`race_entry_snapshot_occurrences_current_unique`は`is_current = true`の行だけを対象とする部分UNIQUE INDEXであり、1つの`race_entry_id`にcurrent occurrenceが最大1件であることをDBでも保証する。PostgreSQL CHECK制約により、currentは`effective_to = NULL`、終了済みは`effective_to IS NOT NULL`、`effective_to >= effective_from`、`state_observed_at = effective_from`を保証する。同じsnapshotを参照する終了済みoccurrenceは複数保持できる。
+
+永続化はtransaction内で行い、`race_entries`の対象行をID順に`lockForUpdate`してからcurrent occurrenceもロックする。旧current occurrenceの終了、snapshot内容の作成または既存hashの再利用、新occurrenceの作成を同じtransactionで完了する。並列実行は`race_entry_id`単位で直列化され、サービス外からの競合も部分UNIQUE INDEXが拒否する。
 
 ### race_entry_snapshot_sources
 
@@ -79,7 +92,7 @@ snapshotは作成時点の`external_player_id`を保持し、`snapshot_hash`の�
 
 既存行からFetch Logを一意に決定できないため、`scraping_fetch_log_id`は推測せず`NULL`とする。`context_evidence.source_link_status`へ`SOURCE_LINK_MISSING`を保存する。
 
-current snapshotの`external_player_id`と現在の出走行が一致する場合だけ入力sourceを再利用する。異なる選手へ変更された場合は、旧選手のFetch Log、parser version、Raw path、SHA-256を新選手へ継承せず、新しい汎用sourceの`context_evidence`へ`race_id`、`race_entry_id`、`external_player_id`を記録する。
+current occurrenceが参照するsnapshotの`external_player_id`と現在の出走行が一致する場合だけ入力sourceを再利用する。異なる選手へ変更された場合は、旧選手のFetch Log、parser version、Raw path、SHA-256を新選手へ継承せず、新しい汎用sourceの`context_evidence`へ`race_id`、`race_entry_id`、`external_player_id`を記録する。
 
 source状態はrace card値のsnapshot hashへ混在させず、決定的な`source fingerprint`としてSTAT-01入力ハッシュへ渡す。fingerprintは次を固定キー順のJSONにしてSHA-256化する。
 
@@ -117,6 +130,12 @@ field配列は文字列だけに絞り、重複を除去して辞書順にソー
 特徴量snapshotから入力元を追跡する。対象選手自身は`PRIMARY_INPUT`、レース内比較に使った他選手は`CONTEXT_INPUT`とする。各行から`race_entry_snapshot_id`、必要なら`scraping_fetch_log_id`、URL、Raw path、SHA-256、parser versionまで追跡できる。
 
 レガシー移行でFetch Logがない場合は`source_timing_status = SOURCE_LINK_MISSING`とし、Raw情報を捏造しない。
+
+### statistic_run_feature_snapshot_occurrences
+
+各STAT run、再利用可能なfeature snapshot、実際に入力したrace entry occurrenceを関連付ける。対象entryは`PRIMARY_INPUT`、同一レース内の比較入力は`CONTEXT_INPUT`として全件保存する。
+
+特徴量本体と値が同じためfeature snapshotを再利用する場合でも、このrun別関連は毎回作成する。A→B→Aでrun1とrun3が同じfeature snapshotを共有しても、run1は最初のA occurrence、run3は2回目のA occurrenceを参照し、時間上の入力を区別できる。
 
 ### stat_feature_definitions
 
@@ -208,11 +227,13 @@ input_hash
 
 同じrace card値でも、Fetch Log参照の消失やsource eligibilityの変更によって計算品質が変わる場合は`source fingerprint`と`input_hash`が変わる。既存feature snapshotは監査履歴として残し、新しいstatusとdata qualityを持つfeature snapshotを作成する。
 
+同一current状態での再実行はsnapshot内容行とoccurrenceを増やさず、`effective_from`と`effective_to`も変更しない。一方、過去と同じ内容が時間を空けて再出現した場合はsnapshot内容だけを再利用し、新しいoccurrenceを作る。どちらの場合もrun-occurrence関連は新しいrunごとに保存する。
+
 `--recalculate`は同じ入力を再計算し、保存済みfeature code、型、値、分子・分母、sample、statusと比較する。一致すれば再利用し、不一致なら過去値や`calculated_at`を上書きせず整合性エラーにする。計算式変更時はcalculation versionを上げる。
 
 ## 8. Migrationライフサイクル
 
-`2026_07_25_000004_create_statistic_calculation_tables`は`first_observed_at`と`last_observed_at`をNOT NULLで作成する。`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`だけが、専用得点時刻、soft delete、snapshot選手同一性を追加し、得点観測時刻をnullableへ変更する。したがって000005の安全なrollback後は000004時点のNOT NULL定義へ戻る。
+`2026_07_25_000004_create_statistic_calculation_tables`はsnapshot内容、snapshot occurrence、run-occurrence監査を作成し、`first_observed_at`と`last_observed_at`をNOT NULLで定義する。`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`だけが、専用得点時刻、soft delete、snapshot選手同一性を追加し、得点観測時刻をnullableへ変更する。したがって000005の安全なrollback後は000004時点のNOT NULL定義へ戻る。
 
 000005のrollbackはDDL前に全保護件数を検査する。`race_score_fetched_at`あり、`deleted_at`あり、snapshotの`external_player_id`あり、または`first_observed_at`/`last_observed_at`がNULLの行が1件でもあれば、失われる監査項目と件数を示す`RuntimeException`で拒否する。列削除やNULL制約変更を一部だけ実行した状態にはしない。
 
@@ -270,9 +291,11 @@ PRマージ前の開発環境を新定義へ合わせる際は、環境とバッ
 
 - `pg_indexes`: 6つの部分UNIQUE INDEXの定義
 - `pg_index`: `indisunique`、`indisvalid`、`indpred`、3つのscope indexの`indnullsnotdistinct`
-- `pg_constraint`: 13個の指定CHECK制約の存在と`convalidated`
+- `pg_constraint`: 17個の指定CHECK制約の存在と`convalidated`
 - 外部キー: source table/column、参照先、`CASCADE`、`RESTRICT`、`SET NULL`の削除規則
 - 実INSERT: current重複、NULL as-of論理キー重複、value type不整合、window片側NULL、NaN、正負Infinity、不正scope/status/source roleの拒否
-- 実INSERT: 非current履歴複数と、異なるinput hashの許可
+- 実INSERT: 非current occurrence複数、同じsnapshot内容の複数期間、異なるinput hashの許可
+- occurrence期間: current/終了済み状態、期間逆転、観測時刻と開始時刻の一致
+- run監査: feature snapshotを再利用しても実際に使用したoccurrenceをrun別に保持
 
-PostgreSQL 18で`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`を含むMigrationは成功し、専用テストは10 tests / 197 assertionsで成功した。`race_entries.race_score_fetched_at`、`race_entries.deleted_at`、snapshotの`first_observed_at`、`last_observed_at`がnullable `timestamp with time zone`であること、`race_entry_snapshots.external_player_id`が`race_entries.external_player_id`と同じ型・長さでnullableであることをcatalogで検証する。実DDLでは、000005 rollback後に観測日時がNOT NULLへ戻ること、再適用でnullableへ復元すること、専用得点時刻、soft delete、snapshot選手同一性、NULL観測日時がある場合は全DDL前にrollbackを拒否してデータと列を維持することを確認した。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。
+PostgreSQL 18で`2026_07_26_000005_add_race_entry_audit_lifecycle_fields`を含むMigrationは成功し、専用テストは10 tests / 230 assertionsで成功した。`race_entries.race_score_fetched_at`、`race_entries.deleted_at`、snapshotの`first_observed_at`、`last_observed_at`がnullable `timestamp with time zone`であること、`race_entry_snapshots.external_player_id`が`race_entries.external_player_id`と同じ型・長さでnullableであることをcatalogで検証する。occurrenceのcurrent部分UNIQUE INDEX、期間・状態CHECK、run-occurrence関連のFKも実DBで検証する。実DDLでは、000005 rollback後に観測日時がNOT NULLへ戻ること、再適用でnullableへ復元すること、専用得点時刻、soft delete、snapshot選手同一性、NULL観測日時がある場合は全DDL前にrollbackを拒否してデータと列を維持することを確認した。SQLite通常テストはアプリケーション動作とSQLite互換の部分indexを高速に確認するが、`NULLS NOT DISTINCT`、PostgreSQL CHECK、catalog、NaN・Infinity制約の代替にはしない。

@@ -128,6 +128,14 @@ class StatisticFeatureRepository
                 'race_id' => $race->id,
                 'created_at' => $calculatedAt,
             ]);
+            $this->storeRunOccurrences(
+                $run,
+                $snapshot,
+                $race,
+                $result,
+                $entrySnapshots,
+                $calculatedAt,
+            );
         }
     }
 
@@ -191,6 +199,38 @@ class StatisticFeatureRepository
                 'source_reference_at' => $input->inputAsOf,
                 'parser_version' => $source->parserVersion,
                 'source_timing_status' => $this->sourceTimingStatus($source, $input),
+                'created_at' => $createdAt,
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<RaceEntrySnapshotDto>  $entrySnapshots
+     */
+    private function storeRunOccurrences(
+        StatisticCalculationRun $run,
+        StatFeatureSnapshot $featureSnapshot,
+        Race $race,
+        Stat01EntryResultDto $result,
+        array $entrySnapshots,
+        DateTimeImmutable $createdAt,
+    ): void {
+        foreach ($entrySnapshots as $source) {
+            if ($source->occurrenceId === null) {
+                throw new RuntimeException(
+                    'Persisted STAT-01 runs require persisted race-entry snapshot occurrences.',
+                );
+            }
+
+            DB::table('statistic_run_feature_snapshot_occurrences')->insertOrIgnore([
+                'calculation_run_id' => $run->id,
+                'stat_feature_snapshot_id' => $featureSnapshot->id,
+                'race_entry_snapshot_occurrence_id' => $source->occurrenceId,
+                'race_id' => $race->id,
+                'race_entry_id' => $source->raceEntryId,
+                'source_role' => $source->raceEntryId === $result->raceEntryId
+                    ? 'PRIMARY_INPUT'
+                    : 'CONTEXT_INPUT',
                 'created_at' => $createdAt,
             ]);
         }

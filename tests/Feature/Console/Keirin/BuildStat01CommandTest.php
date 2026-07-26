@@ -56,12 +56,14 @@ class BuildStat01CommandTest extends TestCase
         $run = StatisticCalculationRun::query()->sole();
         $this->assertSame('SUCCEEDED', $run->status);
         $this->assertDatabaseCount('race_entry_snapshots', 5);
+        $this->assertDatabaseCount('race_entry_snapshot_occurrences', 5);
         $this->assertDatabaseCount('race_entry_snapshot_sources', 5);
         $this->assertDatabaseCount('stat_feature_definitions', 11);
         $this->assertDatabaseCount('stat_feature_snapshots', 5);
         $this->assertDatabaseCount('stat_feature_values', 55);
         $this->assertDatabaseCount('stat_feature_sources', 25);
         $this->assertDatabaseCount('statistic_run_feature_snapshots', 5);
+        $this->assertDatabaseCount('statistic_run_feature_snapshot_occurrences', 25);
 
         $snapshot = StatFeatureSnapshot::query()->where('race_id', $race->id)->oldest('id')->firstOrFail();
         $this->assertSame('RACE_ENTRY', $snapshot->scope_type);
@@ -139,11 +141,13 @@ class BuildStat01CommandTest extends TestCase
         foreach ([
             'statistic_calculation_runs',
             'race_entry_snapshots',
+            'race_entry_snapshot_occurrences',
             'race_entry_snapshot_sources',
             'stat_feature_snapshots',
             'stat_feature_values',
             'stat_feature_sources',
             'statistic_run_feature_snapshots',
+            'statistic_run_feature_snapshot_occurrences',
         ] as $table) {
             $this->assertDatabaseCount($table, 0);
         }
@@ -161,9 +165,11 @@ class BuildStat01CommandTest extends TestCase
 
         $this->assertDatabaseCount('statistic_calculation_runs', 3);
         $this->assertDatabaseCount('race_entry_snapshots', 5);
+        $this->assertDatabaseCount('race_entry_snapshot_occurrences', 5);
         $this->assertDatabaseCount('stat_feature_snapshots', 5);
         $this->assertDatabaseCount('stat_feature_values', 55);
         $this->assertDatabaseCount('statistic_run_feature_snapshots', 15);
+        $this->assertDatabaseCount('statistic_run_feature_snapshot_occurrences', 75);
         $this->assertEquals($calculatedAt, StatFeatureSnapshot::query()->oldest('id')->value('calculated_at'));
     }
 

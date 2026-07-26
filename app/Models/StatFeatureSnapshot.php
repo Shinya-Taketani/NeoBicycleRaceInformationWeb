@@ -75,4 +75,12 @@ class StatFeatureSnapshot extends Model
             'calculation_run_id',
         );
     }
+
+    public function runOccurrences(): HasMany
+    {
+        return $this->hasMany(
+            StatisticRunFeatureSnapshotOccurrence::class,
+            'stat_feature_snapshot_id',
+        );
+    }
 }

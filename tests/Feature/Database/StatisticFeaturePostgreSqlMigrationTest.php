@@ -168,7 +168,7 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
     public function test_postgresql_indexes_are_unique_valid_partial_and_nulls_not_distinct_where_required(): void
     {
         $expected = [
-            'race_entry_snapshots_current_unique',
+            'race_entry_snapshot_occurrences_current_unique',
             'stat_feature_snapshot_race_unique',
             'stat_feature_snapshot_entry_unique',
             'stat_feature_snapshot_pair_unique',
@@ -222,7 +222,7 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         }
         $this->assertStringContainsString(
             'is_current',
-            $catalog->get('race_entry_snapshots_current_unique')->predicate,
+            $catalog->get('race_entry_snapshot_occurrences_current_unique')->predicate,
         );
     }
 
@@ -233,6 +233,9 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'race_entry_snapshots_validation_check',
             'race_entry_snapshots_anomaly_check',
             'race_entry_snapshots_bike_check',
+            'race_entry_snapshot_occurrences_period_check',
+            'race_entry_snapshot_occurrences_state_check',
+            'race_entry_snapshot_occurrences_observed_check',
             'stat_feature_snapshots_scope_check',
             'stat_feature_snapshots_status_check',
             'stat_feature_snapshots_quality_check',
@@ -242,6 +245,7 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'stat_feature_values_window_check',
             'stat_feature_values_finite_check',
             'stat_feature_sources_role_check',
+            'stat_run_feature_occurrences_role_check',
         ];
         $checks = collect(DB::select(
             <<<'SQL'
@@ -266,6 +270,8 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'race_entry_snapshots.race_entry_id' => ['race_entries', 'r'],
             'race_entry_snapshots.race_id' => ['races', 'r'],
             'race_entry_snapshots.player_id' => ['players', 'n'],
+            'race_entry_snapshot_occurrences.race_entry_id' => ['race_entries', 'r'],
+            'race_entry_snapshot_occurrences.race_entry_snapshot_id' => ['race_entry_snapshots', 'r'],
             'race_entry_snapshot_sources.race_entry_snapshot_id' => ['race_entry_snapshots', 'c'],
             'race_entry_snapshot_sources.scraping_fetch_log_id' => ['scraping_fetch_logs', 'n'],
             'stat_feature_snapshots.race_id' => ['races', 'r'],
@@ -280,6 +286,11 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'statistic_run_feature_snapshots.calculation_run_id' => ['statistic_calculation_runs', 'c'],
             'statistic_run_feature_snapshots.stat_feature_snapshot_id' => ['stat_feature_snapshots', 'r'],
             'statistic_run_feature_snapshots.race_id' => ['races', 'r'],
+            'statistic_run_feature_snapshot_occurrences.calculation_run_id' => ['statistic_calculation_runs', 'c'],
+            'statistic_run_feature_snapshot_occurrences.stat_feature_snapshot_id' => ['stat_feature_snapshots', 'r'],
+            'statistic_run_feature_snapshot_occurrences.race_entry_snapshot_occurrence_id' => ['race_entry_snapshot_occurrences', 'r'],
+            'statistic_run_feature_snapshot_occurrences.race_id' => ['races', 'r'],
+            'statistic_run_feature_snapshot_occurrences.race_entry_id' => ['race_entries', 'r'],
         ];
         $foreignKeys = collect(DB::select(
             <<<'SQL'
@@ -299,11 +310,13 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
                   AND source_table.relname IN (
                       'statistic_calculation_runs',
                       'race_entry_snapshots',
+                      'race_entry_snapshot_occurrences',
                       'race_entry_snapshot_sources',
                       'stat_feature_snapshots',
                       'stat_feature_values',
                       'stat_feature_sources',
-                      'statistic_run_feature_snapshots'
+                      'statistic_run_feature_snapshots',
+                      'statistic_run_feature_snapshot_occurrences'
                 )
                 SQL,
         ))->keyBy('source_key');
@@ -324,21 +337,62 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
         $this->assertDatabaseRejects(
             fn () => $this->insertRaceEntrySnapshot($raceId, $raceEntryId, 'b', true),
         );
-        $this->insertRaceEntrySnapshot($raceId, $raceEntryId, 'b', false);
+        $historyB = $this->insertRaceEntrySnapshot($raceId, $raceEntryId, 'b', false);
         $this->insertRaceEntrySnapshot($raceId, $raceEntryId, 'c', false);
+        $this->insertSnapshotOccurrence($raceEntryId, $currentId, false, '2026-07-23 10:00:00+09:00', '2026-07-23 10:30:00+09:00');
         $this->assertSame(
             1,
-            DB::table('race_entry_snapshots')
+            DB::table('race_entry_snapshot_occurrences')
                 ->where('race_entry_id', $raceEntryId)
                 ->where('is_current', true)
                 ->count(),
         );
         $this->assertSame(
-            2,
-            DB::table('race_entry_snapshots')
+            3,
+            DB::table('race_entry_snapshot_occurrences')
                 ->where('race_entry_id', $raceEntryId)
                 ->where('is_current', false)
                 ->count(),
+        );
+        $this->assertSame(
+            2,
+            DB::table('race_entry_snapshot_occurrences')
+                ->where('race_entry_snapshot_id', $currentId)
+                ->count(),
+        );
+        $this->assertDatabaseRejects(
+            fn () => $this->insertSnapshotOccurrence(
+                $raceEntryId,
+                $historyB,
+                false,
+                '2026-07-26 11:00:00+09:00',
+                '2026-07-26 10:59:59+09:00',
+            ),
+        );
+        DB::table('race_entry_snapshot_occurrences')
+            ->where('race_entry_id', $raceEntryId)
+            ->where('is_current', true)
+            ->update([
+                'is_current' => false,
+                'effective_to' => '2026-07-26 10:30:00+09:00',
+            ]);
+        $this->assertDatabaseRejects(
+            fn () => $this->insertSnapshotOccurrence(
+                $raceEntryId,
+                $historyB,
+                true,
+                '2026-07-26 11:00:00+09:00',
+                '2026-07-26 11:30:00+09:00',
+            ),
+        );
+        $this->assertDatabaseRejects(
+            fn () => $this->insertSnapshotOccurrence(
+                $raceEntryId,
+                $historyB,
+                false,
+                '2026-07-26 11:00:00+09:00',
+                null,
+            ),
         );
 
         $featureSnapshotId = $this->insertFeatureSnapshot($raceId, $raceEntryId, 'd');
@@ -434,7 +488,7 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
     ): int {
         $now = now();
 
-        return (int) DB::table('race_entry_snapshots')->insertGetId([
+        $snapshotId = (int) DB::table('race_entry_snapshots')->insertGetId([
             'race_entry_id' => $raceEntryId,
             'race_id' => $raceId,
             'bike_number' => 1,
@@ -447,10 +501,38 @@ class StatisticFeaturePostgreSqlMigrationTest extends TestCase
             'snapshot_hash' => str_repeat($hashCharacter, 64),
             'first_observed_at' => $now,
             'last_observed_at' => $now,
-            'is_current' => $isCurrent,
             'is_complete' => true,
             'created_at' => $now,
             'updated_at' => $now,
+        ]);
+
+        $this->insertSnapshotOccurrence(
+            $raceEntryId,
+            $snapshotId,
+            $isCurrent,
+            $isCurrent ? '2026-07-26 10:00:00+09:00' : '2026-07-25 10:00:00+09:00',
+            $isCurrent ? null : '2026-07-25 10:30:00+09:00',
+        );
+
+        return $snapshotId;
+    }
+
+    private function insertSnapshotOccurrence(
+        int $raceEntryId,
+        int $snapshotId,
+        bool $isCurrent,
+        string $effectiveFrom,
+        ?string $effectiveTo,
+    ): int {
+        return (int) DB::table('race_entry_snapshot_occurrences')->insertGetId([
+            'race_entry_id' => $raceEntryId,
+            'race_entry_snapshot_id' => $snapshotId,
+            'effective_from' => $effectiveFrom,
+            'effective_to' => $effectiveTo,
+            'is_current' => $isCurrent,
+            'state_observed_at' => $effectiveFrom,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 

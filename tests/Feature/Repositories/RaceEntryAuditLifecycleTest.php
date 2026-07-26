@@ -21,6 +21,7 @@ use App\Models\Race;
 use App\Models\RaceDay;
 use App\Models\RaceEntry;
 use App\Models\RaceEntrySnapshot;
+use App\Models\RaceEntrySnapshotOccurrence;
 use App\Models\RaceEntrySnapshotSource;
 use App\Models\RaceMeeting;
 use App\Models\Racetrack;
@@ -62,8 +63,12 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->firstOrFail();
         $snapshot = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entry->id)
-            ->where('is_current', true)
+            ->whereHas('currentOccurrence')
             ->firstOrFail();
+        $occurrence = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->where('is_current', true)
+            ->sole();
         $snapshotIdentity = [
             'id' => (int) $snapshot->id,
             'hash' => $snapshot->snapshot_hash,
@@ -84,14 +89,19 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->buildStat01($race->refresh(), 0);
         $current = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entry->id)
-            ->where('is_current', true)
+            ->whereHas('currentOccurrence')
             ->firstOrFail();
+        $currentOccurrence = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->where('is_current', true)
+            ->sole();
         $this->assertSame($snapshotIdentity, [
             'id' => (int) $current->id,
             'hash' => $current->snapshot_hash,
             'type' => $current->input_snapshot_type,
         ]);
-        $this->assertNull($current->effective_to);
+        $this->assertSame((int) $occurrence->id, (int) $currentOccurrence->id);
+        $this->assertNull($currentOccurrence->effective_to);
         $this->assertSame(
             $featureInputHash,
             StatFeatureSnapshot::query()->where('race_entry_id', $entry->id)->value('input_hash'),
@@ -149,6 +159,9 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->buildStat01($race, 0);
         $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->firstOrFail();
         $oldSnapshot = RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->sole();
+        $oldOccurrence = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->sole();
 
         $scores[1] = '101.25';
         $this->races->updateRaceDetail(
@@ -161,12 +174,12 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $entry->refresh();
         $this->assertSame('101.25', $entry->race_score);
         $this->assertSame('2026-07-26 10:45:00', $entry->race_score_fetched_at->format('Y-m-d H:i:s'));
-        $oldSnapshot->refresh();
-        $this->assertFalse($oldSnapshot->is_current);
-        $this->assertSame('2026-07-26 10:45:00', $oldSnapshot->effective_to->format('Y-m-d H:i:s'));
+        $oldOccurrence->refresh();
+        $this->assertFalse($oldOccurrence->is_current);
+        $this->assertSame('2026-07-26 10:45:00', $oldOccurrence->effective_to->format('Y-m-d H:i:s'));
         $newSnapshot = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entry->id)
-            ->where('is_current', true)
+            ->whereHas('currentOccurrence')
             ->sole();
         $this->assertNotSame((int) $oldSnapshot->id, (int) $newSnapshot->id);
         $this->assertSame('101.25', $newSnapshot->race_score_raw_text);
@@ -254,6 +267,9 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 5)->sole();
         $entryId = (int) $entry->id;
         $oldSnapshot = RaceEntrySnapshot::query()->where('race_entry_id', $entryId)->sole();
+        $oldOccurrence = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entryId)
+            ->sole();
         $oldFeature = StatFeatureSnapshot::query()->where('race_entry_id', $entryId)->sole();
 
         $this->syncRaceDay(
@@ -276,13 +292,13 @@ class RaceEntryAuditLifecycleTest extends TestCase
 
         $this->buildStat01($race->refresh(), 1);
 
-        $oldSnapshot->refresh();
-        $this->assertFalse($oldSnapshot->is_current);
-        $this->assertSame('2026-07-26 10:30:00', $oldSnapshot->effective_to->format('Y-m-d H:i:s'));
+        $oldOccurrence->refresh();
+        $this->assertFalse($oldOccurrence->is_current);
+        $this->assertSame('2026-07-26 10:30:00', $oldOccurrence->effective_to->format('Y-m-d H:i:s'));
         $this->assertSame('000005', $oldSnapshot->external_player_id);
         $newSnapshot = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entryId)
-            ->where('is_current', true)
+            ->whereHas('currentOccurrence')
             ->sole();
         $this->assertSame('900005', $newSnapshot->external_player_id);
         $this->assertSame('MISSING', $newSnapshot->race_score_validation_status);
@@ -383,6 +399,9 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 5)->sole();
         $entryId = (int) $entry->id;
         $oldSnapshot = RaceEntrySnapshot::query()->where('race_entry_id', $entryId)->sole();
+        $oldOccurrence = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entryId)
+            ->sole();
         $oldFeature = StatFeatureSnapshot::query()->where('race_entry_id', $entryId)->sole();
 
         $this->syncRaceDay(
@@ -399,13 +418,12 @@ class RaceEntryAuditLifecycleTest extends TestCase
         );
         $this->buildStat01($race->refresh(), 0);
 
-        $oldSnapshot->refresh();
         $this->assertNull($oldSnapshot->player_id);
         $this->assertSame('000005', $oldSnapshot->external_player_id);
-        $this->assertFalse($oldSnapshot->is_current);
+        $this->assertFalse($oldOccurrence->refresh()->is_current);
         $newSnapshot = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entryId)
-            ->where('is_current', true)
+            ->whereHas('currentOccurrence')
             ->sole();
         $this->assertNull($newSnapshot->player_id);
         $this->assertSame('900005', $newSnapshot->external_player_id);
@@ -467,7 +485,7 @@ class RaceEntryAuditLifecycleTest extends TestCase
 
         $newSnapshot = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entry->id)
-            ->where('is_current', true)
+            ->whereHas('currentOccurrence')
             ->sole();
         $newSource = RaceEntrySnapshotSource::query()
             ->where('race_entry_snapshot_id', $newSnapshot->id)
@@ -571,6 +589,19 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->buildStat01($race->refresh(), 1);
 
         $this->assertNotSame($eligibleInput->sourceFingerprint, $ineligibleInput->sourceFingerprint);
+        $this->assertSame($eligibleInput->id, $ineligibleInput->id);
+        $this->assertSame($eligibleInput->occurrenceId, $ineligibleInput->occurrenceId);
+        $this->assertSame(
+            1,
+            RaceEntrySnapshotOccurrence::query()
+                ->where('race_entry_id', $entry->id)
+                ->count(),
+        );
+        $latestRun = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
+        $this->assertSame(
+            $eligibleInput->occurrenceId,
+            $this->primaryOccurrenceId($latestRun, (int) $entry->id),
+        );
         $newFeature = StatFeatureSnapshot::query()
             ->where('race_entry_id', $entry->id)
             ->latest('id')
@@ -635,6 +666,9 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->buildStat01($race, 0);
         $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
         $oldSnapshot = RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->sole();
+        $oldOccurrence = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->sole();
 
         $this->races->updateRaceDetail(
             $race,
@@ -643,11 +677,13 @@ class RaceEntryAuditLifecycleTest extends TestCase
         );
         $this->buildStat01($race->refresh(), 0);
 
-        $oldSnapshot->refresh();
-        $this->assertSame('2026-07-26 10:40:00', $oldSnapshot->effective_to->format('Y-m-d H:i:s'));
+        $this->assertSame(
+            '2026-07-26 10:40:00',
+            $oldOccurrence->refresh()->effective_to->format('Y-m-d H:i:s'),
+        );
         $newSnapshot = RaceEntrySnapshot::query()
             ->where('race_entry_id', $entry->id)
-            ->where('is_current', true)
+            ->whereHas('currentOccurrence')
             ->sole();
         $this->assertSame('S2', $newSnapshot->grade);
         $this->assertSame('2026-07-26 10:05:00', $newSnapshot->first_observed_at->format('Y-m-d H:i:s'));
@@ -656,6 +692,105 @@ class RaceEntryAuditLifecycleTest extends TestCase
             '2026-07-26 10:05:00',
             RaceEntry::query()->findOrFail($entry->id)->race_score_fetched_at->format('Y-m-d H:i:s'),
         );
+    }
+
+    public function test_reappearing_content_creates_a_new_occurrence_and_each_run_tracks_its_actual_period(): void
+    {
+        [$day, $metadata] = $this->context();
+        $this->syncRaceDay($day, $metadata, range(1, 5), '2026-07-26 09:55:00+09:00');
+        $race = Race::query()->sole();
+        $scores = $this->scores(5);
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($scores),
+            new DateTimeImmutable('2026-07-26 10:00:00+09:00'),
+        );
+        $this->buildStat01($race, 0);
+        $runA1 = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        $snapshotA = RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->sole();
+        $occurrenceA1 = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->sole();
+
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($scores, grades: [1 => 'S2']),
+            new DateTimeImmutable('2026-07-26 10:30:00+09:00'),
+        );
+        $this->buildStat01($race->refresh(), 0);
+        $runB = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
+        $snapshotB = RaceEntrySnapshot::query()
+            ->where('race_entry_id', $entry->id)
+            ->where('snapshot_hash', '!=', $snapshotA->snapshot_hash)
+            ->sole();
+        $occurrenceB = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->where('race_entry_snapshot_id', $snapshotB->id)
+            ->sole();
+
+        $this->races->updateRaceDetail(
+            $race,
+            $this->detail($scores),
+            new DateTimeImmutable('2026-07-26 11:00:00+09:00'),
+        );
+        $this->buildStat01($race->refresh(), 0);
+        $runA2 = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
+        $occurrenceA2 = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->where('race_entry_snapshot_id', $snapshotA->id)
+            ->where('is_current', true)
+            ->sole();
+
+        $this->assertSame('2026-07-26 10:00:00', $occurrenceA1->effective_from->format('Y-m-d H:i:s'));
+        $this->assertSame(
+            '2026-07-26 10:30:00',
+            $occurrenceA1->refresh()->effective_to->format('Y-m-d H:i:s'),
+        );
+        $this->assertFalse($occurrenceA1->is_current);
+        $this->assertSame('2026-07-26 10:30:00', $occurrenceB->effective_from->format('Y-m-d H:i:s'));
+        $this->assertSame(
+            '2026-07-26 11:00:00',
+            $occurrenceB->refresh()->effective_to->format('Y-m-d H:i:s'),
+        );
+        $this->assertFalse($occurrenceB->is_current);
+        $this->assertSame('2026-07-26 11:00:00', $occurrenceA2->effective_from->format('Y-m-d H:i:s'));
+        $this->assertNull($occurrenceA2->effective_to);
+        $this->assertTrue($occurrenceA2->is_current);
+        $this->assertNotSame((int) $occurrenceA1->id, (int) $occurrenceA2->id);
+        $this->assertSame((int) $snapshotA->id, (int) $occurrenceA2->race_entry_snapshot_id);
+        $this->assertSame(2, RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->count());
+        $this->assertSame(
+            3,
+            RaceEntrySnapshotOccurrence::query()->where('race_entry_id', $entry->id)->count(),
+        );
+        $this->assertSame(1, RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->where('is_current', true)
+            ->count());
+        $this->assertSame((int) $occurrenceA1->id, $this->primaryOccurrenceId($runA1, (int) $entry->id));
+        $this->assertSame((int) $occurrenceB->id, $this->primaryOccurrenceId($runB, (int) $entry->id));
+        $this->assertSame((int) $occurrenceA2->id, $this->primaryOccurrenceId($runA2, (int) $entry->id));
+        $this->assertNotSame(
+            $this->primaryOccurrenceId($runA1, (int) $entry->id),
+            $this->primaryOccurrenceId($runA2, (int) $entry->id),
+        );
+        $runA1Feature = $this->featureSnapshotIdForRun($runA1, (int) $entry->id);
+        $this->assertSame($runA1Feature, $this->featureSnapshotIdForRun($runA2, (int) $entry->id));
+        $featureValueCount = DB::table('stat_feature_values')->count();
+        $occurrenceCount = RaceEntrySnapshotOccurrence::query()->count();
+        $effectiveFrom = $occurrenceA2->effective_from;
+
+        $this->buildStat01($race->refresh(), 0);
+        $rerun = (int) DB::table('statistic_calculation_runs')->latest('id')->value('id');
+
+        $occurrenceA2->refresh();
+        $this->assertSame($occurrenceCount, RaceEntrySnapshotOccurrence::query()->count());
+        $this->assertEquals($effectiveFrom, $occurrenceA2->effective_from);
+        $this->assertNull($occurrenceA2->effective_to);
+        $this->assertSame($featureValueCount, DB::table('stat_feature_values')->count());
+        $this->assertSame((int) $occurrenceA2->id, $this->primaryOccurrenceId($rerun, (int) $entry->id));
+        $this->assertSame($runA1Feature, $this->featureSnapshotIdForRun($rerun, (int) $entry->id));
     }
 
     public function test_state_observation_older_than_snapshot_history_is_rejected_without_rewriting_audit(): void
@@ -672,6 +807,9 @@ class RaceEntryAuditLifecycleTest extends TestCase
         $this->buildStat01($race, 0);
         $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
         $snapshot = RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->sole();
+        $occurrence = RaceEntrySnapshotOccurrence::query()
+            ->where('race_entry_id', $entry->id)
+            ->sole();
 
         $this->races->updateRaceDetail(
             $race,
@@ -680,10 +818,14 @@ class RaceEntryAuditLifecycleTest extends TestCase
         );
         $this->buildStat01($race->refresh(), 1);
 
-        $snapshot->refresh();
-        $this->assertTrue($snapshot->is_current);
-        $this->assertNull($snapshot->effective_to);
+        $occurrence->refresh();
+        $this->assertTrue($occurrence->is_current);
+        $this->assertNull($occurrence->effective_to);
         $this->assertSame(1, RaceEntrySnapshot::query()->where('race_entry_id', $entry->id)->count());
+        $this->assertSame(
+            1,
+            RaceEntrySnapshotOccurrence::query()->where('race_entry_id', $entry->id)->count(),
+        );
         $this->assertStringContainsString(
             'preceded audited snapshot history',
             (string) DB::table('statistic_calculation_runs')->latest('id')->value('error_summary'),
@@ -916,5 +1058,29 @@ class RaceEntryAuditLifecycleTest extends TestCase
             'retry_count' => 0,
             'parser_version' => 'source-fingerprint-test',
         ]);
+    }
+
+    private function primaryOccurrenceId(int $runId, int $raceEntryId): int
+    {
+        return (int) DB::table('statistic_run_feature_snapshot_occurrences')
+            ->where('calculation_run_id', $runId)
+            ->where('race_entry_id', $raceEntryId)
+            ->where('source_role', 'PRIMARY_INPUT')
+            ->sole()
+            ->race_entry_snapshot_occurrence_id;
+    }
+
+    private function featureSnapshotIdForRun(int $runId, int $raceEntryId): int
+    {
+        return (int) DB::table('statistic_run_feature_snapshots')
+            ->join(
+                'stat_feature_snapshots',
+                'stat_feature_snapshots.id',
+                '=',
+                'statistic_run_feature_snapshots.stat_feature_snapshot_id',
+            )
+            ->where('statistic_run_feature_snapshots.calculation_run_id', $runId)
+            ->where('stat_feature_snapshots.race_entry_id', $raceEntryId)
+            ->value('stat_feature_snapshots.id');
     }
 }

@@ -54,15 +54,28 @@ return new class extends Migration
             $table->char('snapshot_hash', 64);
             $table->timestampTz('first_observed_at');
             $table->timestampTz('last_observed_at');
-            $table->timestampTz('effective_from')->nullable();
-            $table->timestampTz('effective_to')->nullable();
-            $table->boolean('is_current');
             $table->boolean('is_complete');
             $table->string('parser_version', 80)->nullable();
             $table->timestampsTz();
 
             $table->unique(['race_entry_id', 'snapshot_hash'], 'race_entry_snapshot_hash_unique');
-            $table->index(['race_id', 'is_current'], 'race_entry_snapshots_race_current_index');
+            $table->index('race_id', 'race_entry_snapshots_race_index');
+        });
+
+        Schema::create('race_entry_snapshot_occurrences', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('race_entry_id')->constrained('race_entries')->restrictOnDelete();
+            $table->foreignId('race_entry_snapshot_id')->constrained('race_entry_snapshots')->restrictOnDelete();
+            $table->timestampTz('effective_from');
+            $table->timestampTz('effective_to')->nullable();
+            $table->boolean('is_current');
+            $table->timestampTz('state_observed_at');
+            $table->timestampsTz();
+
+            $table->index(
+                ['race_entry_snapshot_id', 'effective_from'],
+                'race_entry_snapshot_occurrences_snapshot_from_index',
+            );
         });
 
         Schema::create('race_entry_snapshot_sources', function (Blueprint $table): void {
@@ -198,18 +211,47 @@ return new class extends Migration
             $table->index(['calculation_run_id', 'race_id'], 'stat_run_feature_snapshots_run_race_index');
         });
 
+        Schema::create('statistic_run_feature_snapshot_occurrences', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('calculation_run_id')->constrained('statistic_calculation_runs')->cascadeOnDelete();
+            $table->foreignId('stat_feature_snapshot_id')->constrained('stat_feature_snapshots')->restrictOnDelete();
+            $table->foreignId('race_entry_snapshot_occurrence_id')
+                ->constrained('race_entry_snapshot_occurrences')
+                ->restrictOnDelete();
+            $table->foreignId('race_id')->constrained('races')->restrictOnDelete();
+            $table->foreignId('race_entry_id')->constrained('race_entries')->restrictOnDelete();
+            $table->string('source_role', 40);
+            $table->timestampTz('created_at');
+
+            $table->unique(
+                [
+                    'calculation_run_id',
+                    'stat_feature_snapshot_id',
+                    'race_entry_snapshot_occurrence_id',
+                    'source_role',
+                ],
+                'stat_run_feature_occurrence_unique',
+            );
+            $table->index(
+                ['calculation_run_id', 'race_entry_id'],
+                'stat_run_feature_occurrences_run_entry_index',
+            );
+        });
+
         $this->createPartialIndexes();
         $this->createPostgreSqlChecks();
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('statistic_run_feature_snapshot_occurrences');
         Schema::dropIfExists('statistic_run_feature_snapshots');
         Schema::dropIfExists('stat_feature_sources');
         Schema::dropIfExists('stat_feature_values');
         Schema::dropIfExists('stat_feature_snapshots');
         Schema::dropIfExists('stat_feature_definitions');
         Schema::dropIfExists('race_entry_snapshot_sources');
+        Schema::dropIfExists('race_entry_snapshot_occurrences');
         Schema::dropIfExists('race_entry_snapshots');
         Schema::dropIfExists('statistic_calculation_runs');
     }
@@ -217,7 +259,7 @@ return new class extends Migration
     private function createPartialIndexes(): void
     {
         $nullsNotDistinct = DB::getDriverName() === 'pgsql' ? ' NULLS NOT DISTINCT' : '';
-        DB::statement('CREATE UNIQUE INDEX race_entry_snapshots_current_unique ON race_entry_snapshots (race_entry_id) WHERE is_current = true');
+        DB::statement('CREATE UNIQUE INDEX race_entry_snapshot_occurrences_current_unique ON race_entry_snapshot_occurrences (race_entry_id) WHERE is_current = true');
         DB::statement("CREATE UNIQUE INDEX stat_feature_snapshot_race_unique ON stat_feature_snapshots (race_id, stat_code, input_as_of, calculation_version, input_hash){$nullsNotDistinct} WHERE scope_type = 'RACE'");
         DB::statement("CREATE UNIQUE INDEX stat_feature_snapshot_entry_unique ON stat_feature_snapshots (race_entry_id, stat_code, input_as_of, calculation_version, input_hash){$nullsNotDistinct} WHERE scope_type = 'RACE_ENTRY'");
         DB::statement("CREATE UNIQUE INDEX stat_feature_snapshot_pair_unique ON stat_feature_snapshots (race_entry_id, opponent_race_entry_id, stat_code, input_as_of, calculation_version, input_hash){$nullsNotDistinct} WHERE scope_type = 'PLAYER_PAIR'");
@@ -235,6 +277,9 @@ return new class extends Migration
         DB::statement("ALTER TABLE race_entry_snapshots ADD CONSTRAINT race_entry_snapshots_validation_check CHECK (race_score_validation_status IN ('VALID', 'MISSING', 'INVALID_FORMAT', 'NON_POSITIVE', 'OUT_OF_STORAGE_RANGE', 'SOURCE_CONFLICT'))");
         DB::statement("ALTER TABLE race_entry_snapshots ADD CONSTRAINT race_entry_snapshots_anomaly_check CHECK (race_score_anomaly_status IN ('NOT_CHECKED', 'NORMAL', 'OUTLIER_WARNING', 'EXTREME_OUTLIER_WARNING'))");
         DB::statement('ALTER TABLE race_entry_snapshots ADD CONSTRAINT race_entry_snapshots_bike_check CHECK (bike_number BETWEEN 1 AND 9)');
+        DB::statement('ALTER TABLE race_entry_snapshot_occurrences ADD CONSTRAINT race_entry_snapshot_occurrences_period_check CHECK (effective_to IS NULL OR effective_to >= effective_from)');
+        DB::statement('ALTER TABLE race_entry_snapshot_occurrences ADD CONSTRAINT race_entry_snapshot_occurrences_state_check CHECK ((is_current = true AND effective_to IS NULL) OR (is_current = false AND effective_to IS NOT NULL))');
+        DB::statement('ALTER TABLE race_entry_snapshot_occurrences ADD CONSTRAINT race_entry_snapshot_occurrences_observed_check CHECK (state_observed_at = effective_from)');
         DB::statement("ALTER TABLE race_entry_snapshot_sources ADD CONSTRAINT race_entry_snapshot_sources_page_check CHECK (source_page_type IN ('RACE_ENTRY_LIST', 'RACE_DETAIL', 'RACE_RESULT', 'PLAYER_PROFILE', 'OTHER', 'UNKNOWN'))");
         DB::statement("ALTER TABLE race_entry_snapshot_sources ADD CONSTRAINT race_entry_snapshot_sources_verification_check CHECK (context_verification_status IN ('VERIFIED_EXACT', 'VERIFIED_LEGACY_RECONCILED', 'PARTIAL_MATCH', 'CONFLICTED', 'UNVERIFIED'))");
         DB::statement("ALTER TABLE race_entry_snapshot_sources ADD CONSTRAINT race_entry_snapshot_sources_backfill_check CHECK (historical_backfill_scope IN ('ALL_CONTRIBUTED_FIELDS', 'STATIC_RACE_CARD_FIELDS_ONLY', 'NOT_ELIGIBLE'))");
@@ -248,5 +293,6 @@ return new class extends Migration
         DB::statement('ALTER TABLE stat_feature_values ADD CONSTRAINT stat_feature_values_window_check CHECK ((window_type IS NULL AND window_value IS NULL) OR (window_type IS NOT NULL AND window_value IS NOT NULL))');
         DB::statement("ALTER TABLE stat_feature_values ADD CONSTRAINT stat_feature_values_finite_check CHECK (feature_value_numeric IS NULL OR (feature_value_numeric <> 'NaN'::double precision AND feature_value_numeric <> 'Infinity'::double precision AND feature_value_numeric <> '-Infinity'::double precision))");
         DB::statement("ALTER TABLE stat_feature_sources ADD CONSTRAINT stat_feature_sources_role_check CHECK (source_role IN ('PRIMARY_INPUT', 'CONTEXT_INPUT', 'HISTORICAL_INPUT', 'RESULT_INPUT', 'MASTER_INPUT', 'AUDIT_ONLY'))");
+        DB::statement("ALTER TABLE statistic_run_feature_snapshot_occurrences ADD CONSTRAINT stat_run_feature_occurrences_role_check CHECK (source_role IN ('PRIMARY_INPUT', 'CONTEXT_INPUT'))");
     }
 };

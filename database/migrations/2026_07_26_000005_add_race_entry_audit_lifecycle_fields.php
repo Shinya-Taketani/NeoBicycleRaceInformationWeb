@@ -67,13 +67,5 @@ return new class extends Migration
             $table->timestampTz('first_observed_at')->nullable($nullable)->change();
             $table->timestampTz('last_observed_at')->nullable($nullable)->change();
         });
-
-        if (DB::getDriverName() === 'sqlite') {
-            DB::statement('DROP INDEX IF EXISTS race_entry_snapshots_current_unique');
-            DB::statement(
-                'CREATE UNIQUE INDEX race_entry_snapshots_current_unique '
-                .'ON race_entry_snapshots (race_entry_id) WHERE is_current = true',
-            );
-        }
     }
 };

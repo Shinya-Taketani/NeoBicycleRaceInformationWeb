@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StatisticCalculationRun extends Model
 {
@@ -54,6 +55,14 @@ class StatisticCalculationRun extends Model
             'statistic_run_feature_snapshots',
             'calculation_run_id',
             'stat_feature_snapshot_id',
+        );
+    }
+
+    public function featureSnapshotOccurrences(): HasMany
+    {
+        return $this->hasMany(
+            StatisticRunFeatureSnapshotOccurrence::class,
+            'calculation_run_id',
         );
     }
 }

@@ -14,6 +14,7 @@ use App\Domain\Keirin\Statistics\Services\StatInputAsOfResolver;
 use App\Models\Race;
 use App\Models\RaceEntry;
 use App\Models\RaceEntrySnapshot;
+use App\Models\RaceEntrySnapshotOccurrence;
 use App\Models\RaceEntrySnapshotSource;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,7 +33,9 @@ class RaceEntrySnapshotServiceTest extends TestCase
         $second = $this->snapshots($service, $race)[0];
 
         $this->assertSame($first->id, $second->id);
+        $this->assertSame($first->occurrenceId, $second->occurrenceId);
         $this->assertDatabaseCount('race_entry_snapshots', 1);
+        $this->assertDatabaseCount('race_entry_snapshot_occurrences', 1);
         $this->assertDatabaseCount('race_entry_snapshot_sources', 1);
 
         $entry->forceFill([
@@ -41,6 +44,7 @@ class RaceEntrySnapshotServiceTest extends TestCase
         ])->save();
         $observedAgain = $this->snapshots($service, $race)[0];
         $this->assertSame($first->id, $observedAgain->id);
+        $this->assertSame($first->occurrenceId, $observedAgain->occurrenceId);
         $this->assertSame(
             '2026-07-25 13:00:00',
             RaceEntrySnapshot::query()->findOrFail($first->id)->last_observed_at->format('Y-m-d H:i:s'),
@@ -55,8 +59,10 @@ class RaceEntrySnapshotServiceTest extends TestCase
         $changed = $this->snapshots($service, $race)[0];
 
         $this->assertNotSame($first->id, $changed->id);
+        $this->assertNotSame($first->occurrenceId, $changed->occurrenceId);
         $this->assertDatabaseCount('race_entry_snapshots', 2);
-        $old = RaceEntrySnapshot::query()->findOrFail($first->id);
+        $this->assertDatabaseCount('race_entry_snapshot_occurrences', 2);
+        $old = RaceEntrySnapshotOccurrence::query()->findOrFail($first->occurrenceId);
         $this->assertFalse($old->is_current);
         $this->assertSame('2026-07-26 13:00:00', $old->effective_to->format('Y-m-d H:i:s'));
         $this->assertDatabaseHas('race_entry_snapshots', [
@@ -64,11 +70,10 @@ class RaceEntrySnapshotServiceTest extends TestCase
             'race_score_raw_text' => '101.25',
             'race_score' => 101.25,
             'race_score_validation_status' => 'VALID',
-            'is_current' => true,
         ]);
         $this->assertSame(
             1,
-            RaceEntrySnapshot::query()
+            RaceEntrySnapshotOccurrence::query()
                 ->where('race_entry_id', $entry->id)
                 ->where('is_current', true)
                 ->count(),
@@ -76,10 +81,12 @@ class RaceEntrySnapshotServiceTest extends TestCase
 
         $rerun = $this->snapshots($service, $race)[0];
         $this->assertSame($changed->id, $rerun->id);
+        $this->assertSame($changed->occurrenceId, $rerun->occurrenceId);
         $this->assertDatabaseCount('race_entry_snapshots', 2);
+        $this->assertDatabaseCount('race_entry_snapshot_occurrences', 2);
         $this->assertSame(
             1,
-            RaceEntrySnapshot::query()
+            RaceEntrySnapshotOccurrence::query()
                 ->where('race_entry_id', $entry->id)
                 ->where('is_current', true)
                 ->count(),
@@ -91,8 +98,7 @@ class RaceEntrySnapshotServiceTest extends TestCase
         [$race] = $this->raceEntry('100.00');
         $service = $this->app->make(RaceEntrySnapshotService::class);
         $this->snapshots($service, $race);
-        $duplicate = RaceEntrySnapshot::query()->sole()->replicate();
-        $duplicate->snapshot_hash = str_repeat('b', 64);
+        $duplicate = RaceEntrySnapshotOccurrence::query()->sole()->replicate();
 
         $this->expectException(QueryException::class);
         $duplicate->save();
@@ -103,26 +109,27 @@ class RaceEntrySnapshotServiceTest extends TestCase
         [$race, $entry] = $this->raceEntry('100.00');
         $service = $this->app->make(RaceEntrySnapshotService::class);
         $this->snapshots($service, $race);
-        $current = RaceEntrySnapshot::query()->sole();
+        $current = RaceEntrySnapshotOccurrence::query()->sole();
 
-        foreach (['b', 'c'] as $character) {
+        foreach (['2026-07-22', '2026-07-23'] as $date) {
             $history = $current->replicate();
-            $history->snapshot_hash = str_repeat($character, 64);
             $history->is_current = false;
-            $history->effective_to = '2026-07-24 13:00:00+09:00';
+            $history->effective_from = "{$date} 12:00:00+09:00";
+            $history->state_observed_at = "{$date} 12:00:00+09:00";
+            $history->effective_to = "{$date} 13:00:00+09:00";
             $history->save();
         }
 
         $this->assertSame(
             1,
-            RaceEntrySnapshot::query()
+            RaceEntrySnapshotOccurrence::query()
                 ->where('race_entry_id', $entry->id)
                 ->where('is_current', true)
                 ->count(),
         );
         $this->assertSame(
             2,
-            RaceEntrySnapshot::query()
+            RaceEntrySnapshotOccurrence::query()
                 ->where('race_entry_id', $entry->id)
                 ->where('is_current', false)
                 ->count(),
@@ -252,7 +259,10 @@ class RaceEntrySnapshotServiceTest extends TestCase
         $this->assertFalse($snapshot->raceScoreEligible);
         $this->assertSame(StatFeatureStatus::LeakageRisk, $result->status);
         $this->assertDatabaseCount('race_entry_snapshots', 2);
-        $this->assertSame(1, RaceEntrySnapshot::query()->where('is_current', true)->count());
+        $this->assertSame(
+            1,
+            RaceEntrySnapshotOccurrence::query()->where('is_current', true)->count(),
+        );
     }
 
     public function test_score_normalization_has_no_domain_ceiling_below_storage_capacity(): void

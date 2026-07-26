@@ -12,6 +12,7 @@ use App\Domain\Keirin\Statistics\Enums\StatInputSnapshotType;
 use App\Models\Race;
 use App\Models\RaceEntry;
 use App\Models\RaceEntrySnapshot;
+use App\Models\RaceEntrySnapshotOccurrence;
 use App\Models\RaceEntrySnapshotSource;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -91,12 +92,14 @@ final class RaceEntrySnapshotService
                 ->firstOrFail();
         }
 
-        $current = RaceEntrySnapshot::query()
+        $currentOccurrence = RaceEntrySnapshotOccurrence::query()
             ->where('race_entry_id', $entry->id)
             ->where('is_current', true)
+            ->with('snapshot')
             ->when($persist, fn ($query) => $query->lockForUpdate())
             ->first();
-        $sourceTemplate = $this->sourceTemplate($race, $entry, $current);
+        $currentSnapshot = $currentOccurrence?->snapshot;
+        $sourceTemplate = $this->sourceTemplate($race, $entry, $currentSnapshot);
         $scoreObservedAt = $entry->race_score_fetched_at;
         $scoreObservedAt = $scoreObservedAt instanceof DateTimeImmutable ? $scoreObservedAt : null;
         $stateObservedAt = $entry->fetched_at;
@@ -124,6 +127,7 @@ final class RaceEntrySnapshotService
         if (! $persist) {
             return $this->dto(
                 null,
+                null,
                 $race,
                 $entry,
                 $score,
@@ -135,12 +139,19 @@ final class RaceEntrySnapshotService
             );
         }
 
-        if ($current instanceof RaceEntrySnapshot && $current->snapshot_hash !== $hash) {
-            $this->assertStateObservationIsMonotonic($entry, $current, $stateObservedAt);
-            $current->forceFill([
+        $contentChanged = ! $currentSnapshot instanceof RaceEntrySnapshot
+            || $currentSnapshot->snapshot_hash !== $hash;
+        if ($contentChanged && $currentOccurrence instanceof RaceEntrySnapshotOccurrence) {
+            $this->assertStateObservationIsMonotonic($entry, $currentOccurrence, $stateObservedAt);
+            $currentOccurrence->forceFill([
                 'is_current' => false,
                 'effective_to' => $stateObservedAt,
             ])->save();
+        }
+        if ($contentChanged && ! $stateObservedAt instanceof DateTimeImmutable) {
+            throw new RuntimeException(
+                "Race entry {$entry->id} state observation time was unavailable while starting a snapshot occurrence.",
+            );
         }
 
         $snapshot = RaceEntrySnapshot::query()
@@ -166,9 +177,6 @@ final class RaceEntrySnapshotService
                 'snapshot_hash' => $hash,
                 'first_observed_at' => $scoreObservedAt,
                 'last_observed_at' => $scoreObservedAt,
-                'effective_from' => null,
-                'effective_to' => null,
-                'is_current' => true,
                 'is_complete' => $score->status === RaceScoreValidationStatus::Valid,
                 'parser_version' => null,
             ]);
@@ -179,9 +187,23 @@ final class RaceEntrySnapshotService
                     && (! $lastObservedAt instanceof DateTimeImmutable || $scoreObservedAt > $lastObservedAt)
                     ? $scoreObservedAt
                     : $lastObservedAt,
+            ])->save();
+        }
+
+        $occurrence = $contentChanged
+            ? RaceEntrySnapshotOccurrence::query()->create([
+                'race_entry_id' => $entry->id,
+                'race_entry_snapshot_id' => $snapshot->id,
+                'effective_from' => $stateObservedAt,
                 'effective_to' => null,
                 'is_current' => true,
-            ])->save();
+                'state_observed_at' => $stateObservedAt,
+            ])
+            : $currentOccurrence;
+        if (! $occurrence instanceof RaceEntrySnapshotOccurrence) {
+            throw new RuntimeException(
+                "Race entry {$entry->id} current snapshot occurrence was unavailable.",
+            );
         }
 
         $snapshotSource = RaceEntrySnapshotSource::query()->firstOrCreate(
@@ -207,6 +229,7 @@ final class RaceEntrySnapshotService
 
         return $this->dto(
             (int) $snapshot->id,
+            (int) $occurrence->id,
             $race,
             $entry,
             $score,
@@ -343,6 +366,7 @@ final class RaceEntrySnapshotService
      */
     private function dto(
         ?int $id,
+        ?int $occurrenceId,
         Race $race,
         RaceEntry $entry,
         NormalizedRaceScoreDto $score,
@@ -365,6 +389,7 @@ final class RaceEntrySnapshotService
 
         return new RaceEntrySnapshotDto(
             id: $id,
+            occurrenceId: $occurrenceId,
             raceEntryId: (int) $entry->id,
             raceId: (int) $race->id,
             playerId: $entry->player_id === null ? null : (int) $entry->player_id,
@@ -447,20 +472,21 @@ final class RaceEntrySnapshotService
 
     private function assertStateObservationIsMonotonic(
         RaceEntry $entry,
-        RaceEntrySnapshot $current,
+        RaceEntrySnapshotOccurrence $current,
         ?DateTimeImmutable $stateObservedAt,
     ): void {
         if (! $stateObservedAt instanceof DateTimeImmutable) {
             throw new RuntimeException(
-                "Race entry {$entry->id} state observation time was unavailable while closing snapshot {$current->id}.",
+                "Race entry {$entry->id} state observation time was unavailable while closing snapshot occurrence {$current->id}.",
             );
         }
 
         $boundaries = array_filter([
-            $current->first_observed_at,
-            $current->last_observed_at,
             $current->effective_from,
-            RaceEntrySnapshot::query()
+            $current->state_observed_at,
+            $current->snapshot?->first_observed_at,
+            $current->snapshot?->last_observed_at,
+            RaceEntrySnapshotOccurrence::query()
                 ->where('race_entry_id', $entry->id)
                 ->where('is_current', false)
                 ->whereNotNull('effective_to')

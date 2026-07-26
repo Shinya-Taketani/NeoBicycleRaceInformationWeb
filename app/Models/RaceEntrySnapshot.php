@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RaceEntrySnapshot extends Model
 {
@@ -27,9 +28,6 @@ class RaceEntrySnapshot extends Model
         'snapshot_hash',
         'first_observed_at',
         'last_observed_at',
-        'effective_from',
-        'effective_to',
-        'is_current',
         'is_complete',
         'parser_version',
     ];
@@ -40,9 +38,6 @@ class RaceEntrySnapshot extends Model
             'race_score' => 'decimal:4',
             'first_observed_at' => 'immutable_datetime',
             'last_observed_at' => 'immutable_datetime',
-            'effective_from' => 'immutable_datetime',
-            'effective_to' => 'immutable_datetime',
-            'is_current' => 'boolean',
             'is_complete' => 'boolean',
         ];
     }
@@ -60,5 +55,16 @@ class RaceEntrySnapshot extends Model
     public function sources(): HasMany
     {
         return $this->hasMany(RaceEntrySnapshotSource::class);
+    }
+
+    public function occurrences(): HasMany
+    {
+        return $this->hasMany(RaceEntrySnapshotOccurrence::class);
+    }
+
+    public function currentOccurrence(): HasOne
+    {
+        return $this->hasOne(RaceEntrySnapshotOccurrence::class)
+            ->where('is_current', true);
     }
 }
