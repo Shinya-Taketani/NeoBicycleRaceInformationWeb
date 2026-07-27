@@ -5,13 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RaceEntry extends Model
 {
-    use SoftDeletes;
-
     protected $fillable = [
         'race_id',
         'player_id',
@@ -21,7 +17,6 @@ class RaceEntry extends Model
         'frame_number',
         'grade',
         'race_score',
-        'race_score_fetched_at',
         'line_text',
         'prefecture',
         'riding_style',
@@ -33,19 +28,7 @@ class RaceEntry extends Model
         return [
             'bike_number' => 'integer',
             'race_score' => 'decimal:2',
-            'race_score_fetched_at' => 'immutable_datetime',
             'fetched_at' => 'immutable_datetime',
-            'deleted_at' => 'immutable_datetime',
         ];
-    }
-
-    public function race(): BelongsTo
-    {
-        return $this->belongsTo(Race::class);
-    }
-
-    public function player(): BelongsTo
-    {
-        return $this->belongsTo(Player::class);
     }
 }
