@@ -106,21 +106,29 @@ class RaceDayMetadataParser
      */
     private function throwIfMeetingUnavailable(array $root, array $data): void
     {
+        $message = HtmlTextNormalizer::normalize($this->nullableString($data, 'hhMessage'));
         if (! $this->boolean($data['flgRaceCancel'] ?? false)) {
+            if (in_array($message, ['順延となりました。', '順延となりました'], true)) {
+                throw new ParserException('PJ0301 race meeting postponement metadata was invalid.');
+            }
+
             return;
         }
 
-        $message = HtmlTextNormalizer::normalize($this->nullableString($data, 'hhMessage'));
         $evidence = $this->cancelledMeetingEvidence($root, $data, $message);
-        if ($evidence === null) {
-            throw new ParserException('PJ0301 race meeting cancellation metadata was invalid.');
+        if ($evidence !== null) {
+            throw new RaceDayMetadataUnavailableException(
+                reason: RaceDayMetadataUnavailableException::REASON_RACE_MEETING_CANCELLED,
+                message: $message,
+                evidence: $evidence,
+            );
         }
 
-        throw new RaceDayMetadataUnavailableException(
-            reason: RaceDayMetadataUnavailableException::REASON_RACE_MEETING_CANCELLED,
-            message: $message,
-            evidence: $evidence,
-        );
+        if ($this->isPostponedMeetingMetadata($root, $data, $message)) {
+            return;
+        }
+
+        throw new ParserException('PJ0301 race meeting cancellation metadata was invalid.');
     }
 
     /**
@@ -188,6 +196,60 @@ class RaceDayMetadataParser
         ];
     }
 
+    /**
+     * @param  array<string, mixed>  $root
+     * @param  array<string, mixed>  $data
+     */
+    private function isPostponedMeetingMetadata(array $root, array $data, ?string $message): bool
+    {
+        $selectedDate = $this->digitText($data['selKaisai'] ?? null, 8);
+        $trackCode = $this->digitText($data['selKjyoCd'] ?? null);
+        $selectedRaceNumber = $this->positiveInteger($data['selRaceNo'] ?? null);
+        $rawDays = $data['C0201kaisai'] ?? null;
+        $rawRaces = $data['C0201race'] ?? null;
+        if (! $this->isZero($root['resultCd'] ?? null)
+            || ! $this->boolean($data['flgRaceCancel'] ?? false)
+            || ! $this->isDisabled($data['flgSectionCancel'] ?? null)
+            || ! in_array($message, ['順延となりました。', '順延となりました'], true)
+            || $selectedRaceNumber === null
+            || ! $this->isZero($data['cntRace'] ?? null)
+            || $selectedDate === null
+            || $trackCode === null
+            || ! is_array($rawDays)
+            || $rawDays === []
+            || ! is_array($rawRaces)
+            || $rawRaces === []
+            || $selectedRaceNumber > count($rawRaces)) {
+            return false;
+        }
+
+        $selected = DateTimeImmutable::createFromFormat('!Ymd', $selectedDate);
+        if (! $selected instanceof DateTimeImmutable || $selected->format('Ymd') !== $selectedDate) {
+            return false;
+        }
+
+        foreach ($rawDays as $rawDay) {
+            if (! is_array($rawDay)) {
+                return false;
+            }
+            $monthDay = $this->nullableString($rawDay, 'txtEventDate');
+            $encryptedParameter = $rawDay['encParaK'] ?? null;
+            if ($monthDay === null
+                || preg_match('#^\d{2}/\d{2}$#', $monthDay) !== 1
+                || ! is_string($encryptedParameter)
+                || trim($encryptedParameter) === '') {
+                return false;
+            }
+            try {
+                $this->resolveDayDate($selected, $monthDay);
+            } catch (ParserException) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /** @param array<string, mixed> $data */
     private function raceInfoState(array $data): string
     {
@@ -215,6 +277,16 @@ class RaceDayMetadataParser
             && ($length === null || strlen($text) === $length)
             ? $text
             : null;
+    }
+
+    private function positiveInteger(mixed $value): ?int
+    {
+        if (! is_int($value) && (! is_string($value) || preg_match('/^\d+$/', $value) !== 1)) {
+            return null;
+        }
+        $integer = (int) $value;
+
+        return $integer >= 1 ? $integer : null;
     }
 
     private function isZero(mixed $value): bool

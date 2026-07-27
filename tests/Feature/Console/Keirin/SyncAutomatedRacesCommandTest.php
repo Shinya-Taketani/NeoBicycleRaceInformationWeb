@@ -162,6 +162,61 @@ class SyncAutomatedRacesCommandTest extends TestCase
         ]);
     }
 
+    public function test_postponed_meeting_metadata_reconciles_days_before_daily_postponement_and_normal_sync(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $meeting = $this->postponedMeetingWithDays();
+        $this->fakePostponedMeetingRaceListResponses();
+
+        $this->artisan('keirin:races:sync-race-list', [
+            '--from' => '2023-08-09',
+            '--to' => '2023-08-10',
+            '--sleep-ms' => '1',
+        ])->expectsOutputToContain('days=1 races=9 entries=60 unresolved_players=60 skipped=1 failed=0')
+            ->assertExitCode(0);
+
+        $meeting->refresh();
+        $this->assertSame('2023-08-09', $meeting->starts_on?->format('Y-m-d'));
+        $this->assertSame('2023-08-12', $meeting->ends_on?->format('Y-m-d'));
+        $this->assertSame(4, $meeting->duration_days);
+        $days = RaceDay::query()->where('race_meeting_id', $meeting->id)->orderBy('race_date')->get();
+        $this->assertSame(
+            ['2023-08-09', '2023-08-10', '2023-08-11', '2023-08-12'],
+            $days->map(fn (RaceDay $day): string => $day->race_date->format('Y-m-d'))->all(),
+        );
+        $this->assertSame(
+            ['enc-postponed-day-1', 'enc-postponed-day-2', 'enc-postponed-day-3', 'enc-postponed-day-4'],
+            $days->pluck('encrypted_parameter')->all(),
+        );
+        $this->assertSame([1, 2, 3, 4], $days->pluck('day_number')->all());
+        $this->assertSame(0, Race::query()->where('race_day_id', $days[0]->id)->count());
+        $this->assertSame(9, Race::query()->where('race_day_id', $days[1]->id)->count());
+        $this->assertDatabaseHas('batch_run_items', [
+            'item_type' => 'RACE_DAY_METADATA',
+            'item_key' => 'race-meeting:'.$meeting->id,
+            'status' => 'SUCCEEDED',
+        ]);
+        $this->assertDatabaseHas('batch_run_items', [
+            'item_type' => 'RACE_ENTRY_LIST',
+            'item_key' => 'race-day:'.$days[0]->id,
+            'status' => 'SKIPPED',
+            'skip_reason' => 'RACE_DAY_POSTPONED',
+        ]);
+        $this->assertDatabaseHas('batch_run_items', [
+            'item_type' => 'RACE_ENTRY_LIST',
+            'item_key' => 'race-day:'.$days[1]->id,
+            'status' => 'SUCCEEDED',
+        ]);
+        $run = BatchRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('SUCCEEDED', $run->status);
+        $this->assertSame(1, $run->success_count);
+        $this->assertSame(1, $run->skipped_count);
+        $this->assertSame(0, $run->failure_count);
+        $this->assertSame(0, BatchRunItem::query()->where('status', 'FAILED')->count());
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+    }
+
     public function test_cancelled_race_day_with_null_jsj001_races_is_skipped_and_audited_without_syncing(): void
     {
         Storage::fake('local');
@@ -1313,6 +1368,31 @@ class SyncAutomatedRacesCommandTest extends TestCase
         return $meeting;
     }
 
+    private function postponedMeetingWithDays(): RaceMeeting
+    {
+        $track = Racetrack::query()->create(['source' => 'keirin_jp', 'external_track_id' => '85', 'name' => '合成順延競輪場']);
+        $meeting = RaceMeeting::query()->create([
+            'source' => 'keirin_jp',
+            'external_meeting_id' => '85:20230809:synthetic-postponed',
+            'racetrack_id' => $track->id,
+            'meeting_name' => '合成順延開催',
+            'starts_on' => '2023-08-09',
+            'ends_on' => '2023-08-10',
+            'duration_days' => 2,
+            'encrypted_parameter' => 'enc-postponed-meeting',
+        ]);
+        foreach (range(1, 2) as $day) {
+            RaceDay::query()->create([
+                'race_meeting_id' => $meeting->id,
+                'external_race_day_id' => "synthetic-postponed-day-{$day}",
+                'race_date' => '2023-08-'.str_pad((string) ($day + 8), 2, '0', STR_PAD_LEFT),
+                'day_number' => $day,
+            ]);
+        }
+
+        return $meeting;
+    }
+
     private function partialCancellationMeetingWithDays(): RaceMeeting
     {
         $track = Racetrack::query()->create(['source' => 'keirin_jp', 'external_track_id' => '22', 'name' => '合成部分中止競輪場']);
@@ -1416,6 +1496,48 @@ class SyncAutomatedRacesCommandTest extends TestCase
             $entries = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
             $entries['kaisaihi'] = '20260617';
             $entries['reqprm']['kday'] = '20260617';
+
+            return Http::response($entries, 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+        });
+    }
+
+    private function fakePostponedMeetingRaceListResponses(): void
+    {
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/pc/racelist')) {
+                return Http::response(
+                    $this->fixture('race-sync-pj0301-meeting-postponed.html'),
+                    200,
+                    ['Content-Type' => 'text/html; charset=UTF-8'],
+                );
+            }
+
+            $secondDay = str_contains($request->url(), 'encp=enc-postponed-day-2');
+            if (str_contains($request->url(), 'type=JSJ001')) {
+                $metadata = (new EmbeddedJsonExtractor)->extract(
+                    $this->fixture('race-sync-pj0301-meeting-postponed.html'),
+                    'PC0201',
+                );
+                if ($secondDay) {
+                    $metadata['C0201data']['selKaisai'] = '20230810';
+                }
+
+                return Http::response($metadata, 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+            }
+            if (! $secondDay) {
+                return Http::response(
+                    $this->fixture('race-sync-jsj017-postponed.json'),
+                    200,
+                    ['Content-Type' => 'application/json; charset=UTF-8'],
+                );
+            }
+
+            $entries = json_decode($this->fixture('race-sync-jsj017.json'), true, flags: JSON_THROW_ON_ERROR);
+            $entries['keirinCd'] = '85';
+            $entries['kaisaihi'] = '20230810';
+            $entries['reqprm']['bkcd'] = '85';
+            $entries['reqprm']['kday'] = '20230810';
+            $entries['rInfo'] = array_slice($entries['rInfo'], 0, 9);
 
             return Http::response($entries, 200, ['Content-Type' => 'application/json; charset=UTF-8']);
         });
