@@ -96,6 +96,105 @@ class AutomatedRaceParserTest extends TestCase
         }
     }
 
+    public function test_it_parses_strict_postponed_meeting_metadata_as_a_normal_page(): void
+    {
+        $metadata = $this->metadataParser()->parse(
+            $this->fixture('race-sync-pj0301-strict-postponed-meeting.html'),
+        );
+
+        $this->assertSame('20240801', $metadata->selectedDate);
+        $this->assertSame('99', $metadata->trackCode);
+        $this->assertSame(9, $metadata->selectedRaceNumber);
+        $this->assertSame(
+            ['20240801', '20240802', '20240803', '20240804'],
+            array_map(fn ($day): string => $day->raceDate, $metadata->days),
+        );
+        $this->assertSame(
+            [
+                'enc-strict-postponed-day-1',
+                'enc-strict-postponed-day-2',
+                'enc-strict-postponed-day-3',
+                'enc-strict-postponed-day-4',
+            ],
+            array_map(fn ($day): string => $day->encryptedParameter, $metadata->days),
+        );
+        $this->assertSame(
+            array_map(fn (int $race): string => "enc-strict-postponed-r{$race}", range(1, 9)),
+            array_map(fn ($race): string => $race->encryptedParameter, $metadata->races),
+        );
+    }
+
+    public function test_it_normalizes_strict_postponed_meeting_messages(): void
+    {
+        $fixture = $this->strictPostponedMeetingFixture();
+
+        foreach (['順延となりました。', '順延となりました', '  順延となりました。  '] as $message) {
+            $metadata = $this->metadataParser()->parse(json_encode(
+                $this->mutateCancelledMeeting($fixture, ['hhMessage' => $message]),
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+            ));
+
+            $this->assertSame(9, $metadata->selectedRaceNumber);
+            $this->assertCount(4, $metadata->days);
+            $this->assertCount(9, $metadata->races);
+        }
+    }
+
+    public function test_it_keeps_disabled_race_cancel_metadata_on_the_normal_parse_path(): void
+    {
+        $metadata = $this->metadataParser()->parse(json_encode(
+            $this->mutateCancelledMeeting($this->strictPostponedMeetingFixture(), [
+                'flgRaceCancel' => false,
+            ]),
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+        ));
+
+        $this->assertSame('20240801', $metadata->selectedDate);
+        $this->assertCount(4, $metadata->days);
+        $this->assertCount(9, $metadata->races);
+    }
+
+    public function test_it_rejects_non_strict_postponed_meeting_candidates(): void
+    {
+        $fixture = $this->strictPostponedMeetingFixture();
+        $invalidCases = [
+            'non-zero result code' => fn (array $json): array => [...$json, 'resultCd' => 1],
+            'section cancellation flag' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['flgSectionCancel' => true]),
+            'different message' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['hhMessage' => '順延予定']),
+            'selected date invalid' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['selKaisai' => '20240230']),
+            'track code invalid' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['selKjyoCd' => 'track']),
+            'zero selected race number' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['selRaceNo' => 0]),
+            'selected race count mismatch' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['selRaceNo' => 8]),
+            'non-zero race count' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['cntRace' => 9]),
+            'missing meeting days' => fn (array $json): array => $this->withoutCancelledMeetingKey($json, 'C0201kaisai'),
+            'null meeting days' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['C0201kaisai' => null]),
+            'empty meeting days' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['C0201kaisai' => []]),
+            'missing races' => fn (array $json): array => $this->withoutCancelledMeetingKey($json, 'C0201race'),
+            'null races' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['C0201race' => null]),
+            'empty races' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['C0201race' => []]),
+            'day row invalid' => fn (array $json): array => $this->replaceMeetingDay($json, 0, 'invalid'),
+            'day date invalid' => fn (array $json): array => $this->mutateCancelledMeetingDay($json, 0, ['txtEventDate' => '08-01']),
+            'duplicate day date' => fn (array $json): array => $this->mutateCancelledMeetingDay($json, 1, ['txtEventDate' => '08/01']),
+            'day parameter empty' => fn (array $json): array => $this->mutateCancelledMeetingDay($json, 0, ['encParaK' => '']),
+            'race row invalid' => fn (array $json): array => $this->replaceMeetingRace($json, 0, 'invalid'),
+            'race parameter empty' => fn (array $json): array => $this->mutateMeetingRace($json, 0, ['encParaR' => '']),
+        ];
+
+        foreach ($invalidCases as $case => $mutate) {
+            try {
+                $this->metadataParser()->parse(json_encode(
+                    $mutate($fixture),
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ));
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (RaceDayMetadataUnavailableException) {
+                $this->fail("{$case} was incorrectly classified as a race-meeting cancellation.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
     public function test_it_rejects_responses_that_do_not_meet_every_race_meeting_cancellation_condition(): void
     {
         $fixture = $this->cancelledMeetingFixture();
@@ -609,6 +708,15 @@ class AutomatedRaceParserTest extends TestCase
         );
     }
 
+    /** @return array<string, mixed> */
+    private function strictPostponedMeetingFixture(): array
+    {
+        return (new EmbeddedJsonExtractor)->extract(
+            $this->fixture('race-sync-pj0301-strict-postponed-meeting.html'),
+            'PC0201',
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $json
      * @param  array<string, mixed>  $changes
@@ -640,6 +748,37 @@ class AutomatedRaceParserTest extends TestCase
             ...$json['C0201data']['C0201kaisai'][$index],
             ...$changes,
         ];
+
+        return $json;
+    }
+
+    /** @param array<string, mixed> $json */
+    private function replaceMeetingDay(array $json, int $index, mixed $day): array
+    {
+        $json['C0201data']['C0201kaisai'][$index] = $day;
+
+        return $json;
+    }
+
+    /**
+     * @param  array<string, mixed>  $json
+     * @param  array<string, mixed>  $changes
+     * @return array<string, mixed>
+     */
+    private function mutateMeetingRace(array $json, int $index, array $changes): array
+    {
+        $json['C0201data']['C0201race'][$index] = [
+            ...$json['C0201data']['C0201race'][$index],
+            ...$changes,
+        ];
+
+        return $json;
+    }
+
+    /** @param array<string, mixed> $json */
+    private function replaceMeetingRace(array $json, int $index, mixed $race): array
+    {
+        $json['C0201data']['C0201race'][$index] = $race;
 
         return $json;
     }
