@@ -19,6 +19,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -362,6 +363,200 @@ class RaceResultTransientRetryTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_failed_batch_limit_stops_a_cursor_after_two_of_more_than_five_hundred_items(): void
+    {
+        $this->configureRetries(passes: 0);
+        $raceA = $this->raceWithEntries(1, 'massive-a');
+        $raceB = $this->raceWithEntries(2, 'massive-b');
+        $sourceRun = $this->sourceRun();
+        $this->sourceItem($sourceRun, $raceA, 'FAILED');
+        $this->sourceItem($sourceRun, $raceB, 'FAILED');
+        foreach (range(3, 502) as $sequence) {
+            $this->sourceItem($sourceRun, $this->raceWithoutEntries($sequence), 'FAILED');
+        }
+        $sourceItemQueries = [];
+        DB::listen(function ($query) use (&$sourceItemQueries): void {
+            if (str_contains($query->sql, '"batch_run_items"')
+                && str_contains($query->sql, '"status" = ?')) {
+                $sourceItemQueries[] = strtolower($query->sql);
+            }
+        });
+        Http::fake(function (Request $request) {
+            $form = $this->requestForm($request);
+            $raceNumber = ($form['encp'] ?? null) === 'massive-a' ? 1 : 2;
+
+            return Http::response(
+                ($form['disp'] ?? null) === 'PJ0315'
+                    ? $this->detailFixture($raceNumber)
+                    : $this->resultFixture($raceNumber),
+                200,
+                ['Content-Type' => 'text/html; charset=UTF-8'],
+            );
+        });
+
+        $this->artisan('keirin:races:sync-results', [
+            '--retry-failed-batch-run-id' => (string) $sourceRun->id,
+            '--limit' => '2',
+            '--sleep-ms' => '0',
+            '--transient-retry-passes' => '0',
+            '--transient-retry-sleep-ms' => '0',
+        ])->assertExitCode(0);
+
+        $retryRun = BatchRun::query()->where('type', 'race_result_retry')->sole();
+        $this->assertSame(502, BatchRunItem::query()->where('batch_run_id', $sourceRun->id)->count());
+        $this->assertSame(
+            ['race:'.$raceA->id, 'race:'.$raceB->id],
+            BatchRunItem::query()->where('batch_run_id', $retryRun->id)->orderBy('id')->pluck('item_key')->all(),
+        );
+        $this->assertSame(4, ScrapingFetchLog::query()->where('batch_run_id', $retryRun->id)->count());
+        $this->assertNotEmpty($sourceItemQueries);
+        $this->assertTrue(collect($sourceItemQueries)->every(
+            fn (string $sql): bool => ! str_contains($sql, ' offset '),
+        ));
+        Http::assertSentCount(4);
+    }
+
+    public function test_failed_batch_limit_does_not_validate_an_invalid_later_item(): void
+    {
+        $this->configureRetries(passes: 0);
+        $sourceRun = $this->sourceRun();
+        foreach ([1, 2] as $raceNumber) {
+            $this->sourceItem(
+                $sourceRun,
+                $this->raceWithEntries(
+                    $raceNumber,
+                    'invalid-after-limit-'.$raceNumber,
+                    raceType: 'Ｌ級ガールズ予選',
+                ),
+                'FAILED',
+            );
+        }
+        $invalidItem = $this->sourceItem($sourceRun, null, 'FAILED', 'invalid-race-key');
+        Http::fake();
+
+        $this->artisan('keirin:races:sync-results', [
+            '--retry-failed-batch-run-id' => (string) $sourceRun->id,
+            '--limit' => '2',
+            '--transient-retry-passes' => '0',
+            '--transient-retry-sleep-ms' => '0',
+        ])->assertExitCode(0);
+
+        $successfulRetry = BatchRun::query()->where('type', 'race_result_retry')->sole();
+        $this->assertSame('SUCCEEDED', $successfulRetry->status);
+        $this->assertSame(2, $successfulRetry->skipped_count);
+
+        $this->assertSame(1, Artisan::call('keirin:races:sync-results', [
+            '--retry-failed-batch-run-id' => (string) $sourceRun->id,
+            '--transient-retry-passes' => '0',
+            '--transient-retry-sleep-ms' => '0',
+        ]));
+
+        $failedRetry = BatchRun::query()
+            ->where('type', 'race_result_retry')
+            ->whereKeyNot($successfulRetry->id)
+            ->sole();
+        $this->assertSame('PARTIALLY_FAILED', $failedRetry->status);
+        $this->assertSame(2, $failedRetry->skipped_count);
+        $this->assertSame(1, $failedRetry->failure_count);
+        $this->assertStringContainsString(
+            "Source Batch Run Item {$invalidItem->id} had an invalid race item key.",
+            (string) $failedRetry->error_message,
+        );
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+        Http::assertNothingSent();
+    }
+
+    public function test_failed_batch_deduplicates_races_before_applying_the_unique_limit(): void
+    {
+        $this->configureRetries(passes: 0);
+        $raceA = $this->raceWithEntries(1, 'duplicate-a');
+        $raceB = $this->raceWithEntries(2, 'duplicate-b');
+        $sourceRun = $this->sourceRun();
+        $firstA = $this->sourceItem($sourceRun, $raceA, 'FAILED');
+        $duplicateA = null;
+        DB::statement('DROP INDEX batch_run_items_batch_run_id_item_type_item_key_unique');
+
+        try {
+            $duplicateA = $this->sourceItem($sourceRun, $raceA, 'FAILED');
+            $itemB = $this->sourceItem($sourceRun, $raceB, 'FAILED');
+            Http::fake(function (Request $request) {
+                $form = $this->requestForm($request);
+                $raceNumber = ($form['encp'] ?? null) === 'duplicate-a' ? 1 : 2;
+
+                return Http::response(
+                    ($form['disp'] ?? null) === 'PJ0315'
+                        ? $this->detailFixture($raceNumber)
+                        : $this->resultFixture($raceNumber),
+                    200,
+                    ['Content-Type' => 'text/html; charset=UTF-8'],
+                );
+            });
+
+            $this->artisan('keirin:races:sync-results', [
+                '--retry-failed-batch-run-id' => (string) $sourceRun->id,
+                '--limit' => '2',
+                '--sleep-ms' => '0',
+                '--transient-retry-passes' => '0',
+                '--transient-retry-sleep-ms' => '0',
+            ])->assertExitCode(0);
+
+            $retryRun = BatchRun::query()->where('type', 'race_result_retry')->sole();
+            $retryItems = BatchRunItem::query()
+                ->where('batch_run_id', $retryRun->id)
+                ->orderBy('id')
+                ->get();
+            $this->assertSame(['race:'.$raceA->id, 'race:'.$raceB->id], $retryItems->pluck('item_key')->all());
+            $this->assertSame(
+                [$firstA->id, $itemB->id],
+                $retryItems->pluck('metadata')->map(
+                    fn (array $metadata): int => $metadata['source_batch_run_item_id'],
+                )->all(),
+            );
+            $this->assertNotSame($duplicateA->id, $retryItems[0]->metadata['source_batch_run_item_id']);
+            Http::assertSentCount(4);
+        } finally {
+            if ($duplicateA instanceof BatchRunItem) {
+                $duplicateA->delete();
+            }
+            DB::statement(
+                'CREATE UNIQUE INDEX batch_run_items_batch_run_id_item_type_item_key_unique '
+                .'ON batch_run_items (batch_run_id, item_type, item_key)',
+            );
+        }
+    }
+
+    public function test_normal_and_failed_batch_runs_share_the_same_result_sync_lock_key(): void
+    {
+        $this->configureRetries(passes: 0);
+        $normalRace = $this->raceWithEntries(1, 'normal-lock', raceType: 'Ｌ級ガールズ予選');
+        Http::fake();
+
+        $this->artisan('keirin:races:sync-results', [
+            '--date' => '2026-06-16',
+            '--race-id' => (string) $normalRace->id,
+            '--transient-retry-passes' => '0',
+            '--transient-retry-sleep-ms' => '0',
+        ])->assertExitCode(0);
+        $normalRun = BatchRun::query()->where('type', 'race_result_sync')->sole();
+
+        $sourceRun = $this->sourceRun();
+        $retryRace = $this->raceWithEntries(2, 'retry-lock', raceType: 'Ｌ級ガールズ予選');
+        $this->sourceItem($sourceRun, $retryRace, 'FAILED');
+        $this->artisan('keirin:races:sync-results', [
+            '--retry-failed-batch-run-id' => (string) $sourceRun->id,
+            '--transient-retry-passes' => '0',
+            '--transient-retry-sleep-ms' => '0',
+        ])->assertExitCode(0);
+
+        $retryRun = BatchRun::query()->where('type', 'race_result_retry')->sole();
+        $this->assertSame('keirin:races:sync-results', $normalRun->lock_key);
+        $this->assertSame($normalRun->lock_key, $retryRun->lock_key);
+        $this->assertSame('2026-06-16', $normalRun->parameters['from']);
+        $this->assertSame('2026-06-16', $normalRun->parameters['to']);
+        $this->assertSame($sourceRun->id, $retryRun->parameters['source_batch_run_id']);
+        Http::assertNothingSent();
+    }
+
     public function test_failed_batch_mode_rejects_invalid_source_batches_items_and_options(): void
     {
         $this->configureRetries(passes: 0);
@@ -419,7 +614,20 @@ class RaceResultTransientRetryTest extends TestCase
             '--transient-retry-sleep-ms' => '1.5',
         ]));
 
-        $this->assertSame(0, BatchRun::query()->where('type', 'race_result_retry')->count());
+        $retryRuns = BatchRun::query()->where('type', 'race_result_retry')->get();
+        $this->assertCount(3, $retryRuns);
+        $this->assertTrue($retryRuns->every(
+            fn (BatchRun $run): bool => $run->status === 'FAILED'
+                && $run->failure_count === 1
+                && $run->finished_at !== null,
+        ));
+        $this->assertSame(
+            0,
+            BatchRun::query()
+                ->where('type', 'race_result_retry')
+                ->where('status', 'RUNNING')
+                ->count(),
+        );
     }
 
     private function configureRetries(int $passes): void
@@ -465,6 +673,23 @@ class RaceResultTransientRetryTest extends TestCase
         }
 
         return $race;
+    }
+
+    private function raceWithoutEntries(int $sequence): Race
+    {
+        $track = Racetrack::query()->where('source', 'keirin_jp')->where('external_track_id', '56')->sole();
+
+        return Race::query()->create([
+            'source' => 'keirin_jp',
+            'external_race_id' => 'massive:'.$sequence,
+            'racetrack_id' => $track->id,
+            'race_date' => '2026-06-16',
+            'race_number' => ($sequence % 9) + 1,
+            'race_type' => 'S級予選',
+            'entrant_count' => 7,
+            'encrypted_parameter' => 'massive-'.$sequence,
+            'result_available' => true,
+        ]);
     }
 
     private function sourceRun(

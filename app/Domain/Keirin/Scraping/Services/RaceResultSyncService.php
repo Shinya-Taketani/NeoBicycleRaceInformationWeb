@@ -30,6 +30,8 @@ class RaceResultSyncService
 {
     private const RACE_CHUNK_SIZE = 100;
 
+    private const RESULT_SYNC_LOCK_KEY = 'keirin:races:sync-results';
+
     public function __construct(
         private readonly BatchRunService $batchRuns,
         private readonly RaceLiveFetcher $fetcher,
@@ -46,16 +48,15 @@ class RaceResultSyncService
     public function sync(DateTimeImmutable $from, DateTimeImmutable $to, array $options = []): array
     {
         $options = $this->normalizedRetryOptions($options);
-        $lockKey = 'keirin:races:sync-results:'.$from->format('Y-m-d').':'.$to->format('Y-m-d');
         $run = $this->batchRuns->start('race_result_sync', [
             'from' => $from->format('Y-m-d'),
             'to' => $to->format('Y-m-d'),
             ...$options,
-        ], $lockKey);
+        ], self::RESULT_SYNC_LOCK_KEY);
 
         return $this->executeRun(
             $run,
-            $lockKey,
+            self::RESULT_SYNC_LOCK_KEY,
             $this->normalTargets($from, $to, $options),
             $options,
         );
@@ -65,20 +66,22 @@ class RaceResultSyncService
     public function retryFailedBatch(int $sourceBatchRunId, array $options = []): array
     {
         $options = $this->normalizedRetryOptions($options);
-        $targets = $this->failedBatchTargets($sourceBatchRunId, $options['limit'] ?? null);
-        $lockKey = 'keirin:races:retry-results:'.$sourceBatchRunId;
+        if (isset($options['limit']) && (! is_int($options['limit']) || $options['limit'] < 1)) {
+            throw new InvalidArgumentException('limit must be a positive integer.');
+        }
+        $this->assertRetrySourceBatch($sourceBatchRunId);
         $run = $this->batchRuns->start('race_result_retry', [
             'source_batch_run_id' => $sourceBatchRunId,
             'limit' => $options['limit'] ?? null,
             'sleep_ms' => $options['sleep_ms'] ?? null,
             'transient_retry_passes' => $options['transient_retry_passes'],
             'transient_retry_sleep_ms' => $options['transient_retry_sleep_ms'],
-        ], $lockKey);
+        ], self::RESULT_SYNC_LOCK_KEY);
 
         return $this->executeRun(
             $run,
-            $lockKey,
-            $this->failedBatchRaceTargets($targets),
+            self::RESULT_SYNC_LOCK_KEY,
+            $this->failedBatchTargets($sourceBatchRunId, $options['limit'] ?? null),
             $options,
         );
     }
@@ -177,30 +180,6 @@ class RaceResultSyncService
     {
         foreach ($this->racesForSync($from, $to, $options) as $race) {
             yield ['race' => $race, 'context' => []];
-        }
-    }
-
-    /**
-     * @param  list<array{race_id:int,source_batch_run_id:int,source_batch_run_item_id:int}>  $targets
-     * @return \Generator<int,array{race:Race,context:array<string,int>}>
-     */
-    private function failedBatchRaceTargets(array $targets): \Generator
-    {
-        foreach ($targets as $target) {
-            $race = Race::query()
-                ->where('source', (string) config('keirin.source'))
-                ->find($target['race_id']);
-            if (! $race instanceof Race) {
-                throw new InvalidArgumentException("Race {$target['race_id']} was not available for failed Batch retry.");
-            }
-
-            yield [
-                'race' => $race,
-                'context' => [
-                    'source_batch_run_id' => $target['source_batch_run_id'],
-                    'source_batch_run_item_id' => $target['source_batch_run_item_id'],
-                ],
-            ];
         }
     }
 
@@ -447,10 +426,7 @@ class RaceResultSyncService
         $totals['last_error'] = $attempt->errorMessage;
     }
 
-    /**
-     * @return list<array{race_id:int,source_batch_run_id:int,source_batch_run_item_id:int}>
-     */
-    private function failedBatchTargets(int $sourceBatchRunId, ?int $limit): array
+    private function assertRetrySourceBatch(int $sourceBatchRunId): void
     {
         $sourceRun = BatchRun::query()->find($sourceBatchRunId);
         if (! $sourceRun instanceof BatchRun) {
@@ -465,20 +441,30 @@ class RaceResultSyncService
         if ($sourceRun->status === 'RUNNING' || $sourceRun->finished_at === null) {
             throw new InvalidArgumentException("Source Batch Run {$sourceBatchRunId} was not finished.");
         }
+    }
 
-        $targets = [];
+    /**
+     * @return \Generator<int,array{race:Race,context:array<string,int>}>
+     */
+    private function failedBatchTargets(int $sourceBatchRunId, ?int $limit): \Generator
+    {
         $seenRaceIds = [];
+        $selected = 0;
         $items = BatchRunItem::query()
             ->where('batch_run_id', $sourceBatchRunId)
             ->where('item_type', 'RACE_RESULT')
             ->where('status', 'FAILED')
             ->orderBy('id')
-            ->get();
+            ->cursor();
         foreach ($items as $item) {
             if (preg_match('/^race:([1-9]\d*)$/', $item->item_key, $matches) !== 1) {
                 throw new InvalidArgumentException("Source Batch Run Item {$item->id} had an invalid race item key.");
             }
             $raceId = (int) $matches[1];
+            if (isset($seenRaceIds[$raceId])) {
+                continue;
+            }
+
             $race = Race::query()->find($raceId);
             if (! $race instanceof Race) {
                 throw new InvalidArgumentException("Source Batch Run Item {$item->id} referenced missing race {$raceId}.");
@@ -486,18 +472,21 @@ class RaceResultSyncService
             if ($race->source !== (string) config('keirin.source')) {
                 throw new InvalidArgumentException("Source Batch Run Item {$item->id} referenced another source.");
             }
-            if (isset($seenRaceIds[$raceId])) {
-                continue;
-            }
             $seenRaceIds[$raceId] = true;
-            $targets[] = [
-                'race_id' => $raceId,
-                'source_batch_run_id' => $sourceBatchRunId,
-                'source_batch_run_item_id' => (int) $item->id,
-            ];
-        }
+            $selected++;
 
-        return $limit === null ? $targets : array_slice($targets, 0, $limit);
+            yield [
+                'race' => $race,
+                'context' => [
+                    'source_batch_run_id' => $sourceBatchRunId,
+                    'source_batch_run_item_id' => (int) $item->id,
+                ],
+            ];
+
+            if ($limit !== null && $selected >= $limit) {
+                return;
+            }
+        }
     }
 
     private function normalizedRetryOptions(array $options): array
