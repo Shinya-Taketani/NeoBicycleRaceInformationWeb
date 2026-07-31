@@ -26,6 +26,7 @@ class RetiredPlayerDetailParser
         }
 
         $xpath = $this->xpath($html);
+        $retiredOn = $this->retiredOn($xpath);
         [$headers, $values] = $this->profileRows($xpath);
         $valueByHeader = [];
         foreach ($headers as $index => $header) {
@@ -55,7 +56,7 @@ class RetiredPlayerDetailParser
             age: $this->age($valueByHeader['年齢'] ?? null),
             graduationPeriod: $this->graduationPeriod($valueByHeader['期別'] ?? null),
             grade: GradeNormalizer::normalize($valueByHeader['級班'] ?? null),
-            retiredOn: $this->retiredOn($xpath),
+            retiredOn: $retiredOn,
             sourceUpdatedAt: $this->sourceUpdatedAt($xpath),
             sourceUrl: $sourceUrl,
         );

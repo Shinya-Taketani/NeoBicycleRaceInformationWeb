@@ -108,6 +108,7 @@ class BackfillRetiredPlayersCommandTest extends TestCase
         Storage::fake('local');
         config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
         $this->createEntries('000003', '選手　三', 2, '2023-06-01');
+        $otherSourceEntries = $this->createEntries('000003', '選手　三', 10, '2023-06-01', 'other_source');
         $this->createEntries('000002', '選手　二', 3, '2023-06-02');
         $this->createEntries('000001', '選手　一', 3, '2023-06-03');
         $this->createEntries('ABCDEF', '対象外', 4, '2023-06-04');
@@ -134,6 +135,10 @@ class BackfillRetiredPlayersCommandTest extends TestCase
         $this->assertSame(2, Player::query()->count());
         $this->assertSame(6, RaceEntry::query()->whereNotNull('player_id')->count());
         $this->assertSame(1, RaceEntry::query()->where('external_player_id', '000003')->whereNull('player_id')->count() > 0 ? 1 : 0);
+        $this->assertSame(
+            10,
+            RaceEntry::query()->whereIn('id', $otherSourceEntries->modelKeys())->whereNull('player_id')->count(),
+        );
         $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
     }
 
@@ -201,6 +206,158 @@ class BackfillRetiredPlayersCommandTest extends TestCase
             'status' => 'SKIPPED',
             'skip_reason' => 'PROFILE_NOT_RETIRED',
         ]);
+    }
+
+    public function test_actual_active_profile_is_skipped_without_updating_entries(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $entry = $this->createEntries('014934', '現役選手', 1)->firstOrFail();
+        Http::fake(['keirin.jp/*' => Http::response(
+            (string) file_get_contents(base_path('tests/Fixtures/Keirin/actual/player_detail_014934.html')),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        )]);
+
+        $this->artisan('keirin:players:backfill-retired', [
+            '--external-player-id' => '014934',
+            '--sleep-ms' => '0',
+        ])->expectsOutputToContain('skip_reason=PROFILE_NOT_RETIRED')
+            ->expectsOutputToContain('success=0 skipped=1 failed=0')
+            ->assertExitCode(0);
+
+        $this->assertSame(0, Player::query()->count());
+        $this->assertNull($entry->refresh()->player_id);
+        $this->assertDatabaseHas('batch_run_items', [
+            'item_type' => 'RETIRED_PLAYER_DETAIL',
+            'status' => 'SKIPPED',
+            'skip_reason' => 'PROFILE_NOT_RETIRED',
+        ]);
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+    }
+
+    public function test_l1_retired_profile_is_skipped_before_link_planning(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $entry = $this->createEntries('012345', 'リンクしてはいけない別名', 1)->firstOrFail();
+        Http::fake(['keirin.jp/*' => Http::response(
+            str_replace('A級3班', 'L級1班', $this->profileHtml('012345', '合成　太郎')),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        )]);
+
+        $this->artisan('keirin:players:backfill-retired', [
+            '--external-player-id' => '012345',
+            '--sleep-ms' => '0',
+        ])->expectsOutputToContain('skip_reason=SKIPPED_UNSUPPORTED_CATEGORY')
+            ->expectsOutputToContain('success=0 skipped=1 failed=0')
+            ->assertExitCode(0);
+
+        $this->assertSame(0, Player::query()->count());
+        $this->assertNull($entry->refresh()->player_id);
+        $item = BatchRunItem::query()->sole();
+        $this->assertSame('SKIPPED_UNSUPPORTED_CATEGORY', $item->status);
+        $this->assertSame('SKIPPED_UNSUPPORTED_CATEGORY', $item->skip_reason);
+        $this->assertSame('L1', $item->metadata['grade']);
+        $this->assertNull($item->metadata['existing_gender']);
+        $run = BatchRun::query()->sole();
+        $this->assertSame(1, $run->skipped_count);
+        $this->assertSame(0, $run->failure_count);
+    }
+
+    public function test_existing_female_player_is_skipped_without_being_retired_or_linked(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $player = Player::query()->create([
+            'source' => 'keirin_jp',
+            'external_player_id' => '012345',
+            'registration_number' => '012345',
+            'name' => '既存女子選手',
+            'gender' => 'female',
+            'status' => 'unsupported_category',
+            'retired_on' => null,
+        ]);
+        $entry = $this->createEntries('012345', 'リンクしてはいけない別名', 1)->firstOrFail();
+        Http::fake(['keirin.jp/*' => Http::response(
+            $this->profileHtml('012345', '合成　太郎'),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        )]);
+
+        $this->artisan('keirin:players:backfill-retired', [
+            '--external-player-id' => '012345',
+            '--sleep-ms' => '0',
+        ])->expectsOutputToContain('skip_reason=SKIPPED_UNSUPPORTED_CATEGORY')
+            ->assertExitCode(0);
+
+        $player->refresh();
+        $this->assertSame('unsupported_category', $player->status);
+        $this->assertNull($player->retired_on);
+        $this->assertNull($entry->refresh()->player_id);
+        $item = BatchRunItem::query()->sole();
+        $this->assertSame('SKIPPED_UNSUPPORTED_CATEGORY', $item->status);
+        $this->assertSame('female', $item->metadata['existing_gender']);
+        $this->assertSame('A3', $item->metadata['grade']);
+        $this->assertSame(0, BatchRun::query()->sole()->failure_count);
+    }
+
+    public function test_linking_and_dry_run_counts_are_limited_to_keirin_source_entries(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $keirinEntries = $this->createEntries('012345', '合成　太郎', 2);
+        $otherEntries = $this->createEntries('012345', '合成　太郎', 4, '2023-06-02', 'other_source');
+        Http::fake(['keirin.jp/*' => Http::response(
+            $this->profileHtml('012345', '合成　太郎'),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        )]);
+        $arguments = ['--external-player-id' => '012345', '--sleep-ms' => '0'];
+
+        $this->artisan('keirin:players:backfill-retired', [...$arguments, '--dry-run' => true])
+            ->expectsOutputToContain('would_link_entries=2')
+            ->assertExitCode(0);
+
+        $this->assertSame(0, Player::query()->count());
+        $this->assertSame(2, RaceEntry::query()->whereIn('id', $keirinEntries->modelKeys())->whereNull('player_id')->count());
+        $this->assertSame(4, RaceEntry::query()->whereIn('id', $otherEntries->modelKeys())->whereNull('player_id')->count());
+
+        $this->artisan('keirin:players:backfill-retired', $arguments)
+            ->expectsOutputToContain('linked_entries=2')
+            ->assertExitCode(0);
+
+        $player = Player::query()->where('external_player_id', '012345')->sole();
+        $this->assertSame(
+            2,
+            RaceEntry::query()->whereIn('id', $keirinEntries->modelKeys())->where('player_id', $player->id)->count(),
+        );
+        $this->assertSame(
+            4,
+            RaceEntry::query()->whereIn('id', $otherEntries->modelKeys())->whereNull('player_id')->count(),
+        );
+    }
+
+    public function test_individual_mode_ignores_entries_from_other_sources(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $otherEntries = $this->createEntries('012345', '合成　太郎', 3, '2023-06-01', 'other_source');
+        Http::fake();
+
+        $this->artisan('keirin:players:backfill-retired', [
+            '--external-player-id' => '012345',
+            '--sleep-ms' => '0',
+        ])->expectsOutputToContain('skip_reason=NO_UNRESOLVED_ENTRIES')
+            ->assertExitCode(0);
+
+        Http::assertNothingSent();
+        $this->assertSame(0, Player::query()->count());
+        $this->assertSame(
+            3,
+            RaceEntry::query()->whereIn('id', $otherEntries->modelKeys())->whereNull('player_id')->count(),
+        );
     }
 
     public function test_invalid_command_options_are_rejected_before_starting_a_batch(): void
@@ -321,9 +478,10 @@ class BackfillRetiredPlayersCommandTest extends TestCase
         string $name,
         int $count,
         string $raceDate = '2023-06-01',
+        string $source = 'keirin_jp',
     ) {
         $race = Race::query()->create([
-            'source' => 'keirin_jp',
+            'source' => $source,
             'external_race_id' => "{$externalPlayerId}:{$raceDate}:".Race::query()->count(),
             'race_date' => $raceDate,
             'race_number' => 1,

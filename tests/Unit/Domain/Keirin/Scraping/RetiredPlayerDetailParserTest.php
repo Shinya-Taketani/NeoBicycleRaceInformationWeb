@@ -94,6 +94,19 @@ class RetiredPlayerDetailParserTest extends TestCase
         }
     }
 
+    public function test_actual_active_profile_is_rejected_before_profile_table_validation(): void
+    {
+        $this->expectException(RetiredPlayerProfileNotRetiredException::class);
+
+        (new RetiredPlayerDetailParser)->parse(
+            (string) file_get_contents(
+                __DIR__.'/../../../../Fixtures/Keirin/actual/player_detail_014934.html',
+            ),
+            'https://keirin.jp/pc/racerprofile?snum=014934',
+            '014934',
+        );
+    }
+
     public function test_it_rejects_an_invalid_retirement_date(): void
     {
         $this->expectException(ParserException::class);

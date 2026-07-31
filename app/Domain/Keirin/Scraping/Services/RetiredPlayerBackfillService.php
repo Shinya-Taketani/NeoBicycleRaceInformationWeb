@@ -9,8 +9,10 @@ use App\Domain\Keirin\Scraping\Fetchers\PlayerDetailFetcher;
 use App\Domain\Keirin\Scraping\Parsers\RetiredPlayerDetailParser;
 use App\Models\BatchRun;
 use App\Models\Player;
+use App\Models\Race;
 use App\Models\RaceEntry;
 use App\Repositories\PlayerRepository;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -92,6 +94,33 @@ class RetiredPlayerBackfillService
                         return $response;
                     }, (int) $run->id);
                     $dto = $this->parser->parse($stored->utf8Body, $response->url, $externalPlayerId);
+                    $existingGender = Player::query()
+                        ->where('source', (string) config('keirin.source'))
+                        ->where('external_player_id', $externalPlayerId)
+                        ->value('gender');
+                    if ($dto->grade === 'L1' || $existingGender === 'female') {
+                        $skipped++;
+                        $metadata = [
+                            'external_player_id' => $externalPlayerId,
+                            'grade' => $dto->grade,
+                            'existing_gender' => $existingGender,
+                            'profile_url' => $dto->sourceUrl,
+                            'raw_file_path' => $stored->rawFilePath,
+                            'dry_run' => (bool) $options['dry_run'],
+                        ];
+                        $this->batchRuns->skipUnsupportedCategoryItem(
+                            $item,
+                            'SKIPPED_UNSUPPORTED_CATEGORY',
+                            $metadata,
+                        );
+                        $details[] = [
+                            ...$metadata,
+                            'status' => 'skipped',
+                            'skip_reason' => 'SKIPPED_UNSUPPORTED_CATEGORY',
+                        ];
+
+                        continue;
+                    }
                     $plan = $this->players->retiredDetailLinkPlan($dto);
 
                     if ($options['dry_run']) {
@@ -194,11 +223,11 @@ class RetiredPlayerBackfillService
 
             return [[
                 'external_player_id' => $externalPlayerId,
-                'unresolved_count' => RaceEntry::query()
+                'unresolved_count' => $this->sourceRaceEntryQuery()
                     ->whereNull('player_id')
                     ->where('external_player_id', $externalPlayerId)
                     ->count(),
-                'total_entries' => RaceEntry::query()
+                'total_entries' => $this->sourceRaceEntryQuery()
                     ->where('external_player_id', $externalPlayerId)
                     ->count(),
             ]];
@@ -206,6 +235,7 @@ class RetiredPlayerBackfillService
 
         $rows = DB::table('race_entries')
             ->join('races', 'races.id', '=', 'race_entries.race_id')
+            ->where('races.source', (string) config('keirin.source'))
             ->whereNull('race_entries.player_id')
             ->whereNotNull('race_entries.external_player_id')
             ->whereDate('races.race_date', '>=', $options['from'])
@@ -224,5 +254,18 @@ class RetiredPlayerBackfillService
             'unresolved_count' => (int) $row->unresolved_count,
             'total_entries' => (int) $row->unresolved_count,
         ])->values()->all();
+    }
+
+    /**
+     * @return Builder<RaceEntry>
+     */
+    private function sourceRaceEntryQuery(): Builder
+    {
+        return RaceEntry::query()->whereIn(
+            'race_id',
+            Race::query()
+                ->select('id')
+                ->where('source', (string) config('keirin.source')),
+        );
     }
 }

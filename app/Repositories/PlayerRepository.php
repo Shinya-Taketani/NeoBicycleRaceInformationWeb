@@ -11,8 +11,10 @@ use App\Domain\Keirin\Scraping\Support\PlayerNameNormalizer;
 use App\Models\Player;
 use App\Models\PlayerStatSnapshot;
 use App\Models\PlayerStatusHistory;
+use App\Models\Race;
 use App\Models\RaceEntry;
 use DateTimeImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -28,10 +30,7 @@ class PlayerRepository
             ->where('external_player_id', $dto->externalPlayerId)
             ->first();
         $this->assertRegistrationNumberCompatible($player, $dto);
-        $entries = RaceEntry::query()
-            ->whereNull('player_id')
-            ->where('external_player_id', $dto->externalPlayerId)
-            ->get();
+        $entries = $this->unresolvedRetiredEntryQuery($dto->externalPlayerId)->get();
         $this->assertEntryNamesMatch($entries, $dto);
 
         return [
@@ -55,9 +54,7 @@ class PlayerRepository
                 ->first();
             $this->assertRegistrationNumberCompatible($player, $dto);
 
-            $entries = RaceEntry::query()
-                ->whereNull('player_id')
-                ->where('external_player_id', $dto->externalPlayerId)
+            $entries = $this->unresolvedRetiredEntryQuery($dto->externalPlayerId)
                 ->lockForUpdate()
                 ->get();
             $this->assertEntryNamesMatch($entries, $dto);
@@ -204,6 +201,22 @@ class PlayerRepository
 
             return $player;
         });
+    }
+
+    /**
+     * @return Builder<RaceEntry>
+     */
+    private function unresolvedRetiredEntryQuery(string $externalPlayerId): Builder
+    {
+        return RaceEntry::query()
+            ->whereIn(
+                'race_id',
+                Race::query()
+                    ->select('id')
+                    ->where('source', (string) config('keirin.source')),
+            )
+            ->whereNull('player_id')
+            ->where('external_player_id', $externalPlayerId);
     }
 
     private function assertRegistrationNumberCompatible(?Player $player, RetiredPlayerDetailDto $dto): void
