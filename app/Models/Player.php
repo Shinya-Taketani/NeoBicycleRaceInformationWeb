@@ -23,6 +23,7 @@ class Player extends Model
         'riding_style',
         'home_bank',
         'status',
+        'retired_on',
         'detail_url',
         'source_updated_at',
         'last_fetched_at',
@@ -32,6 +33,7 @@ class Player extends Model
     {
         return [
             'birth_date' => 'immutable_date',
+            'retired_on' => 'immutable_date',
             'source_updated_at' => 'immutable_datetime',
             'last_fetched_at' => 'immutable_datetime',
         ];
