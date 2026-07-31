@@ -167,6 +167,45 @@ class ScrapingFetchServiceTest extends TestCase
         ]);
     }
 
+    public function test_exhausted_dns_retries_are_logged_without_a_body_and_with_actual_retry_count(): void
+    {
+        Storage::fake('local');
+        config([
+            'keirin.sleep_ms' => 0,
+            'keirin.retry_times' => 2,
+            'keirin.retry_base_sleep_ms' => 0,
+        ]);
+        Http::fake(function (): never {
+            throw new ConnectionException(
+                'cURL error 6: Could not resolve host: keirin.jp',
+                0,
+                new ConnectException(
+                    'DNS failure',
+                    new Request('GET', 'https://keirin.jp/test'),
+                    null,
+                    ['errno' => 6],
+                ),
+            );
+        });
+
+        try {
+            app(ScrapingFetchService::class)->fetch(
+                fn () => app(PlayerListFetcher::class)->fetch(sleepMs: 0),
+            );
+            $this->fail('KeirinHttpException was not thrown.');
+        } catch (KeirinHttpException $exception) {
+            $this->assertSame(FetchErrorType::DnsFailure, $exception->errorType);
+        }
+
+        $this->assertDatabaseHas('scraping_fetch_logs', [
+            'http_status' => null,
+            'retry_count' => 1,
+            'error_type' => 'DNS_FAILURE',
+            'response_size' => 0,
+            'raw_file_path' => null,
+        ]);
+    }
+
     public function test_it_treats_http_200_empty_body_as_failure(): void
     {
         Storage::fake('local');
