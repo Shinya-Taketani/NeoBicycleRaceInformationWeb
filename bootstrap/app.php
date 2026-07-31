@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\Keirin\BackfillRetiredPlayersCommand;
 use App\Console\Commands\Keirin\ImportRaceResultsCommand;
 use App\Console\Commands\Keirin\SyncPlayersCommand;
 use App\Console\Commands\Keirin\SyncRaceScheduleCommand;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         ImportRaceResultsCommand::class,
+        BackfillRetiredPlayersCommand::class,
         SyncRaceScheduleCommand::class,
         SyncPlayersCommand::class,
     ])

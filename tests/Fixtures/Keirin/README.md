@@ -11,6 +11,8 @@ Keirin fixture policy
 
 `synthetic/player_search_foreign_rider_page.html` is an anonymized, minimal reproduction of a player-search page containing both a normal domestic row and a foreign-rider row without `UNQ_orlabel_6`. It preserves the observed page 23/46 structure while excluding real rider identity data.
 
+`synthetic/player-detail-retired.html` is a minimal synthetic reproduction based on the public retired-player profile structure observed for registration number 012659. The real name, registration number, URL, and profile values are not retained. It preserves the nested profile table, six named headers, retirement message, and source update timestamp needed for parser regression coverage.
+
 Some fixture contents may be minimized to avoid unnecessary personal data and to keep tests focused. Runtime scraping never falls back to fixtures.
 
 Official race result detail pages have not yet been confirmed as full real-page fixtures in this repository, so current race result fixtures are synthetic.
