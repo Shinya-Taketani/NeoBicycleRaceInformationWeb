@@ -32,6 +32,102 @@ class RetiredPlayerDetailParserTest extends TestCase
         $this->assertSame($sourceUrl, $dto->sourceUrl);
     }
 
+    public function test_it_uses_the_profile_timestamp_when_section_updates_differ(): void
+    {
+        $dto = (new RetiredPlayerDetailParser)->parse(
+            $this->distinctSectionUpdatesFixture(),
+            'https://example.test/profile',
+            '012345',
+        );
+
+        $this->assertSame('2026-01-01 02:34', $dto->sourceUpdatedAt?->format('Y-m-d H:i'));
+
+        $secondExample = str_replace(
+            ['2026/01/01 02:34', '2026/01/25 02:34'],
+            ['2025/07/01 02:34', '2025/08/12 02:35'],
+            $this->distinctSectionUpdatesFixture(),
+        );
+        $dto = (new RetiredPlayerDetailParser)->parse(
+            $secondExample,
+            'https://example.test/profile',
+            '012345',
+        );
+
+        $this->assertSame('2025-07-01 02:34', $dto->sourceUpdatedAt?->format('Y-m-d H:i'));
+    }
+
+    public function test_it_accepts_matching_profile_and_total_timestamps(): void
+    {
+        $dto = (new RetiredPlayerDetailParser)->parse(
+            $this->fixture(),
+            'https://example.test/profile',
+            '012345',
+        );
+
+        $this->assertSame('2025-07-01 02:34', $dto->sourceUpdatedAt?->format('Y-m-d H:i'));
+    }
+
+    public function test_it_does_not_fall_back_to_a_total_results_timestamp(): void
+    {
+        $html = str_replace(
+            '<div class="clear-fix"><p class="fl-r">2026/01/01 02:34 更新</p></div>',
+            '',
+            $this->distinctSectionUpdatesFixture(),
+        );
+        $dto = (new RetiredPlayerDetailParser)->parse(
+            $html,
+            'https://example.test/profile',
+            '012345',
+        );
+
+        $this->assertNull($dto->sourceUpdatedAt);
+    }
+
+    public function test_it_rejects_multiple_profile_timestamps(): void
+    {
+        $html = str_replace(
+            '<div class="clear-fix"><p class="fl-r">2026/01/01 02:34 更新</p></div>',
+            '<div class="clear-fix"><p class="fl-r">2026/01/01 02:34 更新</p></div>'
+                .'<div class="clear-fix"><p class="fl-r">2026/01/02 02:34 更新</p></div>',
+            $this->distinctSectionUpdatesFixture(),
+        );
+
+        $this->expectException(ParserException::class);
+        $this->expectExceptionMessage('Multiple retired player profile update timestamps were found.');
+
+        (new RetiredPlayerDetailParser)->parse($html, 'https://example.test/profile', '012345');
+    }
+
+    public function test_it_rejects_an_impossible_profile_timestamp(): void
+    {
+        $html = str_replace(
+            '2026/01/01 02:34',
+            '2025/02/30 02:34',
+            $this->distinctSectionUpdatesFixture(),
+        );
+
+        $this->expectException(ParserException::class);
+        $this->expectExceptionMessage('Retired player profile update timestamp was invalid.');
+
+        (new RetiredPlayerDetailParser)->parse($html, 'https://example.test/profile', '012345');
+    }
+
+    public function test_it_ignores_update_timestamps_before_the_profile_section(): void
+    {
+        $html = str_replace(
+            '2024/12/31 23:59',
+            '2026/12/31 23:59',
+            $this->distinctSectionUpdatesFixture(),
+        );
+        $dto = (new RetiredPlayerDetailParser)->parse(
+            $html,
+            'https://example.test/profile',
+            '012345',
+        );
+
+        $this->assertSame('2026-01-01 02:34', $dto->sourceUpdatedAt?->format('Y-m-d H:i'));
+    }
+
     public function test_it_rejects_invalid_profile_table_structures(): void
     {
         $headers = ['氏名', '府県', '年齢', '期別', '級班', '登録番号'];
@@ -130,6 +226,13 @@ class RetiredPlayerDetailParserTest extends TestCase
         );
     }
 
+    private function distinctSectionUpdatesFixture(): string
+    {
+        return (string) file_get_contents(
+            __DIR__.'/../../../../Fixtures/Keirin/synthetic/player-detail-retired-distinct-section-updates.html',
+        );
+    }
+
     /**
      * @param  list<string>  $headers
      * @param  null|list<string>  $values
@@ -146,10 +249,13 @@ class RetiredPlayerDetailParserTest extends TestCase
             : '<tr>'.implode('', array_map(fn (string $value): string => "<td>{$value}</td>", $values)).'</tr>';
         $table = "<table><tbody><tr>{$headerHtml}</tr>{$valueHtml}</tbody></table>";
 
-        return '<!doctype html><html><head><meta charset="UTF-8"></head><body>'
-            .'<p>2025/07/01 02:34 更新</p>'
-            .str_repeat($table, $tableCopies)
+        return '<!doctype html><html><head><meta charset="UTF-8"></head><body><div class="profile-page">'
+            .'<div class="midasi1_fsz">プロフィール</div>'
+            .'<div class="clear-fix"><p class="fl-r">2025/07/01 02:34 更新</p></div>'
+            .'<div class="clear-fix">'.str_repeat($table, $tableCopies).'</div>'
             .($retiredMessage === null ? '' : "<p>{$retiredMessage}</p>")
-            .'</body></html>';
+            .'<a id="total"></a><div><div class="midasi1_fsz">通算成績</div>'
+            .'<div><p>2025/08/12 02:35 更新</p></div></div>'
+            .'</div></body></html>';
     }
 }

@@ -13,6 +13,8 @@ Keirin fixture policy
 
 `synthetic/player-detail-retired.html` is a minimal synthetic reproduction based on the public retired-player profile structure observed for registration number 012659. The real name, registration number, URL, and profile values are not retained. It preserves the nested profile table, six named headers, retirement message, and source update timestamp needed for parser regression coverage.
 
+`synthetic/player-detail-retired-distinct-section-updates.html` is an anonymized, minimal synthetic reproduction based on the saved Batch 71/72 retired-player pages. It preserves the observed sibling relationship between the profile heading, profile update timestamp, nested profile table, retirement message, and the later total-results section with a different update timestamp. Real player identities and registration numbers are not retained.
+
 Some fixture contents may be minimized to avoid unnecessary personal data and to keep tests focused. Runtime scraping never falls back to fixtures.
 
 Official race result detail pages have not yet been confirmed as full real-page fixtures in this repository, so current race result fixtures are synthetic.
