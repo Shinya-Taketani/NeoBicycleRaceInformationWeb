@@ -103,6 +103,51 @@ class BackfillRetiredPlayersCommandTest extends TestCase
         ]);
     }
 
+    public function test_distinct_profile_and_total_update_timestamps_use_only_the_profile_timestamp(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $entries = $this->createEntries('012345', '合成　太郎', 3);
+        $html = (string) file_get_contents(
+            base_path('tests/Fixtures/Keirin/synthetic/player-detail-retired-distinct-section-updates.html'),
+        );
+        Http::fake(['keirin.jp/*' => Http::response(
+            $html,
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        )]);
+        $arguments = ['--external-player-id' => '012345', '--sleep-ms' => '0'];
+
+        $this->artisan('keirin:players:backfill-retired', [...$arguments, '--dry-run' => true])
+            ->expectsOutputToContain('source_updated_at=2026-01-01 02:34')
+            ->expectsOutputToContain('would_link_entries=3')
+            ->assertExitCode(0);
+        $this->assertSame(0, Player::query()->count());
+        $this->assertSame(3, RaceEntry::query()->whereIn('id', $entries->modelKeys())->whereNull('player_id')->count());
+
+        $this->artisan('keirin:players:backfill-retired', $arguments)
+            ->expectsOutputToContain('success=1 skipped=0 failed=0')
+            ->expectsOutputToContain('linked_entries=3')
+            ->assertExitCode(0);
+
+        $player = Player::query()->where('external_player_id', '012345')->sole();
+        $this->assertSame('retired', $player->status);
+        $this->assertSame('2026-01-01 02:34', $player->source_updated_at?->format('Y-m-d H:i'));
+        $this->assertNotSame('2026-01-25 02:34', $player->source_updated_at?->format('Y-m-d H:i'));
+        $this->assertSame(3, RaceEntry::query()->whereIn('id', $entries->modelKeys())->where('player_id', $player->id)->count());
+        $this->assertSame(2, BatchRunItem::query()->where('status', 'SUCCEEDED')->count());
+        $this->assertSame(2, ScrapingFetchLog::query()->count());
+        $this->assertSame(2, ScrapingFetchLog::query()->whereNotNull('raw_file_path')->count());
+
+        $this->artisan('keirin:players:backfill-retired', $arguments)
+            ->expectsOutputToContain('skip_reason=PLAYER_ALREADY_LINKED')
+            ->assertExitCode(0);
+        $this->assertSame(1, Player::query()->where('external_player_id', '012345')->count());
+        $this->assertSame(3, RaceEntry::query()->whereIn('id', $entries->modelKeys())->where('player_id', $player->id)->count());
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+        $this->assertSame(0, BatchRunItem::query()->where('status', 'RUNNING')->count());
+    }
+
     public function test_period_mode_deduplicates_orders_and_limits_candidates(): void
     {
         Storage::fake('local');

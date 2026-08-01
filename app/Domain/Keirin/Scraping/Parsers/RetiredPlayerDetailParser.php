@@ -27,7 +27,7 @@ class RetiredPlayerDetailParser
 
         $xpath = $this->xpath($html);
         $retiredOn = $this->retiredOn($xpath);
-        [$headers, $values] = $this->profileRows($xpath);
+        [$profileTable, $headers, $values] = $this->profileRows($xpath);
         $valueByHeader = [];
         foreach ($headers as $index => $header) {
             $valueByHeader[$header] = $values[$index] ?? null;
@@ -57,7 +57,7 @@ class RetiredPlayerDetailParser
             graduationPeriod: $this->graduationPeriod($valueByHeader['期別'] ?? null),
             grade: GradeNormalizer::normalize($valueByHeader['級班'] ?? null),
             retiredOn: $retiredOn,
-            sourceUpdatedAt: $this->sourceUpdatedAt($xpath),
+            sourceUpdatedAt: $this->sourceUpdatedAt($xpath, $profileTable),
             sourceUrl: $sourceUrl,
         );
     }
@@ -84,7 +84,7 @@ class RetiredPlayerDetailParser
     }
 
     /**
-     * @return array{0:list<string>,1:list<string|null>}
+     * @return array{0:DOMElement,1:list<string>,2:list<string|null>}
      */
     private function profileRows(DOMXPath $xpath): array
     {
@@ -98,7 +98,7 @@ class RetiredPlayerDetailParser
                 if (count(array_intersect(self::REQUIRED_HEADERS, $row)) !== count(self::REQUIRED_HEADERS)) {
                     continue;
                 }
-                $candidates[] = [$rows, $rowIndex];
+                $candidates[] = [$table, $rows, $rowIndex];
                 break;
             }
         }
@@ -110,7 +110,7 @@ class RetiredPlayerDetailParser
             throw new ParserException('Multiple retired player profile tables were found.');
         }
 
-        [$rows, $headerRowIndex] = $candidates[0];
+        [$table, $rows, $headerRowIndex] = $candidates[0];
         $headers = $rows[$headerRowIndex];
         foreach (self::REQUIRED_HEADERS as $requiredHeader) {
             if (count(array_keys($headers, $requiredHeader, true)) !== 1) {
@@ -129,7 +129,7 @@ class RetiredPlayerDetailParser
             throw new ParserException('Retired player profile data row was missing.');
         }
 
-        return [$headers, $values];
+        return [$table, $headers, $values];
     }
 
     /**
@@ -201,29 +201,74 @@ class RetiredPlayerDetailParser
         return $date;
     }
 
-    private function sourceUpdatedAt(DOMXPath $xpath): ?DateTimeImmutable
+    private function sourceUpdatedAt(DOMXPath $xpath, DOMElement $profileTable): ?DateTimeImmutable
     {
         $timestamps = [];
-        foreach ($this->normalizedElementTexts($xpath) as $text) {
-            if (preg_match('/^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2})\s*更新$/u', $text, $matches) === 1) {
-                $timestamps[] = $matches[1];
+        foreach ($this->profileSectionElements($xpath, $profileTable) as $element) {
+            $text = HtmlTextNormalizer::normalize($element->textContent);
+            if ($text !== null
+                && preg_match('/^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2})\s*更新$/u', $text, $matches) === 1) {
+                $timestamps[$matches[1]] = true;
             }
         }
-        $timestamps = array_values(array_unique($timestamps));
         if ($timestamps === []) {
             return null;
         }
-        if (count($timestamps) !== 1) {
-            throw new ParserException('Multiple retired player update timestamps were found.');
-        }
 
         $timezone = new DateTimeZone('Asia/Tokyo');
-        $updatedAt = DateTimeImmutable::createFromFormat('!Y/m/d H:i', $timestamps[0], $timezone);
-        if (! $updatedAt instanceof DateTimeImmutable || $updatedAt->format('Y/m/d H:i') !== $timestamps[0]) {
-            throw new ParserException('Retired player update timestamp was invalid.');
+        $updatedTimestamps = [];
+        foreach (array_keys($timestamps) as $timestamp) {
+            $updatedAt = DateTimeImmutable::createFromFormat('!Y/m/d H:i', $timestamp, $timezone);
+            if (! $updatedAt instanceof DateTimeImmutable || $updatedAt->format('Y/m/d H:i') !== $timestamp) {
+                throw new ParserException('Retired player profile update timestamp was invalid.');
+            }
+            $updatedTimestamps[] = $updatedAt;
+        }
+        if (count($updatedTimestamps) !== 1) {
+            throw new ParserException('Multiple retired player profile update timestamps were found.');
         }
 
-        return $updatedAt;
+        return $updatedTimestamps[0];
+    }
+
+    /**
+     * @return list<DOMElement>
+     */
+    private function profileSectionElements(DOMXPath $xpath, DOMElement $profileTable): array
+    {
+        $branch = $profileTable;
+        while ($branch->parentNode instanceof DOMElement) {
+            for ($sibling = $branch->previousElementSibling; $sibling instanceof DOMElement; $sibling = $sibling->previousElementSibling) {
+                if (! $this->hasClass($sibling, 'midasi1_fsz')) {
+                    continue;
+                }
+                if (HtmlTextNormalizer::normalize($sibling->textContent) !== 'プロフィール') {
+                    throw new ParserException('Retired player profile section heading was not found.');
+                }
+
+                $elements = [];
+                for ($sectionNode = $sibling; $sectionNode instanceof DOMElement; $sectionNode = $sectionNode->nextElementSibling) {
+                    $elements[] = $sectionNode;
+                    foreach ($xpath->query('.//*', $sectionNode) ?: [] as $descendant) {
+                        if ($descendant instanceof DOMElement) {
+                            $elements[] = $descendant;
+                        }
+                    }
+                    if ($sectionNode->isSameNode($branch)) {
+                        return $elements;
+                    }
+                }
+            }
+
+            $branch = $branch->parentNode;
+        }
+
+        throw new ParserException('Retired player profile section heading was not found.');
+    }
+
+    private function hasClass(DOMElement $element, string $class): bool
+    {
+        return in_array($class, preg_split('/\s+/', trim($element->getAttribute('class'))) ?: [], true);
     }
 
     /**
