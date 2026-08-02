@@ -463,6 +463,80 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
     }
 
+    public function test_cancelled_race_meeting_with_populated_races_is_strictly_skipped_and_audited(): void
+    {
+        Storage::fake('local');
+        config(['keirin.sleep_ms' => 0, 'keirin.retry_times' => 0]);
+        $meeting = $this->cancelledMeetingWithDays();
+        $meetingBefore = $meeting->refresh()->toArray();
+        $daysBefore = RaceDay::query()->where('race_meeting_id', $meeting->id)->orderBy('id')->get()->toArray();
+        $response = $this->fixture('race-sync-pj0301-meeting-cancelled-populated-races.html');
+        $this->mock(RaceListConsistencyValidator::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('validate');
+        });
+        $this->partialMock(RaceRepository::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('updateMeetingDayParameters');
+            $mock->shouldNotReceive('syncRaceDay');
+        });
+        $this->fakeRaceListResponses(raceListResponse: $response);
+        $arguments = [
+            '--from' => '2025-12-03',
+            '--to' => '2025-12-05',
+            '--sleep-ms' => '1',
+        ];
+
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $this->artisan('keirin:races:sync-race-list', $arguments)
+                ->expectsOutputToContain('days=0 races=0 entries=0 unresolved_players=0 skipped=3 failed=0')
+                ->assertExitCode(0);
+        }
+
+        $this->assertSame($meetingBefore, $meeting->refresh()->toArray());
+        $this->assertSame($daysBefore, RaceDay::query()->where('race_meeting_id', $meeting->id)->orderBy('id')->get()->toArray());
+        $this->assertSame(0, Race::query()->count());
+        $this->assertSame(0, RaceEntry::query()->count());
+        $this->assertSame(0, RaceResult::query()->count());
+        $this->assertSame(0, RacePayout::query()->count());
+        $this->assertSame(0, BatchRunItem::query()->where('item_type', 'RACE_ENTRY_LIST')->count());
+        Http::assertSentCount(2);
+        $this->assertTrue(Http::recorded()->every(
+            fn (array $pair): bool => str_contains($pair[0]->url(), '/pc/racelist'),
+        ));
+
+        $items = BatchRunItem::query()->where('item_type', 'RACE_DAY_METADATA')->orderBy('id')->get();
+        $this->assertCount(2, $items);
+        foreach ($items as $item) {
+            $this->assertSame('SKIPPED', $item->status);
+            $this->assertSame('RACE_MEETING_CANCELLED', $item->skip_reason);
+            $this->assertSame(1, $item->attempt_count);
+            $this->assertSame(3, $item->metadata['target_day_count']);
+            $this->assertSame('populated_array', $item->metadata['evidence']['raceInfoState']);
+            $this->assertSame(12, $item->metadata['evidence']['raceInfoCount']);
+            $this->assertTrue($item->metadata['evidence']['allRaceParametersPresent']);
+            $this->assertTrue($item->metadata['evidence']['allRacesEnded']);
+            $this->assertTrue($item->metadata['evidence']['allResultsAvailable']);
+            $this->assertNotEmpty($item->metadata['raw_file_path']);
+        }
+
+        $runs = BatchRun::query()->orderBy('id')->get();
+        $this->assertCount(2, $runs);
+        foreach ($runs as $run) {
+            $this->assertSame('SUCCEEDED', $run->status);
+            $this->assertSame(0, $run->success_count);
+            $this->assertSame(3, $run->skipped_count);
+            $this->assertSame(0, $run->failure_count);
+            $this->assertNotNull($run->finished_at);
+        }
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+        $this->assertSame(0, BatchRunItem::query()->where('status', 'RUNNING')->count());
+
+        $logs = ScrapingFetchLog::query()->where('request_url', 'like', '%/pc/racelist%')->orderBy('id')->get();
+        $this->assertCount(2, $logs);
+        foreach ($logs as $log) {
+            $this->assertSame($response, Storage::disk('local')->get($log->raw_file_path));
+        }
+    }
+
     public function test_cancelled_race_meeting_preserves_existing_races_entries_results_and_payouts(): void
     {
         Storage::fake('local');
@@ -527,7 +601,7 @@ class SyncAutomatedRacesCommandTest extends TestCase
             'results' => RaceResult::query()->orderBy('id')->get()->toArray(),
             'payouts' => RacePayout::query()->orderBy('id')->get()->toArray(),
         ];
-        $this->fakeRaceListResponses(raceListResponse: $this->fixture('race-sync-pj0301-meeting-cancelled.html'));
+        $this->fakeRaceListResponses(raceListResponse: $this->fixture('race-sync-pj0301-meeting-cancelled-populated-races.html'));
         $arguments = ['--from' => '2025-12-03', '--to' => '2025-12-05', '--sleep-ms' => '1'];
 
         $this->artisan('keirin:races:sync-race-list', $arguments)->assertExitCode(0);
@@ -553,7 +627,7 @@ class SyncAutomatedRacesCommandTest extends TestCase
         $meetingBefore = $meeting->refresh()->toArray();
         $daysBefore = RaceDay::query()->where('race_meeting_id', $meeting->id)->orderBy('id')->get()->toArray();
         $fixture = (new EmbeddedJsonExtractor)->extract(
-            $this->fixture('race-sync-pj0301-meeting-cancelled.html'),
+            $this->fixture('race-sync-pj0301-meeting-cancelled-populated-races.html'),
             'PC0201',
         );
         $cases = [

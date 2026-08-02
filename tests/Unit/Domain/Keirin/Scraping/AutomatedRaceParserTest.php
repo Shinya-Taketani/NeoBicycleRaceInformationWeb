@@ -92,6 +92,73 @@ class AutomatedRaceParserTest extends TestCase
                 $this->assertSame(['20251203', '20251204', '20251205'], $exception->evidence['raceDates']);
                 $this->assertSame(3, $exception->evidence['raceDayCount']);
                 $this->assertSame($expectedRaceInfoState, $exception->evidence['raceInfoState']);
+                $this->assertSame(0, $exception->evidence['raceInfoCount']);
+            }
+        }
+    }
+
+    public function test_it_reports_cancelled_meetings_with_strict_populated_race_evidence(): void
+    {
+        $fixture = $this->populatedCancelledMeetingFixture();
+        $cases = [
+            12 => $fixture,
+            9 => $this->mutateCancelledMeeting($fixture, [
+                'selRaceNo' => 9,
+                'C0201race' => array_slice($fixture['C0201data']['C0201race'], 0, 9),
+            ]),
+            3 => $this->mutateCancelledMeeting($fixture, [
+                'selRaceNo' => 3,
+                'C0201race' => array_slice($fixture['C0201data']['C0201race'], 0, 3),
+            ]),
+        ];
+
+        foreach ($cases as $raceCount => $json) {
+            try {
+                $this->metadataParser()->parse(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $this->fail("RaceDayMetadataUnavailableException was not thrown for {$raceCount} races.");
+            } catch (RaceDayMetadataUnavailableException $exception) {
+                $this->assertSame(RaceDayMetadataUnavailableException::REASON_RACE_MEETING_CANCELLED, $exception->reason);
+                $this->assertSame('中止となりました。', $exception->getMessage());
+                $this->assertSame($raceCount, $exception->evidence['selRaceNo']);
+                $this->assertSame(['20251203', '20251204', '20251205'], $exception->evidence['raceDates']);
+                $this->assertSame(3, $exception->evidence['raceDayCount']);
+                $this->assertSame('populated_array', $exception->evidence['raceInfoState']);
+                $this->assertSame($raceCount, $exception->evidence['raceInfoCount']);
+                $this->assertTrue($exception->evidence['allRaceParametersPresent']);
+                $this->assertTrue($exception->evidence['allRacesEnded']);
+                $this->assertTrue($exception->evidence['allResultsAvailable']);
+            }
+        }
+    }
+
+    public function test_it_rejects_non_strict_populated_race_meeting_cancellations(): void
+    {
+        $fixture = $this->populatedCancelledMeetingFixture();
+        $invalidCases = [
+            'selected race count mismatch' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['selRaceNo' => 11]),
+            'race row invalid' => fn (array $json): array => $this->replaceMeetingRace($json, 0, 'invalid'),
+            'race parameter missing' => fn (array $json): array => $this->mutateMeetingRace($json, 0, ['encParaR' => '']),
+            'race not ended' => fn (array $json): array => $this->mutateMeetingRace($json, 0, ['flgRaceEnd' => false]),
+            'result unavailable' => fn (array $json): array => $this->mutateMeetingRace($json, 0, ['rcvKekka' => 0]),
+            'non-zero race count' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['cntRace' => 12]),
+            'different message' => fn (array $json): array => $this->mutateCancelledMeeting($json, ['hhMessage' => '一部中止']),
+            'day date format invalid' => fn (array $json): array => $this->mutateCancelledMeetingDay($json, 0, ['txtEventDate' => '12-03']),
+            'day date does not exist' => fn (array $json): array => $this->mutateCancelledMeetingDay($json, 0, ['txtEventDate' => '02/30']),
+            'duplicate day date' => fn (array $json): array => $this->mutateCancelledMeetingDay($json, 1, ['txtEventDate' => '12/03']),
+            'day parameter missing' => fn (array $json): array => $this->mutateCancelledMeetingDay($json, 0, ['encParaK' => '']),
+        ];
+
+        foreach ($invalidCases as $case => $mutate) {
+            try {
+                $this->metadataParser()->parse(json_encode(
+                    $mutate($fixture),
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ));
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (RaceDayMetadataUnavailableException) {
+                $this->fail("{$case} was incorrectly classified as a race-meeting cancellation.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
             }
         }
     }
@@ -704,6 +771,15 @@ class AutomatedRaceParserTest extends TestCase
     {
         return (new EmbeddedJsonExtractor)->extract(
             $this->fixture('race-sync-pj0301-meeting-cancelled.html'),
+            'PC0201',
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function populatedCancelledMeetingFixture(): array
+    {
+        return (new EmbeddedJsonExtractor)->extract(
+            $this->fixture('race-sync-pj0301-meeting-cancelled-populated-races.html'),
             'PC0201',
         );
     }
