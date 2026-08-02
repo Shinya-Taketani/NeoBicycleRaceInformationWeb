@@ -137,16 +137,13 @@ class RaceDayMetadataParser
         $selectedDate = $this->digitText($data['selKaisai'] ?? null, 8);
         $trackCode = $this->digitText($data['selKjyoCd'] ?? null);
         $rawDays = $data['C0201kaisai'] ?? null;
-        $rawRaces = $data['C0201race'] ?? null;
         if (! $this->isZero($root['resultCd'] ?? null)
             || ! $this->boolean($data['flgRaceCancel'] ?? false)
             || ! $this->isDisabled($data['flgSectionCancel'] ?? null)
             || ! in_array($message, ['中止となりました。', '中止となりました'], true)
-            || ! $this->isZero($data['selRaceNo'] ?? null)
             || ! $this->isZero($data['cntRace'] ?? null)
             || ! is_array($rawDays)
             || $rawDays === []
-            || (array_key_exists('C0201race', $data) && $rawRaces !== null && $rawRaces !== [])
             || $selectedDate === null
             || $trackCode === null) {
             return null;
@@ -157,24 +154,18 @@ class RaceDayMetadataParser
             return null;
         }
 
-        $dates = [];
-        foreach ($rawDays as $rawDay) {
-            if (! is_array($rawDay)) {
-                return null;
-            }
-            $monthDay = $this->nullableString($rawDay, 'txtEventDate');
-            $encryptedParameter = $rawDay['encParaK'] ?? null;
-            if ($monthDay === null
-                || preg_match('#^\d{2}/\d{2}$#', $monthDay) !== 1
-                || ! is_string($encryptedParameter)
-                || trim($encryptedParameter) === '') {
-                return null;
-            }
-            try {
-                $dates[] = $this->resolveDayDate($selected, $monthDay);
-            } catch (ParserException) {
-                return null;
-            }
+        $raceEvidence = $this->cancelledMeetingRaceEvidence($data);
+        if ($raceEvidence === null) {
+            return null;
+        }
+
+        $dates = $this->cancelledMeetingDates(
+            $selected,
+            $rawDays,
+            rejectDuplicates: $raceEvidence['raceInfoState'] === 'populated_array',
+        );
+        if ($dates === null) {
+            return null;
         }
 
         return [
@@ -188,8 +179,100 @@ class RaceDayMetadataParser
             'cntRace' => $data['cntRace'],
             'raceDates' => $dates,
             'raceDayCount' => count($dates),
-            'raceInfoState' => $this->raceInfoState($data),
+            ...$raceEvidence,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return null|array<string, bool|int|string>
+     */
+    private function cancelledMeetingRaceEvidence(array $data): ?array
+    {
+        $state = $this->raceInfoState($data);
+        if (in_array($state, ['missing', 'null', 'empty_array'], true)) {
+            return $this->isZero($data['selRaceNo'] ?? null)
+                ? ['raceInfoState' => $state, 'raceInfoCount' => 0]
+                : null;
+        }
+
+        if ($state !== 'populated_array') {
+            return null;
+        }
+
+        return $this->populatedCancelledMeetingRaceEvidence($data);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return null|array<string, bool|int|string>
+     */
+    private function populatedCancelledMeetingRaceEvidence(array $data): ?array
+    {
+        $rawRaces = $data['C0201race'];
+        $selectedRaceNumber = $this->positiveInteger($data['selRaceNo'] ?? null);
+        if (! is_array($rawRaces)
+            || $rawRaces === []
+            || $selectedRaceNumber === null
+            || $selectedRaceNumber !== count($rawRaces)) {
+            return null;
+        }
+
+        foreach ($rawRaces as $rawRace) {
+            if (! is_array($rawRace)
+                || ! is_string($rawRace['encParaR'] ?? null)
+                || trim($rawRace['encParaR']) === ''
+                || ! $this->boolean($rawRace['flgRaceEnd'] ?? false)
+                || (string) ($rawRace['rcvKekka'] ?? '') !== '1') {
+                return null;
+            }
+        }
+
+        return [
+            'raceInfoState' => 'populated_array',
+            'raceInfoCount' => count($rawRaces),
+            'allRaceParametersPresent' => true,
+            'allRacesEnded' => true,
+            'allResultsAvailable' => true,
+        ];
+    }
+
+    /**
+     * @param  list<mixed>  $rawDays
+     * @return null|list<string>
+     */
+    private function cancelledMeetingDates(
+        DateTimeImmutable $selected,
+        array $rawDays,
+        bool $rejectDuplicates,
+    ): ?array {
+        $dates = [];
+        $seenDates = [];
+        foreach ($rawDays as $rawDay) {
+            if (! is_array($rawDay)) {
+                return null;
+            }
+            $monthDay = $this->nullableString($rawDay, 'txtEventDate');
+            $encryptedParameter = $rawDay['encParaK'] ?? null;
+            if ($monthDay === null
+                || preg_match('#^\d{2}/\d{2}$#', $monthDay) !== 1
+                || ! is_string($encryptedParameter)
+                || trim($encryptedParameter) === '') {
+                return null;
+            }
+            try {
+                $date = $this->resolveDayDate($selected, $monthDay);
+            } catch (ParserException) {
+                return null;
+            }
+            if ($rejectDuplicates && isset($seenDates[$date])) {
+                return null;
+            }
+            $seenDates[$date] = true;
+            $dates[] = $date;
+        }
+
+        return $dates;
     }
 
     /**
