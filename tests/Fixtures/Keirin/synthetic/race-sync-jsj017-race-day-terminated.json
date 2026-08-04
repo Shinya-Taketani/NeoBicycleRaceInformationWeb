@@ -1,0 +1,11 @@
+{
+  "syusouDispFlag": 0,
+  "kaisaiMsg": "打切となりました。",
+  "legendDspFlag": 0,
+  "resultCd": 0,
+  "reqprm": {
+    "bkcd": "48",
+    "kday": "20210829"
+  },
+  "writeANA": true
+}

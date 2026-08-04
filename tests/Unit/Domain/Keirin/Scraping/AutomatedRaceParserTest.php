@@ -419,6 +419,40 @@ class AutomatedRaceParserTest extends TestCase
                 $this->assertFalse($exception->evidence['hasKeirinCd']);
                 $this->assertFalse($exception->evidence['hasKaisaihi']);
                 $this->assertSame($expectedRaceInfoState, $exception->evidence['rInfoState']);
+                $this->assertSame('CANCELLED', $exception->evidence['unavailableType']);
+            }
+        }
+    }
+
+    public function test_it_reports_only_strict_terminated_race_day_responses(): void
+    {
+        $fixture = json_decode(
+            $this->fixture('race-sync-jsj017-race-day-terminated.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $cases = [
+            [$fixture, '打切となりました。'],
+            [[...$fixture, 'kaisaiMsg' => '打切となりました'], '打切となりました'],
+            [[...$fixture, 'kaisaiMsg' => '  打切となりました。  '], '打切となりました。'],
+        ];
+
+        foreach ($cases as [$json, $expectedMessage]) {
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $this->fail('RaceEntryListUnavailableException was not thrown.');
+            } catch (RaceEntryListUnavailableException $exception) {
+                $this->assertSame(RaceEntryListUnavailableException::REASON_RACE_DAY_CANCELLED, $exception->reason);
+                $this->assertSame($expectedMessage, $exception->getMessage());
+                $this->assertSame(0, $exception->evidence['resultCd']);
+                $this->assertSame(0, $exception->evidence['syusouDispFlag']);
+                $this->assertSame($expectedMessage, $exception->evidence['kaisaiMsg']);
+                $this->assertSame('48', $exception->evidence['reqprm.bkcd']);
+                $this->assertSame('20210829', $exception->evidence['reqprm.kday']);
+                $this->assertFalse($exception->evidence['hasKeirinCd']);
+                $this->assertFalse($exception->evidence['hasKaisaihi']);
+                $this->assertSame('missing', $exception->evidence['rInfoState']);
+                $this->assertSame('TERMINATED', $exception->evidence['unavailableType']);
             }
         }
     }
@@ -470,6 +504,93 @@ class AutomatedRaceParserTest extends TestCase
                 $this->fail("ParserException was not thrown for {$case}.");
             } catch (RaceEntryListUnavailableException) {
                 $this->fail("{$case} was incorrectly classified as a race-day cancellation.");
+            } catch (ParserException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_it_rejects_responses_that_do_not_meet_every_terminated_race_day_condition(): void
+    {
+        $fixture = json_decode(
+            $this->fixture('race-sync-jsj017-race-day-terminated.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $invalidCases = [
+            'request parameters missing' => function (array &$json): void {
+                unset($json['reqprm']);
+            },
+            'request parameters null' => function (array &$json): void {
+                $json['reqprm'] = null;
+            },
+            'request parameters invalid type' => function (array &$json): void {
+                $json['reqprm'] = 'invalid';
+            },
+            'track code missing' => function (array &$json): void {
+                unset($json['reqprm']['bkcd']);
+            },
+            'track code empty' => function (array &$json): void {
+                $json['reqprm']['bkcd'] = '';
+            },
+            'track code invalid' => function (array &$json): void {
+                $json['reqprm']['bkcd'] = 'track';
+            },
+            'race date missing' => function (array &$json): void {
+                unset($json['reqprm']['kday']);
+            },
+            'race date too short' => function (array &$json): void {
+                $json['reqprm']['kday'] = '2021082';
+            },
+            'race date too long' => function (array &$json): void {
+                $json['reqprm']['kday'] = '202108290';
+            },
+            'race date non-numeric' => function (array &$json): void {
+                $json['reqprm']['kday'] = '202108xx';
+            },
+            'race date does not exist' => function (array &$json): void {
+                $json['reqprm']['kday'] = '20210229';
+            },
+            'track code present' => function (array &$json): void {
+                $json['keirinCd'] = '48';
+            },
+            'race date present' => function (array &$json): void {
+                $json['kaisaihi'] = '20210829';
+            },
+            'race information populated' => function (array &$json): void {
+                $json['rInfo'] = [['raceNo' => 1]];
+            },
+            'display flag true' => function (array &$json): void {
+                $json['syusouDispFlag'] = true;
+            },
+            'display flag integer one' => function (array &$json): void {
+                $json['syusouDispFlag'] = 1;
+            },
+            'display flag string one' => function (array &$json): void {
+                $json['syusouDispFlag'] = '1';
+            },
+            'different orthography' => function (array &$json): void {
+                $json['kaisaiMsg'] = '打ち切りとなりました。';
+            },
+            'short message' => function (array &$json): void {
+                $json['kaisaiMsg'] = '打切です。';
+            },
+            'different sentence' => function (array &$json): void {
+                $json['kaisaiMsg'] = '開催を打切りました。';
+            },
+            'partial termination' => function (array &$json): void {
+                $json['kaisaiMsg'] = '一部打切となりました。';
+            },
+        ];
+
+        foreach ($invalidCases as $case => $mutate) {
+            $json = $fixture;
+            $mutate($json);
+            try {
+                (new RaceEntryListParser)->parse(json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $this->fail("ParserException was not thrown for {$case}.");
+            } catch (RaceEntryListUnavailableException) {
+                $this->fail("{$case} was incorrectly classified as a terminated race day.");
             } catch (ParserException) {
                 $this->addToAssertionCount(1);
             }
