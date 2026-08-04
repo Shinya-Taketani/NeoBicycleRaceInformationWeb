@@ -18,6 +18,10 @@ use JsonException;
 
 class RaceEntryListParser
 {
+    private const UNAVAILABLE_TYPE_CANCELLED = 'CANCELLED';
+
+    private const UNAVAILABLE_TYPE_TERMINATED = 'TERMINATED';
+
     private readonly RaceCategoryPolicy $categories;
 
     private readonly RaceEntrantCountPolicy $entrantCounts;
@@ -126,7 +130,8 @@ class RaceEntryListParser
         $rawMessage = $root['kaisaiMsg'] ?? null;
         $message = HtmlTextNormalizer::normalize(is_string($rawMessage) ? $rawMessage : null);
 
-        if ($this->isCancelledRaceDay($root, $displayFlag, $message)) {
+        $unavailableType = $this->raceDayUnavailableType($root, $displayFlag, $message);
+        if ($unavailableType !== null) {
             $request = $root['reqprm'];
             throw new RaceEntryListUnavailableException(
                 reason: RaceEntryListUnavailableException::REASON_RACE_DAY_CANCELLED,
@@ -140,6 +145,7 @@ class RaceEntryListParser
                     'hasKeirinCd' => array_key_exists('keirinCd', $root),
                     'hasKaisaihi' => array_key_exists('kaisaihi', $root),
                     'rInfoState' => $this->rInfoState($root),
+                    'unavailableType' => $unavailableType,
                 ],
             );
         }
@@ -160,19 +166,26 @@ class RaceEntryListParser
     }
 
     /** @param array<string, mixed> $root */
-    private function isCancelledRaceDay(array $root, mixed $displayFlag, ?string $message): bool
+    private function raceDayUnavailableType(array $root, mixed $displayFlag, ?string $message): ?string
     {
         $request = $root['reqprm'] ?? null;
         $rawRaces = $root['rInfo'] ?? null;
 
-        return in_array($displayFlag, [false, 0, '0'], true)
-            && in_array($message, ['中止となりました。', '中止となりました'], true)
-            && ! array_key_exists('keirinCd', $root)
-            && ! array_key_exists('kaisaihi', $root)
-            && (! array_key_exists('rInfo', $root) || $rawRaces === null || $rawRaces === [])
-            && is_array($request)
-            && $this->isDigits($request['bkcd'] ?? null)
-            && $this->isDate($request['kday'] ?? null);
+        if (! in_array($displayFlag, [false, 0, '0'], true)
+            || array_key_exists('keirinCd', $root)
+            || array_key_exists('kaisaihi', $root)
+            || (array_key_exists('rInfo', $root) && $rawRaces !== null && $rawRaces !== [])
+            || ! is_array($request)
+            || ! $this->isDigits($request['bkcd'] ?? null)
+            || ! $this->isDate($request['kday'] ?? null)) {
+            return null;
+        }
+
+        return match ($message) {
+            '中止となりました。', '中止となりました' => self::UNAVAILABLE_TYPE_CANCELLED,
+            '打切となりました。', '打切となりました' => self::UNAVAILABLE_TYPE_TERMINATED,
+            default => null,
+        };
     }
 
     /** @param array<string, mixed> $root */
