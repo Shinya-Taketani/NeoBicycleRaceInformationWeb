@@ -5,12 +5,25 @@
 -- RACE_SCORE_GAP_TO_MAX is max - score (zero or positive), so this query
 -- compares legacy.difference_from_max with -new_gap_to_max.
 
-WITH selected_new_run AS (
+WITH complete_new_runs AS (
+    SELECT run.id
+    FROM statistic_feature_runs AS run
+    WHERE run.stat_code = 'STAT-01'
+      AND run.calculation_version = 'STAT-01-existing-db-v1'
+      AND run.target_from = DATE '2024-01-01'
+      AND run.target_to = DATE '2024-12-31'
+      AND run.target_race_count > 0
+      AND run.processed_race_count = run.target_race_count
+      AND (
+          SELECT COUNT(*)
+          FROM statistic_feature_results AS result
+          WHERE result.feature_run_id = run.id
+            AND result.stat_code = 'STAT-01'
+      ) = run.target_entry_count
+),
+selected_new_run AS (
     SELECT id
-    FROM statistic_feature_runs
-    WHERE stat_code = 'STAT-01'
-      AND target_from = DATE '2024-01-01'
-      AND target_to = DATE '2024-12-31'
+    FROM complete_new_runs
     ORDER BY id DESC
     LIMIT 1
 ),
@@ -43,6 +56,7 @@ legacy_results AS (
     SELECT legacy.*
     FROM statistic_entry_results AS legacy
     INNER JOIN selected_legacy_run ON selected_legacy_run.id = legacy.calculation_run_id
+    INNER JOIN selected_new_run ON TRUE
     INNER JOIN races ON races.id = legacy.race_id
     WHERE legacy.stat_code = 'STAT-01'
       AND races.race_date BETWEEN DATE '2024-01-01' AND DATE '2024-12-31'
@@ -67,6 +81,7 @@ comparison AS (
     FULL OUTER JOIN new_results AS new_result USING (race_entry_id)
 )
 SELECT
+    (SELECT id FROM selected_new_run) AS selected_new_run_id,
     COUNT(*) AS compared_rows,
     COUNT(*) FILTER (WHERE missing_in_legacy) AS missing_in_legacy,
     COUNT(*) FILTER (WHERE missing_in_new) AS missing_in_new,
@@ -85,12 +100,25 @@ FROM comparison;
 
 -- Detail sample. This intentionally repeats the read-only CTE so the file can
 -- be run as-is in psql without creating temporary objects.
-WITH selected_new_run AS (
+WITH complete_new_runs AS (
+    SELECT run.id
+    FROM statistic_feature_runs AS run
+    WHERE run.stat_code = 'STAT-01'
+      AND run.calculation_version = 'STAT-01-existing-db-v1'
+      AND run.target_from = DATE '2024-01-01'
+      AND run.target_to = DATE '2024-12-31'
+      AND run.target_race_count > 0
+      AND run.processed_race_count = run.target_race_count
+      AND (
+          SELECT COUNT(*)
+          FROM statistic_feature_results AS result
+          WHERE result.feature_run_id = run.id
+            AND result.stat_code = 'STAT-01'
+      ) = run.target_entry_count
+),
+selected_new_run AS (
     SELECT id
-    FROM statistic_feature_runs
-    WHERE stat_code = 'STAT-01'
-      AND target_from = DATE '2024-01-01'
-      AND target_to = DATE '2024-12-31'
+    FROM complete_new_runs
     ORDER BY id DESC
     LIMIT 1
 ),
@@ -117,6 +145,7 @@ SELECT
     new_result.quality_status AS new_quality_status
 FROM statistic_entry_results AS legacy
 INNER JOIN selected_legacy_run ON selected_legacy_run.id = legacy.calculation_run_id
+INNER JOIN selected_new_run AS required_new_run ON TRUE
 FULL OUTER JOIN (
     SELECT result.*
     FROM statistic_feature_results AS result

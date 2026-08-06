@@ -60,7 +60,7 @@ Each result records the shared quality values needed by future STAT-20 work:
 
 `input_as_of` uses `sales_close_at`, then `scheduled_start_at`, then `NULL`. Missing both timestamps degrades quality. A source fetched after race start remains visible as evidence but is not blocked or labelled as leakage in `BACKFILL` mode.
 
-The SHA-256 `input_hash` uses canonical JSON over the documented race, entry, timing, version, and mode inputs. No raw file or fetch-log reconstruction is performed.
+The SHA-256 race input hash uses canonical JSON over the documented race, timing, version, mode, and all entries sorted by `race_entry_id`. Each subject `input_hash` includes that race input hash, so another entrant's score change or removal invalidates every dependent subject hash without making input array order significant. No raw file or fetch-log reconstruction is performed.
 
 ## Commands
 

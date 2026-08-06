@@ -108,6 +108,40 @@ class BuildStat01FeaturesCommandTest extends TestCase
         $this->assertSame(0, StatisticFeatureResult::query()->count());
     }
 
+    public function test_unknown_race_id_fails_without_statistic_writes(): void
+    {
+        $this->artisan('keirin:statistics:build-stat01', ['--race-id' => 999999999])
+            ->expectsOutputToContain('No target races were found.')
+            ->assertExitCode(1);
+
+        $this->assertStatisticTablesEmpty();
+    }
+
+    public function test_empty_date_range_fails_without_statistic_writes(): void
+    {
+        $this->createRace('Ａ級予選', '2024-01-01');
+
+        $this->artisan('keirin:statistics:build-stat01', [
+            '--from' => '2024-02-01',
+            '--to' => '2024-02-29',
+        ])
+            ->expectsOutputToContain('No target races were found.')
+            ->assertExitCode(1);
+
+        $this->assertStatisticTablesEmpty();
+    }
+
+    public function test_l_class_race_id_fails_without_statistic_writes(): void
+    {
+        $raceId = $this->createRace('Ｌ級ガールズ予選', '2024-01-01');
+
+        $this->artisan('keirin:statistics:build-stat01', ['--race-id' => $raceId])
+            ->expectsOutputToContain('No target races were found.')
+            ->assertExitCode(1);
+
+        $this->assertStatisticTablesEmpty();
+    }
+
     public function test_zero_missing_and_valid_scores_are_counted_without_treating_zero_as_ability(): void
     {
         $raceId = $this->createRace('Ａ級予選', '2024-01-01', ['80.00', '0.00', null, '70.00', '60.00']);
@@ -289,5 +323,12 @@ class BuildStat01FeaturesCommandTest extends TestCase
             'race_entries' => DB::table('race_entries')->orderBy('id')->get()->map(fn (object $row): array => (array) $row)->all(),
             'players' => DB::table('players')->orderBy('id')->get()->map(fn (object $row): array => (array) $row)->all(),
         ];
+    }
+
+    private function assertStatisticTablesEmpty(): void
+    {
+        $this->assertSame(0, StatisticFeatureRun::query()->count());
+        $this->assertSame(0, StatisticFeatureRunItem::query()->count());
+        $this->assertSame(0, StatisticFeatureResult::query()->count());
     }
 }

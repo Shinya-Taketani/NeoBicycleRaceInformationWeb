@@ -1,12 +1,24 @@
 -- Read-only acceptance checks for the latest full-year 2024 STAT-01 run.
 
-WITH selected_run AS (
+WITH complete_runs AS (
+    SELECT run.*
+    FROM statistic_feature_runs AS run
+    WHERE run.stat_code = 'STAT-01'
+      AND run.calculation_version = 'STAT-01-existing-db-v1'
+      AND run.target_from = DATE '2024-01-01'
+      AND run.target_to = DATE '2024-12-31'
+      AND run.target_race_count > 0
+      AND run.processed_race_count = run.target_race_count
+      AND (
+          SELECT COUNT(*)
+          FROM statistic_feature_results AS result
+          WHERE result.feature_run_id = run.id
+            AND result.stat_code = 'STAT-01'
+      ) = run.target_entry_count
+),
+selected_run AS (
     SELECT *
-    FROM statistic_feature_runs
-    WHERE stat_code = 'STAT-01'
-      AND calculation_version = 'STAT-01-existing-db-v1'
-      AND target_from = DATE '2024-01-01'
-      AND target_to = DATE '2024-12-31'
+    FROM complete_runs
     ORDER BY id DESC
     LIMIT 1
 ),

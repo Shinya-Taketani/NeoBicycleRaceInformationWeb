@@ -165,8 +165,44 @@ class Stat01CalculatorTest extends TestCase
         foreach ($forward->entries as $index => $entry) {
             $this->assertSame($entry->entry->id, $reverse->entries[$index]->entry->id);
             $this->assertSame($entry->features, $reverse->entries[$index]->features);
+            $this->assertSame($entry->evidence['race_input_hash'], $reverse->entries[$index]->evidence['race_input_hash']);
             $this->assertSame($entry->inputHash, $reverse->entries[$index]->inputHash);
         }
+    }
+
+    public function test_other_entrant_score_change_updates_unchanged_subject_hash(): void
+    {
+        $entries = $this->entries(['80.00', '70.00']);
+        $before = $this->calculator->calculate($this->raceFromEntries($entries))->entries[0];
+        $entries[1] = new Stat01EntryInputDto(
+            id: $entries[1]->id,
+            playerId: $entries[1]->playerId,
+            bikeNumber: $entries[1]->bikeNumber,
+            grade: $entries[1]->grade,
+            raceScore: '90.00',
+            fetchedAt: $entries[1]->fetchedAt,
+        );
+        $after = $this->calculator->calculate($this->raceFromEntries($entries))->entries[0];
+
+        $this->assertSame('80.00', $before->entry->raceScore);
+        $this->assertSame('80.00', $after->entry->raceScore);
+        $this->assertSame(1, $before->features['RACE_SCORE_RANK']);
+        $this->assertSame(2, $after->features['RACE_SCORE_RANK']);
+        $this->assertNotSame($before->features['RACE_SCORE_RACE_MEAN'], $after->features['RACE_SCORE_RACE_MEAN']);
+        $this->assertNotSame($before->features['RACE_SCORE_GAP_TO_MAX'], $after->features['RACE_SCORE_GAP_TO_MAX']);
+        $this->assertNotSame($before->evidence['race_input_hash'], $after->evidence['race_input_hash']);
+        $this->assertNotSame($before->inputHash, $after->inputHash);
+    }
+
+    public function test_other_entrant_removal_updates_unchanged_subject_hash(): void
+    {
+        $entries = $this->entries(['80.00', '70.00']);
+        $before = $this->calculator->calculate($this->raceFromEntries($entries, entrantCount: 2))->entries[0];
+        $after = $this->calculator->calculate($this->raceFromEntries([$entries[0]], entrantCount: 2))->entries[0];
+
+        $this->assertSame($before->entry, $after->entry);
+        $this->assertNotSame($before->evidence['race_input_hash'], $after->evidence['race_input_hash']);
+        $this->assertNotSame($before->inputHash, $after->inputHash);
     }
 
     public function test_input_hash_is_stable_and_changes_when_an_input_changes(): void
@@ -176,6 +212,7 @@ class Stat01CalculatorTest extends TestCase
         $changed = $this->calculator->calculate($this->race(['81.00']))->entries[0];
 
         $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $first->inputHash);
+        $this->assertSame($first->evidence['race_input_hash'], $same->evidence['race_input_hash']);
         $this->assertSame($first->inputHash, $same->inputHash);
         $this->assertNotSame($first->inputHash, $changed->inputHash);
     }

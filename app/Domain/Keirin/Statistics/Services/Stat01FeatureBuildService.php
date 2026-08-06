@@ -19,6 +19,7 @@ use App\Models\StatisticFeatureRunItem;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 class Stat01FeatureBuildService
@@ -35,6 +36,9 @@ class Stat01FeatureBuildService
     public function build(Stat01BuildOptionsDto $options): Stat01BuildSummaryDto
     {
         $targets = $this->inputs->counts($options);
+        if ($targets->races === 0) {
+            throw new RuntimeException('No target races were found.');
+        }
         $run = $options->dryRun ? null : $this->startRun($options, $targets->races, $targets->entries);
         $processed = $success = $partial = $missing = $invalid = $errors = 0;
         $hasPartialRace = false;

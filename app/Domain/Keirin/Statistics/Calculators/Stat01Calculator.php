@@ -21,6 +21,8 @@ class Stat01Calculator
 
     public const CALCULATION_VERSION = 'STAT-01-existing-db-v1';
 
+    private const SUBJECT_TYPE = 'RACE_ENTRY';
+
     public function __construct(private readonly DeterministicJsonHasher $hasher) {}
 
     public function calculate(Stat01RaceInputDto $race): Stat01RaceFeatureDto
@@ -45,6 +47,7 @@ class Stat01Calculator
             : null;
         $standardDeviation = $variance !== null ? sqrt($variance) : null;
         [$inputAsOf, $inputAsOfSource] = $this->inputAsOf($race);
+        $raceInputHash = $this->raceInputHash($race, $entries, $inputAsOf);
         $scoreCoverageRate = $race->entrantCount > 0 ? $validCount / $race->entrantCount : null;
         $raceHasIncompleteScores = $validCount !== $entryCount;
         $results = [];
@@ -142,24 +145,16 @@ class Stat01Calculator
                 'source_fetched_at' => $this->timestamp($entry->fetchedAt),
                 'source_fetched_after_start' => $sourceFetchedAfterStart,
                 'calculation_version' => self::CALCULATION_VERSION,
+                'race_input_hash' => $raceInputHash,
                 'status_reason' => $statusReason,
                 'quality_reasons' => $qualityReasons,
             ];
             $inputHash = $this->hasher->hash([
                 'stat_code' => self::STAT_CODE,
                 'calculation_version' => self::CALCULATION_VERSION,
-                'race_id' => $race->id,
+                'race_input_hash' => $raceInputHash,
+                'subject_type' => self::SUBJECT_TYPE,
                 'race_entry_id' => $entry->id,
-                'player_id' => $entry->playerId,
-                'bike_number' => $entry->bikeNumber,
-                'grade' => $entry->grade,
-                'race_score' => $entry->raceScore,
-                'entrant_count' => $race->entrantCount,
-                'sales_close_at' => $this->timestamp($race->salesCloseAt),
-                'scheduled_start_at' => $this->timestamp($race->scheduledStartAt),
-                'input_as_of' => $this->timestamp($inputAsOf),
-                'fetched_at' => $this->timestamp($entry->fetchedAt),
-                'acquisition_mode' => StatisticAcquisitionMode::Backfill->value,
             ]);
 
             $results[] = new Stat01EntryFeatureDto(
@@ -173,13 +168,56 @@ class Stat01Calculator
             );
         }
 
+        $partial = ! $entryCountMatches;
+        foreach ($results as $result) {
+            if ($result->status !== StatisticFeatureResultStatus::Valid
+                || $result->qualityStatus !== StatisticQualityStatus::Full) {
+                $partial = true;
+                break;
+            }
+        }
+
         return new Stat01RaceFeatureDto(
             raceId: $race->id,
             entries: $results,
-            partial: ! $entryCountMatches
-                || array_any($results, fn (Stat01EntryFeatureDto $result): bool => $result->status !== StatisticFeatureResultStatus::Valid
-                    || $result->qualityStatus !== StatisticQualityStatus::Full),
+            partial: $partial,
         );
+    }
+
+    /**
+     * @param  list<Stat01EntryInputDto>  $entries  Entries sorted by race_entry_id ascending.
+     */
+    private function raceInputHash(
+        Stat01RaceInputDto $race,
+        array $entries,
+        ?DateTimeImmutable $inputAsOf,
+    ): string {
+        return $this->hasher->hash([
+            'version' => [
+                'stat_code' => self::STAT_CODE,
+                'calculation_version' => self::CALCULATION_VERSION,
+            ],
+            'race' => [
+                'race_id' => $race->id,
+                'race_date' => $race->raceDate->format('Y-m-d'),
+                'race_type' => $race->raceType,
+                'entrant_count' => $race->entrantCount,
+                'sales_close_at' => $this->timestamp($race->salesCloseAt),
+                'scheduled_start_at' => $this->timestamp($race->scheduledStartAt),
+                'input_as_of' => $this->timestamp($inputAsOf),
+            ],
+            'entries' => array_map(fn (Stat01EntryInputDto $entry): array => [
+                'race_entry_id' => $entry->id,
+                'player_id' => $entry->playerId,
+                'bike_number' => $entry->bikeNumber,
+                'grade' => $entry->grade,
+                'race_score' => $entry->raceScore,
+                'fetched_at' => $this->timestamp($entry->fetchedAt),
+            ], $entries),
+            'acquisition' => [
+                'acquisition_mode' => StatisticAcquisitionMode::Backfill->value,
+            ],
+        ]);
     }
 
     /** @return array{0:?DateTimeImmutable,1:InputAsOfSource} */
