@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\Keirin\BackfillRetiredPlayersCommand;
+use App\Console\Commands\Keirin\BuildStat01FeaturesCommand;
 use App\Console\Commands\Keirin\ImportRaceResultsCommand;
 use App\Console\Commands\Keirin\SyncPlayersCommand;
 use App\Console\Commands\Keirin\SyncRaceScheduleCommand;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         BackfillRetiredPlayersCommand::class,
         SyncRaceScheduleCommand::class,
         SyncPlayersCommand::class,
+        BuildStat01FeaturesCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         //
