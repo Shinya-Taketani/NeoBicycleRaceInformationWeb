@@ -102,6 +102,59 @@ class StatisticFeatureMigrationTest extends TestCase
         }
     }
 
+    public function test_batch02_status_migration_does_not_change_source_schema_and_supports_new_statuses(): void
+    {
+        $sourceColumns = $this->sourceColumns();
+        $migration = require database_path('migrations/2026_08_07_000006_extend_statistic_feature_result_statuses.php');
+
+        $migration->up();
+        $this->assertSame($sourceColumns, $this->sourceColumns());
+
+        $runId = DB::table('statistic_feature_runs')->insertGetId([
+            'run_uuid' => '00000000-0000-4000-8000-000000000099',
+            'stat_code' => 'STAT-10',
+            'calculation_version' => 'STAT-10-existing-db-v1',
+            'mode' => 'BACKFILL',
+            'status' => 'SUCCEEDED',
+            'input_as_of_policy' => 'test',
+            'parameters' => '{}',
+            'started_at' => now(),
+            'finished_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        foreach (['NO_HISTORY', 'PARTIAL_HISTORY'] as $index => $status) {
+            DB::table('statistic_feature_results')->insert([
+                'feature_run_id' => $runId,
+                'stat_code' => 'STAT-10',
+                'calculation_version' => 'STAT-10-existing-db-v1',
+                'subject_type' => 'RACE_ENTRY',
+                'subject_key' => 'race_entry:'.($index + 1),
+                'race_id' => 1,
+                'race_entry_id' => $index + 1,
+                'bike_number' => $index + 1,
+                'status' => $status,
+                'quality_status' => 'PARTIAL',
+                'acquisition_mode' => 'BACKFILL',
+                'features' => '{}',
+                'evidence' => '{}',
+                'input_hash' => str_repeat((string) ($index + 1), 64),
+                'calculated_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        $this->assertSame(2, DB::table('statistic_feature_results')->whereIn('status', ['NO_HISTORY', 'PARTIAL_HISTORY'])->count());
+
+        if (DB::getDriverName() === 'pgsql') {
+            $this->expectException(\RuntimeException::class);
+            $migration->down();
+        } else {
+            $migration->down();
+            $this->assertSame($sourceColumns, $this->sourceColumns());
+        }
+    }
+
     /** @return array<string, list<string>> */
     private function sourceColumns(): array
     {

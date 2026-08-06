@@ -70,7 +70,9 @@ class Stat01FeatureBuildService
                     foreach ($calculation->entries as $entryResult) {
                         match ($entryResult->status) {
                             StatisticFeatureResultStatus::Valid => $raceCounts['success']++,
-                            StatisticFeatureResultStatus::Partial => $raceCounts['partial']++,
+                            StatisticFeatureResultStatus::Partial,
+                            StatisticFeatureResultStatus::NoHistory,
+                            StatisticFeatureResultStatus::PartialHistory => $raceCounts['partial']++,
                             StatisticFeatureResultStatus::MissingInput => $raceCounts['missing']++,
                             StatisticFeatureResultStatus::InvalidInput => $raceCounts['invalid']++,
                         };
