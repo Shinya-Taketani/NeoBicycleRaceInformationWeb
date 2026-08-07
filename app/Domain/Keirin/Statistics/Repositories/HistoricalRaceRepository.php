@@ -22,6 +22,13 @@ use UnexpectedValueException;
 
 class HistoricalRaceRepository
 {
+    // A successful one-race 128 MB dry-run establishes the safe baseline; five races
+    // keep history queries grouped while bounding simultaneous target players to 45.
+    private const TARGET_WORKING_BATCH_SIZE = 5;
+
+    // At most 250 historical races (normally 5-9 entries each) need score context at once.
+    private const HISTORY_ROW_BATCH_SIZE = 250;
+
     public function __construct(
         private readonly HistoricalResultStateNormalizer $normalizer,
         private readonly DeterministicJsonHasher $hasher,
@@ -86,22 +93,24 @@ class HistoricalRaceRepository
                 return;
             }
 
-            $targets = $this->targetRows($options, $raceIds);
-            $historiesByPlayer = $this->historiesForTargets($targets, $options);
-            $targetsByRace = $targets->groupBy('race_id');
-            foreach ($raceIds as $raceId) {
-                $entries = [];
-                foreach ($targetsByRace->get($raceId, collect()) as $target) {
-                    $entries[] = $this->targetDto($target);
+            foreach (array_chunk($raceIds, self::TARGET_WORKING_BATCH_SIZE) as $workingRaceIds) {
+                $targets = $this->targetRows($options, $workingRaceIds);
+                $historiesByPlayer = $this->historiesForTargets($targets, $options);
+                $targetsByRace = $targets->groupBy('race_id');
+                foreach ($workingRaceIds as $raceId) {
+                    $entries = [];
+                    foreach ($targetsByRace->get($raceId, collect()) as $target) {
+                        $entries[] = $this->targetDto($target);
+                    }
+                    yield new Batch02RaceInputDto($raceId, $entries, $historiesByPlayer);
                 }
-                yield new Batch02RaceInputDto($raceId, $entries, $historiesByPlayer);
+                unset($targets, $historiesByPlayer, $targetsByRace);
             }
 
             $lastRaceId = $raceIds[array_key_last($raceIds)];
             if (count($raceIds) < $options->chunkSize) {
                 return;
             }
-            unset($targets, $historiesByPlayer, $targetsByRace);
         }
     }
 
@@ -186,7 +195,7 @@ class HistoricalRaceRepository
             return [];
         }
 
-        $rows = DB::table('race_entries as history_entries')
+        $query = DB::table('race_entries as history_entries')
             ->join('races as history_races', 'history_races.id', '=', 'history_entries.race_id')
             ->join('race_results as history_results', function ($join): void {
                 $join->on('history_results.race_id', '=', 'history_entries.race_id')
@@ -215,83 +224,122 @@ class HistoricalRaceRepository
                 'history_results.result_status',
                 'history_results.fetched_at as race_result_fetched_at',
             ])
-            ->orderBy('history_races.scheduled_start_at')
-            ->orderBy('history_entries.race_id')
-            ->orderBy('history_entries.id')
-            ->get();
-        if ($rows->isEmpty()) {
-            return [];
-        }
-
-        $raceIds = $rows->pluck('race_id')->map(fn (mixed $id): int => (int) $id)->unique()->values()->all();
-        $contexts = DB::table('race_entries')
-            ->whereIntegerInRaw('race_id', $raceIds)
-            ->select(['id', 'race_id', 'player_id', 'bike_number', 'grade', 'race_score'])
-            ->orderBy('race_id')
-            ->orderBy('id')
-            ->get()
-            ->groupBy('race_id');
-
+            ->orderBy('history_entries.id');
         $historiesByPlayer = [];
-        foreach ($rows as $row) {
-            $entrantCount = (int) $row->entrant_count;
-            $contextRows = $contexts->get($row->race_id, collect());
-            [$scorePercentile, $contextHash] = $this->scoreContext(
-                contextRows: $contextRows,
-                raceId: (int) $row->race_id,
-                targetRaceEntryId: (int) $row->race_entry_id,
-                entrantCount: $entrantCount,
-            );
-            $normalized = $this->normalizer->normalize((string) $row->result_status);
-            $rank = $row->rank !== null ? (int) $row->rank : null;
-            $finishPercentile = $normalized->state->value === 'NORMAL_FINISH'
-                && $rank !== null
-                && $entrantCount > 1
-                    ? ($entrantCount - $rank) / ($entrantCount - 1)
-                    : null;
-            $playerId = (int) $row->player_id;
-            $historiesByPlayer[$playerId][] = new HistoricalRaceDto(
-                playerId: $playerId,
-                raceId: (int) $row->race_id,
-                raceEntryId: (int) $row->race_entry_id,
-                scheduledStartAt: new DateTimeImmutable((string) $row->scheduled_start_at),
-                raceMeetingId: $row->race_meeting_id !== null ? (int) $row->race_meeting_id : null,
-                racetrackId: $row->racetrack_id !== null ? (int) $row->racetrack_id : null,
-                entrantCount: $entrantCount,
-                resultState: $normalized->state,
-                tied: $normalized->tied,
-                rank: $rank,
-                raceScore: $this->raceScore($row->race_score),
-                finishStrengthPercentile: $finishPercentile,
-                scoreExpectationResidual: $finishPercentile !== null && $scorePercentile !== null
-                    ? $finishPercentile - $scorePercentile
-                    : null,
-                historicalScoreContextHash: $contextHash,
-                raceEntryFetchedAt: new DateTimeImmutable((string) $row->race_entry_fetched_at),
-                raceResultFetchedAt: new DateTimeImmutable((string) $row->race_result_fetched_at),
-            );
+        $lastRaceEntryId = 0;
+        while (true) {
+            $rows = (clone $query)
+                ->where('history_entries.id', '>', $lastRaceEntryId)
+                ->limit(self::HISTORY_ROW_BATCH_SIZE)
+                ->get();
+            if ($rows->isEmpty()) {
+                break;
+            }
+
+            $entrantCounts = [];
+            foreach ($rows as $row) {
+                $entrantCounts[(int) $row->race_id] = (int) $row->entrant_count;
+            }
+            $contexts = $this->scoreContexts(array_keys($entrantCounts), $entrantCounts);
+            foreach ($rows as $row) {
+                $raceId = (int) $row->race_id;
+                $raceEntryId = (int) $row->race_entry_id;
+                $entrantCount = (int) $row->entrant_count;
+                $scorePercentile = $contexts[$raceId]['percentiles'][$raceEntryId] ?? null;
+                $normalized = $this->normalizer->normalize((string) $row->result_status);
+                $rank = $row->rank !== null ? (int) $row->rank : null;
+                $finishPercentile = $normalized->state->value === 'NORMAL_FINISH'
+                    && $rank !== null
+                    && $entrantCount > 1
+                        ? ($entrantCount - $rank) / ($entrantCount - 1)
+                        : null;
+                $playerId = (int) $row->player_id;
+                $historiesByPlayer[$playerId][] = new HistoricalRaceDto(
+                    playerId: $playerId,
+                    raceId: $raceId,
+                    raceEntryId: $raceEntryId,
+                    scheduledStartAt: new DateTimeImmutable((string) $row->scheduled_start_at),
+                    raceMeetingId: $row->race_meeting_id !== null ? (int) $row->race_meeting_id : null,
+                    racetrackId: $row->racetrack_id !== null ? (int) $row->racetrack_id : null,
+                    entrantCount: $entrantCount,
+                    resultState: $normalized->state,
+                    tied: $normalized->tied,
+                    rank: $rank,
+                    raceScore: $this->raceScore($row->race_score),
+                    finishStrengthPercentile: $finishPercentile,
+                    scoreExpectationResidual: $finishPercentile !== null && $scorePercentile !== null
+                        ? $finishPercentile - $scorePercentile
+                        : null,
+                    historicalScoreContextHash: $contexts[$raceId]['hash'],
+                    raceEntryFetchedAt: new DateTimeImmutable((string) $row->race_entry_fetched_at),
+                    raceResultFetchedAt: new DateTimeImmutable((string) $row->race_result_fetched_at),
+                );
+            }
+
+            $lastRaceEntryId = (int) $rows->last()->race_entry_id;
+            if ($rows->count() < self::HISTORY_ROW_BATCH_SIZE) {
+                break;
+            }
+            unset($rows, $contexts, $entrantCounts);
         }
 
         return $historiesByPlayer;
     }
 
     /**
-     * @param  Collection<int, object>  $contextRows
-     * @return array{0:?float,1:string}
+     * @param  list<int>  $raceIds
+     * @param  array<int, int>  $entrantCounts
+     * @return array<int, array{hash: string, percentiles: array<int, ?float>}>
      */
-    private function scoreContext(
-        Collection $contextRows,
-        int $raceId,
-        int $targetRaceEntryId,
-        int $entrantCount,
-    ): array {
-        $context = $contextRows->map(fn (object $entry): array => [
-            'race_entry_id' => (int) $entry->id,
-            'player_id' => $entry->player_id !== null ? (int) $entry->player_id : null,
-            'bike_number' => (int) $entry->bike_number,
-            'grade' => $entry->grade !== null ? (string) $entry->grade : null,
-            'race_score' => $this->raceScore($entry->race_score),
-        ])->values()->all();
+    private function scoreContexts(array $raceIds, array $entrantCounts): array
+    {
+        $summaries = [];
+        $currentRaceId = null;
+        $context = [];
+        foreach (DB::table('race_entries')
+            ->whereIntegerInRaw('race_id', $raceIds)
+            ->select(['id', 'race_id', 'player_id', 'bike_number', 'grade', 'race_score'])
+            ->orderBy('race_id')
+            ->orderBy('id')
+            ->cursor() as $entry) {
+            $raceId = (int) $entry->race_id;
+            if ($currentRaceId !== null && $raceId !== $currentRaceId) {
+                $summaries[$currentRaceId] = $this->scoreContextSummary(
+                    $currentRaceId,
+                    $entrantCounts[$currentRaceId],
+                    $context,
+                );
+                $context = [];
+            }
+            $currentRaceId = $raceId;
+            $context[] = [
+                'race_entry_id' => (int) $entry->id,
+                'player_id' => $entry->player_id !== null ? (int) $entry->player_id : null,
+                'bike_number' => (int) $entry->bike_number,
+                'grade' => $entry->grade !== null ? (string) $entry->grade : null,
+                'race_score' => $this->raceScore($entry->race_score),
+            ];
+        }
+        if ($currentRaceId !== null) {
+            $summaries[$currentRaceId] = $this->scoreContextSummary(
+                $currentRaceId,
+                $entrantCounts[$currentRaceId],
+                $context,
+            );
+        }
+        foreach ($entrantCounts as $raceId => $entrantCount) {
+            $summaries[$raceId] ??= $this->scoreContextSummary($raceId, $entrantCount, []);
+        }
+
+        return $summaries;
+    }
+
+    /**
+     * @param  list<array{race_entry_id: int, player_id: ?int, bike_number: int, grade: ?string, race_score: ?string}>  $context
+     * @return array{hash: string, percentiles: array<int, ?float>}
+     */
+    private function scoreContextSummary(int $raceId, int $entrantCount, array $context): array
+    {
         $contextHash = $this->hasher->hash([
             'race_id' => $raceId,
             'entrant_count' => $entrantCount,
@@ -299,26 +347,23 @@ class HistoricalRaceRepository
         ]);
         $complete = count($context) === $entrantCount;
         $scores = [];
-        $targetScore = null;
         foreach ($context as $entry) {
             $score = $entry['race_score'];
             if ($score === null || (float) $score <= 0) {
                 $complete = false;
-
-                continue;
-            }
-            $numeric = (float) $score;
-            $scores[] = $numeric;
-            if ($entry['race_entry_id'] === $targetRaceEntryId) {
-                $targetScore = $numeric;
+            } else {
+                $scores[$entry['race_entry_id']] = (float) $score;
             }
         }
-        if (! $complete || $targetScore === null || count($scores) <= 1) {
-            return [null, $contextHash];
+        $percentiles = array_fill_keys(array_column($context, 'race_entry_id'), null);
+        if ($complete && count($scores) > 1) {
+            foreach ($scores as $raceEntryId => $targetScore) {
+                $rank = 1 + count(array_filter($scores, fn (float $score): bool => $score > $targetScore));
+                $percentiles[$raceEntryId] = (count($scores) - $rank) / (count($scores) - 1);
+            }
         }
-        $rank = 1 + count(array_filter($scores, fn (float $score): bool => $score > $targetScore));
 
-        return [(count($scores) - $rank) / (count($scores) - 1), $contextHash];
+        return ['hash' => $contextHash, 'percentiles' => $percentiles];
     }
 
     private function raceScore(mixed $value): ?string

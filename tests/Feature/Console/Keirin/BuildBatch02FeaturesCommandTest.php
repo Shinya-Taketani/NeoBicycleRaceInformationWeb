@@ -6,6 +6,11 @@ namespace Tests\Feature\Console\Keirin;
 
 use App\Domain\Keirin\Statistics\Calculators\Stat01Calculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat10Calculator;
+use App\Domain\Keirin\Statistics\Calculators\Stat11Calculator;
+use App\Domain\Keirin\Statistics\Calculators\Stat12Calculator;
+use App\Domain\Keirin\Statistics\Calculators\Stat24Calculator;
+use App\Domain\Keirin\Statistics\Calculators\Stat26Calculator;
+use App\Domain\Keirin\Statistics\Contracts\Batch02Calculator;
 use App\Domain\Keirin\Statistics\DTO\Batch02BuildOptionsDto;
 use App\Domain\Keirin\Statistics\DTO\Batch02FeatureResultDto;
 use App\Domain\Keirin\Statistics\DTO\Batch02TargetEntryDto;
@@ -13,6 +18,7 @@ use App\Domain\Keirin\Statistics\DTO\HistoricalRaceDto;
 use App\Domain\Keirin\Statistics\Enums\HistoricalResultState;
 use App\Domain\Keirin\Statistics\Repositories\HistoricalRaceRepository;
 use App\Domain\Keirin\Statistics\Support\Batch02CalculatorSupport;
+use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
 use App\Domain\Keirin\Statistics\Support\StatisticalMath;
 use App\Models\StatisticFeatureResult;
 use App\Models\StatisticFeatureRun;
@@ -130,7 +136,27 @@ class BuildBatch02FeaturesCommandTest extends TestCase
         $calculator = $this->app->make(Stat10Calculator::class);
         $before = $calculator->calculate($target, $histories, $options, 'batch')->inputHash;
         $contextBefore = $histories[0]->historicalScoreContextHash;
+        $contextEntries = DB::table('race_entries')
+            ->where('race_id', $histories[0]->raceId)
+            ->orderBy('id')
+            ->get(['id', 'player_id', 'bike_number', 'grade', 'race_score'])
+            ->map(fn (object $entry): array => [
+                'race_entry_id' => (int) $entry->id,
+                'player_id' => $entry->player_id !== null ? (int) $entry->player_id : null,
+                'bike_number' => (int) $entry->bike_number,
+                'grade' => $entry->grade !== null ? (string) $entry->grade : null,
+                'race_score' => $entry->race_score !== null
+                    ? number_format((float) $entry->race_score, 2, '.', '')
+                    : null,
+            ])
+            ->all();
+        $expectedContextHash = $this->app->make(DeterministicJsonHasher::class)->hash([
+            'race_id' => $histories[0]->raceId,
+            'entrant_count' => 2,
+            'entries' => $contextEntries,
+        ]);
 
+        $this->assertSame($expectedContextHash, $contextBefore);
         DB::table('race_entries')
             ->where('race_id', $histories[0]->raceId)
             ->where('bike_number', 2)
@@ -247,6 +273,80 @@ class BuildBatch02FeaturesCommandTest extends TestCase
         $this->expectException(UnexpectedValueException::class);
         $this->expectExceptionMessage('Batch02 target scheduled_start_at was missing.');
         iterator_to_array($this->app->make(HistoricalRaceRepository::class)->raceInputs($options), false);
+    }
+
+    public function test_small_and_large_outer_chunks_produce_identical_outputs(): void
+    {
+        [$runId] = $this->fixture();
+        foreach (range(2, 6) as $offset) {
+            $this->addTargetToStat01Run($runId, '2024-01-'.sprintf('%02d', 10 + $offset), $offset);
+        }
+
+        $small = $this->calculatedOutputs($this->rangeOptions($runId, 1));
+        $large = $this->calculatedOutputs($this->rangeOptions($runId, 200));
+
+        $this->assertCount(30, $small);
+        $this->assertSame($small, $large);
+    }
+
+    public function test_large_outer_chunk_uses_internal_working_batches_not_target_entry_queries(): void
+    {
+        [$runId] = $this->fixture();
+        foreach (range(2, 6) as $offset) {
+            $this->addTargetToStat01Run($runId, '2024-01-'.sprintf('%02d', 10 + $offset), $offset);
+        }
+        $historyQueries = 0;
+        $contextQueries = 0;
+        DB::listen(function ($query) use (&$historyQueries, &$contextQueries): void {
+            if (str_contains($query->sql, 'history_entries')) {
+                $historyQueries++;
+            } elseif (str_contains($query->sql, 'from "race_entries"')) {
+                $contextQueries++;
+            }
+        });
+
+        $inputs = iterator_to_array(
+            $this->app->make(HistoricalRaceRepository::class)->raceInputs($this->rangeOptions($runId, 200)),
+            false,
+        );
+
+        $this->assertCount(6, $inputs);
+        $this->assertSame(2, $historyQueries);
+        $this->assertSame(2, $contextQueries);
+        $this->assertLessThan(count($inputs), $historyQueries);
+    }
+
+    public function test_history_rows_and_score_contexts_are_keyset_paged_without_output_loss(): void
+    {
+        [$runId, $targetRaceId] = $this->fixture();
+        $this->addSyntheticHistories($runId, 251);
+        $historyQueries = 0;
+        $contextQueries = 0;
+        DB::listen(function ($query) use (&$historyQueries, &$contextQueries): void {
+            if (str_contains($query->sql, 'history_entries')) {
+                $historyQueries++;
+            } elseif (str_contains($query->sql, 'from "race_entries"')) {
+                $contextQueries++;
+            }
+        });
+        $options = new Batch02BuildOptionsDto(
+            $runId,
+            new DateTimeImmutable('2023-01-01'),
+            null,
+            null,
+            $targetRaceId,
+            200,
+            true,
+        );
+
+        $input = iterator_to_array($this->app->make(HistoricalRaceRepository::class)->raceInputs($options), false)[0];
+        $histories = $input->historiesByPlayer[$input->entries[0]->playerId];
+
+        $this->assertCount(253, $histories);
+        $this->assertSame(2, $historyQueries);
+        $this->assertSame(2, $contextQueries);
+        $this->assertNotNull($histories[array_key_last($histories)]->historicalScoreContextHash);
+        $this->assertNotNull($histories[array_key_last($histories)]->scoreExpectationResidual);
     }
 
     /** @return array{int, int} */
@@ -396,14 +496,136 @@ class BuildBatch02FeaturesCommandTest extends TestCase
             'features' => '{}', 'evidence' => '{}', 'input_hash' => str_repeat((string) $number, 64),
             'calculated_at' => $now, 'created_at' => $now, 'updated_at' => $now,
         ]);
-        DB::table('statistic_feature_runs')->where('id', $runId)->update([
-            'target_race_count' => 2,
-            'processed_race_count' => 2,
-            'target_entry_count' => 2,
-            'success_count' => 2,
+        DB::table('statistic_feature_runs')->where('id', $runId)->incrementEach([
+            'target_race_count' => 1,
+            'processed_race_count' => 1,
+            'target_entry_count' => 1,
+            'success_count' => 1,
         ]);
 
         return (int) $raceId;
+    }
+
+    private function rangeOptions(int $runId, int $chunkSize): Batch02BuildOptionsDto
+    {
+        return new Batch02BuildOptionsDto(
+            $runId,
+            new DateTimeImmutable('2023-01-01'),
+            new DateTimeImmutable('2024-01-10'),
+            new DateTimeImmutable('2024-01-16'),
+            null,
+            $chunkSize,
+            true,
+        );
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function calculatedOutputs(Batch02BuildOptionsDto $options): array
+    {
+        /** @var list<Batch02Calculator> $calculators */
+        $calculators = [
+            $this->app->make(Stat10Calculator::class),
+            $this->app->make(Stat11Calculator::class),
+            $this->app->make(Stat12Calculator::class),
+            $this->app->make(Stat24Calculator::class),
+            $this->app->make(Stat26Calculator::class),
+        ];
+        $outputs = [];
+        foreach ($this->app->make(HistoricalRaceRepository::class)->raceInputs($options) as $race) {
+            foreach ($calculators as $calculator) {
+                foreach ($race->entries as $entry) {
+                    $result = $calculator->calculate(
+                        $entry,
+                        $entry->playerId !== null ? ($race->historiesByPlayer[$entry->playerId] ?? []) : [],
+                        $options,
+                        'fixed-test-batch',
+                    );
+                    $outputs[$calculator->stat()->value.':'.$entry->raceEntryId] = [
+                        'features' => $result->features,
+                        'evidence' => $result->evidence,
+                        'status' => $result->status->value,
+                        'quality_status' => $result->qualityStatus->value,
+                        'target_context_hash' => $result->evidence['target_context_hash'],
+                        'history_input_hash' => $result->evidence['history_input_hash'],
+                        'input_hash' => $result->inputHash,
+                    ];
+                }
+            }
+        }
+        ksort($outputs);
+
+        return $outputs;
+    }
+
+    private function addSyntheticHistories(int $runId, int $count): void
+    {
+        $now = now();
+        $targetPlayerId = (int) DB::table('statistic_feature_results')
+            ->where('feature_run_id', $runId)
+            ->value('player_id');
+        $opponentId = $this->player('paged-opponent');
+        $nextRaceId = (int) DB::table('races')->max('id') + 1;
+        $nextEntryId = (int) DB::table('race_entries')->max('id') + 1;
+        $nextResultId = (int) DB::table('race_results')->max('id') + 1;
+        $races = [];
+        $entries = [];
+        $results = [];
+        foreach (range(0, $count - 1) as $index) {
+            $raceId = $nextRaceId + $index;
+            $date = (new DateTimeImmutable('2023-01-01'))->modify("+{$index} days");
+            $timestamp = $date->format('Y-m-d').' 12:00:00';
+            $races[] = [
+                'id' => $raceId,
+                'source' => 'batch02-paged-test',
+                'external_race_id' => 'paged-history-'.$index,
+                'race_date' => $date->format('Y-m-d'),
+                'race_number' => 1,
+                'scheduled_start_at' => $timestamp,
+                'race_type' => 'Ａ級予選',
+                'entrant_count' => 2,
+                'result_status' => 'CONFIRMED',
+                'result_available' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+            foreach ([[$targetPlayerId, 1, '80.00', 1], [$opponentId, 2, '70.00', 2]] as $entrantIndex => [$playerId, $bikeNumber, $score, $rank]) {
+                $entryId = $nextEntryId + ($index * 2) + $entrantIndex;
+                $entries[] = [
+                    'id' => $entryId,
+                    'race_id' => $raceId,
+                    'player_id' => $playerId,
+                    'external_player_id' => 'paged-player-'.$playerId,
+                    'bike_number' => $bikeNumber,
+                    'frame_number' => $bikeNumber,
+                    'grade' => 'A1',
+                    'race_score' => $score,
+                    'fetched_at' => $timestamp,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+                $results[] = [
+                    'id' => $nextResultId + ($index * 2) + $entrantIndex,
+                    'race_id' => $raceId,
+                    'race_entry_id' => $entryId,
+                    'player_id' => $playerId,
+                    'bike_number' => $bikeNumber,
+                    'rank' => $rank,
+                    'result_status' => 'FINISHED',
+                    'fetched_at' => $timestamp,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+        foreach (array_chunk($races, 50) as $chunk) {
+            DB::table('races')->insert($chunk);
+        }
+        foreach (array_chunk($entries, 50) as $chunk) {
+            DB::table('race_entries')->insert($chunk);
+        }
+        foreach (array_chunk($results, 50) as $chunk) {
+            DB::table('race_results')->insert($chunk);
+        }
     }
 
     private function player(string $suffix): int
