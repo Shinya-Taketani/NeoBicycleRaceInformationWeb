@@ -51,6 +51,24 @@ WITH expected_stats(stat_code, calculation_version) AS (
     CROSS JOIN selected_batch
     WHERE runs.parameters->>'batch_execution_uuid' = selected_batch.batch_execution_uuid
       AND runs.stat_code IN ('STAT-10', 'STAT-11', 'STAT-12', 'STAT-24', 'STAT-26')
+), result_totals AS (
+    SELECT
+        results.feature_run_id,
+        COUNT(*) AS result_count,
+        COUNT(*) FILTER (WHERE results.status = 'VALID') AS valid_count,
+        COUNT(*) FILTER (WHERE results.status = 'NO_HISTORY') AS no_history_count,
+        COUNT(*) FILTER (WHERE results.status = 'PARTIAL_HISTORY') AS partial_history_count,
+        COUNT(*) FILTER (WHERE results.status = 'MISSING_INPUT') AS missing_count,
+        COUNT(*) FILTER (WHERE results.status = 'INVALID_INPUT') AS invalid_count,
+        COUNT(*) FILTER (WHERE results.quality_status = 'FULL') AS quality_full_count,
+        COUNT(*) FILTER (WHERE results.quality_status = 'PARTIAL') AS quality_partial_count,
+        COUNT(*) FILTER (WHERE results.quality_status = 'DEGRADED') AS quality_degraded_count,
+        COUNT(*) FILTER (WHERE results.raw_points IS NOT NULL) AS raw_points_not_null,
+        COUNT(*) FILTER (WHERE results.confidence IS NOT NULL) AS confidence_not_null,
+        COUNT(*) FILTER (WHERE results.effective_points IS NOT NULL) AS effective_points_not_null
+    FROM statistic_feature_results AS results
+    JOIN selected_runs AS runs ON runs.id = results.feature_run_id
+    GROUP BY results.feature_run_id
 )
 SELECT
     runs.id AS run_id,
@@ -61,22 +79,21 @@ SELECT
     runs.target_race_count,
     runs.processed_race_count,
     runs.target_entry_count,
-    COUNT(results.id) AS result_count,
-    COUNT(results.id) FILTER (WHERE results.status = 'VALID') AS valid_count,
-    COUNT(results.id) FILTER (WHERE results.status = 'NO_HISTORY') AS no_history_count,
-    COUNT(results.id) FILTER (WHERE results.status = 'PARTIAL_HISTORY') AS partial_history_count,
-    COUNT(results.id) FILTER (WHERE results.status = 'MISSING_INPUT') AS missing_count,
-    COUNT(results.id) FILTER (WHERE results.status = 'INVALID_INPUT') AS invalid_count,
-    COUNT(results.id) FILTER (WHERE results.quality_status = 'FULL') AS quality_full_count,
-    COUNT(results.id) FILTER (WHERE results.quality_status = 'PARTIAL') AS quality_partial_count,
-    COUNT(results.id) FILTER (WHERE results.quality_status = 'DEGRADED') AS quality_degraded_count,
-    COUNT(results.id) FILTER (WHERE results.raw_points IS NOT NULL) AS raw_points_not_null,
-    COUNT(results.id) FILTER (WHERE results.confidence IS NOT NULL) AS confidence_not_null,
-    COUNT(results.id) FILTER (WHERE results.effective_points IS NOT NULL) AS effective_points_not_null,
+    COALESCE(totals.result_count, 0) AS result_count,
+    COALESCE(totals.valid_count, 0) AS valid_count,
+    COALESCE(totals.no_history_count, 0) AS no_history_count,
+    COALESCE(totals.partial_history_count, 0) AS partial_history_count,
+    COALESCE(totals.missing_count, 0) AS missing_count,
+    COALESCE(totals.invalid_count, 0) AS invalid_count,
+    COALESCE(totals.quality_full_count, 0) AS quality_full_count,
+    COALESCE(totals.quality_partial_count, 0) AS quality_partial_count,
+    COALESCE(totals.quality_degraded_count, 0) AS quality_degraded_count,
+    COALESCE(totals.raw_points_not_null, 0) AS raw_points_not_null,
+    COALESCE(totals.confidence_not_null, 0) AS confidence_not_null,
+    COALESCE(totals.effective_points_not_null, 0) AS effective_points_not_null,
     runs.error_count
 FROM selected_runs AS runs
-LEFT JOIN statistic_feature_results AS results ON results.feature_run_id = runs.id
-GROUP BY runs.id
+LEFT JOIN result_totals AS totals ON totals.feature_run_id = runs.id
 ORDER BY runs.stat_code;
 
 WITH expected_stats(stat_code, calculation_version) AS (

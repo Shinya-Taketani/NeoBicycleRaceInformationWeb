@@ -38,6 +38,11 @@ class Batch02ValidationSqlTest extends TestCase
         }
         $this->assertStringContainsString("NULLIF(:'batch_execution_uuid', '')", $sql);
         $this->assertStringNotContainsString("runs.status = 'SUCCEEDED'", $sql);
+        $this->assertStringContainsString('result_totals AS (', $sql);
+        $this->assertStringContainsString('GROUP BY results.feature_run_id', $sql);
+        $this->assertStringContainsString('LEFT JOIN result_totals AS totals', $sql);
+        $this->assertStringContainsString('totals.feature_run_id = runs.id', $sql);
+        $this->assertStringNotContainsString('GROUP BY runs.id', $sql);
     }
 
     public function test_batch02_statistics_code_does_not_use_php_84_array_helpers(): void
