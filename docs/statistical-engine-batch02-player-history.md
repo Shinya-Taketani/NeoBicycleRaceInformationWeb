@@ -99,6 +99,14 @@ php artisan keirin:statistics:build-batch02 \
   --dry-run
 ```
 
+### メモリ有界化
+
+`--chunk`はtarget race IDを読む外側keyset page sizeであり、履歴を同時保持する単位ではない。外側page内を5 raceずつの内部working batchに分け、各batchの処理とyield後にtarget・履歴DTOを解放する。
+
+履歴raw rowは`race_entries.id`によるkeysetで250行ずつ取得する。各row pageに含まれるhistorical raceだけを対象に、race entry contextをrace単位のcursorで読み、`historical_score_context_hash`とentry別score percentileのcompact summaryへ変換する。target entryごとのhistory SQLは発行しない。
+
+この変更はfeature定義、score context hash、`history_input_hash`、`target_context_hash`、未来情報cutoff、PRE_MEETING / IN_MEETING分類を変更しない。実DBの2024-01-01（94 race、645 entry）は、PHP `memory_limit=128M`、`--chunk=200`、`--dry-run`で全5 STATがerrors=0となり、最大RSS 63,516KBで完了した。
+
 検証は`docs/sql/validate_batch02_2024.sql`を使用する。
 
 ## 未実装・制約
