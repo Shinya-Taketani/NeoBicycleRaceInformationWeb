@@ -14,6 +14,7 @@ readonly class Batch02TargetEntryDto
         public ?int $playerId,
         public int $bikeNumber,
         public DateTimeImmutable $inputAsOf,
+        public DateTimeImmutable $scheduledStartAt,
         public string $stat01InputHash,
         public ?int $targetMeetingId,
     ) {}

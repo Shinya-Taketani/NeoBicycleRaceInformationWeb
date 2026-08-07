@@ -134,6 +134,7 @@ class HistoricalRaceRepository
                 'results.bike_number',
                 'results.input_as_of',
                 'results.input_hash as stat01_input_hash',
+                'races.scheduled_start_at as target_scheduled_start_at',
                 'race_days.race_meeting_id as target_meeting_id',
             ])
             ->orderBy('results.race_id')
@@ -146,6 +147,9 @@ class HistoricalRaceRepository
         if ($row->input_as_of === null) {
             throw new UnexpectedValueException('STAT-01 target input_as_of was missing.');
         }
+        if ($row->target_scheduled_start_at === null) {
+            throw new UnexpectedValueException('Batch02 target scheduled_start_at was missing.');
+        }
 
         return new Batch02TargetEntryDto(
             raceId: (int) $row->race_id,
@@ -153,6 +157,7 @@ class HistoricalRaceRepository
             playerId: $row->player_id !== null ? (int) $row->player_id : null,
             bikeNumber: (int) $row->bike_number,
             inputAsOf: new DateTimeImmutable((string) $row->input_as_of),
+            scheduledStartAt: new DateTimeImmutable((string) $row->target_scheduled_start_at),
             stat01InputHash: (string) $row->stat01_input_hash,
             targetMeetingId: $row->target_meeting_id !== null ? (int) $row->target_meeting_id : null,
         );

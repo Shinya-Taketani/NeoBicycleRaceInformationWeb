@@ -21,6 +21,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\TestCase;
+use UnexpectedValueException;
 
 class BuildBatch02FeaturesCommandTest extends TestCase
 {
@@ -117,6 +118,7 @@ class BuildBatch02FeaturesCommandTest extends TestCase
         $target = $input->entries[0];
         $histories = $input->historiesByPlayer[$target->playerId];
 
+        $this->assertSame('2024-01-10 12:00:00', $target->scheduledStartAt->format('Y-m-d H:i:s'));
         $this->assertCount(2, $histories);
         $this->assertSame(['2023-12-10', '2024-01-09'], array_map(
             fn ($history): string => $history->scheduledStartAt->format('Y-m-d'),
@@ -226,6 +228,25 @@ class BuildBatch02FeaturesCommandTest extends TestCase
             $this->assertNotNull($run->finished_at);
         }
         $this->assertSame(0, StatisticFeatureRun::query()->where('status', 'RUNNING')->count());
+    }
+
+    public function test_missing_target_scheduled_start_is_rejected_without_input_as_of_fallback(): void
+    {
+        [$runId, $targetRaceId] = $this->fixture();
+        DB::table('races')->where('id', $targetRaceId)->update(['scheduled_start_at' => null]);
+        $options = new Batch02BuildOptionsDto(
+            $runId,
+            new DateTimeImmutable('2023-01-01'),
+            null,
+            null,
+            $targetRaceId,
+            200,
+            true,
+        );
+
+        $this->expectException(UnexpectedValueException::class);
+        $this->expectExceptionMessage('Batch02 target scheduled_start_at was missing.');
+        iterator_to_array($this->app->make(HistoricalRaceRepository::class)->raceInputs($options), false);
     }
 
     /** @return array{int, int} */

@@ -58,6 +58,17 @@ class Batch02CalculatorSupport
         }
         $qualityReasons = array_values(array_unique($qualityReasons));
 
+        $targetContextHash = $this->hasher->hash([
+            'target_race_id' => $target->raceId,
+            'target_race_entry_id' => $target->raceEntryId,
+            'target_player_id' => $target->playerId,
+            'target_bike_number' => $target->bikeNumber,
+            'target_input_as_of' => $this->timestamp($target->inputAsOf),
+            'target_scheduled_start_at' => $this->timestamp($target->scheduledStartAt),
+            'target_meeting_id' => $target->targetMeetingId,
+            'stat01_input_hash' => $target->stat01InputHash,
+        ]);
+
         $historyInputHash = $this->hasher->hash([
             'history_from' => $options->historyFrom->format('Y-m-d'),
             'histories' => array_map(fn (HistoricalRaceDto $history): array => [
@@ -97,11 +108,13 @@ class Batch02CalculatorSupport
             histories: $histories,
             preMeeting: $preMeeting,
             inMeeting: $inMeeting,
+            targetContextHash: $targetContextHash,
             historyInputHash: $historyInputHash,
             evidence: [
                 'batch_execution_uuid' => $batchExecutionUuid,
                 'stat01_run_id' => $options->stat01RunId,
                 'stat01_input_hash' => $target->stat01InputHash,
+                'target_context_hash' => $targetContextHash,
                 'history_from' => $options->historyFrom->format('Y-m-d'),
                 'history_input_hash' => $historyInputHash,
                 'history_result_mode' => 'BACKFILLED_FINAL_RESULT',
@@ -111,6 +124,7 @@ class Batch02CalculatorSupport
                 'abnormal_history_count' => $abnormalCount,
                 'did_not_start_history_count' => $didNotStartCount,
                 'target_input_as_of' => $this->timestamp($target->inputAsOf),
+                'target_scheduled_start_at' => $this->timestamp($target->scheduledStartAt),
                 'target_meeting_id' => $target->targetMeetingId,
                 'history_min_at' => isset($histories[0]) ? $this->timestamp($histories[0]->scheduledStartAt) : null,
                 'history_max_at' => $histories !== [] ? $this->timestamp($histories[array_key_last($histories)]->scheduledStartAt) : null,
@@ -167,7 +181,7 @@ class Batch02CalculatorSupport
         $inputHash = $this->hasher->hash([
             'stat_code' => $stat->value,
             'calculation_version' => $stat->calculationVersion(),
-            'stat01_input_hash' => $target->stat01InputHash,
+            'target_context_hash' => $context->targetContextHash,
             'history_from' => $options->historyFrom->format('Y-m-d'),
             'history_input_hash' => $context->historyInputHash,
         ]);

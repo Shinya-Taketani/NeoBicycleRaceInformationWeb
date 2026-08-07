@@ -53,7 +53,7 @@ score_expectation_residual = finish_strength_percentile - historical_score_perce
 
 他選手を含む`race_entry_id, player_id, bike_number, grade, race_score`をID順に正規化し、`historical_score_context_hash`へ含める。一人でもNULL/0以下なら残差はNULL。これは確率モデルではない。
 
-`history_input_hash`は履歴を`scheduled_start_at, race_id, race_entry_id`順に正規化し、結果状態、着順、得点、残差、context hash、entry/result取得時刻を含む。各resultの`input_hash`はSTAT code/version、STAT-01 input hash、history_from、history_input_hashから決定する。
+`history_input_hash`は履歴を`scheduled_start_at, race_id, race_entry_id`順に正規化し、結果状態、着順、得点、残差、context hash、entry/result取得時刻を含む。`target_context_hash`はtargetのrace/race entry/player/bike、input_as_of、scheduled_start_at、meeting、STAT-01 input hashを含む。各resultの`input_hash`はSTAT code/version、target_context_hash、history_from、history_input_hashから決定する。
 
 ## Feature JSON
 
@@ -63,7 +63,7 @@ score_expectation_residual = finish_strength_percentile - historical_score_perce
 
 - STAT-10: mean rank/finish percentile、win/top2/top3件数・率、残差件数・平均、3-10/5-20差、top3/outside streak、IN_MEETING水準。
 - STAT-11: normal/abnormal/disqualified/fall/other/unknown件数・率、DID_NOT_START件数、ACQUIRED_HISTORY、最終異常時刻、経過日数、以後のstarted数、異常streak。
-- STAT-12: 直近started/normal/abnormal、PRE/IN直近、hours/days gap、PRE started間隔のmean/median/Q25/Q75、現在差、経験percentile。
+- STAT-12: 直近started/normal/abnormal、PRE/IN直近、hours/days gap、PRE started間隔のmean/median/Q25/Q75、現在差、経験percentile。履歴採用cutoffはtarget `input_as_of`、targetとの出走間隔はtarget `scheduled_start_at`を基準とする。
 - STAT-24: 母標準偏差、MAD、IQR、残差変動、upside/downside件数・率・平均、top3 switch、IN_MEETING変動。
 - STAT-26: started数、distinct meeting、active/inactive calendar days、active day当たり出走、track change、不明track比較、最大連続active days。
 

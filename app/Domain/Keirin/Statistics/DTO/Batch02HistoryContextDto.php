@@ -17,6 +17,7 @@ readonly class Batch02HistoryContextDto
         public array $histories,
         public array $preMeeting,
         public array $inMeeting,
+        public string $targetContextHash,
         public string $historyInputHash,
         public array $evidence,
         public array $qualityReasons,

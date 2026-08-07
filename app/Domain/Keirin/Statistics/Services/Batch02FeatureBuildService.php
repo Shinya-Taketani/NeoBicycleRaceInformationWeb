@@ -232,7 +232,13 @@ class Batch02FeatureBuildService
     /** @param list<Batch02FeatureResultDto> $results */
     private function itemIsPartial(array $results): bool
     {
-        return array_any($results, fn (Batch02FeatureResultDto $result): bool => $result->status !== StatisticFeatureResultStatus::Valid);
+        foreach ($results as $result) {
+            if ($result->status !== StatisticFeatureResultStatus::Valid) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @param array<string, mixed> $counter */

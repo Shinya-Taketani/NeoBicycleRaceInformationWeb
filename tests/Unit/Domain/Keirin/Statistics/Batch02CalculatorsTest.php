@@ -168,14 +168,87 @@ class Batch02CalculatorsTest extends TestCase
         $this->assertSame($forward->evidence['history_input_hash'], $reverse->evidence['history_input_hash']);
     }
 
+    public function test_target_meeting_and_scheduled_start_are_part_of_target_context_hash(): void
+    {
+        $calculator = new Stat10Calculator($this->support, $this->math);
+        $histories = [
+            $this->history(1, '2024-01-01 12:00:00', HistoricalResultState::NormalFinish, 1, 1.0, 0.2, meetingId: 100),
+        ];
+        $inMeetingTarget = $this->target(
+            inputAsOf: '2024-01-10 11:55:00',
+            scheduledStartAt: '2024-01-10 12:00:00',
+            meetingId: 100,
+        );
+        $preMeetingTarget = $this->target(
+            inputAsOf: '2024-01-10 11:55:00',
+            scheduledStartAt: '2024-01-10 12:00:00',
+            meetingId: 200,
+        );
+        $differentStartTarget = $this->target(
+            inputAsOf: '2024-01-10 11:55:00',
+            scheduledStartAt: '2024-01-10 12:05:00',
+            meetingId: 200,
+        );
+
+        $inMeeting = $calculator->calculate($inMeetingTarget, $histories, $this->buildOptions(), 'batch');
+        $preMeeting = $calculator->calculate($preMeetingTarget, $histories, $this->buildOptions(), 'batch');
+        $same = $calculator->calculate($preMeetingTarget, $histories, $this->buildOptions(), 'batch');
+        $differentStart = $calculator->calculate($differentStartTarget, $histories, $this->buildOptions(), 'batch');
+
+        $this->assertSame(1, $inMeeting->features['IN_MEETING']['sample_count']);
+        $this->assertSame(0, $preMeeting->features['IN_MEETING']['sample_count']);
+        $this->assertSame(1, $preMeeting->features['PRE_MEETING']['COUNT_WINDOWS']['3']['sample_count']);
+        $this->assertNotSame($inMeeting->evidence['target_context_hash'], $preMeeting->evidence['target_context_hash']);
+        $this->assertNotSame($inMeeting->inputHash, $preMeeting->inputHash);
+        $this->assertSame($preMeeting->evidence['target_context_hash'], $same->evidence['target_context_hash']);
+        $this->assertSame($preMeeting->inputHash, $same->inputHash);
+        $this->assertNotSame($preMeeting->evidence['target_context_hash'], $differentStart->evidence['target_context_hash']);
+        $this->assertNotSame($preMeeting->inputHash, $differentStart->inputHash);
+    }
+
+    public function test_stat12_uses_scheduled_start_for_gap_but_input_as_of_for_history_cutoff(): void
+    {
+        $target = $this->target(
+            inputAsOf: '2024-01-10 11:55:00',
+            scheduledStartAt: '2024-01-10 12:00:00',
+            meetingId: 99,
+        );
+        $histories = [
+            $this->history(1, '2023-12-20 12:00:00', HistoricalResultState::NormalFinish, 2),
+            $this->history(2, '2024-01-01 12:00:00', HistoricalResultState::NormalFinish, 1),
+            $this->history(3, '2024-01-10 11:57:00', HistoricalResultState::NormalFinish, 1),
+        ];
+
+        $result = (new Stat12Calculator($this->support, $this->math))->calculate($target, $histories, $this->buildOptions(), 'batch');
+
+        $this->assertSame(2, $result->evidence['history_event_count']);
+        $this->assertSame('2024-01-01T12:00:00.000000+09:00', $result->features['SUMMARY']['previous_started_at']);
+        $this->assertSame(216.0, $result->features['SUMMARY']['gap_from_previous_started_hours']);
+        $this->assertSame(9.0, $result->features['SUMMARY']['gap_from_previous_started_days']);
+        $this->assertSame(9.0, $result->features['SUMMARY']['pre_meeting_gap_days']);
+    }
+
     private function buildOptions(): Batch02BuildOptionsDto
     {
         return new Batch02BuildOptionsDto(1, new DateTimeImmutable('2023-01-01'), null, null, 100, 200, true);
     }
 
-    private function target(string $at = '2024-12-31 12:00:00', ?int $playerId = 10): Batch02TargetEntryDto
-    {
-        return new Batch02TargetEntryDto(100, 1000, $playerId, 1, new DateTimeImmutable($at), str_repeat('a', 64), 99);
+    private function target(
+        string $inputAsOf = '2024-12-31 12:00:00',
+        ?int $playerId = 10,
+        ?string $scheduledStartAt = null,
+        int $meetingId = 99,
+    ): Batch02TargetEntryDto {
+        return new Batch02TargetEntryDto(
+            raceId: 100,
+            raceEntryId: 1000,
+            playerId: $playerId,
+            bikeNumber: 1,
+            inputAsOf: new DateTimeImmutable($inputAsOf),
+            scheduledStartAt: new DateTimeImmutable($scheduledStartAt ?? $inputAsOf),
+            stat01InputHash: str_repeat('a', 64),
+            targetMeetingId: $meetingId,
+        );
     }
 
     private function history(

@@ -2,16 +2,44 @@
 -- Optionally replace the empty value with a batch_execution_uuid.
 \set batch_execution_uuid ''
 
-WITH candidate_batches AS (
+WITH expected_stats(stat_code, calculation_version) AS (
+    VALUES
+        ('STAT-10', 'STAT-10-existing-db-v1'),
+        ('STAT-11', 'STAT-11-existing-db-v1'),
+        ('STAT-12', 'STAT-12-existing-db-v1'),
+        ('STAT-24', 'STAT-24-existing-db-v1'),
+        ('STAT-26', 'STAT-26-existing-db-v1')
+), complete_2024_runs AS (
+    SELECT
+        runs.*,
+        (SELECT COUNT(*) FROM statistic_feature_results AS results WHERE results.feature_run_id = runs.id) AS result_count
+    FROM statistic_feature_runs AS runs
+    JOIN expected_stats
+      ON expected_stats.stat_code = runs.stat_code
+     AND expected_stats.calculation_version = runs.calculation_version
+    WHERE runs.target_from = DATE '2024-01-01'
+      AND runs.target_to = DATE '2024-12-31'
+      AND runs.target_race_id IS NULL
+      AND runs.target_race_count > 0
+      AND runs.processed_race_count = runs.target_race_count
+      AND runs.error_count = 0
+      AND runs.finished_at IS NOT NULL
+      AND (SELECT COUNT(*) FROM statistic_feature_results AS results WHERE results.feature_run_id = runs.id) = runs.target_entry_count
+), candidate_batches AS (
     SELECT
         parameters->>'batch_execution_uuid' AS batch_execution_uuid,
-        MAX(started_at) AS started_at,
-        COUNT(DISTINCT stat_code) AS stat_count
-    FROM statistic_feature_runs
-    WHERE stat_code IN ('STAT-10', 'STAT-11', 'STAT-12', 'STAT-24', 'STAT-26')
-      AND finished_at IS NOT NULL
+        MAX(started_at) AS started_at
+    FROM complete_2024_runs
+    WHERE parameters->>'batch_execution_uuid' IS NOT NULL
+      AND parameters->>'stat01_run_id' IS NOT NULL
+      AND history_from IS NOT NULL
     GROUP BY parameters->>'batch_execution_uuid'
-    HAVING COUNT(DISTINCT stat_code) = 5
+    HAVING COUNT(*) = 5
+       AND COUNT(DISTINCT stat_code) = 5
+       AND MIN(target_race_count) = MAX(target_race_count)
+       AND MIN(target_entry_count) = MAX(target_entry_count)
+       AND MIN(history_from) = MAX(history_from)
+       AND MIN(parameters->>'stat01_run_id') = MAX(parameters->>'stat01_run_id')
 ), selected_batch AS (
     SELECT COALESCE(
         NULLIF(:'batch_execution_uuid', ''),
@@ -51,19 +79,46 @@ LEFT JOIN statistic_feature_results AS results ON results.feature_run_id = runs.
 GROUP BY runs.id
 ORDER BY runs.stat_code;
 
-WITH selected_batch AS (
+WITH expected_stats(stat_code, calculation_version) AS (
+    VALUES
+        ('STAT-10', 'STAT-10-existing-db-v1'),
+        ('STAT-11', 'STAT-11-existing-db-v1'),
+        ('STAT-12', 'STAT-12-existing-db-v1'),
+        ('STAT-24', 'STAT-24-existing-db-v1'),
+        ('STAT-26', 'STAT-26-existing-db-v1')
+), complete_2024_runs AS (
+    SELECT runs.*
+    FROM statistic_feature_runs AS runs
+    JOIN expected_stats
+      ON expected_stats.stat_code = runs.stat_code
+     AND expected_stats.calculation_version = runs.calculation_version
+    WHERE runs.target_from = DATE '2024-01-01'
+      AND runs.target_to = DATE '2024-12-31'
+      AND runs.target_race_id IS NULL
+      AND runs.target_race_count > 0
+      AND runs.processed_race_count = runs.target_race_count
+      AND runs.error_count = 0
+      AND runs.finished_at IS NOT NULL
+      AND (SELECT COUNT(*) FROM statistic_feature_results AS results WHERE results.feature_run_id = runs.id) = runs.target_entry_count
+), candidate_batches AS (
+    SELECT
+        parameters->>'batch_execution_uuid' AS batch_execution_uuid,
+        MAX(started_at) AS started_at
+    FROM complete_2024_runs
+    WHERE parameters->>'batch_execution_uuid' IS NOT NULL
+      AND parameters->>'stat01_run_id' IS NOT NULL
+      AND history_from IS NOT NULL
+    GROUP BY parameters->>'batch_execution_uuid'
+    HAVING COUNT(*) = 5
+       AND COUNT(DISTINCT stat_code) = 5
+       AND MIN(target_race_count) = MAX(target_race_count)
+       AND MIN(target_entry_count) = MAX(target_entry_count)
+       AND MIN(history_from) = MAX(history_from)
+       AND MIN(parameters->>'stat01_run_id') = MAX(parameters->>'stat01_run_id')
+), selected_batch AS (
     SELECT COALESCE(
         NULLIF(:'batch_execution_uuid', ''),
-        (
-            SELECT parameters->>'batch_execution_uuid'
-            FROM statistic_feature_runs
-            WHERE stat_code IN ('STAT-10', 'STAT-11', 'STAT-12', 'STAT-24', 'STAT-26')
-              AND finished_at IS NOT NULL
-            GROUP BY parameters->>'batch_execution_uuid'
-            HAVING COUNT(DISTINCT stat_code) = 5
-            ORDER BY MAX(started_at) DESC
-            LIMIT 1
-        )
+        (SELECT batch_execution_uuid FROM candidate_batches ORDER BY started_at DESC LIMIT 1)
     ) AS batch_execution_uuid
 ), results AS (
     SELECT result.stat_code, result.features

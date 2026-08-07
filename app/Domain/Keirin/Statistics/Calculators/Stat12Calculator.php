@@ -43,23 +43,23 @@ class Stat12Calculator implements Batch02Calculator
         for ($index = 1; $index < count($pre); $index++) {
             $gaps[] = $this->gapDays($pre[$index]->scheduledStartAt, $pre[$index - 1]->scheduledStartAt);
         }
-        $currentGap = $previousPre !== null ? $this->gapDays($target->inputAsOf, $previousPre->scheduledStartAt) : null;
+        $currentGap = $previousPre !== null ? $this->gapDays($target->scheduledStartAt, $previousPre->scheduledStartAt) : null;
         $median = $this->math->median($gaps);
 
         $features = [
             'SUMMARY' => [
                 'previous_started_at' => $this->timestamp($previous),
                 'previous_started_result_state' => $previous?->resultState->value,
-                'gap_from_previous_started_hours' => $previous !== null ? $this->gapHours($target->inputAsOf, $previous->scheduledStartAt) : null,
-                'gap_from_previous_started_days' => $previous !== null ? $this->gapDays($target->inputAsOf, $previous->scheduledStartAt) : null,
+                'gap_from_previous_started_hours' => $previous !== null ? $this->gapHours($target->scheduledStartAt, $previous->scheduledStartAt) : null,
+                'gap_from_previous_started_days' => $previous !== null ? $this->gapDays($target->scheduledStartAt, $previous->scheduledStartAt) : null,
                 'previous_normal_finish_at' => $this->timestamp($previousNormal),
-                'gap_from_previous_normal_finish_days' => $previousNormal !== null ? $this->gapDays($target->inputAsOf, $previousNormal->scheduledStartAt) : null,
+                'gap_from_previous_normal_finish_days' => $previousNormal !== null ? $this->gapDays($target->scheduledStartAt, $previousNormal->scheduledStartAt) : null,
                 'previous_abnormal_at' => $this->timestamp($previousAbnormal),
-                'gap_from_previous_abnormal_days' => $previousAbnormal !== null ? $this->gapDays($target->inputAsOf, $previousAbnormal->scheduledStartAt) : null,
+                'gap_from_previous_abnormal_days' => $previousAbnormal !== null ? $this->gapDays($target->scheduledStartAt, $previousAbnormal->scheduledStartAt) : null,
                 'pre_meeting_previous_started_at' => $this->timestamp($previousPre),
                 'pre_meeting_gap_days' => $currentGap,
                 'in_meeting_previous_started_at' => $this->timestamp($previousIn),
-                'in_meeting_gap_days' => $previousIn !== null ? $this->gapDays($target->inputAsOf, $previousIn->scheduledStartAt) : null,
+                'in_meeting_gap_days' => $previousIn !== null ? $this->gapDays($target->scheduledStartAt, $previousIn->scheduledStartAt) : null,
             ],
             'HISTORICAL_PRE_MEETING_GAPS' => [
                 'historical_gap_sample_count' => count($gaps),
