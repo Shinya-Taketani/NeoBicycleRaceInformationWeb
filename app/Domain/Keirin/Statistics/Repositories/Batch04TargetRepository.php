@@ -53,6 +53,24 @@ class Batch04TargetRepository
         );
     }
 
+    public function assertTargetInputAsOfComplete(Batch04BuildOptionsDto $options): void
+    {
+        $missing = $this->targetQuery($options)
+            ->whereNull('results.input_as_of')
+            ->select(['results.race_id', 'results.race_entry_id'])
+            ->orderBy('results.race_id')
+            ->orderBy('results.race_entry_id')
+            ->first();
+        if ($missing === null) {
+            return;
+        }
+
+        throw new RuntimeException(
+            'Batch04 target contains missing STAT-01 input_as_of: '
+            ."race_id={$missing->race_id}, race_entry_id={$missing->race_entry_id}.",
+        );
+    }
+
     public function earliestTargetDate(Batch04BuildOptionsDto $options): DateTimeImmutable
     {
         $date = $this->targetQuery($options)->min('races.race_date');
@@ -168,7 +186,15 @@ class Batch04TargetRepository
             if ($raceRows->isEmpty()) {
                 throw new UnexpectedValueException("STAT-01 target race {$raceId} had no entries.");
             }
-            $inputAsOfValues = $raceRows->pluck('input_as_of')->map(fn (mixed $value): string => (string) $value)->unique();
+            $rawInputAsOfValues = $raceRows->pluck('input_as_of');
+            if ($rawInputAsOfValues->contains(
+                fn (mixed $value): bool => $value === null || trim((string) $value) === '',
+            )) {
+                throw new UnexpectedValueException("STAT-01 target race {$raceId} had missing input_as_of.");
+            }
+            $inputAsOfValues = $rawInputAsOfValues
+                ->map(fn (mixed $value): string => (string) $value)
+                ->unique();
             if ($inputAsOfValues->count() !== 1) {
                 throw new UnexpectedValueException("STAT-01 target race {$raceId} had inconsistent input_as_of values.");
             }

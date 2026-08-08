@@ -15,6 +15,8 @@ Batch04は完了済みSTAT-01 runをtarget snapshotとし、既存DBだけから
 
 targetはSTAT-01 resultの`race_id`、`race_entry_id`、`player_id`、`bike_number`、`input_as_of`、`input_hash`、競走得点特徴量を使用する。枠番、車立て、競輪場、発走時刻はsource tableをREAD ONLYで参照する。競走得点はsourceの現在値ではなくSTAT-01 snapshotを優先する。
 
+Batch04ではSTAT-01 resultの`input_as_of`をprediction cutoffとして必須にする。選択targetにNULLが1件でもあれば、全体をfeature run開始前に拒否する。NULL targetはskipせず、`scheduled_start_at`や現在時刻へfallbackしない。STAT-39の累積履歴とSTAT-42の直接対戦履歴に曖昧なcutoffを持ち込まないためである。
+
 履歴は男子A/S級、結果CONFIRMED/CORRECTED、`historical scheduled_start_at < target.input_as_of`に限定し、target race自身を除外する。結果状態には`HistoricalResultStateNormalizer`を使用する。NORMAL_FINISHだけを通常着順成績へ使い、異常完走を最下位へ変換しない。DID_NOT_STARTとWITHDRAWNは直接対戦分母から除外する。
 
 履歴結果には後日取得した最終結果を含むため、`history_result_mode=BACKFILLED_FINAL_RESULT`を保存する。`races.result_confirmed_at`はアプリが確定状態を初めて観測した時刻であり、公式確定時刻ではない。その値がtarget input as ofより後であることだけを理由に履歴を除外しない。

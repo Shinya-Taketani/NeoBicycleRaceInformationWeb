@@ -58,6 +58,7 @@ class Batch04FeatureBuildService
         if ($targetCounts->races === 0) {
             throw new RuntimeException('No target races were found in the specified STAT-01 run.');
         }
+        $this->targets->assertTargetInputAsOfComplete($options);
         if ($options->historyFrom >= $this->targets->earliestTargetDate($options)) {
             throw new RuntimeException('--history-from must be before every target race date.');
         }

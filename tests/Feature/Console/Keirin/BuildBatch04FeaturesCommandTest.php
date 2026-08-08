@@ -11,13 +11,16 @@ use App\Domain\Keirin\Statistics\DTO\Batch04FeatureResultDto;
 use App\Domain\Keirin\Statistics\DTO\Batch04PositionHistoryContextDto;
 use App\Domain\Keirin\Statistics\DTO\Batch04RaceInputDto;
 use App\Domain\Keirin\Statistics\DTO\Batch04TargetEntryDto;
+use App\Domain\Keirin\Statistics\Repositories\Batch04TargetRepository;
 use App\Domain\Keirin\Statistics\Support\Batch04CalculatorSupport;
 use App\Models\StatisticFeatureResult;
 use App\Models\StatisticFeatureRun;
+use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\TestCase;
+use UnexpectedValueException;
 
 class BuildBatch04FeaturesCommandTest extends TestCase
 {
@@ -91,6 +94,60 @@ class BuildBatch04FeaturesCommandTest extends TestCase
             '--race-id' => $targetRaceId,
             '--dry-run' => true,
         ])->expectsOutputToContain('specified STAT-01 run was not complete')->assertExitCode(1);
+    }
+
+    public function test_stored_build_rejects_a_null_target_input_as_of_before_writing_batch04_statistics(): void
+    {
+        [$runId, $targetRaceId] = $this->fixture();
+        $this->nullFirstTargetInputAsOf($runId, $targetRaceId);
+        $before = $this->statisticCounts();
+
+        $this->artisan('keirin:statistics:build-batch04', [
+            '--stat01-run-id' => $runId,
+            '--history-from' => '2023-01-01',
+            '--race-id' => $targetRaceId,
+        ])->expectsOutputToContain('missing STAT-01 input_as_of')->assertExitCode(1);
+
+        $this->assertSame($before, $this->statisticCounts());
+        $this->assertSame(0, StatisticFeatureRun::query()->where('id', '!=', $runId)->count());
+    }
+
+    public function test_normal_and_null_targets_fail_as_one_batch_before_the_earlier_normal_race_is_processed(): void
+    {
+        [$runId] = $this->fixture();
+        $nullRaceId = $this->addTarget($runId, '2024-01-12', 2);
+        $this->nullFirstTargetInputAsOf($runId, $nullRaceId);
+        $before = $this->statisticCounts();
+
+        $this->artisan('keirin:statistics:build-batch04', [
+            '--stat01-run-id' => $runId,
+            '--history-from' => '2023-01-01',
+            '--from' => '2024-01-10',
+            '--to' => '2024-01-12',
+            '--chunk' => 1,
+        ])->expectsOutputToContain('missing STAT-01 input_as_of')->assertExitCode(1);
+
+        $this->assertSame($before, $this->statisticCounts());
+        $this->assertSame(0, StatisticFeatureRun::query()->where('id', '!=', $runId)->count());
+    }
+
+    public function test_repository_defense_rejects_null_before_it_can_become_the_current_time(): void
+    {
+        [$runId, $targetRaceId] = $this->fixture();
+        $this->nullFirstTargetInputAsOf($runId, $targetRaceId);
+        $options = new Batch04BuildOptionsDto(
+            $runId,
+            new DateTimeImmutable('2023-01-01'),
+            null,
+            null,
+            $targetRaceId,
+            200,
+            true,
+        );
+
+        $this->expectException(UnexpectedValueException::class);
+        $this->expectExceptionMessage('had missing input_as_of');
+        iterator_to_array($this->app->make(Batch04TargetRepository::class)->workingBatches($options));
     }
 
     public function test_chunk_boundaries_preserve_outputs_and_history_queries_are_not_per_target_entry(): void
@@ -257,6 +314,16 @@ class BuildBatch04FeaturesCommandTest extends TestCase
         }
     }
 
+    private function nullFirstTargetInputAsOf(int $runId, int $raceId): void
+    {
+        $resultId = DB::table('statistic_feature_results')
+            ->where('feature_run_id', $runId)
+            ->where('race_id', $raceId)
+            ->orderBy('race_entry_id')
+            ->value('id');
+        DB::table('statistic_feature_results')->where('id', $resultId)->update(['input_as_of' => null]);
+    }
+
     private function stat01Run(): int
     {
         return (int) DB::table('statistic_feature_runs')->insertGetId([
@@ -317,9 +384,12 @@ class BuildBatch04FeaturesCommandTest extends TestCase
         }
         $signature = [];
         foreach (StatisticFeatureResult::query()->whereIn('feature_run_id', $runs->pluck('id'))->get() as $result) {
+            $evidence = $result->evidence;
+            unset($evidence['batch_execution_uuid']);
             $signature[$result->stat_code.':'.$result->race_entry_id] = [
                 'status' => $result->status, 'quality_status' => $result->quality_status,
-                'features' => $result->features, 'input_hash' => $result->input_hash,
+                'features' => $result->features, 'evidence' => $evidence,
+                'input_hash' => $result->input_hash,
             ];
         }
         ksort($signature);
