@@ -242,6 +242,7 @@ class Batch03HistoricalRaceRepository
                 'history_races.entrant_count',
                 'history_races.race_type',
                 'history_races.name as race_name',
+                'history_races.result_confirmed_at',
                 'history_days.race_meeting_id',
                 'history_days.day_number',
                 'history_meetings.duration_days',
@@ -311,6 +312,9 @@ class Batch03HistoricalRaceRepository
                     subjectScorePercentile: $scorePercentile,
                     raceEntryFetchedAt: new DateTimeImmutable((string) $row->race_entry_fetched_at),
                     raceResultFetchedAt: new DateTimeImmutable((string) $row->race_result_fetched_at),
+                    resultConfirmedAt: $row->result_confirmed_at !== null
+                        ? new DateTimeImmutable((string) $row->result_confirmed_at)
+                        : null,
                 );
             }
 

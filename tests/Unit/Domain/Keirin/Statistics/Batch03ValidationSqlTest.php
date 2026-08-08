@@ -41,9 +41,14 @@ class Batch03ValidationSqlTest extends TestCase
             'STAT-31 semifinal/final observed count',
             'STAT-32 normalized stage',
             'STAT-33 transition sample',
+            "'STAT-33 current day number', (features->'CURRENT_MEETING_CONTEXT'->>'current_day_number')",
         ] as $required) {
             $this->assertStringContainsString($required, $sql);
         }
+        $this->assertStringNotContainsString(
+            "'STAT-33 current day number', (features->'CURRENT_MEETING_CONTEXT'->>'previous_day_number')",
+            $sql,
+        );
         $this->assertStringNotContainsString("runs.status = 'SUCCEEDED'", $sql);
     }
 }

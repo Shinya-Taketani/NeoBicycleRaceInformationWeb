@@ -100,6 +100,10 @@ class Stat31Calculator implements Batch03Calculator
     /** @param list<Batch03HistoricalRaceDto> $events @return list<Batch03HistoricalRaceDto> */
     private function stage(array $events, RaceStage $stage): array
     {
-        return array_values(array_filter($events, fn (Batch03HistoricalRaceDto $event): bool => $event->normalizedStage === $stage));
+        return array_values(array_filter(
+            $events,
+            fn (Batch03HistoricalRaceDto $event): bool => $event->started()
+                && $event->normalizedStage === $stage,
+        ));
     }
 }

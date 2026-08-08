@@ -51,6 +51,14 @@ class BuildBatch03FeaturesCommandTest extends TestCase
             $this->assertNull($result->effective_points);
             $this->assertSame('BACKFILLED_FINAL_RESULT', $result->evidence['history_result_mode']);
         }
+        $stat33 = StatisticFeatureResult::query()
+            ->where('feature_run_id', '!=', $runId)
+            ->where('stat_code', 'STAT-33')
+            ->sole();
+        $this->assertTrue($stat33->evidence['previous_result_confirmation_reconstructed']);
+        $this->assertTrue($stat33->evidence['previous_result_available_as_of_input']);
+        $this->assertNotNull($stat33->evidence['previous_result_confirmed_at']);
+        $this->assertSame(2, $stat33->features['CURRENT_MEETING_CONTEXT']['current_day_number']);
         $this->assertSame($sourceBefore, $this->sourceRows());
         $this->assertSame($scrapingBefore, DB::table('scraping_fetch_logs')->count());
     }
@@ -181,6 +189,7 @@ class BuildBatch03FeaturesCommandTest extends TestCase
             'source' => 'batch03-test', 'external_race_id' => 'history-'.$date, 'race_day_id' => $this->day($meetingId, $date, $day),
             'racetrack_id' => $trackId, 'race_date' => $date, 'race_number' => $number, 'scheduled_start_at' => $date.' 12:00:00',
             'name' => '先固', 'race_type' => $type, 'entrant_count' => 2, 'result_status' => 'CONFIRMED', 'result_available' => true,
+            'result_confirmed_at' => $date.' 18:00:00',
             'created_at' => $now, 'updated_at' => $now,
         ]);
         foreach ([[$player, 1, '80.00', $rank], [$opponent, 2, '70.00', $rank === 1 ? 2 : 1]] as [$playerId, $bike, $score, $resultRank]) {

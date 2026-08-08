@@ -83,6 +83,7 @@ class Batch03CalculatorSupport
                 'historical_score_context_hash' => $history->historicalScoreContextHash,
                 'race_entry_fetched_at' => $this->timestamp($history->raceEntryFetchedAt),
                 'race_result_fetched_at' => $this->timestamp($history->raceResultFetchedAt),
+                'result_confirmed_at' => $this->timestamp($history->resultConfirmedAt),
                 'stage_normalizer_version' => RaceStageNormalizer::VERSION,
             ], $histories),
         ]);
@@ -106,6 +107,14 @@ class Batch03CalculatorSupport
                 'history_from' => $options->historyFrom->format('Y-m-d'),
                 'history_result_mode' => 'BACKFILLED_FINAL_RESULT',
                 'history_event_count' => count($histories),
+                'history_result_confirmation_known_count' => count(array_filter(
+                    $histories,
+                    fn (Batch03HistoricalRaceDto $history): bool => $history->resultConfirmedAt !== null,
+                )),
+                'history_result_confirmation_unknown_count' => count(array_filter(
+                    $histories,
+                    fn (Batch03HistoricalRaceDto $history): bool => $history->resultConfirmedAt === null,
+                )),
                 'target_input_as_of' => $this->timestamp($target->inputAsOf),
                 'target_scheduled_start_at' => $this->timestamp($target->scheduledStartAt),
                 'target_normalized_stage' => $target->normalizedStage->value,
@@ -124,6 +133,7 @@ class Batch03CalculatorSupport
      * @param  array<string, mixed>  $features
      * @param  list<string>  $qualityReasons
      * @param  list<string>  $unavailableComponents
+     * @param  array<string, mixed>  $additionalEvidence
      */
     public function result(
         Batch03TargetEntryDto $target,
@@ -135,6 +145,7 @@ class Batch03CalculatorSupport
         array $qualityReasons = [],
         array $unavailableComponents = [],
         ?string $statusReason = null,
+        array $additionalEvidence = [],
     ): Batch03FeatureResultDto {
         $qualityReasons = array_values(array_unique($qualityReasons));
         $qualityStatus = match ($status) {
@@ -144,7 +155,7 @@ class Batch03CalculatorSupport
                 : StatisticQualityStatus::Degraded,
             default => StatisticQualityStatus::Degraded,
         };
-        $evidence = $context->evidence;
+        $evidence = array_replace($context->evidence, $additionalEvidence);
         $evidence['quality_reasons'] = $qualityReasons;
         $evidence['unavailable_components'] = array_values(array_unique($unavailableComponents));
         $evidence['status_reason'] = $statusReason;

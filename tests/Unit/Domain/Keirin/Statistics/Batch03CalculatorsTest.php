@@ -145,6 +145,26 @@ class Batch03CalculatorsTest extends TestCase
         $this->assertSame(1, $result->features['STAGE_EXPERIENCE']['FINAL']['sample_count']);
     }
 
+    public function test_stat31_excludes_not_started_entries_from_stage_experience_but_counts_started_abnormal_results(): void
+    {
+        $result = (new Stat31Calculator($this->support, $this->math))->calculate(
+            $this->target(),
+            [
+                $this->history(1, '2024-01-01', stage: RaceStage::Final, rank: 1),
+                $this->history(2, '2024-01-02', stage: RaceStage::Final, state: HistoricalResultState::Disqualified),
+                $this->history(3, '2024-01-03', stage: RaceStage::Final, state: HistoricalResultState::DidNotStart),
+                $this->history(4, '2024-01-04', stage: RaceStage::Semifinal, state: HistoricalResultState::Withdrawn),
+            ],
+            $this->buildOptions(),
+            'batch',
+        );
+
+        $this->assertSame(2, $result->features['STAGE_EXPERIENCE']['final_count']);
+        $this->assertSame(0, $result->features['STAGE_EXPERIENCE']['semifinal_count']);
+        $this->assertSame(2, $result->features['STAGE_EXPERIENCE']['semifinal_or_final_count']);
+        $this->assertSame(1, $result->features['STAGE_EXPERIENCE']['FINAL']['sample_count']);
+    }
+
     public function test_stat32_compares_same_stage_and_all_stage_and_distinguishes_other_from_unknown(): void
     {
         $calculator = new Stat32Calculator($this->support);
@@ -183,6 +203,116 @@ class Batch03CalculatorsTest extends TestCase
 
         $this->assertSame(StatisticFeatureResultStatus::Partial, $result->status);
         $this->assertContains('ABNORMAL_PREVIOUS_RESULT', $result->evidence['quality_reasons']);
+        $this->assertNull($result->features['MATCHING_TRANSITION_HISTORY']);
+        $this->assertNull($result->features['PREVIOUS_EXACT_RANK_HISTORY']);
+    }
+
+    public function test_stat33_uses_previous_result_confirmed_before_input_cutoff(): void
+    {
+        $result = (new Stat33Calculator($this->support, $this->math))->calculate(
+            $this->target(meeting: 99, stage: RaceStage::Final),
+            [
+                $this->history(1, '2024-01-01', meeting: 1, stage: RaceStage::Semifinal, rank: 3, confirmedAt: '2024-01-01 12:30:00+09:00'),
+                $this->history(2, '2024-01-02', meeting: 1, stage: RaceStage::Final, rank: 1, confirmedAt: '2024-01-02 12:30:00+09:00'),
+                $this->history(3, '2024-01-09', meeting: 99, stage: RaceStage::Semifinal, rank: 3, confirmedAt: '2024-01-09 12:30:00+09:00'),
+            ],
+            $this->buildOptions(),
+            'batch',
+        );
+
+        $this->assertSame(StatisticFeatureResultStatus::Valid, $result->status);
+        $this->assertTrue($result->evidence['previous_result_confirmation_reconstructed']);
+        $this->assertTrue($result->evidence['previous_result_available_as_of_input']);
+        $this->assertSame('2024-01-09T12:30:00.000000+09:00', $result->evidence['previous_result_confirmed_at']);
+        $this->assertSame(1, $result->features['MATCHING_TRANSITION_HISTORY']['transition_sample_count']);
+    }
+
+    public function test_stat33_rejects_previous_result_confirmed_after_input_cutoff_without_calling_it_first_start(): void
+    {
+        $result = (new Stat33Calculator($this->support, $this->math))->calculate(
+            $this->target(meeting: 99, stage: RaceStage::Final),
+            [$this->history(1, '2024-01-10 10:00:00+09:00', meeting: 99, stage: RaceStage::Semifinal, rank: 3, confirmedAt: '2024-01-10 12:30:00+09:00')],
+            $this->buildOptions(),
+            'batch',
+        );
+
+        $this->assertSame(StatisticFeatureResultStatus::Partial, $result->status);
+        $this->assertContains('PREVIOUS_RESULT_NOT_CONFIRMED_AS_OF_INPUT', $result->evidence['quality_reasons']);
+        $this->assertTrue($result->evidence['previous_result_confirmation_reconstructed']);
+        $this->assertFalse($result->evidence['previous_result_available_as_of_input']);
+        $this->assertNull($result->features['MATCHING_TRANSITION_HISTORY']);
+        $this->assertNull($result->features['PREVIOUS_EXACT_RANK_HISTORY']);
+        $this->assertNull($result->evidence['status_reason']);
+    }
+
+    public function test_stat33_degrades_but_uses_backfilled_result_when_confirmation_time_is_unknown(): void
+    {
+        $result = (new Stat33Calculator($this->support, $this->math))->calculate(
+            $this->target(meeting: 99, stage: RaceStage::Final),
+            [
+                $this->history(1, '2024-01-01', meeting: 1, stage: RaceStage::Semifinal, rank: 3),
+                $this->history(2, '2024-01-02', meeting: 1, stage: RaceStage::Final, rank: 1),
+                $this->history(3, '2024-01-09', meeting: 99, stage: RaceStage::Semifinal, rank: 3),
+            ],
+            $this->buildOptions(),
+            'batch',
+        );
+
+        $this->assertSame(StatisticFeatureResultStatus::Valid, $result->status);
+        $this->assertSame('DEGRADED', $result->qualityStatus->value);
+        $this->assertContains('IN_MEETING_RESULT_CONFIRMATION_NOT_RECONSTRUCTED', $result->evidence['quality_reasons']);
+        $this->assertFalse($result->evidence['previous_result_confirmation_reconstructed']);
+        $this->assertNull($result->evidence['previous_result_available_as_of_input']);
+        $this->assertSame(2, $result->evidence['unreconstructed_result_confirmation_count']);
+        $this->assertSame(1, $result->features['MATCHING_TRANSITION_HISTORY']['transition_sample_count']);
+    }
+
+    public function test_stat33_distinguishes_eligible_zero_matching_history_from_ineligible_previous_result(): void
+    {
+        $result = (new Stat33Calculator($this->support, $this->math))->calculate(
+            $this->target(meeting: 99, stage: RaceStage::Final),
+            [$this->history(1, '2024-01-09', meeting: 99, stage: RaceStage::Semifinal, rank: 3, confirmedAt: '2024-01-09 12:30:00+09:00')],
+            $this->buildOptions(),
+            'batch',
+        );
+
+        $this->assertSame(StatisticFeatureResultStatus::NoHistory, $result->status);
+        $this->assertContains('NO_OBSERVED_TRANSITION_HISTORY', $result->evidence['quality_reasons']);
+        $this->assertSame(0, $result->features['MATCHING_TRANSITION_HISTORY']['transition_sample_count']);
+        $this->assertSame(0, $result->features['PREVIOUS_EXACT_RANK_HISTORY']['transition_sample_count']);
+    }
+
+    public function test_stat33_excludes_past_transition_confirmed_after_target_input(): void
+    {
+        $result = (new Stat33Calculator($this->support, $this->math))->calculate(
+            $this->target(meeting: 99, stage: RaceStage::Final),
+            [
+                $this->history(1, '2024-01-01', meeting: 1, stage: RaceStage::Semifinal, rank: 3, confirmedAt: '2024-01-01 12:30:00+09:00'),
+                $this->history(2, '2024-01-02', meeting: 1, stage: RaceStage::Final, rank: 1, confirmedAt: '2024-01-10 12:30:00+09:00'),
+                $this->history(3, '2024-01-09', meeting: 99, stage: RaceStage::Semifinal, rank: 3, confirmedAt: '2024-01-09 12:30:00+09:00'),
+            ],
+            $this->buildOptions(),
+            'batch',
+        );
+
+        $this->assertSame(StatisticFeatureResultStatus::NoHistory, $result->status);
+        $this->assertSame(0, $result->features['MATCHING_TRANSITION_HISTORY']['transition_sample_count']);
+        $this->assertSame(1, $result->evidence['excluded_unconfirmed_as_of_input_transition_count']);
+    }
+
+    public function test_stat33_unknown_previous_stage_is_missing_input_without_transition_features(): void
+    {
+        $result = (new Stat33Calculator($this->support, $this->math))->calculate(
+            $this->target(meeting: 99, stage: RaceStage::Final),
+            [$this->history(1, '2024-01-09', meeting: 99, stage: RaceStage::Unknown, rank: 3, confirmedAt: '2024-01-09 12:30:00+09:00')],
+            $this->buildOptions(),
+            'batch',
+        );
+
+        $this->assertSame(StatisticFeatureResultStatus::MissingInput, $result->status);
+        $this->assertContains('UNKNOWN_PREVIOUS_STAGE', $result->evidence['quality_reasons']);
+        $this->assertNull($result->features['MATCHING_TRANSITION_HISTORY']);
+        $this->assertNull($result->features['PREVIOUS_EXACT_RANK_HISTORY']);
     }
 
     public function test_stat33_uses_adjacent_past_meeting_transition_and_excludes_future_current_results(): void
@@ -206,6 +336,20 @@ class Batch03CalculatorsTest extends TestCase
         $this->assertSame(2.0, $result->features['MATCHING_TRANSITION_HISTORY']['mean_rank_change']);
         $this->assertContains('ADVANCEMENT_RULE', $result->evidence['unavailable_components']);
         $this->assertArrayNotHasKey('advanced', $result->features);
+        $this->assertSame(3, $result->features['CURRENT_MEETING_CONTEXT']['current_day_number']);
+    }
+
+    public function test_result_confirmation_time_changes_history_and_input_hash_but_not_target_hash(): void
+    {
+        $calculator = new Stat32Calculator($this->support);
+        $firstHistory = [$this->history(1, '2024-01-01', rank: 1, confirmedAt: '2024-01-01 13:00:00+09:00')];
+        $changedHistory = [$this->history(1, '2024-01-01', rank: 1, confirmedAt: '2024-01-01 14:00:00+09:00')];
+        $first = $calculator->calculate($this->target(), $firstHistory, $this->buildOptions(), 'batch');
+        $changed = $calculator->calculate($this->target(), $changedHistory, $this->buildOptions(), 'batch');
+
+        $this->assertSame($first->evidence['target_context_hash'], $changed->evidence['target_context_hash']);
+        $this->assertNotSame($first->evidence['history_input_hash'], $changed->evidence['history_input_hash']);
+        $this->assertNotSame($first->inputHash, $changed->inputHash);
     }
 
     public function test_hashes_are_order_independent_and_target_context_changes_with_stage_inputs(): void
@@ -303,6 +447,7 @@ class Batch03CalculatorsTest extends TestCase
         HistoricalResultState $state = HistoricalResultState::NormalFinish,
         ?int $rank = null,
         ?float $residual = 0.0,
+        ?string $confirmedAt = null,
     ): Batch03HistoricalRaceDto {
         $date = new DateTimeImmutable($at);
 
@@ -334,6 +479,7 @@ class Batch03CalculatorsTest extends TestCase
             subjectScorePercentile: 0.5,
             raceEntryFetchedAt: $date->modify('+1 hour'),
             raceResultFetchedAt: $date->modify('+2 hours'),
+            resultConfirmedAt: $confirmedAt !== null ? new DateTimeImmutable($confirmedAt) : null,
         );
     }
 }

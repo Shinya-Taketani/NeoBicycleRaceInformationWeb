@@ -157,7 +157,7 @@ WITH expected_stats(stat_code, calculation_version) AS (
     UNION ALL
     SELECT 'STAT-33 status', status FROM results WHERE stat_code = 'STAT-33'
     UNION ALL
-    SELECT 'STAT-33 current day number', (features->'CURRENT_MEETING_CONTEXT'->>'previous_day_number') FROM results WHERE stat_code = 'STAT-33'
+    SELECT 'STAT-33 current day number', (features->'CURRENT_MEETING_CONTEXT'->>'current_day_number') FROM results WHERE stat_code = 'STAT-33'
     UNION ALL
     SELECT 'STAT-33 transition sample', (features->'MATCHING_TRANSITION_HISTORY'->>'transition_sample_count') FROM results WHERE stat_code = 'STAT-33'
 )

@@ -38,6 +38,7 @@ readonly class Batch03HistoricalRaceDto
         public ?float $subjectScorePercentile,
         public DateTimeImmutable $raceEntryFetchedAt,
         public DateTimeImmutable $raceResultFetchedAt,
+        public ?DateTimeImmutable $resultConfirmedAt,
     ) {}
 
     public function started(): bool

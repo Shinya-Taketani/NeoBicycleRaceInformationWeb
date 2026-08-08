@@ -14,6 +14,7 @@ use App\Domain\Keirin\Statistics\Enums\RaceStage;
 use App\Domain\Keirin\Statistics\Enums\StatisticFeatureResultStatus;
 use App\Domain\Keirin\Statistics\Support\Batch03CalculatorSupport;
 use App\Domain\Keirin\Statistics\Support\StatisticalMath;
+use DateTimeImmutable;
 
 class Stat33Calculator implements Batch03Calculator
 {
@@ -35,9 +36,26 @@ class Stat33Calculator implements Batch03Calculator
             fn (Batch03HistoricalRaceDto $event): bool => $event->raceMeetingId === $target->raceMeetingId && $event->started(),
         )) : [];
         $previous = $currentMeeting !== [] ? $currentMeeting[array_key_last($currentMeeting)] : null;
+        $previousResultAvailableAsOfInput = match (true) {
+            ! $previous instanceof Batch03HistoricalRaceDto => null,
+            $previous->resultConfirmedAt === null => null,
+            default => $previous->resultConfirmedAt <= $target->inputAsOf,
+        };
+        $transitionEligible = $target->playerId !== null
+            && $target->raceMeetingId !== null
+            && $target->normalizedStage !== RaceStage::Unknown
+            && $previous instanceof Batch03HistoricalRaceDto
+            && $previousResultAvailableAsOfInput !== false
+            && $previous->normalFinish()
+            && $previous->normalizedStage !== RaceStage::Unknown;
+        $transitionHistory = $this->pastMeetingTransitions(
+            $context->histories,
+            $target->raceMeetingId,
+            $target->inputAsOf,
+        );
         $matching = [];
-        if ($previous instanceof Batch03HistoricalRaceDto) {
-            foreach ($this->pastMeetingTransitions($context->histories, $target->raceMeetingId) as $transition) {
+        if ($transitionEligible) {
+            foreach ($transitionHistory['transitions'] as $transition) {
                 if ($transition['previous']->normalizedStage === $previous->normalizedStage
                     && $transition['next']->normalizedStage === $target->normalizedStage) {
                     $matching[] = $transition;
@@ -47,6 +65,7 @@ class Stat33Calculator implements Batch03Calculator
         $status = match (true) {
             $target->playerId === null, $target->raceMeetingId === null, $target->normalizedStage === RaceStage::Unknown => StatisticFeatureResultStatus::MissingInput,
             ! $previous instanceof Batch03HistoricalRaceDto => StatisticFeatureResultStatus::NotApplicable,
+            $previousResultAvailableAsOfInput === false => StatisticFeatureResultStatus::Partial,
             ! $previous->normalFinish() => StatisticFeatureResultStatus::Partial,
             $previous->normalizedStage === RaceStage::Unknown => StatisticFeatureResultStatus::MissingInput,
             $matching === [] => StatisticFeatureResultStatus::NoHistory,
@@ -57,13 +76,17 @@ class Stat33Calculator implements Batch03Calculator
             $target->raceMeetingId === null => ['TARGET_MEETING_MISSING'],
             $target->normalizedStage === RaceStage::Unknown => ['UNKNOWN_CURRENT_STAGE'],
             ! $previous instanceof Batch03HistoricalRaceDto => [],
+            $previousResultAvailableAsOfInput === false => ['PREVIOUS_RESULT_NOT_CONFIRMED_AS_OF_INPUT'],
             ! $previous->normalFinish() => ['ABNORMAL_PREVIOUS_RESULT'],
             $previous->normalizedStage === RaceStage::Unknown => ['UNKNOWN_PREVIOUS_STAGE'],
             $matching === [] => ['NO_OBSERVED_TRANSITION_HISTORY'],
             default => [],
         };
+        if ($previous instanceof Batch03HistoricalRaceDto && $previous->resultConfirmedAt === null) {
+            $reasons[] = 'IN_MEETING_RESULT_CONFIRMATION_NOT_RECONSTRUCTED';
+        }
         $nextEvents = array_map(fn (array $transition): Batch03HistoricalRaceDto => $transition['next'], $matching);
-        $exactRank = $previous?->rank !== null ? array_values(array_filter(
+        $exactRank = $transitionEligible && $previous->rank !== null ? array_values(array_filter(
             $matching,
             fn (array $transition): bool => $transition['previous']->rank === $previous->rank,
         )) : [];
@@ -78,34 +101,56 @@ class Stat33Calculator implements Batch03Calculator
                     'previous_race_id' => $previous?->raceId,
                     'previous_race_entry_id' => $previous?->raceEntryId,
                     'previous_day_number' => $previous?->dayNumber,
+                    'current_day_number' => $target->dayNumber,
                     'previous_stage' => $previous?->normalizedStage->value,
                     'previous_rank' => $previous?->rank,
                     'previous_finish_percentile' => $previous?->finishStrengthPercentile,
                     'previous_result_state' => $previous?->resultState->value,
+                    'previous_result_confirmed_at' => $this->support->timestamp($previous?->resultConfirmedAt),
+                    'previous_result_confirmation_reconstructed' => $previous instanceof Batch03HistoricalRaceDto
+                        ? $previous->resultConfirmedAt !== null
+                        : null,
+                    'previous_result_available_as_of_input' => $previousResultAvailableAsOfInput,
                     'current_stage' => $target->normalizedStage->value,
                 ],
-                'MATCHING_TRANSITION_HISTORY' => [
+                'MATCHING_TRANSITION_HISTORY' => $transitionEligible ? [
                     ...$this->transitionMetrics($matching),
                     'NEXT_PERFORMANCE' => $this->support->performance($nextEvents),
-                ],
-                'PREVIOUS_EXACT_RANK_HISTORY' => [
+                ] : null,
+                'PREVIOUS_EXACT_RANK_HISTORY' => $transitionEligible ? [
                     'previous_rank' => $previous?->rank,
                     ...$this->transitionMetrics($exactRank),
-                ],
+                ] : null,
             ],
             $status,
             $reasons,
             ['ADVANCEMENT_RULE', 'QUALIFICATION_CUTOFF', 'POINTS_RULE', 'TIEBREAK_RULE', 'SUPPLEMENTAL_ENTRY_CLASSIFICATION'],
             statusReason: $status === StatisticFeatureResultStatus::NotApplicable ? 'MEETING_FIRST_START' : null,
+            additionalEvidence: [
+                'previous_result_confirmed_at' => $this->support->timestamp($previous?->resultConfirmedAt),
+                'previous_result_confirmation_reconstructed' => $previous instanceof Batch03HistoricalRaceDto
+                    ? $previous->resultConfirmedAt !== null
+                    : null,
+                'previous_result_available_as_of_input' => $previousResultAvailableAsOfInput,
+                'unreconstructed_result_confirmation_count' => $transitionHistory['unreconstructed_result_confirmation_count'],
+                'excluded_unconfirmed_as_of_input_transition_count' => $transitionHistory['excluded_unconfirmed_as_of_input_transition_count'],
+            ],
         );
     }
 
     /**
      * @param  list<Batch03HistoricalRaceDto>  $events
-     * @return list<array{previous:Batch03HistoricalRaceDto,next:Batch03HistoricalRaceDto}>
+     * @return array{
+     *     transitions:list<array{previous:Batch03HistoricalRaceDto,next:Batch03HistoricalRaceDto}>,
+     *     unreconstructed_result_confirmation_count:int,
+     *     excluded_unconfirmed_as_of_input_transition_count:int
+     * }
      */
-    private function pastMeetingTransitions(array $events, ?int $targetMeetingId): array
-    {
+    private function pastMeetingTransitions(
+        array $events,
+        ?int $targetMeetingId,
+        DateTimeImmutable $inputAsOf,
+    ): array {
         $byMeeting = [];
         foreach ($events as $event) {
             if ($event->raceMeetingId === null || $event->raceMeetingId === $targetMeetingId || ! $event->started()) {
@@ -114,18 +159,35 @@ class Stat33Calculator implements Batch03Calculator
             $byMeeting[$event->raceMeetingId][] = $event;
         }
         $transitions = [];
+        $unreconstructedRaceEntryIds = [];
+        $excludedUnconfirmedCount = 0;
         foreach ($byMeeting as $meetingEvents) {
             usort($meetingEvents, fn (Batch03HistoricalRaceDto $left, Batch03HistoricalRaceDto $right): int => [$left->scheduledStartAt, $left->raceId] <=> [$right->scheduledStartAt, $right->raceId]);
             for ($index = 1; $index < count($meetingEvents); $index++) {
                 $previous = $meetingEvents[$index - 1];
                 $next = $meetingEvents[$index];
                 if ($previous->normalFinish() && $next->normalFinish()) {
+                    if (($previous->resultConfirmedAt !== null && $previous->resultConfirmedAt > $inputAsOf)
+                        || ($next->resultConfirmedAt !== null && $next->resultConfirmedAt > $inputAsOf)) {
+                        $excludedUnconfirmedCount++;
+
+                        continue;
+                    }
+                    foreach ([$previous, $next] as $event) {
+                        if ($event->resultConfirmedAt === null) {
+                            $unreconstructedRaceEntryIds[$event->raceEntryId] = true;
+                        }
+                    }
                     $transitions[] = ['previous' => $previous, 'next' => $next];
                 }
             }
         }
 
-        return $transitions;
+        return [
+            'transitions' => $transitions,
+            'unreconstructed_result_confirmation_count' => count($unreconstructedRaceEntryIds),
+            'excluded_unconfirmed_as_of_input_transition_count' => $excludedUnconfirmedCount,
+        ];
     }
 
     /** @param list<array{previous:Batch03HistoricalRaceDto,next:Batch03HistoricalRaceDto}> $transitions */
