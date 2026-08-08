@@ -107,11 +107,11 @@ class Batch03CalculatorSupport
                 'history_from' => $options->historyFrom->format('Y-m-d'),
                 'history_result_mode' => 'BACKFILLED_FINAL_RESULT',
                 'history_event_count' => count($histories),
-                'history_result_confirmation_known_count' => count(array_filter(
+                'history_app_confirmed_observation_known_count' => count(array_filter(
                     $histories,
                     fn (Batch03HistoricalRaceDto $history): bool => $history->resultConfirmedAt !== null,
                 )),
-                'history_result_confirmation_unknown_count' => count(array_filter(
+                'history_app_confirmed_observation_unknown_count' => count(array_filter(
                     $histories,
                     fn (Batch03HistoricalRaceDto $history): bool => $history->resultConfirmedAt === null,
                 )),

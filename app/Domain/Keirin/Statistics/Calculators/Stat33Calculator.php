@@ -36,7 +36,7 @@ class Stat33Calculator implements Batch03Calculator
             fn (Batch03HistoricalRaceDto $event): bool => $event->raceMeetingId === $target->raceMeetingId && $event->started(),
         )) : [];
         $previous = $currentMeeting !== [] ? $currentMeeting[array_key_last($currentMeeting)] : null;
-        $previousResultAvailableAsOfInput = match (true) {
+        $previousObservedByAppAsOfInput = match (true) {
             ! $previous instanceof Batch03HistoricalRaceDto => null,
             $previous->resultConfirmedAt === null => null,
             default => $previous->resultConfirmedAt <= $target->inputAsOf,
@@ -45,7 +45,6 @@ class Stat33Calculator implements Batch03Calculator
             && $target->raceMeetingId !== null
             && $target->normalizedStage !== RaceStage::Unknown
             && $previous instanceof Batch03HistoricalRaceDto
-            && $previousResultAvailableAsOfInput !== false
             && $previous->normalFinish()
             && $previous->normalizedStage !== RaceStage::Unknown;
         $transitionHistory = $this->pastMeetingTransitions(
@@ -65,7 +64,6 @@ class Stat33Calculator implements Batch03Calculator
         $status = match (true) {
             $target->playerId === null, $target->raceMeetingId === null, $target->normalizedStage === RaceStage::Unknown => StatisticFeatureResultStatus::MissingInput,
             ! $previous instanceof Batch03HistoricalRaceDto => StatisticFeatureResultStatus::NotApplicable,
-            $previousResultAvailableAsOfInput === false => StatisticFeatureResultStatus::Partial,
             ! $previous->normalFinish() => StatisticFeatureResultStatus::Partial,
             $previous->normalizedStage === RaceStage::Unknown => StatisticFeatureResultStatus::MissingInput,
             $matching === [] => StatisticFeatureResultStatus::NoHistory,
@@ -76,14 +74,15 @@ class Stat33Calculator implements Batch03Calculator
             $target->raceMeetingId === null => ['TARGET_MEETING_MISSING'],
             $target->normalizedStage === RaceStage::Unknown => ['UNKNOWN_CURRENT_STAGE'],
             ! $previous instanceof Batch03HistoricalRaceDto => [],
-            $previousResultAvailableAsOfInput === false => ['PREVIOUS_RESULT_NOT_CONFIRMED_AS_OF_INPUT'],
             ! $previous->normalFinish() => ['ABNORMAL_PREVIOUS_RESULT'],
             $previous->normalizedStage === RaceStage::Unknown => ['UNKNOWN_PREVIOUS_STAGE'],
             $matching === [] => ['NO_OBSERVED_TRANSITION_HISTORY'],
             default => [],
         };
-        if ($previous instanceof Batch03HistoricalRaceDto && $previous->resultConfirmedAt === null) {
-            $reasons[] = 'IN_MEETING_RESULT_CONFIRMATION_NOT_RECONSTRUCTED';
+        if (($previous instanceof Batch03HistoricalRaceDto && $previousObservedByAppAsOfInput !== true)
+            || $transitionHistory['transition_app_observed_after_input_event_count'] > 0
+            || $transitionHistory['transition_app_observation_unknown_event_count'] > 0) {
+            $reasons[] = 'OFFICIAL_RESULT_AVAILABILITY_NOT_RECONSTRUCTED';
         }
         $nextEvents = array_map(fn (array $transition): Batch03HistoricalRaceDto => $transition['next'], $matching);
         $exactRank = $transitionEligible && $previous->rank !== null ? array_values(array_filter(
@@ -106,11 +105,9 @@ class Stat33Calculator implements Batch03Calculator
                     'previous_rank' => $previous?->rank,
                     'previous_finish_percentile' => $previous?->finishStrengthPercentile,
                     'previous_result_state' => $previous?->resultState->value,
-                    'previous_result_confirmed_at' => $this->support->timestamp($previous?->resultConfirmedAt),
-                    'previous_result_confirmation_reconstructed' => $previous instanceof Batch03HistoricalRaceDto
-                        ? $previous->resultConfirmedAt !== null
-                        : null,
-                    'previous_result_available_as_of_input' => $previousResultAvailableAsOfInput,
+                    'previous_result_app_first_confirmed_at' => $this->support->timestamp($previous?->resultConfirmedAt),
+                    'previous_result_observed_by_app_as_of_input' => $previousObservedByAppAsOfInput,
+                    'official_result_availability_reconstructed' => $previous instanceof Batch03HistoricalRaceDto ? false : null,
                     'current_stage' => $target->normalizedStage->value,
                 ],
                 'MATCHING_TRANSITION_HISTORY' => $transitionEligible ? [
@@ -127,13 +124,12 @@ class Stat33Calculator implements Batch03Calculator
             ['ADVANCEMENT_RULE', 'QUALIFICATION_CUTOFF', 'POINTS_RULE', 'TIEBREAK_RULE', 'SUPPLEMENTAL_ENTRY_CLASSIFICATION'],
             statusReason: $status === StatisticFeatureResultStatus::NotApplicable ? 'MEETING_FIRST_START' : null,
             additionalEvidence: [
-                'previous_result_confirmed_at' => $this->support->timestamp($previous?->resultConfirmedAt),
-                'previous_result_confirmation_reconstructed' => $previous instanceof Batch03HistoricalRaceDto
-                    ? $previous->resultConfirmedAt !== null
-                    : null,
-                'previous_result_available_as_of_input' => $previousResultAvailableAsOfInput,
-                'unreconstructed_result_confirmation_count' => $transitionHistory['unreconstructed_result_confirmation_count'],
-                'excluded_unconfirmed_as_of_input_transition_count' => $transitionHistory['excluded_unconfirmed_as_of_input_transition_count'],
+                'previous_result_app_first_confirmed_at' => $this->support->timestamp($previous?->resultConfirmedAt),
+                'previous_result_observed_by_app_as_of_input' => $previousObservedByAppAsOfInput,
+                'official_result_availability_reconstructed' => $previous instanceof Batch03HistoricalRaceDto ? false : null,
+                'transition_app_observed_before_input_event_count' => $transitionHistory['transition_app_observed_before_input_event_count'],
+                'transition_app_observed_after_input_event_count' => $transitionHistory['transition_app_observed_after_input_event_count'],
+                'transition_app_observation_unknown_event_count' => $transitionHistory['transition_app_observation_unknown_event_count'],
             ],
         );
     }
@@ -142,8 +138,9 @@ class Stat33Calculator implements Batch03Calculator
      * @param  list<Batch03HistoricalRaceDto>  $events
      * @return array{
      *     transitions:list<array{previous:Batch03HistoricalRaceDto,next:Batch03HistoricalRaceDto}>,
-     *     unreconstructed_result_confirmation_count:int,
-     *     excluded_unconfirmed_as_of_input_transition_count:int
+     *     transition_app_observed_before_input_event_count:int,
+     *     transition_app_observed_after_input_event_count:int,
+     *     transition_app_observation_unknown_event_count:int
      * }
      */
     private function pastMeetingTransitions(
@@ -159,23 +156,22 @@ class Stat33Calculator implements Batch03Calculator
             $byMeeting[$event->raceMeetingId][] = $event;
         }
         $transitions = [];
-        $unreconstructedRaceEntryIds = [];
-        $excludedUnconfirmedCount = 0;
+        $observedBeforeInput = [];
+        $observedAfterInput = [];
+        $observationUnknown = [];
         foreach ($byMeeting as $meetingEvents) {
             usort($meetingEvents, fn (Batch03HistoricalRaceDto $left, Batch03HistoricalRaceDto $right): int => [$left->scheduledStartAt, $left->raceId] <=> [$right->scheduledStartAt, $right->raceId]);
             for ($index = 1; $index < count($meetingEvents); $index++) {
                 $previous = $meetingEvents[$index - 1];
                 $next = $meetingEvents[$index];
                 if ($previous->normalFinish() && $next->normalFinish()) {
-                    if (($previous->resultConfirmedAt !== null && $previous->resultConfirmedAt > $inputAsOf)
-                        || ($next->resultConfirmedAt !== null && $next->resultConfirmedAt > $inputAsOf)) {
-                        $excludedUnconfirmedCount++;
-
-                        continue;
-                    }
                     foreach ([$previous, $next] as $event) {
                         if ($event->resultConfirmedAt === null) {
-                            $unreconstructedRaceEntryIds[$event->raceEntryId] = true;
+                            $observationUnknown[$event->raceEntryId] = true;
+                        } elseif ($event->resultConfirmedAt <= $inputAsOf) {
+                            $observedBeforeInput[$event->raceEntryId] = true;
+                        } else {
+                            $observedAfterInput[$event->raceEntryId] = true;
                         }
                     }
                     $transitions[] = ['previous' => $previous, 'next' => $next];
@@ -185,8 +181,9 @@ class Stat33Calculator implements Batch03Calculator
 
         return [
             'transitions' => $transitions,
-            'unreconstructed_result_confirmation_count' => count($unreconstructedRaceEntryIds),
-            'excluded_unconfirmed_as_of_input_transition_count' => $excludedUnconfirmedCount,
+            'transition_app_observed_before_input_event_count' => count($observedBeforeInput),
+            'transition_app_observed_after_input_event_count' => count($observedAfterInput),
+            'transition_app_observation_unknown_event_count' => count($observationUnknown),
         ];
     }
 

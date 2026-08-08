@@ -21,6 +21,8 @@ Batch03は完了済みSTAT-01 runをtarget snapshotとし、既存DBだけから
 
 履歴結果は後日取得された最終結果を含むため、evidenceへ`history_result_mode=BACKFILLED_FINAL_RESULT`を保存する。現在の選手値を過去へ適用しない。
 
+`races.result_confirmed_at`は公式サイトで結果が確定した実時刻ではなく、アプリケーションがCONFIRMED/CORRECTEDとして初めて結果を保存・観測した時刻である。後日backfillでは対象レースや`target.input_as_of`より後になる。この前後関係だけで公式結果が予測時点に利用不能だったとは判定しない。STAT-33は`BACKFILLED_FINAL_RESULT`を利用し、アプリ観測がinput as ofより後または不明の場合は、公式利用可能時刻を再現できないことを`DEGRADED`として記録する。
+
 ## Stage normalizer
 
 versionは`RACE-STAGE-existing-db-v1`。2023〜2024年実DBの`race_type`を棚卸しし、決勝、準決、一予、二予、予選、一般、特選、選抜、順位決等の明示語だけを正規化する。
@@ -42,7 +44,7 @@ STAT-31は`ACQUIRED_HISTORY`として準決勝・決勝の観測件数と成績�
 
 STAT-32はtarget stageと同じ正常完走履歴をall stage baselineと比較する。current `UNKNOWN`は`MISSING_INPUT`、`OTHER`は計算可能だがquality reasonを残す。開催day効果は含めない。
 
-STAT-33はtargetより前の同一meeting最新実出走を前走とする。開催初戦は`NOT_APPLICABLE`、異常前走は`PARTIAL`。過去meeting内の隣接実出走がともに正常完走の場合だけ、previous stageからcurrent stageと一致する観測遷移を集計する。rank changeは`previous rank - next rank`で、正値が改善を表す。
+STAT-33はtargetより前の同一meeting最新実出走を前走とする。開催初戦は`NOT_APPLICABLE`、異常前走は`PARTIAL`。過去meeting内の隣接実出走がともに正常完走の場合だけ、previous stageからcurrent stageと一致する観測遷移を集計する。`result_confirmed_at`はapp first confirmed observationとして監査し、公式結果の利用可能時刻とは区別する。rank changeは`previous rank - next rank`で、正値が改善を表す。
 
 勝ち上がり成功、通過圏、ポイント、tie-break、補充分類、選手の意図は推定しない。`ADVANCEMENT_RULE`、`QUALIFICATION_CUTOFF`、`POINTS_RULE`、`TIEBREAK_RULE`、`SUPPLEMENTAL_ENTRY_CLASSIFICATION`をunavailable componentsへ保存する。
 
@@ -50,7 +52,7 @@ STAT-33はtargetより前の同一meeting最新実出走を前走とする。開
 
 `target_context_hash`はtarget race/entry/player/bike、input as of、scheduled start、track、meeting/day、duration、meeting grade/day kind、raw type/name、normalized stage、normalizer version、STAT-01 input hashを含む。
 
-`history_input_hash`は履歴を`scheduled_start_at, race_id, race_entry_id`順に正規化し、開催属性、raw/normalized stage、結果、得点、着順強度、期待残差、score context hash、取得時刻、normalizer versionを含む。各resultの`input_hash`はSTAT code/version、target hash、history from、history hashから決定する。
+`history_input_hash`は履歴を`scheduled_start_at, race_id, race_entry_id`順に正規化し、開催属性、raw/normalized stage、結果、得点、着順強度、期待残差、score context hash、取得時刻、app first confirmed observationである`result_confirmed_at`、normalizer versionを含む。各resultの`input_hash`はSTAT code/version、target hash、history from、history hashから決定する。
 
 `--chunk`はtarget race IDの外側keyset page sizeである。履歴はBatch02で2024年実DB・128MB受入済みの設計を踏襲し、5 target raceのworking batch、250 history rowのkeyset、race単位cursorで処理する。target entry単位のhistory SQLは発行しない。
 

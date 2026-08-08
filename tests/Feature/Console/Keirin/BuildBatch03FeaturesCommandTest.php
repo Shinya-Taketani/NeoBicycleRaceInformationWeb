@@ -55,9 +55,9 @@ class BuildBatch03FeaturesCommandTest extends TestCase
             ->where('feature_run_id', '!=', $runId)
             ->where('stat_code', 'STAT-33')
             ->sole();
-        $this->assertTrue($stat33->evidence['previous_result_confirmation_reconstructed']);
-        $this->assertTrue($stat33->evidence['previous_result_available_as_of_input']);
-        $this->assertNotNull($stat33->evidence['previous_result_confirmed_at']);
+        $this->assertTrue($stat33->evidence['previous_result_observed_by_app_as_of_input']);
+        $this->assertFalse($stat33->evidence['official_result_availability_reconstructed']);
+        $this->assertNotNull($stat33->evidence['previous_result_app_first_confirmed_at']);
         $this->assertSame(2, $stat33->features['CURRENT_MEETING_CONTEXT']['current_day_number']);
         $this->assertSame($sourceBefore, $this->sourceRows());
         $this->assertSame($scrapingBefore, DB::table('scraping_fetch_logs')->count());
