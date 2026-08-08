@@ -155,6 +155,56 @@ class StatisticFeatureMigrationTest extends TestCase
         }
     }
 
+    public function test_batch03_status_migration_preserves_source_schema_and_protects_not_applicable_rows(): void
+    {
+        $sourceColumns = $this->sourceColumns();
+        $migration = require database_path('migrations/2026_08_08_000007_extend_statistic_feature_result_statuses_for_batch03.php');
+
+        $migration->up();
+        $this->assertSame($sourceColumns, $this->sourceColumns());
+        $runId = DB::table('statistic_feature_runs')->insertGetId([
+            'run_uuid' => '00000000-0000-4000-8000-000000000399',
+            'stat_code' => 'STAT-33',
+            'calculation_version' => 'STAT-33-existing-db-v1',
+            'mode' => 'BACKFILL',
+            'status' => 'SUCCEEDED',
+            'input_as_of_policy' => 'test',
+            'parameters' => '{}',
+            'started_at' => now(),
+            'finished_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('statistic_feature_results')->insert([
+            'feature_run_id' => $runId,
+            'stat_code' => 'STAT-33',
+            'calculation_version' => 'STAT-33-existing-db-v1',
+            'subject_type' => 'RACE_ENTRY',
+            'subject_key' => 'race_entry:399',
+            'race_id' => 399,
+            'race_entry_id' => 399,
+            'bike_number' => 1,
+            'status' => 'NOT_APPLICABLE',
+            'quality_status' => 'FULL',
+            'acquisition_mode' => 'BACKFILL',
+            'features' => '{}',
+            'evidence' => '{}',
+            'input_hash' => str_repeat('3', 64),
+            'calculated_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->assertDatabaseHas('statistic_feature_results', ['status' => 'NOT_APPLICABLE']);
+
+        if (DB::getDriverName() === 'pgsql') {
+            $this->expectException(\RuntimeException::class);
+            $migration->down();
+        } else {
+            $migration->down();
+            $this->assertSame($sourceColumns, $this->sourceColumns());
+        }
+    }
+
     /** @return array<string, list<string>> */
     private function sourceColumns(): array
     {

@@ -12,4 +12,5 @@ enum StatisticFeatureResultStatus: string
     case InvalidInput = 'INVALID_INPUT';
     case NoHistory = 'NO_HISTORY';
     case PartialHistory = 'PARTIAL_HISTORY';
+    case NotApplicable = 'NOT_APPLICABLE';
 }
