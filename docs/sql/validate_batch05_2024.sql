@@ -5,6 +5,8 @@
 \set batch_execution_uuid ''
 \endif
 
+\unset selected_run_id
+
 WITH candidates AS (
     SELECT runs.*
     FROM statistic_feature_runs AS runs
@@ -21,11 +23,20 @@ WITH candidates AS (
       AND (NULLIF(:'batch_execution_uuid', '') IS NULL
            OR runs.parameters->>'batch_execution_uuid' = NULLIF(:'batch_execution_uuid', ''))
 )
-SELECT id AS selected_run_id
-FROM candidates
-ORDER BY started_at DESC, id DESC
-LIMIT 1
+SELECT (
+    SELECT id
+    FROM candidates
+    ORDER BY started_at DESC, id DESC
+    LIMIT 1
+) AS selected_run_id
 \gset
+
+\if :{?selected_run_id}
+\else
+\echo 'ERROR: No complete Batch05 2024 run matched the requested criteria.'
+\set ON_ERROR_STOP on
+SELECT 1 / 0 AS batch05_validation_no_matching_run;
+\endif
 
 SELECT
     runs.id AS run_id,

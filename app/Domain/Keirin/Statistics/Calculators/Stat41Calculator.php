@@ -159,7 +159,7 @@ class Stat41Calculator
                 'gap_rank1_rank3' => $this->gap($topScores[0], $topScores[2]),
                 'gap_rank2_rank3' => $topGaps[1],
                 'gap_rank3_rank4' => $topGaps[2],
-                'top_score_tie_count' => $scores === [] ? 0 : count(array_filter($scores, fn (float $score): bool => $score === $scores[0])),
+                'top_score_tie_count' => $scores === [] ? null : count(array_filter($scores, fn (float $score): bool => $score === $scores[0])),
             ],
             'WINNER_BOUNDARY' => ['rank1_vs_rank2_gap' => $topGaps[0]],
             'TOP2_BOUNDARY' => ['rank2_vs_rank3_gap' => $topGaps[1]],

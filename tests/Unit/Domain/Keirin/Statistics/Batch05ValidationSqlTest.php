@@ -23,6 +23,11 @@ class Batch05ValidationSqlTest extends TestCase
             'runs.processed_race_count = runs.target_race_count',
             'runs.error_count = 0',
             'results.feature_run_id = runs.id) = runs.target_race_count',
+            '\unset selected_run_id',
+            '\if :{?selected_run_id}',
+            'ERROR: No complete Batch05 2024 run matched the requested criteria.',
+            '\set ON_ERROR_STOP on',
+            'SELECT 1 / 0 AS batch05_validation_no_matching_run;',
             "NULLIF(:'batch_execution_uuid', '')",
             'subject_type_not_race',
             'race_entry_id_not_null',
@@ -47,6 +52,14 @@ class Batch05ValidationSqlTest extends TestCase
         $this->assertStringNotContainsString('= runs.target_entry_count', $sql);
         $this->assertStringNotContainsString('GROUP BY metric, value', $this->continuousSection($sql));
         $this->assertFalse(str_starts_with(ltrim($sql), "\\set batch_execution_uuid ''"));
+        $this->assertLessThan(
+            strpos($sql, ') AS selected_run_id'),
+            strpos($sql, '\unset selected_run_id'),
+        );
+        $this->assertGreaterThan(
+            strpos($sql, '\\gset'),
+            strpos($sql, '\if :{?selected_run_id}'),
+        );
     }
 
     private function continuousSection(string $sql): string

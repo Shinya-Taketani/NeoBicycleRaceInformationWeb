@@ -129,6 +129,42 @@ class Stat41CalculatorTest extends TestCase
         $this->assertSame('INCONSISTENT_ENTRANT_COUNT', $inconsistent->evidence['reason']);
     }
 
+    public function test_no_usable_scores_leave_top_tie_count_unknown_but_keep_observed_zero_counts(): void
+    {
+        $missing = $this->calculator->calculate($this->race(
+            [null, null, null, null, null],
+            available: array_fill(0, 5, false),
+        ));
+        $this->assertSame(StatisticFeatureResultStatus::MissingInput, $missing->status);
+        $this->assertSame(0, $missing->features['SCORE_COVERAGE']['usable_score_count']);
+        $this->assertNull($missing->features['TOP_SCORE_STRUCTURE']['top1_score']);
+        $this->assertNull($missing->features['TOP_SCORE_STRUCTURE']['top_score_tie_count']);
+        $this->assertSame(0, $missing->features['PAIRWISE_SCORE_GAPS']['pair_count']);
+
+        $invalid = $this->calculator->calculate($this->race(
+            [0, -1, 'bad', 'x', false],
+            available: array_fill(0, 5, false),
+        ));
+        $this->assertSame(StatisticFeatureResultStatus::InvalidInput, $invalid->status);
+        $this->assertSame(0, $invalid->features['SCORE_COVERAGE']['usable_score_count']);
+        $this->assertNull($invalid->features['TOP_SCORE_STRUCTURE']['top1_score']);
+        $this->assertNull($invalid->features['TOP_SCORE_STRUCTURE']['top_score_tie_count']);
+        $this->assertSame(0, $invalid->features['PAIRWISE_SCORE_GAPS']['pair_count']);
+    }
+
+    public function test_one_usable_score_has_one_top_score_holder(): void
+    {
+        $result = $this->calculator->calculate($this->race(
+            [90, null, null, null, null],
+            available: [true, false, false, false, false],
+        ));
+
+        $this->assertSame(StatisticFeatureResultStatus::Partial, $result->status);
+        $this->assertSame(90.0, $result->features['TOP_SCORE_STRUCTURE']['top1_score']);
+        $this->assertSame(1, $result->features['TOP_SCORE_STRUCTURE']['top_score_tie_count']);
+        $this->assertSame(0, $result->features['PAIRWISE_SCORE_GAPS']['pair_count']);
+    }
+
     public function test_hash_is_order_invariant_and_changes_for_each_audited_input_dimension(): void
     {
         $race = $this->race([100, 90, 80, 70, 60]);

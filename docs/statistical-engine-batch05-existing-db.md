@@ -18,6 +18,8 @@ A score is usable only when `RACE_SCORE_AVAILABLE === true` and `RACE_SCORE_RAW`
 
 Usable scores are sorted by score descending and `race_entry_id` ascending. The ID is only a deterministic tie ordering, not a sporting tie breaker. Top one through four values, raw rank-boundary gaps, tie count, and every unordered pair's absolute gap summary are retained. Partial distributions are explicitly marked `VALID_SCORE_SUBSET`.
 
+When there are no usable scores, the top score is undefined, so `top_score_tie_count` is also `null`. Directly observed counts such as `usable_score_count` and pair count remain zero.
+
 The following remain `null` because formulas, probabilities, thresholds, or dependencies have not been accepted:
 
 - `RACE_COMPETITIVENESS_SCORE`
@@ -44,6 +46,8 @@ The service uses `input_as_of,race_id` keyset pages and five-race internal worki
 ## Validation and 2024 acceptance
 
 Run `docs/sql/validate_batch05_2024.sql` with `psql`, optionally passing `-v batch_execution_uuid='<uuid>'`. It selects the latest complete 2024 run when no UUID is supplied. Continuous values are reported as compact count/min/percentile/max/mean summaries, never grouped by exact continuous values.
+
+The script clears any pre-existing `selected_run_id` before selection. If no complete run matches, including an unknown explicit UUID, it reports an error and exits non-zero without running later validation queries.
 
 Acceptance order:
 
