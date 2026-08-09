@@ -12,6 +12,8 @@ use App\Domain\Keirin\Backtest\Services\Bt01BaselineService;
 use App\Domain\Keirin\Backtest\Services\Bt01FoldProvider;
 use App\Domain\Keirin\Backtest\Services\Bt01SourceManifest;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
+use App\Domain\Keirin\Backtest\Support\PredictionSpool;
+use App\Domain\Keirin\Backtest\Support\PredictionSpoolFactory;
 use App\Models\BacktestPrediction;
 use DateTimeImmutable;
 use DomainException;
@@ -59,17 +61,106 @@ class BuildBt01BaselineCommandTest extends TestCase
 
     public function test_predictions_are_locked_and_evaluation_does_not_change_them(): void
     {
+        $labels = new class extends BacktestLabelRepository
+        {
+            /** @var array<int, array<string, mixed>> */
+            public array $predictionsBeforeLabels = [];
+
+            public function forRaces(array $raceIds): array
+            {
+                if ($this->predictionsBeforeLabels === []) {
+                    $this->predictionsBeforeLabels = BacktestPrediction::query()
+                        ->orderBy('id')
+                        ->get()
+                        ->mapWithKeys(fn (BacktestPrediction $prediction): array => [
+                            $prediction->id => $prediction->getAttributes(),
+                        ])->all();
+                }
+
+                return parent::forRaces($raceIds);
+            }
+        };
+        $this->app->instance(BacktestLabelRepository::class, $labels);
         $this->artisan('keirin:backtest:bt01-baseline')->assertExitCode(0);
         $prediction = BacktestPrediction::query()->firstOrFail();
-        $immutableFields = ['prediction_score', 'predicted_rank', 'is_rank1_set', 'is_top3_set', 'prediction_hash'];
-        $original = $prediction->only($immutableFields);
-        $lockedAt = $prediction->locked_at->format('Y-m-d H:i:s.uP');
+        $original = $labels->predictionsBeforeLabels[$prediction->id];
         $this->assertDatabaseHas('backtest_metrics', ['cohort_code' => 'OPERATIONAL', 'metric_code' => 'RANK1_SET_WIN_HIT_RATE']);
-        $this->assertSame($original, $prediction->refresh()->only($immutableFields));
-        $this->assertSame($lockedAt, $prediction->locked_at->format('Y-m-d H:i:s.uP'));
+        $this->assertSame($original, $prediction->refresh()->getAttributes());
 
-        $this->expectException(LogicException::class);
-        $prediction->forceFill(['predicted_rank' => 9])->save();
+        foreach ([
+            ['prediction_score' => '999.00'],
+            ['predicted_rank' => 9],
+            ['locked_at' => null],
+            ['backtest_run_id' => $prediction->backtest_run_id + 1],
+            ['backtest_fold_id' => $prediction->backtest_fold_id + 1],
+        ] as $change) {
+            try {
+                $prediction->forceFill($change)->save();
+                $this->fail('A locked prediction update was accepted.');
+            } catch (LogicException $exception) {
+                $this->assertSame('Locked backtest predictions are immutable.', $exception->getMessage());
+            }
+            $this->assertSame($original, $prediction->refresh()->getAttributes());
+        }
+    }
+
+    public function test_dry_run_uses_fold_wide_phase_separation_and_removes_the_spool(): void
+    {
+        $this->bindSingleFoldProvider();
+        $factory = new class extends PredictionSpoolFactory
+        {
+            public ?PredictionSpool $spool = null;
+
+            public function create(): PredictionSpool
+            {
+                return $this->spool = parent::create();
+            }
+        };
+        $this->app->instance(PredictionSpoolFactory::class, $factory);
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        $this->app->make(Bt01BaselineService::class)->build(true, 1);
+
+        $firstLabel = $this->firstQueryIndex($queries, 'race_results');
+        $this->assertNotNull($firstLabel);
+        $this->assertGreaterThanOrEqual(2, count(array_filter(
+            array_slice($queries, 0, $firstLabel),
+            fn (string $query): bool => str_contains($query, 'statistic_feature_results'),
+        )));
+        $this->assertSame(0, count(array_filter(
+            array_slice($queries, $firstLabel),
+            fn (string $query): bool => str_contains($query, 'statistic_feature_runs') || str_contains($query, 'statistic_feature_results'),
+        )));
+        $this->assertNotNull($factory->spool);
+        $path = $factory->spool->path();
+        $this->assertTrue($factory->spool->isClosed());
+        $this->assertFileDoesNotExist($path);
+        foreach ($this->backtestTables() as $table) {
+            $this->assertSame(0, DB::table($table)->count(), $table);
+        }
+    }
+
+    public function test_stored_run_uses_fold_wide_phase_separation(): void
+    {
+        $this->bindSingleFoldProvider();
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        $this->app->make(Bt01BaselineService::class)->build(false, 1);
+
+        $firstLabel = $this->firstQueryIndex($queries, 'race_results');
+        $this->assertNotNull($firstLabel);
+        $this->assertSame(0, count(array_filter(
+            array_slice($queries, $firstLabel),
+            fn (string $query): bool => str_contains($query, 'statistic_feature_runs') || str_contains($query, 'statistic_feature_results'),
+        )));
+        $this->assertDatabaseCount('backtest_predictions', 5);
+        $this->assertSame(5, DB::table('backtest_predictions')->whereNotNull('locked_at')->count());
     }
 
     public function test_dry_run_writes_no_backtest_rows(): void
@@ -165,6 +256,29 @@ class BuildBt01BaselineCommandTest extends TestCase
             $app->make(CanonicalHasher::class),
             Bt01Fixture::manifest(),
         ));
+    }
+
+    private function bindSingleFoldProvider(): void
+    {
+        $this->app->bind(Bt01FoldProvider::class, fn (): Bt01FoldProvider => new class extends Bt01FoldProvider
+        {
+            public function folds(): array
+            {
+                return [(new Bt01FoldProvider)->folds()[0]];
+            }
+        });
+    }
+
+    /** @param list<string> $queries */
+    private function firstQueryIndex(array $queries, string $table): ?int
+    {
+        foreach ($queries as $index => $query) {
+            if (str_contains($query, $table)) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     /** @return array<string, int> */

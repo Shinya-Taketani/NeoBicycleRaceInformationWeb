@@ -20,15 +20,21 @@ class BacktestFeatureRepository
         $ids = array_map(fn (SourceManifestEntryDto $entry): int => $entry->featureRunId, $manifest);
         $runs = DB::table('statistic_feature_runs')->whereIn('id', $ids)->get()->keyBy('id');
         $counts = DB::table('statistic_feature_results')
-            ->selectRaw('feature_run_id, COUNT(*) AS result_count')
+            ->selectRaw('feature_run_id, COUNT(*) AS result_count, COUNT(DISTINCT race_id) AS race_count')
+            ->selectRaw('SUM(CASE WHEN stat_code <> ? THEN 1 ELSE 0 END) AS invalid_stat_count', [Bt01SourceManifest::STAT_CODE])
+            ->selectRaw('SUM(CASE WHEN calculation_version <> ? THEN 1 ELSE 0 END) AS invalid_version_count', [Bt01SourceManifest::CALCULATION_VERSION])
+            ->selectRaw("SUM(CASE WHEN subject_type <> 'RACE_ENTRY' THEN 1 ELSE 0 END) AS invalid_subject_count")
             ->whereIn('feature_run_id', $ids)
             ->groupBy('feature_run_id')
-            ->pluck('result_count', 'feature_run_id');
+            ->get()
+            ->keyBy('feature_run_id');
         $verified = [];
 
         foreach ($manifest as $expected) {
             $run = $runs->get($expected->featureRunId);
-            $resultCount = (int) ($counts[$expected->featureRunId] ?? 0);
+            $aggregate = $counts->get($expected->featureRunId);
+            $resultCount = (int) ($aggregate->result_count ?? 0);
+            $raceCount = (int) ($aggregate->race_count ?? 0);
             $valid = $run !== null
                 && (string) $run->run_uuid === $expected->featureRunUuid
                 && (string) $run->stat_code === Bt01SourceManifest::STAT_CODE
@@ -40,11 +46,15 @@ class BacktestFeatureRepository
                 && (int) $run->target_entry_count === $expected->expectedResultCount
                 && (int) $run->error_count === 0
                 && (string) $run->status === 'PARTIALLY_SUCCEEDED'
-                && $resultCount === $expected->expectedResultCount;
+                && $resultCount === $expected->expectedResultCount
+                && $raceCount === $expected->expectedRaceCount
+                && (int) ($aggregate->invalid_stat_count ?? 0) === 0
+                && (int) ($aggregate->invalid_version_count ?? 0) === 0
+                && (int) ($aggregate->invalid_subject_count ?? 0) === 0;
             if (! $valid) {
                 throw new RuntimeException("Fixed STAT-01 source run {$expected->featureRunId} was invalid.");
             }
-            $verified[] = new VerifiedSourceDto($expected, (int) $run->processed_race_count, $resultCount);
+            $verified[] = new VerifiedSourceDto($expected, $raceCount, $resultCount);
         }
 
         return $verified;

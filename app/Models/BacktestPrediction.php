@@ -9,18 +9,12 @@ use LogicException;
 
 class BacktestPrediction extends Model
 {
-    private const IMMUTABLE = [
-        'race_id', 'race_entry_id', 'player_id', 'bike_number', 'feature_run_id',
-        'feature_result_id', 'source_input_hash', 'prediction_rule_version',
-        'prediction_score', 'predicted_rank', 'is_rank1_set', 'is_top3_set', 'prediction_hash',
-    ];
-
     protected $guarded = [];
 
     protected static function booted(): void
     {
         static::updating(function (self $prediction): void {
-            if ($prediction->getOriginal('locked_at') !== null && $prediction->isDirty(self::IMMUTABLE)) {
+            if ($prediction->getOriginal('locked_at') !== null) {
                 throw new LogicException('Locked backtest predictions are immutable.');
             }
         });

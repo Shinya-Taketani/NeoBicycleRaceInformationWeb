@@ -40,7 +40,13 @@ WITH expected AS (
         (27::bigint, 'b62ba626-5019-4018-8cd7-7d09c61a8ceb'::uuid, DATE '2025-01-01', DATE '2025-12-31', 25273::bigint, 180005::bigint)
     ) AS source(feature_run_id, run_uuid, target_from, target_to, expected_races, expected_results)
 ), actual_results AS (
-    SELECT feature_run_id, COUNT(*) AS result_count
+    SELECT
+        feature_run_id,
+        COUNT(*) AS result_count,
+        COUNT(DISTINCT race_id) AS race_count,
+        COUNT(*) FILTER (WHERE stat_code <> 'STAT-01') AS invalid_stat_code_count,
+        COUNT(*) FILTER (WHERE calculation_version <> 'STAT-01-existing-db-v1') AS invalid_calculation_version_count,
+        COUNT(*) FILTER (WHERE subject_type <> 'RACE_ENTRY') AS invalid_subject_type_count
     FROM statistic_feature_results
     WHERE feature_run_id IN (1, 25, 26, 27)
     GROUP BY feature_run_id
@@ -53,7 +59,11 @@ SELECT
     runs.error_count,
     runs.target_race_count,
     runs.target_entry_count,
-    actual_results.result_count
+    actual_results.result_count,
+    actual_results.race_count,
+    actual_results.invalid_stat_code_count,
+    actual_results.invalid_calculation_version_count,
+    actual_results.invalid_subject_type_count
 FROM expected
 LEFT JOIN statistic_feature_runs runs ON runs.id = expected.feature_run_id
 LEFT JOIN actual_results ON actual_results.feature_run_id = expected.feature_run_id

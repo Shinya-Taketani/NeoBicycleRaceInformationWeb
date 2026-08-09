@@ -15,6 +15,7 @@ use App\Models\BacktestMetric;
 use App\Models\BacktestPrediction;
 use App\Models\BacktestRun;
 use DateTimeImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class BacktestAuditRepository
@@ -76,26 +77,28 @@ class BacktestAuditRepository
     /** @param list<PredictionDto> $predictions */
     public function storePredictions(BacktestRun $run, BacktestFold $fold, array $predictions): void
     {
-        foreach ($predictions as $prediction) {
-            BacktestPrediction::query()->create([
-                'backtest_run_id' => $run->id,
-                'backtest_fold_id' => $fold->id,
-                'race_id' => $prediction->raceId,
-                'race_entry_id' => $prediction->raceEntryId,
-                'player_id' => $prediction->playerId,
-                'bike_number' => $prediction->bikeNumber,
-                'feature_run_id' => $prediction->featureRunId,
-                'feature_result_id' => $prediction->featureResultId,
-                'source_input_hash' => $prediction->sourceInputHash,
-                'prediction_rule_version' => 'STAT01-RACE-SCORE-RANK-v1',
-                'prediction_score' => $prediction->predictionScore,
-                'predicted_rank' => $prediction->predictedRank,
-                'is_rank1_set' => $prediction->isRank1Set,
-                'is_top3_set' => $prediction->isTop3Set,
-                'prediction_hash' => $prediction->predictionHash,
-                'locked_at' => new DateTimeImmutable('now'),
-            ]);
-        }
+        DB::transaction(function () use ($run, $fold, $predictions): void {
+            foreach ($predictions as $prediction) {
+                BacktestPrediction::query()->create([
+                    'backtest_run_id' => $run->id,
+                    'backtest_fold_id' => $fold->id,
+                    'race_id' => $prediction->raceId,
+                    'race_entry_id' => $prediction->raceEntryId,
+                    'player_id' => $prediction->playerId,
+                    'bike_number' => $prediction->bikeNumber,
+                    'feature_run_id' => $prediction->featureRunId,
+                    'feature_result_id' => $prediction->featureResultId,
+                    'source_input_hash' => $prediction->sourceInputHash,
+                    'prediction_rule_version' => 'STAT01-RACE-SCORE-RANK-v1',
+                    'prediction_score' => $prediction->predictionScore,
+                    'predicted_rank' => $prediction->predictedRank,
+                    'is_rank1_set' => $prediction->isRank1Set,
+                    'is_top3_set' => $prediction->isTop3Set,
+                    'prediction_hash' => $prediction->predictionHash,
+                    'locked_at' => new DateTimeImmutable('now'),
+                ]);
+            }
+        });
     }
 
     /** @param array<string, mixed>|null $details */
@@ -138,6 +141,17 @@ class BacktestAuditRepository
             'excluded_race_count' => $excluded,
             'prediction_manifest_hash' => $predictionHash,
             'label_manifest_hash' => $labelHash,
+            'finished_at' => new DateTimeImmutable('now'),
+        ])->save();
+    }
+
+    public function failFold(BacktestFold $fold, int $target, int $predicted, int $excluded): void
+    {
+        $fold->forceFill([
+            'status' => 'FAILED',
+            'target_race_count' => $target,
+            'predicted_race_count' => $predicted,
+            'excluded_race_count' => $excluded,
             'finished_at' => new DateTimeImmutable('now'),
         ])->save();
     }

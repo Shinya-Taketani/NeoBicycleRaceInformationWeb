@@ -21,6 +21,7 @@ class BacktestSourceManifestTest extends TestCase
         Bt01Fixture::seed();
         $verified = (new BacktestFeatureRepository)->validateSources(Bt01Fixture::manifest());
         $this->assertSame([25, 26, 1, 27], array_map(fn ($source): int => $source->manifest->featureRunId, $verified));
+        $this->assertSame([2, 1, 1, 1], array_map(fn ($source): int => $source->verifiedRaceCount, $verified));
         $this->assertSame([9, 5, 5, 5], array_map(fn ($source): int => $source->verifiedResultCount, $verified));
     }
 
@@ -69,6 +70,44 @@ class BacktestSourceManifestTest extends TestCase
     {
         Bt01Fixture::seed();
         DB::table('statistic_feature_runs')->where('id', 25)->update(['error_count' => 1]);
+        $this->expectException(RuntimeException::class);
+        (new BacktestFeatureRepository)->validateSources(Bt01Fixture::manifest());
+    }
+
+    public function test_same_result_count_with_too_few_distinct_races_is_rejected(): void
+    {
+        $races = Bt01Fixture::seed();
+        DB::table('statistic_feature_results')
+            ->where('feature_run_id', 25)
+            ->where('race_id', $races['partial_2022'])
+            ->update(['race_id' => $races['normal_2022']]);
+        $this->assertSame(9, DB::table('statistic_feature_results')->where('feature_run_id', 25)->count());
+        $this->assertSame(1, DB::table('statistic_feature_results')->where('feature_run_id', 25)->distinct()->count('race_id'));
+
+        $this->expectException(RuntimeException::class);
+        (new BacktestFeatureRepository)->validateSources(Bt01Fixture::manifest());
+    }
+
+    public function test_result_stat_code_mismatch_is_rejected(): void
+    {
+        Bt01Fixture::seed();
+        DB::table('statistic_feature_results')->where('feature_run_id', 25)->limit(1)->update(['stat_code' => 'STAT-99']);
+        $this->expectException(RuntimeException::class);
+        (new BacktestFeatureRepository)->validateSources(Bt01Fixture::manifest());
+    }
+
+    public function test_result_calculation_version_mismatch_is_rejected(): void
+    {
+        Bt01Fixture::seed();
+        DB::table('statistic_feature_results')->where('feature_run_id', 25)->limit(1)->update(['calculation_version' => 'wrong']);
+        $this->expectException(RuntimeException::class);
+        (new BacktestFeatureRepository)->validateSources(Bt01Fixture::manifest());
+    }
+
+    public function test_result_subject_type_mismatch_is_rejected(): void
+    {
+        Bt01Fixture::seed();
+        DB::table('statistic_feature_results')->where('feature_run_id', 25)->limit(1)->update(['subject_type' => 'PLAYER']);
         $this->expectException(RuntimeException::class);
         (new BacktestFeatureRepository)->validateSources(Bt01Fixture::manifest());
     }

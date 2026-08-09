@@ -15,7 +15,7 @@ Manifest version: `BT01-STAT01-MANIFEST-v1`
 | 2024 | 1 | `07f2fc31-0d9c-41d9-95b7-80c7afb396ce` | 2024-01-01 to 2024-12-31 | 25,624 | 182,004 |
 | 2025 | 27 | `b62ba626-5019-4018-8cd7-7d09c61a8ceb` | 2025-01-01 to 2025-12-31 | 25,273 | 180,005 |
 
-Every ID, UUID, date range, stat code, calculation version, target count, error count, status, and physical result count is checked before a backtest run is created. No latest-run lookup or automatic source replacement is allowed. The manifest hash is SHA-256 over canonical, year-sorted manifest content.
+Every ID, UUID, date range, stat code, calculation version, target count, error count, status, physical result count, and distinct result race count is checked before a backtest run is created. Every result row must also contain `STAT-01`, `STAT-01-existing-db-v1`, and `RACE_ENTRY`. `verified_race_count` is the measured `COUNT(DISTINCT race_id)`, not copied run metadata. No latest-run lookup or automatic source replacement is allowed. The manifest hash is SHA-256 over canonical, year-sorted manifest content.
 
 ## Folds And Holdout
 
@@ -34,7 +34,9 @@ The baseline learns no parameters from training data. The training dates are for
 - `BacktestFeatureRepository` reads only `statistic_feature_runs` and `statistic_feature_results`.
 - `BacktestLabelRepository` reads only `race_results`.
 - Prediction generation never reads current `race_entries`, `players`, payouts, or scraping tables.
-- Label rows are read only after predictions for the bounded race chunk have been generated and, for stored runs, locked.
+- For each fold, all Feature queries and all prediction generation finish before the first Label query starts.
+- Stored and dry-run processing write compact race context and predictions to an OS temporary spool. Label evaluation reads that spool in bounded chunks and never re-queries STAT features.
+- The spool is closed and removed on both success and failure. It is never written under scraping raw storage.
 - Backtest writes are restricted to `backtest_*` tables.
 
 The feature repository projects only `RACE_SCORE_RAW`, `RACE_SCORE_AVAILABLE`, and `RACE_SCORE_RANK`; it does not copy the complete feature or evidence JSON.
@@ -51,9 +53,13 @@ Rule version: `STAT01-RACE-SCORE-RANK-v1`
 
 `prediction_score` is the stored `RACE_SCORE_RAW`; `predicted_rank` is the stored `RACE_SCORE_RANK`. Rank 1 entries form `RANK1_SET`, while rank 3 or better entries form `TOP3_SET`. Equal scores retain equal ranks, including a tie at the top-3 boundary. `race_entry_id` is used only for deterministic storage order.
 
-Prediction hashes include the calculation and rule versions, source feature IDs and input hash, race and entry IDs, bike number, score, stored rank, and set flags. They never include results or other label information. Fold prediction manifests sort prediction hashes before hashing.
+Prediction hashes include the calculation and rule versions, source feature IDs and input hash, race and entry IDs, bike number, score, stored rank, and set flags. They never include results or other label information. Fold prediction manifests stream hashes in explicit race-ID and race-entry-ID order, so chunk size does not affect the result.
 
-Stored predictions receive `locked_at`. Model-level protection rejects changes to source references, scores, ranks, flags, and hashes after locking. Label evaluation creates metrics and exclusions without modifying predictions.
+Stored predictions receive `locked_at`. Once locked, model-level protection rejects every Eloquent update, including clearing `locked_at`, changing run/fold ownership, source references, scores, ranks, flags, or hashes. Label evaluation creates metrics and exclusions without modifying predictions.
+
+## Failure Lifecycle
+
+All work after `backtest_runs` creation, including source audit storage, is inside run failure handling. An exception closes the run as `FAILED` with an error and `finished_at`. A started fold is also closed as `FAILED` with the target, predicted, and excluded counts reached at failure. Race prediction inserts use short backtest-only transactions so persisted prediction race counts remain consistent. No started run or fold is intentionally left `RUNNING`.
 
 ## Label Cohorts
 
@@ -79,7 +85,7 @@ Each metric records numerator, denominator, sample count, and value. A hit means
 
 The six new tables are `backtest_runs`, `backtest_folds`, `backtest_feature_sources`, `backtest_predictions`, `backtest_metrics`, and `backtest_exclusions`. Physical foreign keys exist only between these tables. IDs from races, entries, players, result rows, and feature rows are logical audit references so upstream lifecycle changes do not cascade into backtest history.
 
-Processing uses race-ID keyset pagination and bounded chunks. It does not lock source/statistics tables and does not use a transaction spanning all years.
+Processing uses race-ID keyset pagination, bounded query chunks, and an OS-managed temporary spool. It does not lock source/statistics tables and does not use a transaction spanning a fold or run.
 
 ## Command
 
