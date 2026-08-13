@@ -43,7 +43,9 @@ class BacktestFoundationMigrationTest extends TestCase
         ]);
         $sourceSchema = $this->sourceSchema();
         $migration = $this->migration();
+        $bt02Migration = require database_path('migrations/2026_08_14_000009_create_bt02_signal_evaluation_tables.php');
 
+        $bt02Migration->down();
         try {
             $migration->down();
             foreach ($this->backtestTables() as $table) {
@@ -53,6 +55,7 @@ class BacktestFoundationMigrationTest extends TestCase
             $this->assertSame(1, DB::table('races')->where('external_race_id', 'kept')->count());
         } finally {
             $migration->up();
+            $bt02Migration->up();
         }
     }
 
