@@ -9,18 +9,19 @@ use InvalidArgumentException;
 
 class TrainingStandardizer
 {
-    /** @param list<array<string, int|float>> $trainingRows */
-    public function fit(array $trainingRows): StandardizationModelDto
+    /** @param iterable<array<string, int|float>> $trainingRows */
+    public function fit(iterable $trainingRows): StandardizationModelDto
     {
-        if ($trainingRows === []) {
-            throw new InvalidArgumentException('Standardizer training rows must not be empty.');
-        }
-        $names = array_keys($trainingRows[0]);
-        if ($names === []) {
-            throw new InvalidArgumentException('Standardizer requires at least one feature.');
-        }
-        $counts = $means = $m2 = array_fill_keys($names, 0.0);
+        $names = null;
+        $counts = $means = $m2 = [];
         foreach ($trainingRows as $row) {
+            if ($names === null) {
+                $names = array_keys($row);
+                if ($names === []) {
+                    throw new InvalidArgumentException('Standardizer requires at least one feature.');
+                }
+                $counts = $means = $m2 = array_fill_keys($names, 0.0);
+            }
             if (array_keys($row) !== $names) {
                 throw new InvalidArgumentException('Standardizer feature order changed within training rows.');
             }
@@ -34,6 +35,9 @@ class TrainingStandardizer
                 $means[$name] += $delta / $counts[$name];
                 $m2[$name] += $delta * ($value - $means[$name]);
             }
+        }
+        if ($names === null) {
+            throw new InvalidArgumentException('Standardizer training rows must not be empty.');
         }
         $sd = [];
         $zero = [];

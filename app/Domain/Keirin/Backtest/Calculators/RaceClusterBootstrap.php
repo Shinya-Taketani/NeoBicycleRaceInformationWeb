@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Backtest\Calculators;
 
+use Generator;
 use InvalidArgumentException;
 
 class RaceClusterBootstrap
@@ -12,23 +13,20 @@ class RaceClusterBootstrap
 
     public const SEED = 20260812;
 
-    /** @return list<list<int>> */
-    public function resampleIndexes(int $raceCount, int $iterations = self::ITERATIONS, int $seed = self::SEED): array
+    /** @return Generator<int, list<int>> */
+    public function resampleIndexes(int $raceCount, int $iterations = self::ITERATIONS, int $seed = self::SEED): Generator
     {
         if ($raceCount < 1 || $iterations < 1) {
             throw new InvalidArgumentException('Bootstrap race and iteration counts must be positive.');
         }
         $random = new DeterministicRandom($seed);
-        $samples = [];
         for ($iteration = 0; $iteration < $iterations; $iteration++) {
             $sample = [];
             for ($index = 0; $index < $raceCount; $index++) {
                 $sample[] = $random->integer($raceCount);
             }
-            $samples[] = $sample;
+            yield $sample;
         }
-
-        return $samples;
     }
 
     /**

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Backtest\Repositories;
 
 use App\Domain\Keirin\Backtest\DTO\Bt02SourceManifestEntryDto;
+use App\Domain\Keirin\Backtest\Services\Bt02SourceManifest;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class Bt02SourceVerifier
 {
+    public function __construct(private readonly Bt02SourceManifest $manifest = new Bt02SourceManifest) {}
+
     /**
      * Verifies database identity and completeness. PG COPY byte fingerprints are
      * fixed in the manifest and intentionally remain a separate preflight contract.
@@ -18,13 +21,8 @@ class Bt02SourceVerifier
      */
     public function verify(array $entries): void
     {
-        if (count($entries) !== 56) {
-            throw new RuntimeException('BT-02 requires exactly 56 fixed source runs.');
-        }
+        $this->assertCanonicalManifest($entries);
         $ids = array_map(fn (Bt02SourceManifestEntryDto $entry): int => $entry->featureRunId, $entries);
-        if (count(array_unique($ids)) !== 56) {
-            throw new RuntimeException('BT-02 source run IDs were not unique.');
-        }
         $runs = DB::table('statistic_feature_runs')->whereIn('id', $ids)->get()->keyBy('id');
         $sourceIds = array_values(array_unique(array_map(fn (Bt02SourceManifestEntryDto $entry): int => $entry->sourceStat01RunId, $entries)));
         $sourceRuns = DB::table('statistic_feature_runs')->whereIn('id', $sourceIds)->get()->keyBy('id');
@@ -90,6 +88,58 @@ class Bt02SourceVerifier
                 throw new RuntimeException("Fixed BT-02 source run {$expected->featureRunId} was invalid.");
             }
         }
+    }
+
+    /** @param list<Bt02SourceManifestEntryDto> $entries */
+    private function assertCanonicalManifest(array $entries): void
+    {
+        $expected = $this->manifestMap($this->manifest->entries());
+        $actual = $this->manifestMap($entries);
+        if ($actual !== $expected) {
+            throw new RuntimeException('BT-02 sources did not match the fixed 56-entry manifest.');
+        }
+    }
+
+    /**
+     * This comparison intentionally includes verifier-only expected counts while
+     * leaving the frozen V1 manifest serialization and hash unchanged.
+     *
+     * @param  list<Bt02SourceManifestEntryDto>  $entries
+     * @return array<string, array<string, int|string|null>>
+     */
+    private function manifestMap(array $entries): array
+    {
+        $map = [];
+        foreach ($entries as $entry) {
+            if (! $entry instanceof Bt02SourceManifestEntryDto) {
+                throw new RuntimeException('BT-02 source manifest entry type was invalid.');
+            }
+            $key = $entry->year.'|'.$entry->statCode;
+            if (isset($map[$key])) {
+                throw new RuntimeException("BT-02 source manifest key {$key} was duplicated.");
+            }
+            $map[$key] = [
+                'year' => $entry->year,
+                'stat_code' => $entry->statCode,
+                'feature_run_id' => $entry->featureRunId,
+                'feature_run_uuid' => $entry->featureRunUuid,
+                'calculation_version' => $entry->calculationVersion,
+                'source_stat01_run_id' => $entry->sourceStat01RunId,
+                'source_stat01_run_uuid' => $entry->sourceStat01RunUuid,
+                'target_from' => $entry->targetFrom,
+                'target_to' => $entry->targetTo,
+                'history_from' => $entry->historyFrom,
+                'subject_type' => $entry->subjectType,
+                'processed_race_count' => $entry->processedRaceCount,
+                'target_entry_count' => $entry->targetEntryCount,
+                'row_count' => $entry->rowCount,
+                'source_fingerprint_sha256' => $entry->sourceFingerprintSha256,
+                'content_fingerprint_sha256' => $entry->contentFingerprintSha256,
+            ];
+        }
+        ksort($map);
+
+        return $map;
     }
 
     /** @return array<string, mixed> */

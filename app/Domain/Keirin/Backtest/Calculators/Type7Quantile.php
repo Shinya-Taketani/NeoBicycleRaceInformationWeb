@@ -21,13 +21,30 @@ class Type7Quantile
             }
         }
         sort($sorted, SORT_NUMERIC);
-        $position = (count($sorted) - 1) * $probability;
+
+        return $this->calculateSorted($sorted, $probability);
+    }
+
+    /** @param list<float> $sortedValues */
+    public function calculateSorted(array $sortedValues, float $probability): float
+    {
+        if ($sortedValues === [] || $probability < 0 || $probability > 1 || ! is_finite($probability)) {
+            throw new InvalidArgumentException('Type-7 quantile input was invalid.');
+        }
+        $previous = null;
+        foreach ($sortedValues as $value) {
+            if (! is_finite($value) || ($previous !== null && $value < $previous)) {
+                throw new InvalidArgumentException('Type-7 quantile values were not finite and sorted.');
+            }
+            $previous = $value;
+        }
+        $position = (count($sortedValues) - 1) * $probability;
         $lower = (int) floor($position);
         $upper = (int) ceil($position);
         if ($lower === $upper) {
-            return $sorted[$lower];
+            return $sortedValues[$lower];
         }
 
-        return $sorted[$lower] + ($position - $lower) * ($sorted[$upper] - $sorted[$lower]);
+        return $sortedValues[$lower] + ($position - $lower) * ($sortedValues[$upper] - $sortedValues[$lower]);
     }
 }

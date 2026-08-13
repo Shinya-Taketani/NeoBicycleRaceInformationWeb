@@ -13,25 +13,37 @@ class TemporalLambdaSelector
     /** @param array<string, float> $validationLogLossByLambda */
     public function select(array $validationLogLossByLambda): float
     {
-        if ($validationLogLossByLambda === []) {
-            throw new InvalidArgumentException('Lambda selection requires validation losses.');
+        if (count($validationLogLossByLambda) !== count(RidgeLogisticRegression::LAMBDA_CANDIDATES)) {
+            throw new InvalidArgumentException('Lambda selection requires every fixed candidate exactly once.');
         }
-        $candidates = [];
+        $losses = [];
         foreach ($validationLogLossByLambda as $lambda => $loss) {
             $numericLambda = (float) $lambda;
-            if (! in_array($numericLambda, RidgeLogisticRegression::LAMBDA_CANDIDATES, true) || ! is_finite($loss)) {
+            if (! in_array($numericLambda, RidgeLogisticRegression::LAMBDA_CANDIDATES, true)
+                || isset($losses[$this->key($numericLambda)])
+                || ! is_finite($loss)) {
                 throw new InvalidArgumentException('Lambda selection input was outside the fixed contract.');
             }
-            $candidates[] = ['lambda' => $numericLambda, 'loss' => $loss];
+            $losses[$this->key($numericLambda)] = $loss;
         }
-        usort($candidates, function (array $left, array $right): int {
-            if (abs($left['loss'] - $right['loss']) <= self::TIE_TOLERANCE) {
-                return $right['lambda'] <=> $left['lambda'];
+        foreach (RidgeLogisticRegression::LAMBDA_CANDIDATES as $candidate) {
+            if (! array_key_exists($this->key($candidate), $losses)) {
+                throw new InvalidArgumentException('Lambda selection was missing a fixed candidate.');
             }
+        }
+        $minimum = min($losses);
+        $selected = null;
+        foreach (RidgeLogisticRegression::LAMBDA_CANDIDATES as $candidate) {
+            if ($losses[$this->key($candidate)] <= $minimum + self::TIE_TOLERANCE) {
+                $selected = $candidate;
+            }
+        }
 
-            return $left['loss'] <=> $right['loss'];
-        });
+        return $selected ?? throw new InvalidArgumentException('Lambda selection had no eligible candidate.');
+    }
 
-        return $candidates[0]['lambda'];
+    private function key(float $lambda): string
+    {
+        return sprintf('%.4g', $lambda);
     }
 }

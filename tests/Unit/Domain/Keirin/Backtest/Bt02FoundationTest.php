@@ -9,13 +9,16 @@ use App\Domain\Keirin\Backtest\Calculators\Bt02LabelDefinition;
 use App\Domain\Keirin\Backtest\Calculators\Bt02RaceCompletenessEvaluator;
 use App\Domain\Keirin\Backtest\Calculators\Bt02SignalEligibilityEvaluator;
 use App\Domain\Keirin\Backtest\Calculators\EffectBinBuilder;
+use App\Domain\Keirin\Backtest\Calculators\InMemoryEffectBinBoundaryProvider;
 use App\Domain\Keirin\Backtest\Calculators\RaceClusterBootstrap;
 use App\Domain\Keirin\Backtest\Calculators\RidgeLogisticRegression;
 use App\Domain\Keirin\Backtest\Calculators\TemporalLambdaSelector;
 use App\Domain\Keirin\Backtest\Calculators\TrainingStandardizer;
 use App\Domain\Keirin\Backtest\Calculators\Type7Quantile;
 use App\Domain\Keirin\Backtest\DTO\Bt02SignalFeatureDto;
+use App\Domain\Keirin\Backtest\DTO\Bt02SourceManifestEntryDto;
 use App\Domain\Keirin\Backtest\DTO\FoldDefinitionDto;
+use App\Domain\Keirin\Backtest\DTO\LogisticTrainingRowDto;
 use App\Domain\Keirin\Backtest\Enums\Bt02AnalysisRole;
 use App\Domain\Keirin\Backtest\Enums\Bt02ConvergenceStatus;
 use App\Domain\Keirin\Backtest\Enums\Bt02SignalCohort;
@@ -25,7 +28,10 @@ use App\Domain\Keirin\Backtest\Services\Bt02SignalRegistry;
 use App\Domain\Keirin\Backtest\Services\Bt02SourceManifest;
 use App\Domain\Keirin\Backtest\Services\FinalHoldoutGuard;
 use App\Domain\Keirin\Backtest\Support\Bt02ModelArtifactHasher;
+use App\Domain\Keirin\Backtest\Support\CallbackLogisticTrainingRowSource;
 use DomainException;
+use Generator;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -67,6 +73,24 @@ class Bt02FoundationTest extends TestCase
     {
         $this->expectException(RuntimeException::class);
         (new Bt02SourceVerifier)->verify(array_slice((new Bt02SourceManifest)->entries(), 0, 55));
+    }
+
+    public function test_source_verifier_rejects_modified_56_entry_manifests_before_database_access(): void
+    {
+        foreach ([
+            ['featureRunUuid' => '00000000-0000-4000-8000-000000000999'],
+            ['sourceFingerprintSha256' => str_repeat('a', 64)],
+            ['contentFingerprintSha256' => str_repeat('b', 64)],
+            ['processedRaceCount' => 1],
+            ['targetEntryCount' => 1],
+        ] as $changes) {
+            $entries = (new Bt02SourceManifest)->entries();
+            $entries[0] = $this->changedManifestEntry($entries[0], $changes);
+            $this->assertCallbackThrows(
+                fn () => (new Bt02SourceVerifier)->verify(array_reverse($entries)),
+                RuntimeException::class,
+            );
+        }
     }
 
     public function test_folds_fix_inner_temporal_validation_and_holdout(): void
@@ -196,8 +220,16 @@ class Bt02FoundationTest extends TestCase
     public function test_standardizer_is_training_only_and_handles_zero_variance(): void
     {
         $standardizer = new TrainingStandardizer;
-        $model = $standardizer->fit([['a' => 1, 'constant' => 5], ['a' => 3, 'constant' => 5]]);
+        $consumed = 0;
+        $rows = (function () use (&$consumed): Generator {
+            foreach ([['a' => 1, 'constant' => 5], ['a' => 3, 'constant' => 5]] as $row) {
+                $consumed++;
+                yield $row;
+            }
+        })();
+        $model = $standardizer->fit($rows);
 
+        $this->assertSame(2, $consumed);
         $this->assertSame(2.0, $model->means['a']);
         $this->assertSame(1.0, $model->populationStandardDeviations['a']);
         $this->assertSame(['constant'], $model->zeroVarianceFeatures);
@@ -205,14 +237,29 @@ class Bt02FoundationTest extends TestCase
         $this->assertSame(2.0, $model->means['a']);
     }
 
+    public function test_standardizer_fails_closed_for_empty_or_reordered_iterables(): void
+    {
+        $standardizer = new TrainingStandardizer;
+
+        $this->assertCallbackThrows(fn () => $standardizer->fit((function (): Generator {
+            yield from [];
+        })()), InvalidArgumentException::class);
+        $this->assertCallbackThrows(fn () => $standardizer->fit((function (): Generator {
+            yield ['a' => 1, 'b' => 2];
+            yield ['b' => 2, 'a' => 1];
+        })()), InvalidArgumentException::class);
+    }
+
     public function test_ridge_logistic_known_case_is_deterministic(): void
     {
         $regression = new RidgeLogisticRegression;
         $x = [[-2.0], [-1.0], [1.0], [2.0]];
         $y = [0, 0, 1, 1];
-        $first = $regression->fit($x, $y, 0.1);
-        $second = $regression->fit($x, $y, 0.1);
+        $counter = (object) ['passes' => 0];
+        $first = $regression->fit($this->logisticSource($x, $y, $counter), 0.1);
+        $second = $regression->fit($this->logisticSource($x, $y), 0.1);
 
+        $this->assertGreaterThan(2, $counter->passes, 'IRLS and line search must replay the bounded source.');
         $this->assertTrue($first->converged(), $first->status->value);
         $this->assertGreaterThan(0, $first->coefficients[0]);
         $this->assertLessThan(0.5, $regression->probability($first->intercept, $first->coefficients, [-1.0]));
@@ -222,10 +269,24 @@ class Bt02FoundationTest extends TestCase
 
     public function test_single_class_is_not_fitted(): void
     {
-        $result = (new RidgeLogisticRegression)->fit([[0.0], [1.0]], [1, 1], 0.1);
+        $result = (new RidgeLogisticRegression)->fit($this->logisticSource([[0.0], [1.0]], [1, 1]), 0.1);
 
         $this->assertSame(Bt02ConvergenceStatus::FailedSingleClassTraining, $result->status);
         $this->assertFalse($result->converged());
+    }
+
+    public function test_ridge_rejects_non_finite_and_dimension_mismatched_stream_rows(): void
+    {
+        $regression = new RidgeLogisticRegression;
+
+        $this->assertCallbackThrows(
+            fn () => $regression->fit($this->logisticSource([[0.0], [INF]], [0, 1]), 0.1),
+            InvalidArgumentException::class,
+        );
+        $this->assertCallbackThrows(
+            fn () => $regression->fit($this->logisticSource([[0.0], [1.0, 2.0]], [0, 1]), 0.1),
+            InvalidArgumentException::class,
+        );
     }
 
     public function test_regularization_shrinks_coefficients_without_penalizing_intercept(): void
@@ -233,10 +294,10 @@ class Bt02FoundationTest extends TestCase
         $regression = new RidgeLogisticRegression;
         $x = [[-2.0], [-1.0], [0.0], [1.0], [2.0], [3.0]];
         $y = [0, 0, 0, 1, 1, 1];
-        $weak = $regression->fit($x, $y, 1e-4);
-        $strong = $regression->fit($x, $y, 100.0);
-        $zeroXWeak = $regression->fit(array_fill(0, 4, [0.0]), [0, 0, 0, 1], 1e-4);
-        $zeroXStrong = $regression->fit(array_fill(0, 4, [0.0]), [0, 0, 0, 1], 100.0);
+        $weak = $regression->fit($this->logisticSource($x, $y), 1e-4);
+        $strong = $regression->fit($this->logisticSource($x, $y), 100.0);
+        $zeroXWeak = $regression->fit($this->logisticSource(array_fill(0, 4, [0.0]), [0, 0, 0, 1]), 1e-4);
+        $zeroXStrong = $regression->fit($this->logisticSource(array_fill(0, 4, [0.0]), [0, 0, 0, 1]), 100.0);
 
         $this->assertLessThan(abs($weak->coefficients[0]), abs($strong->coefficients[0]));
         $this->assertEqualsWithDelta($zeroXWeak->intercept, $zeroXStrong->intercept, 1e-12);
@@ -247,8 +308,8 @@ class Bt02FoundationTest extends TestCase
     {
         $regression = new RidgeLogisticRegression;
         $parameters = [0.2, 0.5];
-        $single = $regression->objective($parameters, [[1.0], [-1.0]], [1, 0], 0.1);
-        $duplicated = $regression->objective($parameters, [[1.0], [-1.0], [1.0], [-1.0]], [1, 0, 1, 0], 0.1);
+        $single = $regression->objective($parameters, $this->logisticSource([[1.0], [-1.0]], [1, 0]), 0.1);
+        $duplicated = $regression->objective($parameters, $this->logisticSource([[1.0], [-1.0], [1.0], [-1.0]], [1, 0, 1, 0]), 0.1);
 
         $this->assertEqualsWithDelta($single, $duplicated, 1e-15);
     }
@@ -257,8 +318,43 @@ class Bt02FoundationTest extends TestCase
     {
         $selector = new TemporalLambdaSelector;
 
-        $this->assertSame(0.1, $selector->select(['0.01' => 0.5, '0.1' => 0.4, '1' => 0.6]));
-        $this->assertSame(10.0, $selector->select(['1' => 0.4, '10' => 0.4000000000005]));
+        $this->assertSame(0.1, $selector->select($this->lambdaLosses(['0.1' => 0.4])));
+        $this->assertSame(10.0, $selector->select($this->lambdaLosses(['1' => 0.4, '10' => 0.4000000000005])));
+    }
+
+    public function test_temporal_lambda_tie_set_is_minimum_based_and_order_independent(): void
+    {
+        $selector = new TemporalLambdaSelector;
+        $losses = $this->lambdaLosses([
+            '0.0001' => 0.0,
+            '0.001' => 0.75e-12,
+            '0.01' => 1.5e-12,
+        ]);
+
+        $this->assertSame(0.001, $selector->select($losses));
+        $this->assertSame(0.001, $selector->select(array_reverse($losses, true)));
+    }
+
+    public function test_temporal_lambda_requires_each_fixed_candidate_exactly_once(): void
+    {
+        $selector = new TemporalLambdaSelector;
+        $missing = $this->lambdaLosses();
+        unset($missing['100']);
+        $this->assertCallbackThrows(fn () => $selector->select($missing), InvalidArgumentException::class);
+
+        $duplicate = $this->lambdaLosses();
+        unset($duplicate['100']);
+        $duplicate['1e-4'] = 0.5;
+        $this->assertCallbackThrows(fn () => $selector->select($duplicate), InvalidArgumentException::class);
+
+        $nonFinite = $this->lambdaLosses();
+        $nonFinite['1'] = INF;
+        $this->assertCallbackThrows(fn () => $selector->select($nonFinite), InvalidArgumentException::class);
+
+        $unknown = $this->lambdaLosses();
+        unset($unknown['100']);
+        $unknown['1000'] = 0.5;
+        $this->assertCallbackThrows(fn () => $selector->select($unknown), InvalidArgumentException::class);
     }
 
     public function test_model_artifact_hash_is_key_order_independent_and_float_exact(): void
@@ -284,11 +380,14 @@ class Bt02FoundationTest extends TestCase
     public function test_type7_quantile_and_training_only_effect_bins_are_fixed(): void
     {
         $quantile = new Type7Quantile;
-        $builder = new EffectBinBuilder($quantile);
-        $training = range(0, 10);
+        $builder = new EffectBinBuilder(new InMemoryEffectBinBoundaryProvider($quantile));
+        $training = (function (): Generator {
+            yield from range(0, 10);
+        })();
         $bins = $builder->build($training);
 
         $this->assertSame(2.5, $quantile->calculate([0, 10], 0.25));
+        $this->assertSame(2.5, $quantile->calculateSorted([0.0, 10.0], 0.25));
         $this->assertSame(10, count($bins));
         $this->assertSame(1.0, $bins[0]->upperBound);
         $this->assertSame(10, $builder->assign($bins, 1000));
@@ -297,7 +396,7 @@ class Bt02FoundationTest extends TestCase
 
     public function test_low_cardinality_bins_use_natural_categories_and_unseen_marker(): void
     {
-        $builder = new EffectBinBuilder(new Type7Quantile);
+        $builder = new EffectBinBuilder(new InMemoryEffectBinBoundaryProvider(new Type7Quantile));
         $bins = $builder->build(['A', 'B', 'A']);
 
         $this->assertSame('CATEGORY', $bins[0]->kind);
@@ -309,14 +408,94 @@ class Bt02FoundationTest extends TestCase
     public function test_race_cluster_bootstrap_is_seeded_and_keeps_whole_payloads(): void
     {
         $bootstrap = new RaceClusterBootstrap;
-        $first = $bootstrap->resampleIndexes(3, 5, RaceClusterBootstrap::SEED);
-        $second = $bootstrap->resampleIndexes(3, 5, RaceClusterBootstrap::SEED);
+        $stream = $bootstrap->resampleIndexes(3, 5, RaceClusterBootstrap::SEED);
+        $this->assertInstanceOf(Generator::class, $stream);
+        $first = iterator_to_array($stream, false);
+        $second = iterator_to_array($bootstrap->resampleIndexes(3, 5, RaceClusterBootstrap::SEED), false);
 
         $this->assertSame($first, $second);
         $this->assertCount(3, $first[0]);
+        $this->assertTrue((bool) array_filter($first, fn (array $sample): bool => count(array_unique($sample)) < count($sample)));
+        foreach ($first as $sample) {
+            foreach ($sample as $index) {
+                $this->assertGreaterThanOrEqual(0, $index);
+                $this->assertLessThan(3, $index);
+            }
+        }
         $payloads = [['race' => 1, 'entries' => [1, 2]], ['race' => 2, 'entries' => [3]], ['race' => 3, 'entries' => [4, 5]]];
         foreach ($bootstrap->apply($payloads, $first[0]) as $payload) {
             $this->assertArrayHasKey('entries', $payload);
+        }
+
+        $large = $bootstrap->resampleIndexes(1000, 2000);
+        $this->assertCount(1000, $large->current());
+        $large->next();
+        $this->assertSame(1, $large->key(), 'The caller can stop after any yielded iteration.');
+    }
+
+    /**
+     * @param  list<list<float>>  $features
+     * @param  list<int>  $labels
+     */
+    private function logisticSource(array $features, array $labels, ?object $counter = null): CallbackLogisticTrainingRowSource
+    {
+        return new CallbackLogisticTrainingRowSource(function () use ($features, $labels, $counter): Generator {
+            if ($counter !== null) {
+                $counter->passes++;
+            }
+            foreach ($features as $index => $row) {
+                yield new LogisticTrainingRowDto($row, $labels[$index]);
+            }
+        });
+    }
+
+    /** @param array<string, float> $overrides @return array<string, float> */
+    private function lambdaLosses(array $overrides = []): array
+    {
+        return array_replace([
+            '0.0001' => 1.0,
+            '0.001' => 1.0,
+            '0.01' => 1.0,
+            '0.1' => 1.0,
+            '1' => 1.0,
+            '10' => 1.0,
+            '100' => 1.0,
+        ], $overrides);
+    }
+
+    /** @param array<string, mixed> $changes */
+    private function changedManifestEntry(Bt02SourceManifestEntryDto $entry, array $changes): Bt02SourceManifestEntryDto
+    {
+        $value = fn (string $name): mixed => $changes[$name] ?? $entry->{$name};
+
+        return new Bt02SourceManifestEntryDto(
+            $value('year'),
+            $value('statCode'),
+            $value('featureRunId'),
+            $value('featureRunUuid'),
+            $value('calculationVersion'),
+            $value('sourceStat01RunId'),
+            $value('sourceStat01RunUuid'),
+            $value('targetFrom'),
+            $value('targetTo'),
+            $value('historyFrom'),
+            $value('subjectType'),
+            $value('processedRaceCount'),
+            $value('targetEntryCount'),
+            $value('rowCount'),
+            $value('sourceFingerprintSha256'),
+            $value('contentFingerprintSha256'),
+        );
+    }
+
+    /** @param class-string<\Throwable> $exceptionClass */
+    private function assertCallbackThrows(callable $callback, string $exceptionClass): void
+    {
+        try {
+            $callback();
+            $this->fail("Expected {$exceptionClass} was not thrown.");
+        } catch (\Throwable $exception) {
+            $this->assertInstanceOf($exceptionClass, $exception);
         }
     }
 

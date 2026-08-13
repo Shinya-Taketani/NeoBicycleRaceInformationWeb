@@ -7,11 +7,14 @@ namespace Tests\Feature\Database;
 use App\Domain\Keirin\Backtest\Repositories\Bt02AuditRepository;
 use App\Domain\Keirin\Backtest\Services\Bt02SignalRegistry;
 use App\Models\BacktestFold;
+use App\Models\BacktestModel;
 use App\Models\BacktestRun;
+use App\Models\BacktestSignalMetric;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use LogicException;
 use Tests\TestCase;
 
 class Bt02SignalEvaluationMigrationTest extends TestCase
@@ -125,6 +128,39 @@ class Bt02SignalEvaluationMigrationTest extends TestCase
         $this->assertContains('bt_effect_bins_shape_check', $constraints);
     }
 
+    public function test_audit_repository_rejects_cross_run_fold_and_spec_ownership_before_writing(): void
+    {
+        $repository = new Bt02AuditRepository;
+        $runA = $repository->startRun(['test' => 'ownership-a']);
+        $runB = $repository->startRun(['test' => 'ownership-b']);
+        $foldA = $this->createFold($runA, 'WF_A');
+        $foldB = $this->createFold($runB, 'WF_B');
+        $specA = $repository->storeSignalSpec($runA, (new Bt02SignalRegistry)->get('STAT-10'));
+        $specB = $repository->storeSignalSpec($runB, (new Bt02SignalRegistry)->get('STAT-10'));
+        $counts = [
+            BacktestModel::query()->count(),
+            BacktestSignalMetric::query()->count(),
+            DB::table('backtest_effect_bins')->count(),
+        ];
+
+        foreach ([
+            fn () => $repository->storeModel($runA, $foldB, $specA, []),
+            fn () => $repository->storeModel($runA, $foldA, $specB, []),
+            fn () => $repository->storeMetric($runA, $foldB, $specA, []),
+            fn () => $repository->storeMetric($runA, $foldA, $specB, []),
+            fn () => $repository->storeEffectBins($runA, $foldB, $specA, 'STRICT', str_repeat('a', 64), []),
+            fn () => $repository->storeEffectBins($runA, $foldA, $specB, 'STRICT', str_repeat('a', 64), []),
+        ] as $write) {
+            $this->assertCallbackThrows($write, LogicException::class);
+        }
+
+        $this->assertSame($counts, [
+            BacktestModel::query()->count(),
+            BacktestSignalMetric::query()->count(),
+            DB::table('backtest_effect_bins')->count(),
+        ]);
+    }
+
     /** @param list<string> $tables @return array<string, array{columns: list<string>, indexes: array<int, mixed>}> */
     private function schema(array $tables): array
     {
@@ -164,5 +200,31 @@ class Bt02SignalEvaluationMigrationTest extends TestCase
     private function migration(): Migration
     {
         return require database_path('migrations/2026_08_14_000009_create_bt02_signal_evaluation_tables.php');
+    }
+
+    private function createFold(BacktestRun $run, string $code): BacktestFold
+    {
+        return BacktestFold::query()->create([
+            'backtest_run_id' => $run->id,
+            'fold_code' => $code,
+            'sequence' => 1,
+            'train_from' => '2022-01-01',
+            'train_to' => '2022-12-31',
+            'evaluation_from' => '2023-01-01',
+            'evaluation_to' => '2023-12-31',
+            'status' => 'RUNNING',
+            'started_at' => now(),
+        ]);
+    }
+
+    /** @param class-string<\Throwable> $exceptionClass */
+    private function assertCallbackThrows(callable $callback, string $exceptionClass): void
+    {
+        try {
+            $callback();
+            $this->fail("Expected {$exceptionClass} was not thrown.");
+        } catch (\Throwable $exception) {
+            $this->assertInstanceOf($exceptionClass, $exception);
+        }
     }
 }

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Backtest\Calculators;
 
+use App\Domain\Keirin\Backtest\Contracts\LogisticTrainingRowSource;
+use App\Domain\Keirin\Backtest\DTO\LogisticTrainingRowDto;
 use App\Domain\Keirin\Backtest\DTO\RidgeLogisticFitResultDto;
 use App\Domain\Keirin\Backtest\Enums\Bt02ConvergenceStatus;
 use InvalidArgumentException;
+use RuntimeException;
 
 class RidgeLogisticRegression
 {
@@ -27,27 +30,26 @@ class RidgeLogisticRegression
     /** @var list<float> */
     public const LAMBDA_CANDIDATES = [1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0];
 
-    /** @param list<list<float>> $features @param list<int> $labels */
-    public function fit(array $features, array $labels, float $lambda): RidgeLogisticFitResultDto
+    public function fit(LogisticTrainingRowSource $source, float $lambda): RidgeLogisticFitResultDto
     {
-        $dimension = $this->validate($features, $labels, $lambda);
-        $positive = array_sum($labels);
-        if ($positive === 0 || $positive === count($labels)) {
-            return $this->failed(Bt02ConvergenceStatus::FailedSingleClassTraining, $dimension);
+        $this->validateLambda($lambda);
+        $summary = $this->inspect($source);
+        if ($summary['positive'] === 0 || $summary['positive'] === $summary['count']) {
+            return $this->failed(Bt02ConvergenceStatus::FailedSingleClassTraining, $summary['dimension']);
         }
-        $parameters = array_fill(0, $dimension + 1, 0.0);
-        $previousObjective = $this->objective($parameters, $features, $labels, $lambda);
+        $parameters = array_fill(0, $summary['dimension'] + 1, 0.0);
+        $previousObjective = $this->objectiveFor($parameters, $source, $lambda, $summary);
         for ($iteration = 1; $iteration <= self::MAX_ITERATIONS; $iteration++) {
-            [$gradient, $hessian] = $this->derivatives($parameters, $features, $labels, $lambda);
+            [$gradient, $hessian] = $this->derivatives($parameters, $source, $lambda, $summary);
             if (! $this->finite($gradient) || ! $this->finiteMatrix($hessian) || ! is_finite($previousObjective)) {
-                return $this->failed(Bt02ConvergenceStatus::FailedNonFinite, $dimension, $iteration, $previousObjective);
+                return $this->failed(Bt02ConvergenceStatus::FailedNonFinite, $summary['dimension'], $iteration, $previousObjective);
             }
             if (max(array_map('abs', $gradient)) <= self::GRADIENT_TOLERANCE) {
                 return $this->success(Bt02ConvergenceStatus::ConvergedGradient, $parameters, $iteration - 1, $previousObjective);
             }
             $direction = $this->choleskySolve($hessian, array_map(fn (float $value): float => -$value, $gradient));
             if ($direction === null) {
-                return $this->failed(Bt02ConvergenceStatus::FailedCholesky, $dimension, $iteration, $previousObjective);
+                return $this->failed(Bt02ConvergenceStatus::FailedCholesky, $summary['dimension'], $iteration, $previousObjective);
             }
             $directionalDerivative = $this->dot($gradient, $direction);
             $accepted = null;
@@ -55,7 +57,7 @@ class RidgeLogisticRegression
             $step = 1.0;
             for ($lineSearch = 0; $lineSearch <= 20; $lineSearch++, $step /= 2) {
                 $candidate = array_map(fn (float $parameter, float $delta): float => $parameter + $step * $delta, $parameters, $direction);
-                $candidateObjective = $this->objective($candidate, $features, $labels, $lambda);
+                $candidateObjective = $this->objectiveFor($candidate, $source, $lambda, $summary);
                 if (is_finite($candidateObjective) && $candidateObjective <= $previousObjective + self::ARMIJO * $step * $directionalDerivative) {
                     $accepted = $candidate;
                     $objective = $candidateObjective;
@@ -63,7 +65,7 @@ class RidgeLogisticRegression
                 }
             }
             if ($accepted === null || $objective === null) {
-                return $this->failed(Bt02ConvergenceStatus::FailedLineSearch, $dimension, $iteration, $previousObjective);
+                return $this->failed(Bt02ConvergenceStatus::FailedLineSearch, $summary['dimension'], $iteration, $previousObjective);
             }
             $stepMaximum = max(array_map(fn (float $before, float $after): float => abs($after - $before), $parameters, $accepted));
             $relativeObjective = abs($previousObjective - $objective) / max(1.0, abs($previousObjective));
@@ -74,7 +76,7 @@ class RidgeLogisticRegression
             }
         }
 
-        return $this->failed(Bt02ConvergenceStatus::FailedMaxIterations, $dimension, self::MAX_ITERATIONS, $previousObjective);
+        return $this->failed(Bt02ConvergenceStatus::FailedMaxIterations, $summary['dimension'], self::MAX_ITERATIONS, $previousObjective);
     }
 
     /** @param list<float> $coefficients @param list<float> $features */
@@ -87,56 +89,72 @@ class RidgeLogisticRegression
         return $this->sigmoid($intercept + $this->dot($coefficients, $features));
     }
 
-    /** @param list<float> $parameters @param list<list<float>> $features @param list<int> $labels */
-    public function objective(array $parameters, array $features, array $labels, float $lambda): float
+    /** @param list<float> $parameters */
+    public function objective(array $parameters, LogisticTrainingRowSource $source, float $lambda): float
+    {
+        $this->validateLambda($lambda);
+        $summary = $this->inspect($source);
+        if (count($parameters) !== $summary['dimension'] + 1 || ! $this->finite($parameters)) {
+            throw new InvalidArgumentException('Logistic objective parameters were invalid.');
+        }
+
+        return $this->objectiveFor($parameters, $source, $lambda, $summary);
+    }
+
+    /** @return array{dimension: int, count: int, positive: int} */
+    private function inspect(LogisticTrainingRowSource $source): array
+    {
+        $dimension = null;
+        $count = 0;
+        $positive = 0;
+        foreach ($source->rows() as $row) {
+            $dimension = $this->validateRow($row, $dimension);
+            $count++;
+            $positive += $row->label;
+        }
+        if ($dimension === null || $count === 0) {
+            throw new InvalidArgumentException('Logistic training rows must not be empty.');
+        }
+
+        return ['dimension' => $dimension, 'count' => $count, 'positive' => $positive];
+    }
+
+    /** @param array{dimension: int, count: int, positive: int} $summary @param list<float> $parameters */
+    private function objectiveFor(array $parameters, LogisticTrainingRowSource $source, float $lambda, array $summary): float
     {
         $sum = 0.0;
-        foreach ($features as $index => $row) {
-            $z = $parameters[0] + $this->dot(array_slice($parameters, 1), $row);
-            $sum += $this->softplus($z) - $labels[$index] * $z;
+        $count = 0;
+        foreach ($source->rows() as $row) {
+            $this->validateRow($row, $summary['dimension']);
+            $z = $parameters[0] + $this->dot(array_slice($parameters, 1), $row->features);
+            $sum += $this->softplus($z) - $row->label * $z;
+            $count++;
         }
+        $this->assertReplayCount($summary['count'], $count);
         $penalty = 0.0;
         foreach (array_slice($parameters, 1) as $coefficient) {
             $penalty += $coefficient ** 2;
         }
 
-        return $sum / count($features) + ($lambda / 2) * $penalty;
+        return $sum / $count + ($lambda / 2) * $penalty;
     }
 
-    /** @param list<list<float>> $features @param list<int> $labels */
-    private function validate(array $features, array $labels, float $lambda): int
-    {
-        if ($features === [] || count($features) !== count($labels) || ! is_finite($lambda) || $lambda < 0) {
-            throw new InvalidArgumentException('Logistic training data or lambda was invalid.');
-        }
-        $dimension = count($features[0]);
-        if ($dimension === 0) {
-            throw new InvalidArgumentException('Logistic training requires at least one feature.');
-        }
-        foreach ($features as $row) {
-            if (count($row) !== $dimension || ! $this->finite($row)) {
-                throw new InvalidArgumentException('Logistic training feature dimensions or values were invalid.');
-            }
-        }
-        foreach ($labels as $label) {
-            if (! in_array($label, [0, 1], true)) {
-                throw new InvalidArgumentException('Logistic training label was not binary.');
-            }
-        }
-
-        return $dimension;
-    }
-
-    /** @param list<float> $parameters @param list<list<float>> $features @param list<int> $labels @return array{list<float>, list<list<float>>} */
-    private function derivatives(array $parameters, array $features, array $labels, float $lambda): array
+    /**
+     * @param  list<float>  $parameters
+     * @param  array{dimension: int, count: int, positive: int}  $summary
+     * @return array{list<float>, list<list<float>>}
+     */
+    private function derivatives(array $parameters, LogisticTrainingRowSource $source, float $lambda, array $summary): array
     {
         $size = count($parameters);
         $gradient = array_fill(0, $size, 0.0);
         $hessian = array_fill(0, $size, array_fill(0, $size, 0.0));
-        foreach ($features as $rowIndex => $row) {
-            $augmented = [1.0, ...$row];
+        $count = 0;
+        foreach ($source->rows() as $row) {
+            $this->validateRow($row, $summary['dimension']);
+            $augmented = [1.0, ...$row->features];
             $probability = $this->sigmoid($this->dot($parameters, $augmented));
-            $error = $probability - $labels[$rowIndex];
+            $error = $probability - $row->label;
             $weight = $probability * (1.0 - $probability);
             for ($left = 0; $left < $size; $left++) {
                 $gradient[$left] += $error * $augmented[$left];
@@ -144,8 +162,9 @@ class RidgeLogisticRegression
                     $hessian[$left][$right] += $weight * $augmented[$left] * $augmented[$right];
                 }
             }
+            $count++;
         }
-        $count = count($features);
+        $this->assertReplayCount($summary['count'], $count);
         for ($left = 0; $left < $size; $left++) {
             $gradient[$left] /= $count;
             for ($right = 0; $right < $size; $right++) {
@@ -158,6 +177,36 @@ class RidgeLogisticRegression
         }
 
         return [$gradient, $hessian];
+    }
+
+    private function validateRow(mixed $row, ?int $expectedDimension): int
+    {
+        if (! $row instanceof LogisticTrainingRowDto) {
+            throw new InvalidArgumentException('Logistic source yielded an invalid row type.');
+        }
+        $dimension = count($row->features);
+        if ($dimension === 0 || ($expectedDimension !== null && $dimension !== $expectedDimension) || ! $this->finite($row->features)) {
+            throw new InvalidArgumentException('Logistic training feature dimensions or values were invalid.');
+        }
+        if (! in_array($row->label, [0, 1], true)) {
+            throw new InvalidArgumentException('Logistic training label was not binary.');
+        }
+
+        return $dimension;
+    }
+
+    private function validateLambda(float $lambda): void
+    {
+        if (! is_finite($lambda) || $lambda < 0) {
+            throw new InvalidArgumentException('Logistic lambda was invalid.');
+        }
+    }
+
+    private function assertReplayCount(int $expected, int $actual): void
+    {
+        if ($actual !== $expected) {
+            throw new RuntimeException('Logistic training source changed between replay passes.');
+        }
     }
 
     /** @param list<list<float>> $matrix @param list<float> $rightHandSide @return list<float>|null */

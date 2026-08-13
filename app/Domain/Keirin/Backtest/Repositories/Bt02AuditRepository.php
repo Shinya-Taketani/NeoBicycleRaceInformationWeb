@@ -18,6 +18,7 @@ use App\Models\BacktestSignalSpec;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use LogicException;
 
 class Bt02AuditRepository
 {
@@ -89,6 +90,8 @@ class Bt02AuditRepository
     /** @param array<string, mixed> $artifact */
     public function storeModel(BacktestRun $run, BacktestFold $fold, BacktestSignalSpec $spec, array $artifact): BacktestModel
     {
+        $this->assertOwnership($run, $fold, $spec);
+
         return BacktestModel::query()->create([
             ...$artifact,
             'backtest_run_id' => $run->id,
@@ -100,6 +103,8 @@ class Bt02AuditRepository
     /** @param array<string, mixed> $metric */
     public function storeMetric(BacktestRun $run, BacktestFold $fold, BacktestSignalSpec $spec, array $metric): BacktestSignalMetric
     {
+        $this->assertOwnership($run, $fold, $spec);
+
         return BacktestSignalMetric::query()->create([
             ...$metric,
             'backtest_run_id' => $run->id,
@@ -112,6 +117,8 @@ class Bt02AuditRepository
     /** @param list<EffectBinDto> $bins @param array<string, mixed>|null $metadata */
     public function storeEffectBins(BacktestRun $run, BacktestFold $fold, BacktestSignalSpec $spec, string $cohort, string $boundariesHash, array $bins, ?array $metadata = null): void
     {
+        $this->assertOwnership($run, $fold, $spec);
+
         DB::transaction(function () use ($run, $fold, $spec, $cohort, $boundariesHash, $bins, $metadata): void {
             foreach ($bins as $bin) {
                 BacktestEffectBin::query()->create([
@@ -130,5 +137,12 @@ class Bt02AuditRepository
                 ]);
             }
         });
+    }
+
+    private function assertOwnership(BacktestRun $run, BacktestFold $fold, BacktestSignalSpec $spec): void
+    {
+        if ((int) $fold->backtest_run_id !== (int) $run->id || (int) $spec->backtest_run_id !== (int) $run->id) {
+            throw new LogicException('BT-02 fold and signal spec must belong to the supplied run.');
+        }
     }
 }
