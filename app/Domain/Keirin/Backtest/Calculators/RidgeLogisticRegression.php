@@ -27,6 +27,8 @@ class RidgeLogisticRegression
 
     public const OBJECTIVE_TOLERANCE = 1e-10;
 
+    private const OBJECTIVE_ROUNDOFF_ULPS = 4.0;
+
     /** @var list<float> */
     public const LAMBDA_CANDIDATES = [1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0];
 
@@ -52,6 +54,13 @@ class RidgeLogisticRegression
                 return $this->failed(Bt02ConvergenceStatus::FailedCholesky, $summary['dimension'], $iteration, $previousObjective);
             }
             $directionalDerivative = $this->dot($gradient, $direction);
+            $predictedImprovement = -0.5 * $directionalDerivative;
+            $objectiveRoundoff = self::OBJECTIVE_ROUNDOFF_ULPS
+                * PHP_FLOAT_EPSILON
+                * max(1.0, abs($previousObjective));
+            if ($directionalDerivative < 0.0 && $predictedImprovement <= $objectiveRoundoff) {
+                return $this->success(Bt02ConvergenceStatus::ConvergedStepObjective, $parameters, $iteration - 1, $previousObjective);
+            }
             $accepted = null;
             $objective = null;
             $step = 1.0;
