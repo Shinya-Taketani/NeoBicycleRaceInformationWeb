@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Domain\Keirin\Backtest;
 
-use App\Domain\Keirin\Backtest\Calculators\BinaryMetricCalculator;
 use App\Domain\Keirin\Backtest\Calculators\EffectBinBuilder;
 use App\Domain\Keirin\Backtest\Calculators\InMemoryEffectBinBoundaryProvider;
+use App\Domain\Keirin\Backtest\Calculators\PairedRaceClusterMetricEvaluator;
 use App\Domain\Keirin\Backtest\Calculators\RaceClusterBootstrap;
 use App\Domain\Keirin\Backtest\Calculators\RidgeLogisticRegression;
 use App\Domain\Keirin\Backtest\Calculators\TemporalLambdaSelector;
@@ -77,14 +77,13 @@ class Bt02EntrySignalEvaluatorTest extends TestCase
             new TrainingStandardizer,
             new RidgeLogisticRegression,
             new TemporalLambdaSelector,
-            new BinaryMetricCalculator,
-            new RaceClusterBootstrap,
-            $quantile,
             new EffectBinBuilder(new InMemoryEffectBinBoundaryProvider($quantile)),
             new Bt02TrainingSpoolFactory($temporaryDirectory),
             new Bt02ModelArtifactHasher,
             $audit,
+            new PairedRaceClusterMetricEvaluator(new RaceClusterBootstrap, $quantile, $temporaryDirectory),
             8,
+            $temporaryDirectory,
         );
         $run = new BacktestRun(['id' => 1]);
         $run->id = 1;
@@ -110,6 +109,11 @@ class Bt02EntrySignalEvaluatorTest extends TestCase
             $this->assertSame([8], array_values(array_unique(array_column($storedMetrics, 'bootstrap_iterations'))));
             $this->assertSame([RaceClusterBootstrap::SEED], array_values(array_unique(array_column($storedMetrics, 'bootstrap_seed'))));
             $this->assertSame([5], array_values(array_unique(array_column($storedMetrics, 'sample_count'))));
+            $this->assertSame(['SHARED_BY_AUC_LOG_LOSS_BRIER'], array_values(array_unique(array_column(array_column($storedMetrics, 'metadata'), 'bootstrap_replicate_contract'))));
+            foreach (array_chunk($storedMetrics, 3) as $metricGroup) {
+                $this->assertSame(1, count(array_unique(array_column(array_column($metricGroup, 'metadata'), 'outcome_manifest_hash'))));
+            }
+            $this->assertCount(8, $dataset->calls, 'Each cohort must scan each fixed period once, independent of label.');
             $this->assertSame([], array_values(array_filter($dataset->calls, fn (array $call): bool => str_starts_with($call[0], '2026') || str_starts_with($call[1], '2026'))));
             $this->assertSame([], array_values(array_diff(scandir($temporaryDirectory), ['.', '..'])));
         } finally {

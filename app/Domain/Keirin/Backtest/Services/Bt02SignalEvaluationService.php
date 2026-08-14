@@ -19,6 +19,7 @@ class Bt02SignalEvaluationService
         private readonly BacktestFeatureRepository $baselineFeatures,
         private readonly Bt02FoldProvider $foldProvider,
         private readonly FinalHoldoutGuard $holdoutGuard,
+        private readonly Bt02BaselineFingerprintPreflightService $baselineFingerprintPreflight,
         private readonly Bt02FingerprintPreflightService $preflight,
         private readonly Bt02SourceManifest $sourceManifest,
         private readonly Bt02SignalRegistry $signalRegistry,
@@ -39,8 +40,6 @@ class Bt02SignalEvaluationService
             throw new RuntimeException('BT-02 signal role registry was outside the fixed contract.');
         }
 
-        // Baseline source identity is verified before holdout and full signal fingerprint checks.
-        $baselineSources = $this->baselineFeatures->validateSources($this->baselineManifest->entries());
         $folds = $this->foldProvider->folds();
         if (array_map(fn ($fold): string => $fold->code, $folds) !== ['WF_2023', 'WF_2024', 'WF_2025']) {
             throw new RuntimeException('BT-02 requires exactly the fixed three folds.');
@@ -48,7 +47,14 @@ class Bt02SignalEvaluationService
         foreach ($folds as $fold) {
             $this->holdoutGuard->assertAllowed($fold->holdoutDefinition());
         }
+        $baselineSources = $this->baselineFeatures->validateSources($this->baselineManifest->entries());
+        $this->baselineFingerprintPreflight->run();
         $this->preflight->run();
+
+        $targetRaces = array_sum(array_map(
+            fn ($fold): int => $this->baselineManifest->forYear((int) $fold->evaluationFrom->format('Y'))->expectedRaceCount,
+            $folds,
+        ));
 
         $run = $this->audit->startRun([
             'folds' => array_map(fn ($fold): string => $fold->code, $folds),
@@ -57,12 +63,18 @@ class Bt02SignalEvaluationService
             'bootstrap_iterations' => 2000,
             'bootstrap_seed' => 20260812,
             'probability_semantics' => Bt02EntrySignalEvaluator::PROBABILITY_SEMANTICS,
+            'baseline_fingerprint_manifest_version' => Bt02BaselineFingerprintManifest::VERSION,
+            'baseline_fingerprint_manifest_hash' => Bt02BaselineFingerprintManifest::HASH,
         ]);
         $currentFold = null;
-        $modelCount = $metricCount = $targetRaces = $evaluatedRaces = 0;
+        $currentFoldTarget = 0;
+        $currentFoldEvaluated = [];
+        $currentFoldManifest = null;
+        $currentFoldManifestHash = null;
+        $modelCount = $metricCount = $evaluatedRaces = 0;
 
         try {
-            $this->audit->storeBaselineSources($run, $baselineSources, $this->baselineManifest->hash());
+            $this->audit->storeBaselineSources($run, $baselineSources, Bt02BaselineFingerprintManifest::HASH);
             $this->audit->storeSources($run, $this->sourceManifest->entries());
             $specs = [];
             foreach ($definitions as $definition) {
@@ -74,9 +86,13 @@ class Bt02SignalEvaluationService
             }
 
             foreach ($folds as $foldDefinition) {
+                $currentFoldTarget = $this->baselineManifest
+                    ->forYear((int) $foldDefinition->evaluationFrom->format('Y'))
+                    ->expectedRaceCount;
+                $currentFoldEvaluated = [];
+                $currentFoldManifest = hash_init('sha256');
+                $currentFoldManifestHash = null;
                 $currentFold = $this->audit->startFold($run, $foldDefinition);
-                $foldManifest = hash_init('sha256');
-                $foldRaces = 0;
                 foreach ($entrySignals as $signal) {
                     $result = $this->evaluator->evaluate(
                         $run,
@@ -84,22 +100,38 @@ class Bt02SignalEvaluationService
                         $foldDefinition,
                         $signal,
                         $specs[$signal->statCode],
+                        function (array $raceIds) use (&$currentFoldEvaluated): void {
+                            $this->addRaceIds($currentFoldEvaluated, $raceIds);
+                        },
                     );
                     $modelCount += $result['models'];
                     $metricCount += $result['metrics'];
-                    $foldRaces = max($foldRaces, $result['races']);
-                    hash_update($foldManifest, $signal->statCode.':'.$result['manifest_hash']."\n");
+                    $this->addRaceIds($currentFoldEvaluated, $result['race_ids']);
+                    hash_update($currentFoldManifest, $signal->statCode.':'.$result['manifest_hash']."\n");
                 }
-                $this->audit->finishFold($currentFold, $foldRaces, $foldRaces, hash_final($foldManifest));
-                $targetRaces += $foldRaces;
-                $evaluatedRaces += $foldRaces;
+                $foldEvaluatedCount = count($currentFoldEvaluated);
+                if ($foldEvaluatedCount > $currentFoldTarget) {
+                    throw new RuntimeException('BT-02 evaluated race union exceeded the fixed target universe.');
+                }
+                $currentFoldManifestHash = hash_final($currentFoldManifest);
+                $currentFoldManifest = null;
+                $this->audit->finishFold($currentFold, $currentFoldTarget, $foldEvaluatedCount, $currentFoldManifestHash);
+                $evaluatedRaces += $foldEvaluatedCount;
                 $currentFold = null;
+                $currentFoldTarget = 0;
+                $currentFoldEvaluated = [];
+                $currentFoldManifest = null;
+                $currentFoldManifestHash = null;
             }
 
             $this->audit->finishRun($run, 'SUCCEEDED', $targetRaces, $evaluatedRaces, 0, null);
         } catch (Throwable $throwable) {
             if ($currentFold instanceof BacktestFold) {
-                $this->audit->failFold($currentFold);
+                $partialEvaluated = count($currentFoldEvaluated);
+                $partialManifest = $currentFoldManifestHash
+                    ?? ($currentFoldManifest !== null ? hash_final($currentFoldManifest) : null);
+                $this->audit->failFold($currentFold, $currentFoldTarget, $partialEvaluated, $partialManifest);
+                $evaluatedRaces += $partialEvaluated;
             }
             $this->audit->finishRun($run, 'FAILED', $targetRaces, $evaluatedRaces, 1, $throwable->getMessage());
             throw $throwable;
@@ -113,5 +145,16 @@ class Bt02SignalEvaluationService
             modelCount: $modelCount,
             metricCount: $metricCount,
         );
+    }
+
+    /** @param array<int, true> $union @param list<int> $raceIds */
+    private function addRaceIds(array &$union, array $raceIds): void
+    {
+        foreach ($raceIds as $raceId) {
+            if (! is_int($raceId) || $raceId < 1) {
+                throw new RuntimeException('BT-02 evaluated race identity was invalid.');
+            }
+            $union[$raceId] = true;
+        }
     }
 }

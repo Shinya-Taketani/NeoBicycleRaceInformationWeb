@@ -21,6 +21,7 @@ use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use LogicException;
+use RuntimeException;
 
 class Bt02AuditRepository
 {
@@ -182,20 +183,26 @@ class Bt02AuditRepository
 
     public function finishFold(BacktestFold $fold, int $targetRaces, int $evaluatedRaces, string $predictionManifestHash): void
     {
+        $this->assertRaceCounts($targetRaces, $evaluatedRaces);
         $fold->forceFill([
             'status' => 'SUCCEEDED',
             'target_race_count' => $targetRaces,
             'predicted_race_count' => $evaluatedRaces,
-            'excluded_race_count' => max(0, $targetRaces - $evaluatedRaces),
+            'excluded_race_count' => $targetRaces - $evaluatedRaces,
             'prediction_manifest_hash' => $predictionManifestHash,
             'finished_at' => new DateTimeImmutable('now'),
         ])->save();
     }
 
-    public function failFold(BacktestFold $fold): void
+    public function failFold(BacktestFold $fold, int $targetRaces, int $evaluatedRaces, ?string $predictionManifestHash): void
     {
+        $this->assertRaceCounts($targetRaces, $evaluatedRaces);
         $fold->forceFill([
             'status' => 'FAILED',
+            'target_race_count' => $targetRaces,
+            'predicted_race_count' => $evaluatedRaces,
+            'excluded_race_count' => $targetRaces - $evaluatedRaces,
+            'prediction_manifest_hash' => $predictionManifestHash,
             'finished_at' => new DateTimeImmutable('now'),
         ])->save();
     }
@@ -205,11 +212,12 @@ class Bt02AuditRepository
         if (! in_array($status, ['SUCCEEDED', 'PARTIALLY_SUCCEEDED', 'FAILED'], true)) {
             throw new LogicException('BT-02 run finish status was invalid.');
         }
+        $this->assertRaceCounts($targetRaces, $evaluatedRaces);
         $run->forceFill([
             'status' => $status,
             'target_race_count' => $targetRaces,
             'predicted_race_count' => $evaluatedRaces,
-            'excluded_race_count' => max(0, $targetRaces - $evaluatedRaces),
+            'excluded_race_count' => $targetRaces - $evaluatedRaces,
             'error_count' => $errors,
             'error_summary' => $error,
             'finished_at' => new DateTimeImmutable('now'),
@@ -220,6 +228,13 @@ class Bt02AuditRepository
     {
         if ((int) $fold->backtest_run_id !== (int) $run->id || (int) $spec->backtest_run_id !== (int) $run->id) {
             throw new LogicException('BT-02 fold and signal spec must belong to the supplied run.');
+        }
+    }
+
+    private function assertRaceCounts(int $targetRaces, int $evaluatedRaces): void
+    {
+        if ($targetRaces < 0 || $evaluatedRaces < 0 || $evaluatedRaces > $targetRaces) {
+            throw new RuntimeException('BT-02 audit race counts were invalid.');
         }
     }
 }
