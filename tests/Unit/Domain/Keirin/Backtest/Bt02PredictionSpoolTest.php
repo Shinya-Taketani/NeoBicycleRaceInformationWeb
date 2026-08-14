@@ -86,13 +86,67 @@ class Bt02PredictionSpoolTest extends TestCase
         }
     }
 
-    public function test_race_and_entry_order_violation_is_rejected(): void
+    public function test_non_monotonic_race_ids_are_allowed_for_contiguous_groups(): void
+    {
+        $spool = $this->spool(['fold' => 'WF_2023'], [
+            [89238, 100, 1, 0.2, 0.3],
+            [89238, 101, 0, 0.3, 0.4],
+            [89019, 200, 1, 0.4, 0.5],
+            [90000, 300, 0, 0.5, 0.6],
+        ]);
+
+        try {
+            $this->assertSame(4, $spool->metadata()->rowCount);
+            $this->assertSame(3, $spool->metadata()->raceCount);
+            $this->assertSame([89238, 89019, 90000], array_column($spool->racePayloads(), 'race_id'));
+        } finally {
+            $spool->cleanup();
+        }
+    }
+
+    public function test_same_race_entry_descent_is_rejected(): void
     {
         $spool = new Bt02PredictionSpool(['fold' => 'WF_2023']);
-        $spool->append(2, 20, 1, 0.2, 0.3);
+        $spool->append(89238, 101, 1, 0.2, 0.3);
         try {
             $this->expectException(RuntimeException::class);
-            $spool->append(1, 10, 0, 0.3, 0.4);
+            $spool->append(89238, 100, 0, 0.3, 0.4);
+        } finally {
+            $spool->cleanup();
+        }
+    }
+
+    public function test_closed_race_reappearance_is_rejected(): void
+    {
+        $spool = new Bt02PredictionSpool(['fold' => 'WF_2023']);
+        $spool->append(89238, 100, 1, 0.2, 0.3);
+        $spool->append(89019, 200, 0, 0.3, 0.4);
+        try {
+            $this->expectException(RuntimeException::class);
+            $spool->append(89238, 101, 1, 0.4, 0.5);
+        } finally {
+            $spool->cleanup();
+        }
+    }
+
+    public function test_closed_race_reappearance_is_rejected_during_replay(): void
+    {
+        $spool = $this->spool(['fold' => 'WF_2023'], [
+            [89238, 100, 1, 0.2, 0.3],
+            [89019, 200, 0, 0.3, 0.4],
+            [90000, 300, 1, 0.4, 0.5],
+        ]);
+
+        try {
+            $contents = file_get_contents($spool->path());
+            $this->assertIsString($contents);
+            $mutated = str_replace('"race_id":90000', '"race_id":89238', $contents, $count);
+            $this->assertSame(1, $count);
+            file_put_contents($spool->path(), $mutated);
+
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('prediction spool replay order or identity');
+            iterator_to_array($spool->rows());
         } finally {
             $spool->cleanup();
         }

@@ -30,6 +30,9 @@ class Bt02EvaluationRowSpool
 
     private ?int $lastRaceEntryId = null;
 
+    /** @var array<int, true> */
+    private array $seenRaceIds = [];
+
     private function __construct(?string $directory)
     {
         $path = tempnam($directory ?? sys_get_temp_dir(), 'bt02-evaluation-row-');
@@ -72,6 +75,7 @@ class Bt02EvaluationRowSpool
         $hash = hash_init('sha256');
         $count = $bytes = 0;
         $lastRaceId = $lastRaceEntryId = null;
+        $seenRaceIds = [];
         try {
             while (($line = fgets($handle)) !== false) {
                 if (! str_ends_with($line, "\n")) {
@@ -81,7 +85,7 @@ class Bt02EvaluationRowSpool
                 $count++;
                 $bytes += strlen($line);
                 $row = $this->decode($line);
-                $this->assertOrdered($row->raceId, $row->raceEntryId, $lastRaceId, $lastRaceEntryId);
+                $this->assertOrdered($row->raceId, $row->raceEntryId, $lastRaceId, $lastRaceEntryId, $seenRaceIds);
                 $lastRaceId = $row->raceId;
                 $lastRaceEntryId = $row->raceEntryId;
                 yield $row;
@@ -106,6 +110,7 @@ class Bt02EvaluationRowSpool
         }
         $this->handle = null;
         $this->hash = null;
+        $this->seenRaceIds = [];
         if (isset($this->path) && is_file($this->path)) {
             @unlink($this->path);
         }
@@ -122,7 +127,13 @@ class Bt02EvaluationRowSpool
             || ! is_finite($row->baselineValue) || ! is_finite($row->signalValue)) {
             throw new RuntimeException('BT-02 evaluation row spool was not writable.');
         }
-        $this->assertOrdered($row->raceId, $row->raceEntryId, $this->lastRaceId, $this->lastRaceEntryId);
+        $this->assertOrdered(
+            $row->raceId,
+            $row->raceEntryId,
+            $this->lastRaceId,
+            $this->lastRaceEntryId,
+            $this->seenRaceIds,
+        );
         $line = json_encode([
             'format_version' => self::FORMAT_VERSION,
             'race_id' => $row->raceId,
@@ -190,12 +201,20 @@ class Bt02EvaluationRowSpool
         );
     }
 
-    private function assertOrdered(int $raceId, int $raceEntryId, ?int $lastRaceId, ?int $lastRaceEntryId): void
-    {
-        if ($raceId < 1 || $raceEntryId < 1 || ($lastRaceId !== null
-            && ($raceId < $lastRaceId || ($raceId === $lastRaceId && $raceEntryId <= $lastRaceEntryId)))) {
+    /** @param array<int, true> $seenRaceIds */
+    private function assertOrdered(
+        int $raceId,
+        int $raceEntryId,
+        ?int $lastRaceId,
+        ?int $lastRaceEntryId,
+        array &$seenRaceIds,
+    ): void {
+        if ($raceId < 1 || $raceEntryId < 1
+            || ($raceId === $lastRaceId && $raceEntryId <= $lastRaceEntryId)
+            || ($raceId !== $lastRaceId && isset($seenRaceIds[$raceId]))) {
             throw new RuntimeException('BT-02 evaluation row spool order or identity was invalid.');
         }
+        $seenRaceIds[$raceId] = true;
     }
 
     private function write(string $bytes): void
