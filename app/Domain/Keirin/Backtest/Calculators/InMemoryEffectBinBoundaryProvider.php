@@ -34,7 +34,7 @@ class InMemoryEffectBinBoundaryProvider implements EffectBinBoundaryProvider
             $bins = [];
             $index = 1;
             foreach ($categories as $category => $count) {
-                $bins[] = new EffectBinDto($index++, 'CATEGORY', null, null, $category, $count);
+                $bins[] = new EffectBinDto($index++, 'CATEGORY', null, null, (string) $category, $count);
             }
 
             return $bins;
