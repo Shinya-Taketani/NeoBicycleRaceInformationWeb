@@ -156,6 +156,32 @@ class Bt02AuditRepository
         ]);
     }
 
+    /**
+     * @param  list<array<string, mixed>>  $models
+     * @param  list<array<string, mixed>>  $metrics
+     */
+    public function storePairedEvaluationArtifacts(
+        BacktestRun $run,
+        BacktestFold $fold,
+        BacktestSignalSpec $spec,
+        array $models,
+        array $metrics,
+    ): void {
+        $this->assertOwnership($run, $fold, $spec);
+        if (count($models) !== 2 || count($metrics) !== 3) {
+            throw new LogicException('BT-02 paired evaluation requires exactly two models and three metrics.');
+        }
+
+        DB::transaction(function () use ($run, $fold, $spec, $models, $metrics): void {
+            foreach ($models as $model) {
+                $this->storeModel($run, $fold, $spec, $model);
+            }
+            foreach ($metrics as $metric) {
+                $this->storeMetric($run, $fold, $spec, $metric);
+            }
+        });
+    }
+
     /** @param list<EffectBinDto> $bins @param array<string, mixed>|null $metadata */
     public function storeEffectBins(BacktestRun $run, BacktestFold $fold, BacktestSignalSpec $spec, string $cohort, string $boundariesHash, array $bins, ?array $metadata = null): void
     {

@@ -9,12 +9,10 @@ use App\Domain\Keirin\Backtest\Calculators\Bt02SignalEligibilityEvaluator;
 use App\Domain\Keirin\Backtest\Calculators\FeatureEligibilityEvaluator;
 use App\Domain\Keirin\Backtest\Contracts\Bt02EvaluationDataset;
 use App\Domain\Keirin\Backtest\DTO\Bt02EvaluationRowDto;
+use App\Domain\Keirin\Backtest\DTO\Bt02OutcomeContextRaceDto;
 use App\Domain\Keirin\Backtest\DTO\FoldDefinitionDto;
-use App\Domain\Keirin\Backtest\DTO\RaceContextDto;
 use App\Domain\Keirin\Backtest\Enums\Bt02SignalCohort;
-use App\Domain\Keirin\Backtest\Repositories\BacktestContextRepository;
 use App\Domain\Keirin\Backtest\Repositories\BacktestFeatureRepository;
-use App\Domain\Keirin\Backtest\Repositories\BacktestLabelRepository;
 use App\Domain\Keirin\Backtest\Repositories\Bt02SignalFeatureRepository;
 use DateTimeImmutable;
 use RuntimeException;
@@ -26,10 +24,9 @@ class Bt02EvaluationDatasetService implements Bt02EvaluationDataset
     public function __construct(
         private readonly Bt01SourceManifest $baselineManifest,
         private readonly Bt02SourceManifest $signalManifest,
-        private readonly BacktestContextRepository $contexts,
+        private readonly Bt02OutcomeContextSnapshotSession $snapshotSession,
         private readonly BacktestFeatureRepository $baselineFeatures,
         private readonly Bt02SignalFeatureRepository $signalFeatures,
-        private readonly BacktestLabelRepository $labels,
         private readonly FeatureEligibilityEvaluator $baselineEligibility,
         private readonly Bt02SignalEligibilityEvaluator $signalEligibility,
         private readonly Bt02LabelDefinition $labelDefinition,
@@ -50,13 +47,13 @@ class Bt02EvaluationDatasetService implements Bt02EvaluationDataset
             $signalSource = $this->signalManifest->for($year, $statCode);
             $fold = new FoldDefinitionDto('BT02_DATASET', 0, null, null, $yearFrom, $yearTo);
 
-            foreach ($this->contexts->chunks($fold, self::CHUNK_SIZE) as $raceContexts) {
-                $raceIds = array_map(fn (RaceContextDto $race): int => $race->raceId, $raceContexts);
+            foreach ($this->snapshotSession->snapshot()->chunks($fold, self::CHUNK_SIZE) as $snapshotRaces) {
+                $raceIds = array_map(fn (Bt02OutcomeContextRaceDto $race): int => $race->context->raceId, $snapshotRaces);
                 $baselineByRace = $this->baselineFeatures->forRaces($baselineSource->featureRunId, $raceIds);
                 $signalByRace = $this->signalFeatures->forRaces($signalSource->featureRunId, $statCode, $raceIds);
-                $labelsByRace = $this->labels->forRaces($raceIds);
 
-                foreach ($raceContexts as $race) {
+                foreach ($snapshotRaces as $snapshotRace) {
+                    $race = $snapshotRace->context;
                     if (! in_array($race->resultStatus, ['CONFIRMED', 'CORRECTED'], true)) {
                         continue;
                     }
@@ -73,7 +70,7 @@ class Bt02EvaluationDatasetService implements Bt02EvaluationDataset
                     );
                     $baselineMap = $this->byEntry($baseline);
                     $signalMap = $this->byEntry($signal);
-                    $labelMap = $this->byBike($labelsByRace[$race->raceId] ?? []);
+                    $labelMap = $this->byBike($snapshotRace->results);
                     $baselineBikes = array_map(fn ($feature): int => $feature->bikeNumber, $baseline);
                     $labelBikes = array_map('intval', array_keys($labelMap));
                     sort($baselineBikes, SORT_NUMERIC);

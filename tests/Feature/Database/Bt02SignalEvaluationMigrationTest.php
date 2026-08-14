@@ -161,6 +161,31 @@ class Bt02SignalEvaluationMigrationTest extends TestCase
         ]);
     }
 
+    public function test_paired_artifact_transaction_rolls_back_models_and_metrics_on_late_metric_failure(): void
+    {
+        $repository = new Bt02AuditRepository;
+        $run = $repository->startRun(['test' => 'atomic-rollback']);
+        $fold = $this->createFold($run, 'WF_ATOMIC');
+        $spec = $repository->storeSignalSpec($run, (new Bt02SignalRegistry)->get('STAT-10'));
+        $models = [
+            $this->modelArtifact('BASELINE_MATCHED', ['STAT01_RACE_SCORE']),
+            $this->modelArtifact('INCREMENTAL', ['STAT01_RACE_SCORE', 'STAT10_SIGNAL']),
+        ];
+        $metrics = [
+            $this->metricArtifact('AUC'),
+            $this->metricArtifact('LOG_LOSS'),
+            $this->metricArtifact('LOG_LOSS'),
+        ];
+
+        $this->assertCallbackThrows(
+            fn () => $repository->storePairedEvaluationArtifacts($run, $fold, $spec, $models, $metrics),
+            \Throwable::class,
+        );
+
+        $this->assertSame(0, BacktestModel::query()->where('backtest_fold_id', $fold->id)->count());
+        $this->assertSame(0, BacktestSignalMetric::query()->where('backtest_fold_id', $fold->id)->count());
+    }
+
     /** @param list<string> $tables @return array<string, array{columns: list<string>, indexes: array<int, mixed>}> */
     private function schema(array $tables): array
     {
@@ -215,6 +240,57 @@ class Bt02SignalEvaluationMigrationTest extends TestCase
             'status' => 'RUNNING',
             'started_at' => now(),
         ]);
+    }
+
+    /** @param list<string> $features @return array<string, mixed> */
+    private function modelArtifact(string $role, array $features): array
+    {
+        return [
+            'model_role' => $role,
+            'label_code' => 'IS_WIN',
+            'cohort_code' => 'STRICT',
+            'training_from' => '2022-01-01',
+            'training_to' => '2022-12-31',
+            'inner_fit_from' => '2022-01-01',
+            'inner_fit_to' => '2022-09-30',
+            'inner_validation_from' => '2022-10-01',
+            'inner_validation_to' => '2022-12-31',
+            'feature_names' => $features,
+            'scaler_mean' => array_fill(0, count($features), 0.0),
+            'scaler_sd' => array_fill(0, count($features), 1.0),
+            'lambda_candidates' => [0.0, 0.1],
+            'selected_lambda' => 0.1,
+            'intercept' => 0.0,
+            'coefficients' => array_fill(0, count($features), 0.1),
+            'objective_version' => 'TEST-v1',
+            'optimizer_version' => 'TEST-v1',
+            'probability_semantics' => 'ENTRY_BINARY_NOT_RACE_NORMALIZED',
+            'convergence_status' => 'CONVERGED',
+            'iterations' => 1,
+            'final_objective' => 1.0,
+            'model_hash' => hash('sha256', $role),
+            'prediction_manifest_hash' => hash('sha256', $role.'-prediction'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function metricArtifact(string $code): array
+    {
+        return [
+            'label_code' => 'IS_WIN',
+            'cohort_code' => 'STRICT',
+            'metric_code' => $code,
+            'baseline_value' => 0.5,
+            'incremental_value' => 0.4,
+            'delta_value' => -0.1,
+            'ci_lower' => -0.2,
+            'ci_upper' => 0.0,
+            'sample_count' => 35,
+            'race_count' => 5,
+            'bootstrap_iterations' => 2000,
+            'bootstrap_seed' => 20260812,
+            'metadata' => ['test' => true],
+        ];
     }
 
     /** @param class-string<\Throwable> $exceptionClass */

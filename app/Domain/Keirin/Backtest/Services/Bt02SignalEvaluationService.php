@@ -24,6 +24,8 @@ class Bt02SignalEvaluationService
         private readonly Bt02SourceManifest $sourceManifest,
         private readonly Bt02SignalRegistry $signalRegistry,
         private readonly Bt02AuditRepository $audit,
+        private readonly Bt02OutcomeContextSnapshotBuilder $snapshotBuilder,
+        private readonly Bt02OutcomeContextSnapshotSession $snapshotSession,
         private readonly Bt02EntrySignalEvaluator $evaluator,
     ) {}
 
@@ -50,6 +52,8 @@ class Bt02SignalEvaluationService
         $baselineSources = $this->baselineFeatures->validateSources($this->baselineManifest->entries());
         $this->baselineFingerprintPreflight->run();
         $this->preflight->run();
+        $snapshot = $this->snapshotBuilder->build();
+        $this->snapshotSession->activate($snapshot);
 
         $targetRaces = array_sum(array_map(
             fn ($fold): int => $this->baselineManifest->forYear((int) $fold->evaluationFrom->format('Y'))->expectedRaceCount,
@@ -65,6 +69,7 @@ class Bt02SignalEvaluationService
             'probability_semantics' => Bt02EntrySignalEvaluator::PROBABILITY_SEMANTICS,
             'baseline_fingerprint_manifest_version' => Bt02BaselineFingerprintManifest::VERSION,
             'baseline_fingerprint_manifest_hash' => Bt02BaselineFingerprintManifest::HASH,
+            ...$snapshot->auditParameters(),
         ]);
         $currentFold = null;
         $currentFoldTarget = 0;
@@ -100,14 +105,25 @@ class Bt02SignalEvaluationService
                         $foldDefinition,
                         $signal,
                         $specs[$signal->statCode],
-                        function (array $raceIds) use (&$currentFoldEvaluated): void {
+                        function (
+                            array $raceIds,
+                            string $cohort,
+                            string $label,
+                            string $baselinePredictionHash,
+                            string $incrementalPredictionHash,
+                        ) use (&$currentFoldEvaluated, &$currentFoldManifest, $signal): void {
+                            if ($currentFoldManifest === null) {
+                                throw new RuntimeException('BT-02 fold manifest was unavailable during committed progress.');
+                            }
+                            hash_update(
+                                $currentFoldManifest,
+                                implode(':', [$signal->statCode, $cohort, $label, $baselinePredictionHash, $incrementalPredictionHash])."\n",
+                            );
                             $this->addRaceIds($currentFoldEvaluated, $raceIds);
                         },
                     );
                     $modelCount += $result['models'];
                     $metricCount += $result['metrics'];
-                    $this->addRaceIds($currentFoldEvaluated, $result['race_ids']);
-                    hash_update($currentFoldManifest, $signal->statCode.':'.$result['manifest_hash']."\n");
                 }
                 $foldEvaluatedCount = count($currentFoldEvaluated);
                 if ($foldEvaluatedCount > $currentFoldTarget) {
@@ -124,6 +140,15 @@ class Bt02SignalEvaluationService
                 $currentFoldManifestHash = null;
             }
 
+            try {
+                $this->baselineFingerprintPreflight->run();
+                $this->preflight->run();
+            } catch (Throwable $throwable) {
+                throw new RuntimeException(
+                    'SOURCE_FINGERPRINT_DRIFT_AFTER_EVALUATION: '.$throwable->getMessage(),
+                    previous: $throwable,
+                );
+            }
             $this->audit->finishRun($run, 'SUCCEEDED', $targetRaces, $evaluatedRaces, 0, null);
         } catch (Throwable $throwable) {
             if ($currentFold instanceof BacktestFold) {

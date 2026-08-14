@@ -55,7 +55,7 @@ class Bt02EntrySignalEvaluator
     ) {}
 
     /**
-     * @param  (callable(list<int>): void)|null  $raceProgress
+     * @param  (callable(list<int>, string, string, string, string): void)|null  $raceProgress
      * @return array{models: int, metrics: int, races: int, rows: int, race_ids: list<int>, manifest_hash: string}
      */
     public function evaluate(
@@ -101,21 +101,14 @@ class Bt02EntrySignalEvaluator
                         $prediction = $this->evaluateModels($definition, $signal, $cohort, $labelCode, $baseline, $incremental, $spools['evaluation']);
                         $evaluation = $this->pairedMetrics->evaluate($prediction, $this->bootstrapIterations, RaceClusterBootstrap::SEED);
                         $predictionMetadata = $prediction->metadata();
-                        $rowCount = max($rowCount, $evaluation->rowCount);
-                        foreach ($evaluation->raceIds as $raceId) {
-                            $raceIds[$raceId] = true;
-                        }
-                        if ($raceProgress !== null) {
-                            $raceProgress($evaluation->raceIds);
-                        }
-
-                        $this->storeModel($run, $fold, $spec, $definition, $cohort, $labelCode, 'BASELINE_MATCHED', $baseline, $predictionMetadata->baselinePredictionManifestSha256);
-                        $this->storeModel($run, $fold, $spec, $definition, $cohort, $labelCode, 'INCREMENTAL', $incremental, $predictionMetadata->incrementalPredictionManifestSha256);
-                        $modelCount += 2;
-
+                        $models = [
+                            $this->modelArtifact($definition, $cohort, $labelCode, 'BASELINE_MATCHED', $baseline, $predictionMetadata->baselinePredictionManifestSha256),
+                            $this->modelArtifact($definition, $cohort, $labelCode, 'INCREMENTAL', $incremental, $predictionMetadata->incrementalPredictionManifestSha256),
+                        ];
+                        $metrics = [];
                         foreach (self::METRICS as $metricCode) {
                             $metric = $evaluation->metrics[$metricCode] ?? throw new RuntimeException("BT-02 metric {$metricCode} was missing.");
-                            $this->audit->storeMetric($run, $fold, $spec, [
+                            $metrics[] = [
                                 'label_code' => $labelCode,
                                 'cohort_code' => $cohort->value,
                                 'metric_code' => $metricCode,
@@ -136,10 +129,26 @@ class Bt02EntrySignalEvaluator
                                     'incremental_prediction_manifest_hash' => $predictionMetadata->incrementalPredictionManifestSha256,
                                     'temporary_disk_bytes' => $evaluation->temporaryByteCount,
                                 ],
-                            ]);
-                            $metricCount++;
+                            ];
                         }
+
+                        $this->audit->storePairedEvaluationArtifacts($run, $fold, $spec, $models, $metrics);
+                        $modelCount += 2;
+                        $metricCount += 3;
+                        $rowCount = max($rowCount, $evaluation->rowCount);
                         hash_update($manifest, $predictionMetadata->baselinePredictionManifestSha256."\n".$predictionMetadata->incrementalPredictionManifestSha256."\n");
+                        foreach ($evaluation->raceIds as $raceId) {
+                            $raceIds[$raceId] = true;
+                        }
+                        if ($raceProgress !== null) {
+                            $raceProgress(
+                                $evaluation->raceIds,
+                                $cohort->value,
+                                $labelCode,
+                                $predictionMetadata->baselinePredictionManifestSha256,
+                                $predictionMetadata->incrementalPredictionManifestSha256,
+                            );
+                        }
                     } finally {
                         $prediction?->cleanup();
                     }
@@ -302,18 +311,16 @@ class Bt02EntrySignalEvaluator
         return $sum / $count;
     }
 
-    private function storeModel(
-        BacktestRun $run,
-        BacktestFold $fold,
-        BacktestSignalSpec $spec,
+    /** @return array<string, mixed> */
+    private function modelArtifact(
         Bt02FoldDefinitionDto $definition,
         Bt02SignalCohort $cohort,
         string $labelCode,
         string $role,
         Bt02FittedModelDto $model,
         string $predictionManifestHash,
-    ): void {
-        $this->audit->storeModel($run, $fold, $spec, [
+    ): array {
+        return [
             'model_role' => $role,
             'label_code' => $labelCode,
             'cohort_code' => $cohort->value,
@@ -338,7 +345,7 @@ class Bt02EntrySignalEvaluator
             'final_objective' => $model->fit->finalObjective,
             'model_hash' => $model->modelHash,
             'prediction_manifest_hash' => $predictionManifestHash,
-        ]);
+        ];
     }
 
     /**
