@@ -267,6 +267,23 @@ class Bt02FoundationTest extends TestCase
         $this->assertEquals($first, $second);
     }
 
+    public function test_ridge_converges_when_newton_improvement_reaches_production_roundoff_scale(): void
+    {
+        $regression = new RidgeLogisticRegression;
+        $features = array_fill(0, 48, [0.0]);
+        $labels = [...array_fill(0, 14, 1), ...array_fill(0, 34, 0)];
+        $initialObjective = $regression->objective([0.0, 0.0], $this->logisticSource($features, $labels), 100.0);
+
+        $first = $regression->fit($this->logisticSource($features, $labels), 100.0);
+        $second = $regression->fit($this->logisticSource($features, $labels), 100.0);
+
+        $this->assertSame(Bt02ConvergenceStatus::ConvergedStepObjective, $first->status);
+        $this->assertSame(3, $first->iterations);
+        $this->assertLessThanOrEqual($initialObjective, $first->finalObjective);
+        $this->assertSame(0.0, $first->coefficients[0]);
+        $this->assertEquals($first, $second);
+    }
+
     public function test_single_class_is_not_fitted(): void
     {
         $result = (new RidgeLogisticRegression)->fit($this->logisticSource([[0.0], [1.0]], [1, 1]), 0.1);
