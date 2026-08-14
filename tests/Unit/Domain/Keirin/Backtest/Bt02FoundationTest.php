@@ -267,6 +267,11 @@ class Bt02FoundationTest extends TestCase
         $this->assertEquals($first, $second);
     }
 
+    public function test_ridge_optimizer_version_tracks_the_roundoff_convergence_contract(): void
+    {
+        $this->assertSame('DAMPED-NEWTON-CHOLESKY-v2', RidgeLogisticRegression::OPTIMIZER_VERSION);
+    }
+
     public function test_ridge_converges_when_newton_improvement_reaches_production_roundoff_scale(): void
     {
         $regression = new RidgeLogisticRegression;
