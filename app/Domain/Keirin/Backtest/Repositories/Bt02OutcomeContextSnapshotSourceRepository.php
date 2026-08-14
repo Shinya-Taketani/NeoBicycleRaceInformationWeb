@@ -5,16 +5,26 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Backtest\Repositories;
 
 use App\Domain\Keirin\Backtest\DTO\Bt02OutcomeContextSourceRowDto;
+use App\Domain\Keirin\Backtest\DTO\SourceManifestEntryDto;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class Bt02OutcomeContextSnapshotSourceRepository
 {
     /** @return iterable<Bt02OutcomeContextSourceRowDto> */
-    public function rows(): iterable
+    public function rows(SourceManifestEntryDto $source): iterable
     {
-        $query = DB::table('races as races')
+        $targetRaces = DB::table('statistic_feature_results')
+            ->select('race_id')
+            ->where('feature_run_id', $source->featureRunId)
+            ->distinct();
+
+        $query = DB::query()
+            ->fromSub($targetRaces, 'target_races')
+            ->leftJoin('races as races', 'races.id', '=', 'target_races.race_id')
             ->leftJoin('race_results as race_results', 'race_results.race_id', '=', 'races.id')
             ->select([
+                'target_races.race_id as target_race_id',
                 'races.id as race_id',
                 'races.race_date',
                 'races.scheduled_start_at',
@@ -26,17 +36,16 @@ class Bt02OutcomeContextSnapshotSourceRepository
                 'race_results.rank',
                 'race_results.result_status',
             ])
-            ->whereBetween('races.race_date', ['2022-01-01', '2025-12-31'])
-            ->whereBetween('races.entrant_count', [5, 9])
-            ->where(function ($query): void {
-                $query->where('races.race_type', 'like', 'Ａ級%')
-                    ->orWhere('races.race_type', 'like', 'Ｓ級%');
-            })
             ->orderBy('races.race_date')
             ->orderBy('races.id')
             ->orderBy('race_results.bike_number');
 
         foreach ($query->cursor() as $row) {
+            if ($row->race_id === null) {
+                throw new RuntimeException(
+                    "Fixed STAT-01 source race was missing: year {$source->year}, feature_run_id {$source->featureRunId}, race_id {$row->target_race_id}.",
+                );
+            }
             yield new Bt02OutcomeContextSourceRowDto(
                 raceId: (int) $row->race_id,
                 raceDate: (string) $row->race_date,

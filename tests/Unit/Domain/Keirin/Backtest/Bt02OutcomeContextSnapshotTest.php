@@ -120,7 +120,7 @@ class Bt02OutcomeContextSnapshotTest extends TestCase
         $duplicates = $this->rows();
         array_splice($duplicates, 1, 0, [$duplicates[0]]);
         $outOfOrder = $this->rows();
-        $outOfOrder = [...array_slice($outOfOrder, 5, 5), ...array_slice($outOfOrder, 0, 5), ...array_slice($outOfOrder, 10)];
+        [$outOfOrder[0], $outOfOrder[1]] = [$outOfOrder[1], $outOfOrder[0]];
         foreach ([$duplicates, $outOfOrder, [new Bt02OutcomeContextSourceRowDto(99, '2026-01-01', null, null, 5, 'CONFIRMED', 'Ａ級予選', 1, 1, 'FINISHED')]] as $rows) {
             try {
                 $this->build($rows);
@@ -136,7 +136,7 @@ class Bt02OutcomeContextSnapshotTest extends TestCase
     public function test_fixed_target_count_mismatch_fails_closed(): void
     {
         $source = Mockery::mock(Bt02OutcomeContextSnapshotSourceRepository::class);
-        $source->shouldReceive('rows')->once()->andReturn([]);
+        $source->shouldReceive('rows')->times(4)->andReturn([]);
         $builder = new Bt02OutcomeContextSnapshotBuilder(
             new Bt01SourceManifest(new CanonicalHasher),
             $source,
@@ -149,13 +149,42 @@ class Bt02OutcomeContextSnapshotTest extends TestCase
         $builder->build();
     }
 
+    public function test_race_date_outside_its_fixed_stat01_source_year_fails_closed(): void
+    {
+        $manifest = $this->manifest();
+        $source = Mockery::mock(Bt02OutcomeContextSnapshotSourceRepository::class);
+        foreach ($manifest->entries() as $entry) {
+            $rows = $entry->year === 2023
+                ? [new Bt02OutcomeContextSourceRowDto(2, '2024-06-01', null, null, 5, 'CONFIRMED', 'Ａ級予選', 1, 1, 'FINISHED')]
+                : [];
+            $source->shouldReceive('rows')->with($entry)->andReturn($rows);
+        }
+        $builder = new Bt02OutcomeContextSnapshotBuilder(
+            $manifest,
+            $source,
+            $this->directory,
+            'test/bt02/outcome-context',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('year 2023, feature_run_id 2023, race_id 2');
+        $builder->build();
+    }
+
     /** @param list<Bt02OutcomeContextSourceRowDto> $rows */
     private function build(array $rows): Bt02OutcomeContextSnapshotArtifact
     {
+        $manifest = $this->manifest();
         $source = Mockery::mock(Bt02OutcomeContextSnapshotSourceRepository::class);
-        $source->shouldReceive('rows')->once()->andReturn($rows);
+        foreach ($manifest->entries() as $entry) {
+            $yearRows = array_values(array_filter(
+                $rows,
+                fn (Bt02OutcomeContextSourceRowDto $row): bool => (int) substr($row->raceDate, 0, 4) === $entry->year,
+            ));
+            $source->shouldReceive('rows')->with($entry)->andReturn($yearRows);
+        }
         $snapshot = (new Bt02OutcomeContextSnapshotBuilder(
-            $this->manifest(),
+            $manifest,
             $source,
             $this->directory,
             'test/bt02/outcome-context',

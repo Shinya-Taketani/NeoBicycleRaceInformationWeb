@@ -22,32 +22,31 @@ class Bt02OutcomeSnapshotPostgresTest extends TestCase
         }
         $source = new class extends Bt02OutcomeContextSnapshotSourceRepository
         {
-            /** @var array{isolation: string, read_only: string}|null */
-            public ?array $settings = null;
+            /** @var list<array{isolation: string, read_only: string, feature_run_id: int}> */
+            public array $settings = [];
 
-            public function rows(): iterable
+            public function rows(SourceManifestEntryDto $source): iterable
             {
                 $isolation = DB::selectOne('SHOW transaction_isolation');
                 $readOnly = DB::selectOne('SHOW transaction_read_only');
-                $this->settings = [
+                $this->settings[] = [
                     'isolation' => (string) $isolation->transaction_isolation,
                     'read_only' => (string) $readOnly->transaction_read_only,
+                    'feature_run_id' => $source->featureRunId,
                 ];
-                foreach ([2022, 2023, 2024, 2025] as $offset => $year) {
-                    foreach (range(1, 5) as $bike) {
-                        yield new Bt02OutcomeContextSourceRowDto(
-                            $offset + 1,
-                            "{$year}-06-01",
-                            null,
-                            null,
-                            5,
-                            'CONFIRMED',
-                            'Ａ級予選',
-                            $bike,
-                            $bike,
-                            'FINISHED',
-                        );
-                    }
+                foreach (range(1, 5) as $bike) {
+                    yield new Bt02OutcomeContextSourceRowDto(
+                        $source->year - 2021,
+                        "{$source->year}-06-01",
+                        null,
+                        null,
+                        5,
+                        'CONFIRMED',
+                        'Ａ級予選',
+                        $bike,
+                        $bike,
+                        'FINISHED',
+                    );
                 }
             }
         };
@@ -68,7 +67,12 @@ class Bt02OutcomeSnapshotPostgresTest extends TestCase
         try {
             (new Bt02OutcomeContextSnapshotBuilder($manifest, $source, $directory, 'test/bt02/outcome-context'))->build();
 
-            $this->assertSame(['isolation' => 'repeatable read', 'read_only' => 'on'], $source->settings);
+            $this->assertSame([
+                ['isolation' => 'repeatable read', 'read_only' => 'on', 'feature_run_id' => 2022],
+                ['isolation' => 'repeatable read', 'read_only' => 'on', 'feature_run_id' => 2023],
+                ['isolation' => 'repeatable read', 'read_only' => 'on', 'feature_run_id' => 2024],
+                ['isolation' => 'repeatable read', 'read_only' => 'on', 'feature_run_id' => 2025],
+            ], $source->settings);
             $this->assertSame(0, DB::connection()->transactionLevel());
         } finally {
             $this->remove($directory);

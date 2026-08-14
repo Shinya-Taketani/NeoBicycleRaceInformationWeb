@@ -99,29 +99,33 @@ class Bt02OutcomeContextSnapshotBuilder
             $current = null;
             $lastDate = null;
             $lastRaceId = null;
-            foreach ($this->source->rows() as $sourceRow) {
-                if (! $sourceRow instanceof Bt02OutcomeContextSourceRowDto) {
-                    throw new RuntimeException('BT-02 outcome snapshot source row was invalid.');
-                }
-                $date = $this->date($sourceRow->raceDate);
-                $year = (int) substr($date, 0, 4);
-                if (! in_array($year, self::YEARS, true)) {
-                    throw new RuntimeException('BT-02 outcome snapshot source contained a non-fixed year.');
-                }
-                if ($current === null || $current['race_id'] !== $sourceRow->raceId) {
-                    if ($current !== null) {
-                        $this->appendRace($states[(int) substr($current['race_date'], 0, 4)], $current);
+            foreach ($this->targetManifest->entries() as $target) {
+                foreach ($this->source->rows($target) as $sourceRow) {
+                    if (! $sourceRow instanceof Bt02OutcomeContextSourceRowDto) {
+                        throw new RuntimeException('BT-02 outcome snapshot source row was invalid.');
                     }
-                    if ($lastDate !== null && ($date < $lastDate || ($date === $lastDate && $sourceRow->raceId <= $lastRaceId))) {
-                        throw new RuntimeException('BT-02 outcome snapshot source race order or identity was invalid.');
+                    $date = $this->date($sourceRow->raceDate);
+                    $year = (int) substr($date, 0, 4);
+                    if ($year !== $target->year) {
+                        throw new RuntimeException(
+                            "BT-02 outcome snapshot race date differed from fixed STAT-01 source: year {$target->year}, feature_run_id {$target->featureRunId}, race_id {$sourceRow->raceId}.",
+                        );
                     }
-                    $current = $this->race($sourceRow, $date);
-                    $lastDate = $date;
-                    $lastRaceId = $sourceRow->raceId;
-                } else {
-                    $this->assertSameRace($current, $sourceRow, $date);
+                    if ($current === null || $current['race_id'] !== $sourceRow->raceId) {
+                        if ($current !== null) {
+                            $this->appendRace($states[(int) substr($current['race_date'], 0, 4)], $current);
+                        }
+                        if ($lastDate !== null && ($date < $lastDate || ($date === $lastDate && $sourceRow->raceId <= $lastRaceId))) {
+                            throw new RuntimeException('BT-02 outcome snapshot source race order or identity was invalid.');
+                        }
+                        $current = $this->race($sourceRow, $date);
+                        $lastDate = $date;
+                        $lastRaceId = $sourceRow->raceId;
+                    } else {
+                        $this->assertSameRace($current, $sourceRow, $date);
+                    }
+                    $this->appendResult($current, $sourceRow);
                 }
-                $this->appendResult($current, $sourceRow);
             }
             if ($current !== null) {
                 $this->appendRace($states[(int) substr($current['race_date'], 0, 4)], $current);
