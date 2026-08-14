@@ -37,6 +37,9 @@ class Bt02PredictionSpool
 
     private ?int $lastRaceEntryId = null;
 
+    /** @var array<int, true> */
+    private array $seenRaceIds = [];
+
     /** @param array<string, int|string> $identity */
     public function __construct(array $identity, ?string $directory = null)
     {
@@ -141,6 +144,7 @@ class Bt02PredictionSpool
         $hash = hash_init('sha256');
         $count = $bytes = $raceCount = 0;
         $lastRaceId = $lastRaceEntryId = null;
+        $seenRaceIds = [];
         try {
             while (($line = fgets($handle)) !== false) {
                 if (! str_ends_with($line, "\n")) {
@@ -150,7 +154,13 @@ class Bt02PredictionSpool
                 $bytes += strlen($line);
                 $count++;
                 $row = $this->decode($line);
-                $this->assertReplayOrder($row['race_id'], $row['race_entry_id'], $lastRaceId, $lastRaceEntryId);
+                $this->assertReplayOrder(
+                    $row['race_id'],
+                    $row['race_entry_id'],
+                    $lastRaceId,
+                    $lastRaceEntryId,
+                    $seenRaceIds,
+                );
                 if ($lastRaceId !== $row['race_id']) {
                     $raceCount++;
                 }
@@ -206,6 +216,7 @@ class Bt02PredictionSpool
         }
         $this->handle = null;
         $this->fileHash = $this->baselineHash = $this->incrementalHash = $this->outcomeHash = null;
+        $this->seenRaceIds = [];
         if (isset($this->path) && is_file($this->path)) {
             @unlink($this->path);
         }
@@ -260,24 +271,31 @@ class Bt02PredictionSpool
 
     private function assertOrder(int $raceId, int $raceEntryId): void
     {
-        if ($this->lastRaceId !== null
-            && ($raceId < $this->lastRaceId
-                || ($raceId === $this->lastRaceId && $raceEntryId <= $this->lastRaceEntryId))) {
+        if (($raceId === $this->lastRaceId && $raceEntryId <= $this->lastRaceEntryId)
+            || ($raceId !== $this->lastRaceId && isset($this->seenRaceIds[$raceId]))) {
             throw new RuntimeException('BT-02 prediction spool order or identity was invalid.');
         }
         if ($this->lastRaceId !== $raceId) {
+            $this->seenRaceIds[$raceId] = true;
             $this->raceCount++;
         }
         $this->lastRaceId = $raceId;
         $this->lastRaceEntryId = $raceEntryId;
     }
 
-    private function assertReplayOrder(int $raceId, int $raceEntryId, ?int $lastRaceId, ?int $lastRaceEntryId): void
-    {
-        if ($lastRaceId !== null
-            && ($raceId < $lastRaceId || ($raceId === $lastRaceId && $raceEntryId <= $lastRaceEntryId))) {
+    /** @param array<int, true> $seenRaceIds */
+    private function assertReplayOrder(
+        int $raceId,
+        int $raceEntryId,
+        ?int $lastRaceId,
+        ?int $lastRaceEntryId,
+        array &$seenRaceIds,
+    ): void {
+        if (($raceId === $lastRaceId && $raceEntryId <= $lastRaceEntryId)
+            || ($raceId !== $lastRaceId && isset($seenRaceIds[$raceId]))) {
             throw new RuntimeException('BT-02 prediction spool replay order or identity was invalid.');
         }
+        $seenRaceIds[$raceId] = true;
     }
 
     private function write(string $bytes): void
