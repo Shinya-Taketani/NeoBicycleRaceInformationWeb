@@ -15,7 +15,7 @@ class RidgeLogisticRegression
 {
     public const OBJECTIVE_VERSION = 'RIDGE-LOGISTIC-MEAN-LOSS-v1';
 
-    public const OPTIMIZER_VERSION = 'DAMPED-NEWTON-CHOLESKY-v1';
+    public const OPTIMIZER_VERSION = 'DAMPED-NEWTON-CHOLESKY-v2';
 
     public const MAX_ITERATIONS = 100;
 
