@@ -23,6 +23,27 @@ class BinaryMetricCalculator
         return $sum / count($labels);
     }
 
+    /** @param iterable<array{0: float, 1: int}> $rows */
+    public function streamingLogLoss(iterable $rows): float
+    {
+        $sum = 0.0;
+        $count = 0;
+        foreach ($rows as $row) {
+            if (! is_array($row) || count($row) !== 2 || ! is_float($row[0])
+                || ! is_finite($row[0]) || ! in_array($row[1], [0, 1], true)) {
+                throw new InvalidArgumentException('Streaming log loss row was invalid.');
+            }
+            $p = min(max($row[0], self::LOG_LOSS_EPSILON), 1.0 - self::LOG_LOSS_EPSILON);
+            $sum -= $row[1] * log($p) + (1 - $row[1]) * log(1.0 - $p);
+            $count++;
+        }
+        if ($count === 0) {
+            throw new InvalidArgumentException('Streaming log loss rows were empty.');
+        }
+
+        return $sum / $count;
+    }
+
     /** @param list<float> $probabilities @param list<int> $labels */
     public function brier(array $probabilities, array $labels): float
     {

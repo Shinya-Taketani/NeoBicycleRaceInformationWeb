@@ -106,7 +106,7 @@ class ExternalSortEffectBinBoundaryProvider implements EffectBinBoundaryProvider
         $bins = [];
         $index = 1;
         foreach ($counts as $category => $count) {
-            $bins[] = new EffectBinDto($index++, 'CATEGORY', null, null, $category, $count);
+            $bins[] = new EffectBinDto($index++, 'CATEGORY', null, null, (string) $category, $count);
         }
 
         return $bins;

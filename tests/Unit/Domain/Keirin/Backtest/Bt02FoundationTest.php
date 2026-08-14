@@ -375,6 +375,13 @@ class Bt02FoundationTest extends TestCase
         $this->assertGreaterThan(0, $metrics->brier([0.2, 0.3], [0, 0]));
         $this->assertNull($metrics->auc([0.2, 0.3], [0, 0]));
         $this->assertSame(1.0, $metrics->auc([0.1, 0.9], [0, 1]));
+        $this->assertSame(
+            $metrics->logLoss([0.1, 0.9], [0, 1]),
+            $metrics->streamingLogLoss((function (): Generator {
+                yield [0.1, 0];
+                yield [0.9, 1];
+            })()),
+        );
     }
 
     public function test_type7_quantile_and_training_only_effect_bins_are_fixed(): void

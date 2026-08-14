@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Backtest\Repositories;
 
+use App\Domain\Keirin\Backtest\DTO\Bt02FoldDefinitionDto;
 use App\Domain\Keirin\Backtest\DTO\Bt02SignalDefinitionDto;
 use App\Domain\Keirin\Backtest\DTO\Bt02SourceManifestEntryDto;
 use App\Domain\Keirin\Backtest\DTO\EffectBinDto;
+use App\Domain\Keirin\Backtest\DTO\VerifiedSourceDto;
 use App\Domain\Keirin\Backtest\Services\Bt02SourceManifest;
 use App\Models\BacktestEffectBin;
 use App\Models\BacktestFeatureSource;
@@ -65,6 +67,45 @@ class Bt02AuditRepository
                 ]);
             }
         });
+    }
+
+    /** @param list<VerifiedSourceDto> $sources */
+    public function storeBaselineSources(BacktestRun $run, array $sources, string $manifestHash): void
+    {
+        DB::transaction(function () use ($run, $sources, $manifestHash): void {
+            foreach ($sources as $source) {
+                BacktestFeatureSource::query()->create([
+                    'backtest_run_id' => $run->id,
+                    'stat_code' => 'STAT-01',
+                    'feature_run_id' => $source->manifest->featureRunId,
+                    'feature_run_uuid' => $source->manifest->featureRunUuid,
+                    'calculation_version' => 'STAT-01-existing-db-v1',
+                    'target_from' => $source->manifest->targetFrom,
+                    'target_to' => $source->manifest->targetTo,
+                    'expected_race_count' => $source->manifest->expectedRaceCount,
+                    'expected_result_count' => $source->manifest->expectedResultCount,
+                    'verified_race_count' => $source->verifiedRaceCount,
+                    'verified_result_count' => $source->verifiedResultCount,
+                    'source_manifest_hash' => $manifestHash,
+                    'verified_at' => new DateTimeImmutable('now'),
+                ]);
+            }
+        });
+    }
+
+    public function startFold(BacktestRun $run, Bt02FoldDefinitionDto $definition): BacktestFold
+    {
+        return BacktestFold::query()->create([
+            'backtest_run_id' => $run->id,
+            'fold_code' => $definition->code,
+            'sequence' => $definition->sequence,
+            'train_from' => $definition->trainingFrom,
+            'train_to' => $definition->trainingTo,
+            'evaluation_from' => $definition->evaluationFrom,
+            'evaluation_to' => $definition->evaluationTo,
+            'status' => 'RUNNING',
+            'started_at' => new DateTimeImmutable('now'),
+        ]);
     }
 
     /** @param array<string, mixed>|null $parameters */
@@ -137,6 +178,42 @@ class Bt02AuditRepository
                 ]);
             }
         });
+    }
+
+    public function finishFold(BacktestFold $fold, int $targetRaces, int $evaluatedRaces, string $predictionManifestHash): void
+    {
+        $fold->forceFill([
+            'status' => 'SUCCEEDED',
+            'target_race_count' => $targetRaces,
+            'predicted_race_count' => $evaluatedRaces,
+            'excluded_race_count' => max(0, $targetRaces - $evaluatedRaces),
+            'prediction_manifest_hash' => $predictionManifestHash,
+            'finished_at' => new DateTimeImmutable('now'),
+        ])->save();
+    }
+
+    public function failFold(BacktestFold $fold): void
+    {
+        $fold->forceFill([
+            'status' => 'FAILED',
+            'finished_at' => new DateTimeImmutable('now'),
+        ])->save();
+    }
+
+    public function finishRun(BacktestRun $run, string $status, int $targetRaces, int $evaluatedRaces, int $errors, ?string $error): void
+    {
+        if (! in_array($status, ['SUCCEEDED', 'PARTIALLY_SUCCEEDED', 'FAILED'], true)) {
+            throw new LogicException('BT-02 run finish status was invalid.');
+        }
+        $run->forceFill([
+            'status' => $status,
+            'target_race_count' => $targetRaces,
+            'predicted_race_count' => $evaluatedRaces,
+            'excluded_race_count' => max(0, $targetRaces - $evaluatedRaces),
+            'error_count' => $errors,
+            'error_summary' => $error,
+            'finished_at' => new DateTimeImmutable('now'),
+        ])->save();
     }
 
     private function assertOwnership(BacktestRun $run, BacktestFold $fold, BacktestSignalSpec $spec): void
