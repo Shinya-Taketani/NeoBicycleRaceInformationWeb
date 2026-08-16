@@ -113,6 +113,7 @@ class Bt02EntrySignalEvaluatorTest extends TestCase
             $this->assertCount(6, array_filter($storedModels, fn (array $model): bool => $model['model_role'] === 'INCREMENTAL'));
             $this->assertSame([1], array_values(array_unique(array_map(fn (array $model): int => count($model['feature_names']), array_filter($storedModels, fn (array $model): bool => $model['model_role'] === 'BASELINE_MATCHED')))));
             $this->assertSame([2], array_values(array_unique(array_map(fn (array $model): int => count($model['feature_names']), array_filter($storedModels, fn (array $model): bool => $model['model_role'] === 'INCREMENTAL')))));
+            $this->assertSame([RidgeLogisticRegression::OBJECTIVE_VERSION], array_values(array_unique(array_column($storedModels, 'objective_version'))));
             $this->assertSame([RidgeLogisticRegression::OPTIMIZER_VERSION], array_values(array_unique(array_column($storedModels, 'optimizer_version'))));
             $modelHasher = new Bt02ModelArtifactHasher;
             foreach ($storedModels as $model) {
@@ -130,7 +131,11 @@ class Bt02EntrySignalEvaluatorTest extends TestCase
                 $this->assertSame($model['model_hash'], $modelHasher->hash($hashPayload));
                 $this->assertNotSame($model['model_hash'], $modelHasher->hash([
                     ...$hashPayload,
-                    'optimizer_version' => 'DAMPED-NEWTON-CHOLESKY-v1',
+                    'objective_version' => 'RIDGE-LOGISTIC-MEAN-LOSS-v1',
+                ]));
+                $this->assertNotSame($model['model_hash'], $modelHasher->hash([
+                    ...$hashPayload,
+                    'optimizer_version' => 'DAMPED-NEWTON-CHOLESKY-v2',
                 ]));
             }
             $this->assertSame([8], array_values(array_unique(array_column($storedMetrics, 'bootstrap_iterations'))));
