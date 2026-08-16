@@ -267,9 +267,47 @@ class Bt02FoundationTest extends TestCase
         $this->assertEquals($first, $second);
     }
 
-    public function test_ridge_optimizer_version_tracks_the_roundoff_convergence_contract(): void
+    public function test_ridge_versions_track_the_compensated_objective_contract(): void
     {
-        $this->assertSame('DAMPED-NEWTON-CHOLESKY-v2', RidgeLogisticRegression::OPTIMIZER_VERSION);
+        $this->assertSame('RIDGE-LOGISTIC-MEAN-LOSS-NEUMAIER-v2', RidgeLogisticRegression::OBJECTIVE_VERSION);
+        $this->assertSame('DAMPED-NEWTON-CHOLESKY-v3', RidgeLogisticRegression::OPTIMIZER_VERSION);
+    }
+
+    public function test_ridge_objective_uses_neumaier_compensated_loss_accumulation(): void
+    {
+        $parameters = [-1.825, 0.00825];
+        $lambda = 10.0;
+        $source = $this->compensatedRegressionSource();
+        [$naive, $neumaier] = $this->objectiveReferences($parameters, $source, $lambda);
+
+        $objective = (new RidgeLogisticRegression)->objective($parameters, $source, $lambda);
+
+        $this->assertSame($neumaier, $objective);
+        $this->assertNotSame($naive, $objective);
+    }
+
+    public function test_ridge_accepts_the_compensated_line_search_step_for_an_imbalanced_stream(): void
+    {
+        $regression = new RidgeLogisticRegression;
+        $rowCount = 0;
+        $positiveCount = 0;
+        foreach ($this->compensatedRegressionSource()->rows() as $row) {
+            $rowCount++;
+            $positiveCount += $row->label;
+        }
+
+        // Naive accumulation reached iteration 5 above the 4 ULP guard and failed its line search for this stream.
+        $first = $regression->fit($this->compensatedRegressionSource(), 10.0);
+        $second = $regression->fit($this->compensatedRegressionSource(), 10.0);
+
+        $this->assertSame(8000, $rowCount);
+        $this->assertSame(1114, $positiveCount);
+        $this->assertSame(Bt02ConvergenceStatus::ConvergedGradient, $first->status);
+        $this->assertSame(5, $first->iterations);
+        $this->assertSame(0.4032475436526494, $first->finalObjective);
+        $this->assertSame(-1.8215930512231404, $first->intercept);
+        $this->assertSame([0.008289165654652745], $first->coefficients);
+        $this->assertEquals($first, $second);
     }
 
     public function test_ridge_converges_when_newton_improvement_reaches_production_roundoff_scale(): void
@@ -476,6 +514,45 @@ class Bt02FoundationTest extends TestCase
                 yield new LogisticTrainingRowDto($row, $labels[$index]);
             }
         });
+    }
+
+    private function compensatedRegressionSource(): CallbackLogisticTrainingRowSource
+    {
+        return new CallbackLogisticTrainingRowSource(static function (): Generator {
+            for ($index = 0; $index < 8000; $index++) {
+                $feature = (($index * 7919) % 2001 - 1000) / 400.0;
+                $noise = ($index * 104729 + 12345) % 1000;
+                $threshold = 138 + (int) round(40.0 * $feature);
+
+                yield new LogisticTrainingRowDto([$feature], $noise < $threshold ? 1 : 0);
+            }
+        });
+    }
+
+    /**
+     * @param  list<float>  $parameters
+     * @return array{float, float}
+     */
+    private function objectiveReferences(array $parameters, CallbackLogisticTrainingRowSource $source, float $lambda): array
+    {
+        $naive = 0.0;
+        $sum = 0.0;
+        $compensation = 0.0;
+        $count = 0;
+        foreach ($source->rows() as $row) {
+            $z = $parameters[0] + $parameters[1] * $row->features[0];
+            $value = max($z, 0.0) + log1p(exp(-abs($z))) - $row->label * $z;
+            $naive += $value;
+            $next = $sum + $value;
+            $compensation += abs($sum) >= abs($value)
+                ? ($sum - $next) + $value
+                : ($value - $next) + $sum;
+            $sum = $next;
+            $count++;
+        }
+        $penalty = ($lambda / 2) * $parameters[1] ** 2;
+
+        return [$naive / $count + $penalty, ($sum + $compensation) / $count + $penalty];
     }
 
     /** @param array<string, float> $overrides @return array<string, float> */

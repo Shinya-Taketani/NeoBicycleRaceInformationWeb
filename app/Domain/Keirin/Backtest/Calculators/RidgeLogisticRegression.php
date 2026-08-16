@@ -13,9 +13,9 @@ use RuntimeException;
 
 class RidgeLogisticRegression
 {
-    public const OBJECTIVE_VERSION = 'RIDGE-LOGISTIC-MEAN-LOSS-v1';
+    public const OBJECTIVE_VERSION = 'RIDGE-LOGISTIC-MEAN-LOSS-NEUMAIER-v2';
 
-    public const OPTIMIZER_VERSION = 'DAMPED-NEWTON-CHOLESKY-v2';
+    public const OPTIMIZER_VERSION = 'DAMPED-NEWTON-CHOLESKY-v3';
 
     public const MAX_ITERATIONS = 100;
 
@@ -132,11 +132,17 @@ class RidgeLogisticRegression
     private function objectiveFor(array $parameters, LogisticTrainingRowSource $source, float $lambda, array $summary): float
     {
         $sum = 0.0;
+        $compensation = 0.0;
         $count = 0;
         foreach ($source->rows() as $row) {
             $this->validateRow($row, $summary['dimension']);
             $z = $parameters[0] + $this->dot(array_slice($parameters, 1), $row->features);
-            $sum += $this->softplus($z) - $row->label * $z;
+            $value = $this->softplus($z) - $row->label * $z;
+            $next = $sum + $value;
+            $compensation += abs($sum) >= abs($value)
+                ? ($sum - $next) + $value
+                : ($value - $next) + $sum;
+            $sum = $next;
             $count++;
         }
         $this->assertReplayCount($summary['count'], $count);
@@ -145,7 +151,7 @@ class RidgeLogisticRegression
             $penalty += $coefficient ** 2;
         }
 
-        return $sum / $count + ($lambda / 2) * $penalty;
+        return ($sum + $compensation) / $count + ($lambda / 2) * $penalty;
     }
 
     /**
