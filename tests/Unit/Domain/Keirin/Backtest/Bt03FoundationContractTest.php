@@ -90,6 +90,62 @@ class Bt03FoundationContractTest extends TestCase
         $hasher->hash($artifact);
     }
 
+    public function test_effect_hash_changes_with_each_numeric_bin_identity_value(): void
+    {
+        $hasher = new Bt03EffectHasher(new Bt02ModelArtifactHasher);
+        $artifact = $this->effectArtifact();
+        $original = $hasher->hash($artifact);
+
+        foreach ([
+            'source_backtest_effect_bin_id' => 102,
+            'lower_bound' => -1.0,
+            'upper_bound' => 0.5,
+        ] as $key => $value) {
+            $changed = $artifact;
+            $changed[$key] = $value;
+            $this->assertNotSame($original, $hasher->hash($changed), $key);
+        }
+    }
+
+    public function test_effect_hash_changes_with_category_value(): void
+    {
+        $hasher = new Bt03EffectHasher(new Bt02ModelArtifactHasher);
+        $artifact = $this->categoryEffectArtifact();
+        $changed = $artifact;
+        $changed['category_value'] = 'S2';
+
+        $this->assertNotSame($hasher->hash($artifact), $hasher->hash($changed));
+    }
+
+    public function test_effect_hash_requires_every_stored_bin_identity_key(): void
+    {
+        $hasher = new Bt03EffectHasher(new Bt02ModelArtifactHasher);
+
+        foreach (['source_backtest_effect_bin_id', 'lower_bound', 'upper_bound', 'category_value'] as $key) {
+            $artifact = $this->effectArtifact();
+            unset($artifact[$key]);
+            try {
+                $hasher->hash($artifact);
+                $this->fail("Expected missing {$key} to be rejected.");
+            } catch (InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_unseen_category_null_bin_identity_is_hashable_and_deterministic(): void
+    {
+        $hasher = new Bt03EffectHasher(new Bt02ModelArtifactHasher);
+        $artifact = $this->categoryEffectArtifact();
+        $artifact['source_backtest_effect_bin_id'] = null;
+        $artifact['bin_index'] = 0;
+        $artifact['bin_origin'] = 'UNSEEN_CATEGORY';
+        $artifact['category_value'] = null;
+        $artifact['training_sample_count'] = 0;
+
+        $this->assertSame($hasher->hash($artifact), $hasher->hash(array_reverse($artifact, true)));
+    }
+
     private function assigner(): Bt03FixedBinAssigner
     {
         $provider = new class implements EffectBinBoundaryProvider
@@ -159,11 +215,15 @@ class Bt03FoundationContractTest extends TestCase
             'source_baseline_model_hash' => str_repeat('a', 64),
             'source_incremental_model_hash' => str_repeat('b', 64),
             'source_boundaries_hash' => str_repeat('c', 64),
+            'source_backtest_effect_bin_id' => 101,
             'cohort_code' => 'STRICT',
             'label_code' => 'IS_WIN',
             'bin_index' => 1,
             'bin_origin' => 'TRAINING_BIN',
             'bin_kind' => 'NUMERIC_RANGE',
+            'lower_bound' => null,
+            'upper_bound' => 0.0,
+            'category_value' => null,
             'training_sample_count' => 100,
             'evaluation_status' => 'OBSERVED',
             'evaluation_sample_count' => 20,
@@ -193,5 +253,17 @@ class Bt03FoundationContractTest extends TestCase
             'bootstrap_seed' => 20260812,
             'calculation_version' => Bt03BinEffectCalculator::CALCULATION_VERSION,
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function categoryEffectArtifact(): array
+    {
+        return array_replace($this->effectArtifact(), [
+            'source_backtest_effect_bin_id' => 201,
+            'bin_kind' => 'CATEGORY',
+            'lower_bound' => null,
+            'upper_bound' => null,
+            'category_value' => 'S1',
+        ]);
     }
 }

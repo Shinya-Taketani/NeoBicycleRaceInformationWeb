@@ -13,7 +13,8 @@ class Bt03EffectHasher
     private const REQUIRED_KEYS = [
         'source_bt02_run_id', 'source_bt02_run_uuid', 'source_fold_id', 'source_signal_spec_id',
         'source_baseline_model_hash', 'source_incremental_model_hash', 'source_boundaries_hash',
-        'cohort_code', 'label_code', 'bin_index', 'bin_origin', 'bin_kind', 'training_sample_count',
+        'source_backtest_effect_bin_id', 'cohort_code', 'label_code', 'bin_index', 'bin_origin',
+        'bin_kind', 'lower_bound', 'upper_bound', 'category_value', 'training_sample_count',
         'evaluation_status', 'evaluation_sample_count', 'evaluation_race_count', 'positive_count',
         'observed_rate', 'observed_rate_ci_lower', 'observed_rate_ci_upper',
         'baseline_mean_probability', 'incremental_mean_probability',
