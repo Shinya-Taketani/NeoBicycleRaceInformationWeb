@@ -56,6 +56,20 @@ class Bt03SourceManifestTest extends TestCase
         $this->assertSame($original->metricFingerprint, $changed->metricFingerprint);
     }
 
+    public function test_effect_bin_semantic_change_changes_effect_bin_and_manifest_fingerprints(): void
+    {
+        $original = $this->fingerprinter($this->fingerprintRepository('2026-01-01 00:00:00+09', false))->compute();
+        $changed = $this->fingerprinter($this->fingerprintRepository(
+            '2026-01-01 00:00:00+09',
+            false,
+            trainingSampleCount: 6,
+        ))->compute();
+
+        $this->assertNotSame($original->effectBinFingerprint, $changed->effectBinFingerprint);
+        $this->assertNotSame($original->manifestHash, $changed->manifestHash);
+        $this->assertSame($original->modelFingerprint, $changed->modelFingerprint);
+    }
+
     public function test_source_verifier_accepts_only_the_complete_fixed_run_five_contract(): void
     {
         $repository = $this->verificationRepository();
@@ -136,8 +150,12 @@ class Bt03SourceManifestTest extends TestCase
         return new Bt03SourceArtifactFingerprinter($repository, new Bt02ModelArtifactHasher);
     }
 
-    private function fingerprintRepository(string $timestamp, bool $reverseJsonKeys, float $coefficient = 0.5): Bt03SourceArtifactRepository
-    {
+    private function fingerprintRepository(
+        string $timestamp,
+        bool $reverseJsonKeys,
+        float $coefficient = 0.5,
+        int $trainingSampleCount = 5,
+    ): Bt03SourceArtifactRepository {
         $parameters = $reverseJsonKeys ? ['z' => 2, 'a' => 1] : ['a' => 1, 'z' => 2];
         $metadata = $reverseJsonKeys ? ['right' => 2, 'left' => 1] : ['left' => 1, 'right' => 2];
         $run = (object) [
@@ -173,7 +191,7 @@ class Bt03SourceManifestTest extends TestCase
         ]];
         $bins = [(object) [
             'id' => 5, 'backtest_run_id' => 5, 'backtest_fold_id' => 1, 'backtest_signal_spec_id' => 2,
-            'bin_index' => 1, 'training_sample_count' => 5, 'lower_bound' => null, 'upper_bound' => 1.0,
+            'bin_index' => 1, 'training_sample_count' => $trainingSampleCount, 'lower_bound' => null, 'upper_bound' => 1.0,
             'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR), 'created_at' => $timestamp, 'updated_at' => $timestamp,
         ]];
 
