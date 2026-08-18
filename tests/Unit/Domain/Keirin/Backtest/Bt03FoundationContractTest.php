@@ -78,6 +78,39 @@ class Bt03FoundationContractTest extends TestCase
         $replayer->assertModel($this->model($hasher, str_repeat('0', 64)));
     }
 
+    public function test_persisted_intercept_rounding_is_uniquely_restored_by_the_stored_hash(): void
+    {
+        $hasher = new Bt02ModelArtifactHasher;
+        $original = -1.8191075640286352;
+        $artifact = [
+            'feature_names' => ['STAT01_RACE_SCORE', 'DELTA_MEAN_RESIDUAL'],
+            'scaler_mean' => ['STAT01_RACE_SCORE' => 80.0, 'DELTA_MEAN_RESIDUAL' => 0.0],
+            'scaler_sd' => ['STAT01_RACE_SCORE' => 10.0, 'DELTA_MEAN_RESIDUAL' => 0.2],
+            'selected_lambda' => 0.01,
+            'intercept' => $original,
+            'coefficients' => [0.2, -0.3],
+            'objective_version' => Bt03SourceManifest::OBJECTIVE_VERSION,
+            'optimizer_version' => Bt03SourceManifest::OPTIMIZER_VERSION,
+            'probability_semantics' => Bt03SourceManifest::PROBABILITY_SEMANTICS,
+        ];
+        $persisted = new Bt03StoredModelDto(
+            1, 5, 8, 100, 'WF_2023', 'STAT-07', 'DELTA_MEAN_RESIDUAL', 'STRICT',
+            'IS_WIN', 'INCREMENTAL', $artifact['feature_names'], $artifact['scaler_mean'],
+            $artifact['scaler_sd'], [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0],
+            0.01, (float) sprintf('%.14g', $original), $artifact['coefficients'],
+            Bt03SourceManifest::OBJECTIVE_VERSION, Bt03SourceManifest::OPTIMIZER_VERSION,
+            Bt03SourceManifest::PROBABILITY_SEMANTICS, 'CONVERGED_GRADIENT', $hasher->hash($artifact),
+            str_repeat('d', 64),
+        );
+        $replayer = new Bt03StoredModelReplayer(new RidgeLogisticRegression, $hasher);
+
+        $restored = $replayer->restorePersistedModel($persisted);
+
+        $this->assertSame(sprintf('%.17g', $original), sprintf('%.17g', $restored->intercept));
+        $replayer->assertModel($restored);
+        $this->addToAssertionCount(1);
+    }
+
     public function test_effect_hash_requires_the_complete_contract_and_is_key_order_independent(): void
     {
         $hasher = new Bt03EffectHasher(new Bt02ModelArtifactHasher);
@@ -201,6 +234,7 @@ class Bt03FoundationContractTest extends TestCase
             $artifact['probability_semantics'],
             'CONVERGED_GRADIENT',
             $hash ?? $hasher->hash($artifact),
+            str_repeat('d', 64),
         );
     }
 

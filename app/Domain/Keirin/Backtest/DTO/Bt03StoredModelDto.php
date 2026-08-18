@@ -36,5 +36,6 @@ readonly class Bt03StoredModelDto
         public string $probabilitySemantics,
         public string $convergenceStatus,
         public string $modelHash,
+        public string $predictionManifestHash,
     ) {}
 }

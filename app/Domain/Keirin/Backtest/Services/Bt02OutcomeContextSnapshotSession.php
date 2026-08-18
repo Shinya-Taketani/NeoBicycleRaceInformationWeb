@@ -24,4 +24,13 @@ class Bt02OutcomeContextSnapshotSession
     {
         return $this->snapshot ?? throw new RuntimeException('BT-02 outcome snapshot was not activated.');
     }
+
+    public function deactivate(string $manifestHash): void
+    {
+        if ($this->snapshot === null || ! hash_equals($this->snapshot->manifestHash(), $manifestHash)) {
+            throw new RuntimeException('BT-02 outcome snapshot session release did not match the active manifest.');
+        }
+
+        $this->snapshot = null;
+    }
 }
