@@ -10,6 +10,7 @@ readonly class Bt03EvaluationSourceDto
 {
     /**
      * @param  array<string, Bt03ModelPairDto>  $modelPairs
+     * @param  array<string, Bt03ExpectedPredictionManifestsDto>  $expectedPredictionManifests
      * @param  list<Bt03SourceBinDto>  $bins
      */
     public function __construct(
@@ -23,6 +24,7 @@ readonly class Bt03EvaluationSourceDto
         public string $primaryFeatureCode,
         public string $cohortCode,
         public array $modelPairs,
+        public array $expectedPredictionManifests,
         public array $bins,
     ) {}
 }

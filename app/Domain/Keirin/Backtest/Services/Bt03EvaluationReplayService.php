@@ -21,6 +21,7 @@ use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationReplaySummaryDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationSourceDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03ModelPairDto;
 use App\Domain\Keirin\Backtest\Enums\Bt02SignalCohort;
+use App\Domain\Keirin\Backtest\Support\Bt02PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\Bt03BinEffectSpool;
 use App\Domain\Keirin\Backtest\Support\Bt03EffectHasher;
 use RuntimeException;
@@ -52,6 +53,7 @@ class Bt03EvaluationReplayService
         $this->assertSourceIdentity($source, $foldCode, $statCode, $cohortCode);
         $this->assertSelection($source, $selection);
         $labels = $selection?->labelCode !== null ? [$selection->labelCode] : self::LABELS;
+        $manifestAccumulators = $this->manifestAccumulators($source, $labels);
         $assignments = [];
         $spools = [];
         try {
@@ -95,6 +97,31 @@ class Bt03EvaluationReplayService
                 if ($assignment->binOrigin === 'UNSEEN_CATEGORY') {
                     $unseenRowCount++;
                 }
+                $entries = [];
+                foreach ($labels as $label) {
+                    $pair = $source->modelPairs[$label] ?? throw new RuntimeException("BT-03 {$label} model pair was missing.");
+                    $baselineProbability = $this->modelReplayer->probabilityFromValidatedModel($pair->baseline, [
+                        'STAT01_RACE_SCORE' => $row->baselineValue,
+                    ]);
+                    $incrementalProbability = $this->modelReplayer->probabilityFromValidatedModel($pair->incremental, [
+                        'STAT01_RACE_SCORE' => $row->baselineValue,
+                        $source->primaryFeatureCode => $row->signalValue,
+                    ]);
+                    $labelValue = $row->label($label);
+                    $manifestAccumulators[$label]->append(
+                        $row->raceId,
+                        $row->raceEntryId,
+                        $labelValue,
+                        $baselineProbability,
+                        $incrementalProbability,
+                    );
+                    $entries[$label] = new Bt03BinEffectEntryDto(
+                        $row->raceEntryId,
+                        $labelValue,
+                        $baselineProbability,
+                        $incrementalProbability,
+                    );
+                }
                 if ($selection?->trainingBinIndex !== null && $selection->trainingBinIndex !== $assignment->binIndex) {
                     continue;
                 }
@@ -106,26 +133,14 @@ class Bt03EvaluationReplayService
                     $this->createSpools($spools, $source, $assignment, $labels);
                 }
                 foreach ($labels as $label) {
-                    $pair = $source->modelPairs[$label] ?? throw new RuntimeException("BT-03 {$label} model pair was missing.");
-                    $baselineProbability = $this->modelReplayer->probabilityFromValidatedModel($pair->baseline, [
-                        'STAT01_RACE_SCORE' => $row->baselineValue,
-                    ]);
-                    $incrementalProbability = $this->modelReplayer->probabilityFromValidatedModel($pair->incremental, [
-                        'STAT01_RACE_SCORE' => $row->baselineValue,
-                        $source->primaryFeatureCode => $row->signalValue,
-                    ]);
                     $spools[$this->key($assignment->binIndex, $label)]->append(
                         $row->raceId,
-                        new Bt03BinEffectEntryDto(
-                            $row->raceEntryId,
-                            $row->label($label),
-                            $baselineProbability,
-                            $incrementalProbability,
-                        ),
+                        $entries[$label],
                     );
                 }
             }
 
+            $this->assertReplayedManifests($source, $labels, $manifestAccumulators);
             foreach ($spools as $spool) {
                 $spool->seal();
             }
@@ -209,6 +224,55 @@ class Bt03EvaluationReplayService
         return "{$binIndex}:{$label}";
     }
 
+    /**
+     * @param  list<string>  $labels
+     * @return array<string, Bt02PredictionManifestAccumulator>
+     */
+    private function manifestAccumulators(Bt03EvaluationSourceDto $source, array $labels): array
+    {
+        $accumulators = [];
+        foreach ($labels as $label) {
+            $pair = $source->modelPairs[$label] ?? throw new RuntimeException("BT-03 {$label} model pair was missing.");
+            $accumulators[$label] = new Bt02PredictionManifestAccumulator([
+                'source_manifest_hash' => Bt02SourceManifest::HASH,
+                'baseline_fingerprint_manifest_hash' => Bt02BaselineFingerprintManifest::HASH,
+                'fold' => $source->foldCode,
+                'stat_code' => $source->statCode,
+                'cohort' => $source->cohortCode,
+                'label_code' => $label,
+                'baseline_model_hash' => $pair->baseline->modelHash,
+                'incremental_model_hash' => $pair->incremental->modelHash,
+            ]);
+        }
+
+        return $accumulators;
+    }
+
+    /**
+     * @param  list<string>  $labels
+     * @param  array<string, Bt02PredictionManifestAccumulator>  $accumulators
+     */
+    private function assertReplayedManifests(Bt03EvaluationSourceDto $source, array $labels, array $accumulators): void
+    {
+        foreach ($labels as $label) {
+            $actual = $accumulators[$label]->seal();
+            $expected = $source->expectedPredictionManifests[$label]
+                ?? throw new RuntimeException("BT-03 {$label} expected prediction manifests were missing.");
+            foreach ([
+                'baseline' => [$actual->baselinePredictionManifestSha256, $expected->baselinePredictionManifestHash],
+                'incremental' => [$actual->incrementalPredictionManifestSha256, $expected->incrementalPredictionManifestHash],
+                'outcome' => [$actual->outcomeManifestSha256, $expected->outcomeManifestHash],
+            ] as $role => [$actualHash, $expectedHash]) {
+                if (! hash_equals($expectedHash, $actualHash)) {
+                    throw new RuntimeException(
+                        "BT03_REPLAY_MANIFEST_MISMATCH fold={$source->foldCode} stat={$source->statCode} "
+                        ."cohort={$source->cohortCode} label={$label} role={$role}",
+                    );
+                }
+            }
+        }
+    }
+
     /** @param array<int, true> $seenRaceIds */
     private function assertOrdered(Bt02EvaluationRowDto $row, ?int $lastRaceId, ?int $lastRaceEntryId, array &$seenRaceIds): void
     {
@@ -225,11 +289,20 @@ class Bt03EvaluationReplayService
         if ($source->sourceRunId !== Bt03SourceManifest::SOURCE_BT02_RUN_ID
             || $source->foldCode !== $foldCode || $source->statCode !== $statCode || $source->cohortCode !== $cohortCode
             || $source->sourceFoldId < 1 || $source->sourceSignalSpecId < 1 || $source->bins === []
-            || array_keys($source->modelPairs) !== self::LABELS) {
+            || array_keys($source->modelPairs) !== self::LABELS
+            || array_keys($source->expectedPredictionManifests) !== self::LABELS) {
             throw new RuntimeException('BT-03 evaluation source identity was inconsistent.');
         }
         foreach ($source->modelPairs as $label => $pair) {
             $this->assertModelOwnership($source, $label, $pair);
+            $expected = $source->expectedPredictionManifests[$label];
+            if (! $this->validSha256($expected->baselinePredictionManifestHash)
+                || ! $this->validSha256($expected->incrementalPredictionManifestHash)
+                || ! $this->validSha256($expected->outcomeManifestHash)
+                || ! hash_equals($pair->baseline->predictionManifestHash, $expected->baselinePredictionManifestHash)
+                || ! hash_equals($pair->incremental->predictionManifestHash, $expected->incrementalPredictionManifestHash)) {
+                throw new RuntimeException('BT-03 expected prediction manifest identity was inconsistent.');
+            }
         }
     }
 
@@ -240,10 +313,16 @@ class Bt03EvaluationReplayService
                 || $model->sourceFoldId !== $source->sourceFoldId
                 || $model->sourceSignalSpecId !== $source->sourceSignalSpecId
                 || $model->foldCode !== $source->foldCode || $model->statCode !== $source->statCode
-                || $model->cohortCode !== $source->cohortCode || $model->labelCode !== $label) {
+                || $model->cohortCode !== $source->cohortCode || $model->labelCode !== $label
+                || ! $this->validSha256($model->predictionManifestHash)) {
                 throw new RuntimeException('BT-03 evaluation model ownership was inconsistent.');
             }
         }
+    }
+
+    private function validSha256(string $hash): bool
+    {
+        return preg_match('/\A[0-9a-f]{64}\z/', $hash) === 1;
     }
 
     /** @return array<string, mixed> */

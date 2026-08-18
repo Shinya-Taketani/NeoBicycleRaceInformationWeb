@@ -7,6 +7,7 @@ namespace App\Domain\Keirin\Backtest\Services;
 use App\Domain\Keirin\Backtest\Calculators\Bt03StoredModelReplayer;
 use App\Domain\Keirin\Backtest\Contracts\Bt03EvaluationSourceProvider;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationSourceDto;
+use App\Domain\Keirin\Backtest\DTO\Bt03ExpectedPredictionManifestsDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03ModelPairDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03SourceBinDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03StoredModelDto;
@@ -19,6 +20,9 @@ class Bt03EvaluationSourceLoader implements Bt03EvaluationSourceProvider
 {
     /** @var list<string> */
     private const LABELS = ['IS_WIN', 'IS_TOP2', 'IS_TOP3'];
+
+    /** @var list<string> */
+    private const METRICS = ['AUC', 'LOG_LOSS', 'BRIER'];
 
     public function __construct(
         private readonly Bt03EvaluationSourceRepository $source,
@@ -59,6 +63,7 @@ class Bt03EvaluationSourceLoader implements Bt03EvaluationSourceProvider
         $foldId = (int) $fold->id;
         $specId = (int) $spec->id;
         $pairs = $this->modelPairs($foldId, $specId, $foldCode, $statCode, (string) $spec->primary_feature_code, $cohortCode);
+        $expectedPredictionManifests = $this->expectedPredictionManifests($foldId, $specId, $cohortCode, $pairs);
         $bins = $this->bins($foldId, $specId, $cohortCode);
 
         return new Bt03EvaluationSourceDto(
@@ -72,6 +77,7 @@ class Bt03EvaluationSourceLoader implements Bt03EvaluationSourceProvider
             (string) $spec->primary_feature_code,
             $cohortCode,
             $pairs,
+            $expectedPredictionManifests,
             $bins,
         );
     }
@@ -112,6 +118,67 @@ class Bt03EvaluationSourceLoader implements Bt03EvaluationSourceProvider
         }
 
         return $pairs;
+    }
+
+    /**
+     * @param  array<string, Bt03ModelPairDto>  $pairs
+     * @return array<string, Bt03ExpectedPredictionManifestsDto>
+     */
+    private function expectedPredictionManifests(int $foldId, int $specId, string $cohortCode, array $pairs): array
+    {
+        $grouped = [];
+        foreach ($this->source->metrics($foldId, $specId, $cohortCode) as $row) {
+            $label = $row->label_code ?? null;
+            $metric = $row->metric_code ?? null;
+            if ((int) ($row->backtest_run_id ?? 0) !== Bt03SourceManifest::SOURCE_BT02_RUN_ID
+                || (int) ($row->backtest_fold_id ?? 0) !== $foldId
+                || (int) ($row->backtest_signal_spec_id ?? 0) !== $specId
+                || ($row->cohort_code ?? null) !== $cohortCode
+                || ! is_string($label) || ! in_array($label, self::LABELS, true)
+                || ! is_string($metric) || ! in_array($metric, self::METRICS, true)
+                || isset($grouped[$label][$metric])) {
+                throw new RuntimeException('BT-03 source metric ownership or uniqueness was invalid.');
+            }
+            $metadata = $this->json($row->metadata ?? null, 'metric metadata');
+            $grouped[$label][$metric] = [
+                'baseline' => $this->sha256($metadata['baseline_prediction_manifest_hash'] ?? null, 'metric baseline prediction manifest'),
+                'incremental' => $this->sha256($metadata['incremental_prediction_manifest_hash'] ?? null, 'metric incremental prediction manifest'),
+                'outcome' => $this->sha256($metadata['outcome_manifest_hash'] ?? null, 'metric outcome manifest'),
+            ];
+        }
+
+        $expected = [];
+        foreach (self::LABELS as $label) {
+            $metrics = $grouped[$label] ?? [];
+            $metricCodes = array_keys($metrics);
+            sort($metricCodes, SORT_STRING);
+            $expectedMetricCodes = self::METRICS;
+            sort($expectedMetricCodes, SORT_STRING);
+            if ($metricCodes !== $expectedMetricCodes) {
+                throw new RuntimeException("BT-03 {$label} required exactly AUC, LOG_LOSS, and BRIER source metrics.");
+            }
+            $contract = $metrics[self::METRICS[0]];
+            foreach (self::METRICS as $metric) {
+                if ($metrics[$metric] !== $contract) {
+                    throw new RuntimeException("BT-03 {$label} source metric manifests were inconsistent.");
+                }
+            }
+            $pair = $pairs[$label] ?? throw new RuntimeException("BT-03 {$label} source model pair was missing.");
+            if (! hash_equals($pair->baseline->predictionManifestHash, $contract['baseline'])
+                || ! hash_equals($pair->incremental->predictionManifestHash, $contract['incremental'])) {
+                throw new RuntimeException("BT-03 {$label} model and metric prediction manifests were inconsistent.");
+            }
+            $expected[$label] = new Bt03ExpectedPredictionManifestsDto(
+                $contract['baseline'],
+                $contract['incremental'],
+                $contract['outcome'],
+            );
+        }
+        if (count($grouped) !== count(self::LABELS)) {
+            throw new RuntimeException('BT-03 source metric labels exceeded the fixed contract.');
+        }
+
+        return $expected;
     }
 
     /** @return list<Bt03SourceBinDto> */
@@ -186,6 +253,7 @@ class Bt03EvaluationSourceLoader implements Bt03EvaluationSourceProvider
             (string) $row->probability_semantics,
             (string) $row->convergence_status,
             (string) $row->model_hash,
+            $this->sha256($row->prediction_manifest_hash ?? null, 'model prediction manifest'),
         );
     }
 
@@ -222,6 +290,15 @@ class Bt03EvaluationSourceLoader implements Bt03EvaluationSourceProvider
         }
 
         return $number;
+    }
+
+    private function sha256(mixed $value, string $name): string
+    {
+        if (! is_string($value) || preg_match('/\A[0-9a-f]{64}\z/', $value) !== 1) {
+            throw new RuntimeException("BT-03 {$name} was invalid.");
+        }
+
+        return $value;
     }
 
     /** @return list<string> */

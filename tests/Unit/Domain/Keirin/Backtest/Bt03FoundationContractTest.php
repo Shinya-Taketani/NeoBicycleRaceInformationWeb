@@ -100,6 +100,7 @@ class Bt03FoundationContractTest extends TestCase
             0.01, (float) sprintf('%.14g', $original), $artifact['coefficients'],
             Bt03SourceManifest::OBJECTIVE_VERSION, Bt03SourceManifest::OPTIMIZER_VERSION,
             Bt03SourceManifest::PROBABILITY_SEMANTICS, 'CONVERGED_GRADIENT', $hasher->hash($artifact),
+            str_repeat('d', 64),
         );
         $replayer = new Bt03StoredModelReplayer(new RidgeLogisticRegression, $hasher);
 
@@ -233,6 +234,7 @@ class Bt03FoundationContractTest extends TestCase
             $artifact['probability_semantics'],
             'CONVERGED_GRADIENT',
             $hash ?? $hasher->hash($artifact),
+            str_repeat('d', 64),
         );
     }
 

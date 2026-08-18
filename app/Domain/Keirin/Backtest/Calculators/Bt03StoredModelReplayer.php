@@ -153,6 +153,7 @@ class Bt03StoredModelReplayer
             $model->probabilitySemantics,
             $model->convergenceStatus,
             $model->modelHash,
+            $model->predictionManifestHash,
         );
     }
 }

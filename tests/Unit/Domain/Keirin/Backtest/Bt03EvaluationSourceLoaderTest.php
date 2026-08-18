@@ -29,6 +29,11 @@ class Bt03EvaluationSourceLoaderTest extends TestCase
             $this->assertSame($label, $pair->baseline->labelCode);
             $this->assertSame('BASELINE_MATCHED', $pair->baseline->modelRole);
             $this->assertSame('INCREMENTAL', $pair->incremental->modelRole);
+            $this->assertSame($this->predictionHash($label, 'BASELINE_MATCHED'), $pair->baseline->predictionManifestHash);
+            $this->assertSame($this->predictionHash($label, 'INCREMENTAL'), $pair->incremental->predictionManifestHash);
+            $this->assertSame($pair->baseline->predictionManifestHash, $source->expectedPredictionManifests[$label]->baselinePredictionManifestHash);
+            $this->assertSame($pair->incremental->predictionManifestHash, $source->expectedPredictionManifests[$label]->incrementalPredictionManifestHash);
+            $this->assertSame($this->outcomeHash($label), $source->expectedPredictionManifests[$label]->outcomeManifestHash);
         }
         $this->assertSame([1, 2], array_column($source->bins, 'index'));
         $this->assertSame([9001, 9002], array_column($source->bins, 'sourceEffectBinId'));
@@ -81,6 +86,81 @@ class Bt03EvaluationSourceLoaderTest extends TestCase
         $this->loader(bins: $bins)->load('WF_2023', 'STAT-07', 'STRICT');
     }
 
+    public function test_metric_contract_requires_exactly_one_auc_log_loss_and_brier(): void
+    {
+        $missing = $this->metricRows();
+        array_pop($missing);
+        try {
+            $this->loader(metrics: $missing)->load('WF_2023', 'STAT-07', 'STRICT');
+            $this->fail('A missing metric must be rejected.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('required exactly AUC', $exception->getMessage());
+        }
+
+        $duplicate = $this->metricRows();
+        $duplicate[] = clone $duplicate[0];
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('metric ownership or uniqueness');
+        $this->loader(metrics: $duplicate)->load('WF_2023', 'STAT-07', 'STRICT');
+    }
+
+    public function test_three_metrics_must_agree_on_every_manifest_role(): void
+    {
+        foreach ([
+            'outcome_manifest_hash',
+            'baseline_prediction_manifest_hash',
+            'incremental_prediction_manifest_hash',
+        ] as $key) {
+            $metrics = $this->metricRows();
+            $metadata = json_decode((string) $metrics[1]->metadata, true, flags: JSON_THROW_ON_ERROR);
+            $metadata[$key] = str_repeat('f', 64);
+            $metrics[1]->metadata = json_encode($metadata, JSON_THROW_ON_ERROR);
+            try {
+                $this->loader(metrics: $metrics)->load('WF_2023', 'STAT-07', 'STRICT');
+                $this->fail("An inconsistent {$key} must be rejected.");
+            } catch (RuntimeException $exception) {
+                $this->assertStringContainsString('source metric manifests were inconsistent', $exception->getMessage());
+            }
+        }
+    }
+
+    public function test_model_and_metric_prediction_manifests_must_match(): void
+    {
+        $metrics = $this->metricRows();
+        foreach ($metrics as $metric) {
+            if ($metric->label_code !== 'IS_WIN') {
+                continue;
+            }
+            $metadata = json_decode((string) $metric->metadata, true, flags: JSON_THROW_ON_ERROR);
+            $metadata['baseline_prediction_manifest_hash'] = str_repeat('f', 64);
+            $metric->metadata = json_encode($metadata, JSON_THROW_ON_ERROR);
+        }
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('model and metric prediction manifests were inconsistent');
+        $this->loader(metrics: $metrics)->load('WF_2023', 'STAT-07', 'STRICT');
+    }
+
+    public function test_null_or_malformed_manifest_hashes_fail_closed(): void
+    {
+        $models = $this->modelRows();
+        $models[0]->prediction_manifest_hash = null;
+        try {
+            $this->loader(models: $models)->load('WF_2023', 'STAT-07', 'STRICT');
+            $this->fail('A null model prediction manifest must be rejected.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('model prediction manifest was invalid', $exception->getMessage());
+        }
+
+        $metrics = $this->metricRows();
+        $metadata = json_decode((string) $metrics[0]->metadata, true, flags: JSON_THROW_ON_ERROR);
+        $metadata['outcome_manifest_hash'] = 'NOT-A-SHA256';
+        $metrics[0]->metadata = json_encode($metadata, JSON_THROW_ON_ERROR);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('metric outcome manifest was invalid');
+        $this->loader(metrics: $metrics)->load('WF_2023', 'STAT-07', 'STRICT');
+    }
+
     public function test_2026_evaluation_period_is_rejected(): void
     {
         $fold = $this->fold();
@@ -92,16 +172,17 @@ class Bt03EvaluationSourceLoaderTest extends TestCase
         $this->loader(folds: [$fold])->load('WF_2023', 'STAT-07', 'STRICT');
     }
 
-    /** @param list<object>|null $folds @param list<object>|null $models @param list<object>|null $bins */
-    private function loader(?array $folds = null, ?array $models = null, ?array $bins = null): Bt03EvaluationSourceLoader
+    /** @param list<object>|null $folds @param list<object>|null $models @param list<object>|null $metrics @param list<object>|null $bins */
+    private function loader(?array $folds = null, ?array $models = null, ?array $metrics = null, ?array $bins = null): Bt03EvaluationSourceLoader
     {
-        $repository = new class($folds ?? [$this->fold()], [$this->spec()], $models ?? $this->modelRows(), $bins ?? $this->binRows()) extends Bt03EvaluationSourceRepository
+        $repository = new class($folds ?? [$this->fold()], [$this->spec()], $models ?? $this->modelRows(), $metrics ?? $this->metricRows(), $bins ?? $this->binRows()) extends Bt03EvaluationSourceRepository
         {
-            /** @param list<object> $folds @param list<object> $specs @param list<object> $models @param list<object> $bins */
+            /** @param list<object> $folds @param list<object> $specs @param list<object> $models @param list<object> $metrics @param list<object> $bins */
             public function __construct(
                 private readonly array $foldRows,
                 private readonly array $specRows,
                 private readonly array $modelRows,
+                private readonly array $metricRows,
                 private readonly array $binRows,
             ) {}
 
@@ -118,6 +199,11 @@ class Bt03EvaluationSourceLoaderTest extends TestCase
             public function models(int $foldId, int $signalSpecId, string $cohortCode): array
             {
                 return $this->modelRows;
+            }
+
+            public function metrics(int $foldId, int $signalSpecId, string $cohortCode): array
+            {
+                return $this->metricRows;
             }
 
             public function bins(int $foldId, int $signalSpecId, string $cohortCode): array
@@ -201,11 +287,50 @@ class Bt03EvaluationSourceLoaderTest extends TestCase
                     'probability_semantics' => Bt03SourceManifest::PROBABILITY_SEMANTICS,
                     'convergence_status' => 'CONVERGED_GRADIENT',
                     'model_hash' => (new Bt02ModelArtifactHasher)->hash($artifact),
+                    'prediction_manifest_hash' => $this->predictionHash($label, $role),
                 ];
             }
         }
 
         return $rows;
+    }
+
+    /** @return list<object> */
+    private function metricRows(): array
+    {
+        $rows = [];
+        $id = 2000;
+        foreach (['IS_WIN', 'IS_TOP2', 'IS_TOP3'] as $label) {
+            $metadata = json_encode([
+                'outcome_manifest_hash' => $this->outcomeHash($label),
+                'baseline_prediction_manifest_hash' => $this->predictionHash($label, 'BASELINE_MATCHED'),
+                'incremental_prediction_manifest_hash' => $this->predictionHash($label, 'INCREMENTAL'),
+            ], JSON_THROW_ON_ERROR);
+            foreach (['AUC', 'LOG_LOSS', 'BRIER'] as $metric) {
+                $rows[] = (object) [
+                    'id' => ++$id,
+                    'backtest_run_id' => 5,
+                    'backtest_fold_id' => 81,
+                    'backtest_signal_spec_id' => 701,
+                    'cohort_code' => 'STRICT',
+                    'label_code' => $label,
+                    'metric_code' => $metric,
+                    'metadata' => $metadata,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function predictionHash(string $label, string $role): string
+    {
+        return hash('sha256', "{$label}:{$role}:prediction");
+    }
+
+    private function outcomeHash(string $label): string
+    {
+        return hash('sha256', "{$label}:outcome");
     }
 
     /** @return list<object> */

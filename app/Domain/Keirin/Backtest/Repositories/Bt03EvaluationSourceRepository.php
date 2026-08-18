@@ -44,6 +44,20 @@ class Bt03EvaluationSourceRepository
     }
 
     /** @return list<object> */
+    public function metrics(int $foldId, int $signalSpecId, string $cohortCode): array
+    {
+        return DB::table('backtest_signal_metrics')
+            ->where('backtest_run_id', Bt03SourceManifest::SOURCE_BT02_RUN_ID)
+            ->where('backtest_fold_id', $foldId)
+            ->where('backtest_signal_spec_id', $signalSpecId)
+            ->where('cohort_code', $cohortCode)
+            ->orderBy('label_code')
+            ->orderBy('metric_code')
+            ->orderBy('id')
+            ->get()->all();
+    }
+
+    /** @return list<object> */
     public function bins(int $foldId, int $signalSpecId, string $cohortCode): array
     {
         return DB::table('backtest_effect_bins')

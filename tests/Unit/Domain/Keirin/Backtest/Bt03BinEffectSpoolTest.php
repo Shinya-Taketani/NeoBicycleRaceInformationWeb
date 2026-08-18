@@ -73,6 +73,24 @@ class Bt03BinEffectSpoolTest extends TestCase
         iterator_to_array($spool->payloads(), false);
     }
 
+    public function test_corruption_after_first_payload_fails_during_the_same_replay_pass(): void
+    {
+        $spool = $this->spool();
+        $spool->append(10, new Bt03BinEffectEntryDto(101, 1, 0.2, 0.3));
+        $spool->append(11, new Bt03BinEffectEntryDto(102, 0, 0.4, 0.5));
+        $spool->append(12, new Bt03BinEffectEntryDto(103, 1, 0.6, 0.7));
+        $spool->seal();
+        $payloads = $spool->payloads();
+
+        $this->assertSame(10, $payloads->current()->raceId);
+        file_put_contents($spool->path(), "corrupt\n", FILE_APPEND);
+
+        $this->expectException(RuntimeException::class);
+        while ($payloads->valid()) {
+            $payloads->next();
+        }
+    }
+
     public function test_race_reappearance_and_duplicate_entry_fail_closed(): void
     {
         $spool = $this->spool();

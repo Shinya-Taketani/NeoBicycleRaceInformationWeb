@@ -118,20 +118,38 @@ class Bt03BinEffectSpool
     /** @return \Generator<int, Bt03RaceBinPayloadDto> */
     public function payloads(): \Generator
     {
-        $this->verify();
+        $metadata = $this->metadata();
         $handle = fopen($this->path, 'rb');
         if ($handle === false) {
             throw new RuntimeException('Could not replay the BT-03 bin effect spool.');
         }
+        $hash = hash_init('sha256');
+        $rows = $races = $bytes = 0;
+        $lastRaceId = $lastRaceEntryId = null;
+        $seenRaceIds = [];
         try {
             $header = fgets($handle);
             if ($header !== $this->header()) {
-                throw new RuntimeException('BT-03 bin effect spool header changed after verification.');
+                throw new RuntimeException('BT-03 bin effect spool identity header was invalid.');
             }
+            hash_update($hash, $header);
+            $bytes += strlen($header);
             $raceId = null;
             $entries = [];
             while (($line = fgets($handle)) !== false) {
+                if (! str_ends_with($line, "\n")) {
+                    throw new RuntimeException('BT-03 bin effect spool row did not end with LF.');
+                }
                 [$nextRaceId, $entry] = $this->decode($line);
+                $this->assertOrdered($nextRaceId, $entry->raceEntryId, $lastRaceId, $lastRaceEntryId, $seenRaceIds);
+                if ($nextRaceId !== $lastRaceId) {
+                    $races++;
+                }
+                $lastRaceId = $nextRaceId;
+                $lastRaceEntryId = $entry->raceEntryId;
+                $rows++;
+                $bytes += strlen($line);
+                hash_update($hash, $line);
                 if ($raceId !== null && $nextRaceId !== $raceId) {
                     yield new Bt03RaceBinPayloadDto($raceId, $entries);
                     $entries = [];
@@ -144,6 +162,10 @@ class Bt03BinEffectSpool
             }
             if ($raceId !== null) {
                 yield new Bt03RaceBinPayloadDto($raceId, $entries);
+            }
+            if ($rows !== $metadata->rowCount || $races !== $metadata->raceCount || $bytes !== $metadata->byteCount
+                || ! hash_equals($metadata->sha256, hash_final($hash))) {
+                throw new RuntimeException('BT-03 bin effect spool did not match its seal metadata.');
             }
         } finally {
             fclose($handle);
@@ -171,51 +193,6 @@ class Bt03BinEffectSpool
     public function __destruct()
     {
         $this->cleanup();
-    }
-
-    private function verify(): void
-    {
-        $metadata = $this->metadata();
-        $handle = fopen($this->path, 'rb');
-        if ($handle === false) {
-            throw new RuntimeException('Could not verify the BT-03 bin effect spool.');
-        }
-        $hash = hash_init('sha256');
-        $rows = $races = $bytes = 0;
-        $lastRaceId = $lastRaceEntryId = null;
-        $seenRaceIds = [];
-        try {
-            $header = fgets($handle);
-            if ($header !== $this->header()) {
-                throw new RuntimeException('BT-03 bin effect spool identity header was invalid.');
-            }
-            hash_update($hash, $header);
-            $bytes += strlen($header);
-            while (($line = fgets($handle)) !== false) {
-                if (! str_ends_with($line, "\n")) {
-                    throw new RuntimeException('BT-03 bin effect spool row did not end with LF.');
-                }
-                [$raceId, $entry] = $this->decode($line);
-                $this->assertOrdered($raceId, $entry->raceEntryId, $lastRaceId, $lastRaceEntryId, $seenRaceIds);
-                if ($raceId !== $lastRaceId) {
-                    $races++;
-                }
-                $lastRaceId = $raceId;
-                $lastRaceEntryId = $entry->raceEntryId;
-                $rows++;
-                $bytes += strlen($line);
-                hash_update($hash, $line);
-            }
-            if (! feof($handle)) {
-                throw new RuntimeException('Could not fully verify the BT-03 bin effect spool.');
-            }
-            if ($rows !== $metadata->rowCount || $races !== $metadata->raceCount || $bytes !== $metadata->byteCount
-                || ! hash_equals($metadata->sha256, hash_final($hash))) {
-                throw new RuntimeException('BT-03 bin effect spool did not match its seal metadata.');
-            }
-        } finally {
-            fclose($handle);
-        }
     }
 
     /** @return array{int, Bt03BinEffectEntryDto} */

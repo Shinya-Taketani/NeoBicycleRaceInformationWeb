@@ -19,13 +19,17 @@ use App\Domain\Keirin\Backtest\DTO\Bt02EvaluationRowDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03ComputedBinEffectDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationReplaySelectionDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationSourceDto;
+use App\Domain\Keirin\Backtest\DTO\Bt03ExpectedPredictionManifestsDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03ModelPairDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03SourceBinDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03StoredModelDto;
 use App\Domain\Keirin\Backtest\Enums\Bt02SignalCohort;
+use App\Domain\Keirin\Backtest\Services\Bt02BaselineFingerprintManifest;
+use App\Domain\Keirin\Backtest\Services\Bt02SourceManifest;
 use App\Domain\Keirin\Backtest\Services\Bt03EvaluationReplayService;
 use App\Domain\Keirin\Backtest\Services\Bt03SourceManifest;
 use App\Domain\Keirin\Backtest\Support\Bt02ModelArtifactHasher;
+use App\Domain\Keirin\Backtest\Support\Bt02PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\Bt03EffectHasher;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
@@ -170,6 +174,62 @@ class Bt03EvaluationReplayServiceTest extends TestCase
         $this->assertSame(1, $summary->effects[0]->result->evaluationSampleCount);
     }
 
+    public function test_each_replayed_manifest_role_must_exactly_match_the_bt02_oracle_and_cleanup_spools(): void
+    {
+        $rows = [
+            $this->row(10, 101, -1.0, true, true, true),
+            $this->row(11, 102, 1.0, false, false, false),
+        ];
+
+        foreach (['baseline', 'incremental', 'outcome'] as $role) {
+            $source = $this->withExpectedManifests($this->numericSource(), $rows);
+            $source = $this->withManifestMismatch($source, 'IS_WIN', $role);
+            try {
+                $this->service($source, $rows, hydrateManifests: false)
+                    ->replay('WF_2023', 'STAT-07', 'STRICT', 5, 20260812);
+                $this->fail("A mismatched {$role} manifest must fail before effect calculation.");
+            } catch (RuntimeException $exception) {
+                $this->assertStringContainsString('BT03_REPLAY_MANIFEST_MISMATCH', $exception->getMessage());
+                $this->assertStringContainsString('fold=WF_2023 stat=STAT-07 cohort=STRICT label=IS_WIN', $exception->getMessage());
+                $this->assertStringContainsString("role={$role}", $exception->getMessage());
+            }
+            $this->assertSame([], glob($this->directory.'/*') ?: []);
+        }
+    }
+
+    public function test_training_bin_selection_still_verifies_the_full_evaluation_universe(): void
+    {
+        $rows = [
+            $this->row(10, 101, -1.0, true, true, true),
+            $this->row(11, 102, 1.0, false, false, false),
+        ];
+        $source = $this->withExpectedManifests($this->numericSource(), $rows);
+
+        $summary = $this->service($source, $rows, hydrateManifests: false)->replay(
+            'WF_2023',
+            'STAT-07',
+            'STRICT',
+            5,
+            20260812,
+            new Bt03EvaluationReplaySelectionDto(2, 'IS_WIN'),
+        );
+
+        $this->assertCount(1, $summary->effects);
+        $this->assertSame(1, $summary->effects[0]->result->evaluationSampleCount);
+
+        $selectedBinOnly = $this->withExpectedManifests($this->numericSource(), [$rows[1]]);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('BT03_REPLAY_MANIFEST_MISMATCH');
+        $this->service($selectedBinOnly, $rows, hydrateManifests: false)->replay(
+            'WF_2023',
+            'STAT-07',
+            'STRICT',
+            5,
+            20260812,
+            new Bt03EvaluationReplaySelectionDto(2, 'IS_WIN'),
+        );
+    }
+
     public function test_failure_cleans_every_spool_and_rejects_race_reappearance(): void
     {
         $rows = [
@@ -177,9 +237,10 @@ class Bt03EvaluationReplayServiceTest extends TestCase
             $this->row(11, 102, 1.0, false, false, false),
             $this->row(10, 103, -0.5, false, true, true),
         ];
+        $source = $this->withExpectedManifests($this->numericSource(), array_slice($rows, 0, 2));
 
         try {
-            $this->service($this->numericSource(), $rows)->replay('WF_2023', 'STAT-07', 'STRICT', 5, 20260812);
+            $this->service($source, $rows, hydrateManifests: false)->replay('WF_2023', 'STAT-07', 'STRICT', 5, 20260812);
             $this->fail('A race reappearing after another race must be rejected.');
         } catch (RuntimeException $exception) {
             $this->assertStringContainsString('race grouping', $exception->getMessage());
@@ -206,6 +267,7 @@ class Bt03EvaluationReplayServiceTest extends TestCase
             $source->primaryFeatureCode,
             $source->cohortCode,
             array_replace($source->modelPairs, ['IS_WIN' => $wrong]),
+            $source->expectedPredictionManifests,
             $source->bins,
         );
 
@@ -226,8 +288,15 @@ class Bt03EvaluationReplayServiceTest extends TestCase
     }
 
     /** @param list<Bt02EvaluationRowDto|mixed> $rows */
-    private function service(Bt03EvaluationSourceDto $source, array $rows, int $chunkSize = 100): Bt03EvaluationReplayService
-    {
+    private function service(
+        Bt03EvaluationSourceDto $source,
+        array $rows,
+        int $chunkSize = 100,
+        bool $hydrateManifests = true,
+    ): Bt03EvaluationReplayService {
+        if ($hydrateManifests) {
+            $source = $this->withExpectedManifests($source, $rows);
+        }
         $provider = new class($source) implements Bt03EvaluationSourceProvider
         {
             public function __construct(private readonly Bt03EvaluationSourceDto $source) {}
@@ -310,6 +379,7 @@ class Bt03EvaluationReplayServiceTest extends TestCase
             'STAT07_WIN_RATE',
             'STRICT',
             $pairs,
+            [],
             $bins,
         );
     }
@@ -354,6 +424,139 @@ class Bt03EvaluationReplayServiceTest extends TestCase
             Bt03SourceManifest::PROBABILITY_SEMANTICS,
             'CONVERGED_GRADIENT',
             (new Bt02ModelArtifactHasher)->hash($artifact),
+            str_repeat('0', 64),
+        );
+    }
+
+    /** @param list<Bt02EvaluationRowDto> $rows */
+    private function withExpectedManifests(Bt03EvaluationSourceDto $source, array $rows): Bt03EvaluationSourceDto
+    {
+        $replayer = new Bt03StoredModelReplayer(new RidgeLogisticRegression, new Bt02ModelArtifactHasher);
+        $pairs = [];
+        $expected = [];
+        foreach (Bt03EvaluationReplayService::LABELS as $label) {
+            $pair = $source->modelPairs[$label];
+            $accumulator = new Bt02PredictionManifestAccumulator($this->manifestIdentity($source, $label, $pair));
+            foreach ($rows as $row) {
+                $accumulator->append(
+                    $row->raceId,
+                    $row->raceEntryId,
+                    $row->label($label),
+                    $replayer->probabilityFromValidatedModel($pair->baseline, ['STAT01_RACE_SCORE' => $row->baselineValue]),
+                    $replayer->probabilityFromValidatedModel($pair->incremental, [
+                        'STAT01_RACE_SCORE' => $row->baselineValue,
+                        $source->primaryFeatureCode => $row->signalValue,
+                    ]),
+                );
+            }
+            $manifests = $accumulator->seal();
+            $pairs[$label] = new Bt03ModelPairDto(
+                $this->withPredictionManifest($pair->baseline, $manifests->baselinePredictionManifestSha256),
+                $this->withPredictionManifest($pair->incremental, $manifests->incrementalPredictionManifestSha256),
+            );
+            $expected[$label] = new Bt03ExpectedPredictionManifestsDto(
+                $manifests->baselinePredictionManifestSha256,
+                $manifests->incrementalPredictionManifestSha256,
+                $manifests->outcomeManifestSha256,
+            );
+        }
+
+        return new Bt03EvaluationSourceDto(
+            $source->sourceRunId,
+            $source->sourceFoldId,
+            $source->foldCode,
+            $source->evaluationFrom,
+            $source->evaluationTo,
+            $source->sourceSignalSpecId,
+            $source->statCode,
+            $source->primaryFeatureCode,
+            $source->cohortCode,
+            $pairs,
+            $expected,
+            $source->bins,
+        );
+    }
+
+    /** @return array<string, string> */
+    private function manifestIdentity(Bt03EvaluationSourceDto $source, string $label, Bt03ModelPairDto $pair): array
+    {
+        return [
+            'source_manifest_hash' => Bt02SourceManifest::HASH,
+            'baseline_fingerprint_manifest_hash' => Bt02BaselineFingerprintManifest::HASH,
+            'fold' => $source->foldCode,
+            'stat_code' => $source->statCode,
+            'cohort' => $source->cohortCode,
+            'label_code' => $label,
+            'baseline_model_hash' => $pair->baseline->modelHash,
+            'incremental_model_hash' => $pair->incremental->modelHash,
+        ];
+    }
+
+    private function withPredictionManifest(Bt03StoredModelDto $model, string $hash): Bt03StoredModelDto
+    {
+        return new Bt03StoredModelDto(
+            $model->modelId,
+            $model->sourceRunId,
+            $model->sourceFoldId,
+            $model->sourceSignalSpecId,
+            $model->foldCode,
+            $model->statCode,
+            $model->primaryFeatureCode,
+            $model->cohortCode,
+            $model->labelCode,
+            $model->modelRole,
+            $model->featureNames,
+            $model->scalerMean,
+            $model->scalerSd,
+            $model->lambdaCandidates,
+            $model->selectedLambda,
+            $model->intercept,
+            $model->coefficients,
+            $model->objectiveVersion,
+            $model->optimizerVersion,
+            $model->probabilitySemantics,
+            $model->convergenceStatus,
+            $model->modelHash,
+            $hash,
+        );
+    }
+
+    private function withManifestMismatch(Bt03EvaluationSourceDto $source, string $label, string $role): Bt03EvaluationSourceDto
+    {
+        $manifests = $source->expectedPredictionManifests;
+        $current = $manifests[$label];
+        $replacement = str_repeat('f', 64);
+        $manifests[$label] = new Bt03ExpectedPredictionManifestsDto(
+            $role === 'baseline' ? $replacement : $current->baselinePredictionManifestHash,
+            $role === 'incremental' ? $replacement : $current->incrementalPredictionManifestHash,
+            $role === 'outcome' ? $replacement : $current->outcomeManifestHash,
+        );
+        $pairs = $source->modelPairs;
+        if ($role === 'baseline') {
+            $pairs[$label] = new Bt03ModelPairDto(
+                $this->withPredictionManifest($pairs[$label]->baseline, $replacement),
+                $pairs[$label]->incremental,
+            );
+        } elseif ($role === 'incremental') {
+            $pairs[$label] = new Bt03ModelPairDto(
+                $pairs[$label]->baseline,
+                $this->withPredictionManifest($pairs[$label]->incremental, $replacement),
+            );
+        }
+
+        return new Bt03EvaluationSourceDto(
+            $source->sourceRunId,
+            $source->sourceFoldId,
+            $source->foldCode,
+            $source->evaluationFrom,
+            $source->evaluationTo,
+            $source->sourceSignalSpecId,
+            $source->statCode,
+            $source->primaryFeatureCode,
+            $source->cohortCode,
+            $pairs,
+            $manifests,
+            $source->bins,
         );
     }
 
