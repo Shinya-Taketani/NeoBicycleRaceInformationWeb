@@ -11,6 +11,11 @@ class Bt03OutcomeSnapshotVerifier
 {
     public function verify(string $auditPath): string
     {
+        return $this->open($auditPath)->manifestHash();
+    }
+
+    public function open(string $auditPath): Bt02OutcomeContextSnapshotArtifact
+    {
         if (! str_ends_with($auditPath, '/'.Bt03SourceManifest::OUTCOME_SNAPSHOT_MANIFEST_HASH)) {
             throw new RuntimeException('BT-03 outcome snapshot audit path did not match the fixed manifest.');
         }
@@ -20,6 +25,6 @@ class Bt03OutcomeSnapshotVerifier
         }
         $snapshot->verify();
 
-        return $snapshot->manifestHash();
+        return $snapshot;
     }
 }
