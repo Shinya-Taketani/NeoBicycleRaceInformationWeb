@@ -38,7 +38,8 @@ class Bt03BinEffectMigrationTest extends TestCase
             fn (string $table): string => str_contains($table, '.') ? substr($table, strrpos($table, '.') + 1) : $table,
             Schema::getTableListing(),
         ), fn (string $table): bool => str_starts_with($table, 'backtest_bin_effect')));
-        $this->assertSame(['backtest_bin_effects'], $bt03Tables);
+        sort($bt03Tables);
+        $this->assertSame(['backtest_bin_effect_scopes', 'backtest_bin_effects'], $bt03Tables);
     }
 
     public function test_all_foreign_keys_reference_backtest_tables_and_required_indexes_exist(): void
