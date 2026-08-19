@@ -71,7 +71,20 @@ class Bt03BinEffectsCommandTest extends TestCase
             ->expectsOutputToContain('BT-03 BIN EFFECT PRODUCTION SUCCEEDED')
             ->expectsOutputToContain('run_id=91')
             ->expectsOutputToContain('scopes=72/72')
+            ->expectsOutputToContain('skipped_scopes=17')
             ->expectsOutputToContain('effects=2007')
+            ->assertExitCode(0);
+    }
+
+    public function test_fresh_execute_reports_zero_skipped_scopes(): void
+    {
+        $service = Mockery::mock(Bt03BinEffectProductionService::class);
+        $service->shouldReceive('execute')->once()->with(null, Mockery::type('callable'))
+            ->andReturn(new Bt03ProductionSummaryDto(92, 'fresh-run-uuid', 72, 72, 0, 2004, 0, str_repeat('b', 64)));
+        $this->app->instance(Bt03BinEffectProductionService::class, $service);
+
+        $this->artisan('keirin:backtest:bt03-bin-effects', ['--execute' => true])
+            ->expectsOutputToContain('skipped_scopes=0')
             ->assertExitCode(0);
     }
 

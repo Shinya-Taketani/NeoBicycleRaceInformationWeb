@@ -80,6 +80,7 @@ class Bt03BinEffectsCommand extends Command
         $this->line("run_id={$summary->runId}");
         $this->line("run_uuid={$summary->runUuid}");
         $this->line("scopes={$summary->completedScopeCount}/{$summary->scopeCount}");
+        $this->line("skipped_scopes={$summary->skippedScopeCount}");
         $this->line("effects={$summary->effectCount}");
         $this->line("unseen_scopes={$summary->unseenScopeCount}");
         $this->line("effect_manifest_hash={$summary->effectManifestHash}");

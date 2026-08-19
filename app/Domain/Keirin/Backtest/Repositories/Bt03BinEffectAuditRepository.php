@@ -175,28 +175,58 @@ class Bt03BinEffectAuditRepository
     /** @return list<BacktestBinEffectScope> */
     public function scopes(BacktestRun $run): array
     {
+        $physicalCount = BacktestBinEffectScope::query()
+            ->where('backtest_run_id', $run->id)
+            ->count();
+        if ($physicalCount !== Bt03ProductionContract::SCOPE_COUNT) {
+            throw new RuntimeException('BT-03 Production scope ledger physical row count was invalid.');
+        }
+
         $rows = BacktestBinEffectScope::query()
             ->select('backtest_bin_effect_scopes.*', 'backtest_folds.fold_code', 'backtest_signal_specs.stat_code')
             ->join('backtest_folds', 'backtest_folds.id', '=', 'backtest_bin_effect_scopes.backtest_fold_id')
             ->join('backtest_signal_specs', 'backtest_signal_specs.id', '=', 'backtest_bin_effect_scopes.backtest_signal_spec_id')
             ->where('backtest_bin_effect_scopes.backtest_run_id', $run->id)
-            ->get()
-            ->keyBy(fn (BacktestBinEffectScope $scope): string => $this->scopeKey(
+            ->get();
+        if ($rows->count() !== $physicalCount) {
+            throw new RuntimeException('BT-03 Production scope ledger ownership joins were incomplete.');
+        }
+
+        $byKey = [];
+        foreach ($rows as $scope) {
+            $key = $this->scopeKey(
                 (string) $scope->fold_code,
                 (string) $scope->stat_code,
                 (string) $scope->cohort_code,
-            ));
+            );
+            if (isset($byKey[$key])) {
+                throw new RuntimeException('BT-03 Production scope ledger semantic key was duplicated.');
+            }
+            $byKey[$key] = $scope;
+        }
+
+        $expectedKeys = array_map(
+            fn ($definition): string => $this->scopeKey(
+                $definition->foldCode,
+                $definition->statCode,
+                $definition->cohortCode,
+            ),
+            $this->contract->scopes(),
+        );
+        $actualKeys = array_keys($byKey);
+        sort($expectedKeys);
+        sort($actualKeys);
+        if ($actualKeys !== $expectedKeys) {
+            throw new RuntimeException('BT-03 Production scope ledger semantic set differed from the fixed contract.');
+        }
 
         $ordered = [];
         foreach ($this->contract->scopes() as $definition) {
-            $scope = $rows->get($this->scopeKey($definition->foldCode, $definition->statCode, $definition->cohortCode));
+            $scope = $byKey[$this->scopeKey($definition->foldCode, $definition->statCode, $definition->cohortCode)] ?? null;
             if (! $scope instanceof BacktestBinEffectScope) {
                 throw new RuntimeException('BT-03 Production scope ledger was incomplete.');
             }
             $ordered[] = $scope;
-        }
-        if ($rows->count() !== Bt03ProductionContract::SCOPE_COUNT) {
-            throw new RuntimeException('BT-03 Production scope ledger exceeded the fixed contract.');
         }
 
         return $ordered;
@@ -333,6 +363,7 @@ class Bt03BinEffectAuditRepository
             throw new RuntimeException('BT-03 Production skipped scope count was invalid.');
         }
         $scopes = $this->scopes($run);
+        $this->assertRunWideEffectOwnership($run, $scopes);
         $effectCount = $unseenScopes = 0;
         foreach ($scopes as $scope) {
             $effectCount += $this->verifySucceededScope($scope);
@@ -508,7 +539,8 @@ class Bt03BinEffectAuditRepository
                 throw new RuntimeException('BT-03 Production target signal spec differed from its fixed source.');
             }
         }
-        foreach ($this->scopes($run) as $index => $scope) {
+        $scopes = $this->scopes($run);
+        foreach ($scopes as $index => $scope) {
             $definition = $this->contract->scopes()[$index];
             $sourceFold = $sourceFolds[$definition->foldCode];
             $sourceSpec = $sourceSpecs[$definition->statCode];
@@ -538,6 +570,7 @@ class Bt03BinEffectAuditRepository
                 throw new RuntimeException('BT-03 Production incomplete scope contained partial effects.');
             }
         }
+        $this->assertRunWideEffectOwnership($run, $scopes);
     }
 
     /** @param list<Bt03ComputedBinEffectDto> $effects */
@@ -655,10 +688,7 @@ class Bt03BinEffectAuditRepository
             }
             if ($row->bin_origin === 'TRAINING_BIN') {
                 $bin = $liveBins->get((int) $row->source_backtest_effect_bin_id);
-                if ($bin === null || (int) $bin->bin_index !== (int) $row->bin_index
-                    || $bin->boundaries_hash !== $row->boundaries_hash) {
-                    throw new RuntimeException('BT-03 Production persisted effect bin ownership was invalid.');
-                }
+                $this->assertPersistedSourceBinSemantics($bin, $row);
             } elseif ($row->bin_origin !== 'UNSEEN_CATEGORY'
                 || $row->source_backtest_effect_bin_id !== null
                 || (int) $row->bin_index !== 0) {
@@ -923,6 +953,52 @@ class Bt03BinEffectAuditRepository
             ->count();
     }
 
+    /** @param list<BacktestBinEffectScope> $scopes */
+    private function assertRunWideEffectOwnership(BacktestRun $run, array $scopes): void
+    {
+        $canonicalCounts = [];
+        foreach ($scopes as $scope) {
+            $canonicalCounts[$this->scopeArtifactKey(
+                (int) $scope->backtest_fold_id,
+                (int) $scope->backtest_signal_spec_id,
+                (string) $scope->cohort_code,
+            )] = 0;
+        }
+
+        $groups = DB::table('backtest_bin_effects')
+            ->select([
+                'backtest_fold_id',
+                'backtest_signal_spec_id',
+                'cohort_code',
+                DB::raw('COUNT(*) AS effect_count'),
+            ])
+            ->where('backtest_run_id', $run->id)
+            ->groupBy('backtest_fold_id', 'backtest_signal_spec_id', 'cohort_code')
+            ->get();
+        foreach ($groups as $group) {
+            $key = $this->scopeArtifactKey(
+                (int) $group->backtest_fold_id,
+                (int) $group->backtest_signal_spec_id,
+                (string) $group->cohort_code,
+            );
+            if (! array_key_exists($key, $canonicalCounts)) {
+                throw new RuntimeException('BT-03 Production target run contained an orphan effect.');
+            }
+            $canonicalCounts[$key] = (int) $group->effect_count;
+        }
+
+        $physicalCount = DB::table('backtest_bin_effects')
+            ->where('backtest_run_id', $run->id)
+            ->count();
+        $canonicalTotal = array_sum(array_map(
+            fn (BacktestBinEffectScope $scope): int => $this->effectCount($scope),
+            $scopes,
+        ));
+        if ($physicalCount !== $canonicalTotal || $canonicalTotal !== array_sum($canonicalCounts)) {
+            throw new RuntimeException('BT-03 Production run-wide effect total was invalid.');
+        }
+    }
+
     private function finalizeFailedFolds(BacktestRun $run, DateTimeImmutable $now): void
     {
         foreach (BacktestFold::query()->where('backtest_run_id', $run->id)->get() as $fold) {
@@ -1013,6 +1089,44 @@ class Bt03BinEffectAuditRepository
         return $float;
     }
 
+    private function canonicalFloatsMatch(mixed $left, mixed $right): bool
+    {
+        if ($left === null || $right === null) {
+            return $left === null && $right === null;
+        }
+
+        return $this->canonicalFloat($this->nullableFloat($left))
+            === $this->canonicalFloat($this->nullableFloat($right));
+    }
+
+    private function assertPersistedSourceBinSemantics(?object $bin, object $effect): void
+    {
+        $comparisons = [
+            'source_backtest_effect_bin_id' => $bin !== null
+                && (int) $bin->id === (int) $effect->source_backtest_effect_bin_id,
+            'bin_index' => $bin !== null && (int) $bin->bin_index === (int) $effect->bin_index,
+            'bin_kind' => $bin !== null && (string) $bin->bin_kind === (string) $effect->bin_kind,
+            'lower_bound' => $bin !== null && $this->canonicalFloatsMatch($bin->lower_bound, $effect->lower_bound),
+            'upper_bound' => $bin !== null && $this->canonicalFloatsMatch($bin->upper_bound, $effect->upper_bound),
+            'category_value' => $bin !== null
+                && $this->nullableString($bin->category_value) === $this->nullableString($effect->category_value),
+            'training_sample_count' => $bin !== null
+                && (int) $bin->training_sample_count === (int) $effect->training_sample_count,
+            'boundaries_hash' => $bin !== null
+                && (string) $bin->boundaries_hash === (string) $effect->boundaries_hash,
+        ];
+        foreach ($comparisons as $field => $matches) {
+            if (! $matches) {
+                throw new RuntimeException("BT-03 Production persisted effect source bin semantics mismatched: {$field}.");
+            }
+        }
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        return $value === null ? null : (string) $value;
+    }
+
     /** @param list<Bt03ComputedBinEffectDto> $effects */
     private function computedHasUnseen(array $effects): bool
     {
@@ -1025,6 +1139,11 @@ class Bt03BinEffectAuditRepository
     private function scopeKey(string $fold, string $stat, string $cohort): string
     {
         return "{$fold}:{$stat}:{$cohort}";
+    }
+
+    private function scopeArtifactKey(int $foldId, int $specId, string $cohort): string
+    {
+        return "{$foldId}:{$specId}:{$cohort}";
     }
 
     private function error(Throwable $failure): string

@@ -17,6 +17,7 @@ use App\Domain\Keirin\Backtest\DTO\Bt03SourceArtifactFingerprintsDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03SourceVerificationDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03StoredModelDto;
 use App\Domain\Keirin\Backtest\Repositories\Bt03BinEffectAuditRepository;
+use App\Domain\Keirin\Backtest\Services\Bt03EffectManifestService;
 use App\Domain\Keirin\Backtest\Services\Bt03ProductionContract;
 use App\Domain\Keirin\Backtest\Services\Bt03SourceManifest;
 use App\Domain\Keirin\Backtest\Support\Bt03EffectHasher;
@@ -24,6 +25,7 @@ use App\Models\BacktestBinEffectScope;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -114,6 +116,98 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
                 ->update($mutation);
             $this->assertStructureResumeRejected($repository, (int) $run->id, $preflight);
         }
+    }
+
+    public function test_scopes_rejects_a_seventy_third_physical_row_before_semantic_keying(): void
+    {
+        $this->productionSourceFixture();
+        $decoyRun = $this->insertRun('00000000-0000-4000-8000-000000000301', 'BT-02', 'SUCCEEDED');
+        $decoyFold = $this->insertFold($decoyRun, 'WF_2023', 'SUCCEEDED');
+        $decoySpec = $this->insertSpec($decoyRun);
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $preflight = $this->preflight(72);
+        $run = $repository->createRun($preflight);
+        $this->insertDuplicateScope($run->id, $decoyFold, $decoySpec);
+
+        try {
+            $repository->resumeRun((int) $run->id, $preflight);
+            $this->fail('A seventy-third physical scope row must block resume.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('physical row count', $exception->getMessage());
+        }
+        $this->assertSame(73, DB::table('backtest_bin_effect_scopes')->where('backtest_run_id', $run->id)->count());
+    }
+
+    public function test_scopes_rejects_a_semantic_duplicate_without_overwriting_it(): void
+    {
+        $this->productionSourceFixture();
+        $decoyRun = $this->insertRun('00000000-0000-4000-8000-000000000302', 'BT-02', 'SUCCEEDED');
+        $decoyFold = $this->insertFold($decoyRun, 'WF_2023', 'SUCCEEDED');
+        $decoySpec = $this->insertSpec($decoyRun);
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $run = $repository->createRun($this->preflight(72));
+        $replacedScopeId = $this->scopeId($run->id, 'WF_2024', 'STAT-08', 'STRICT');
+        DB::table('backtest_bin_effect_scopes')->where('id', $replacedScopeId)->update([
+            'backtest_fold_id' => $decoyFold,
+            'backtest_signal_spec_id' => $decoySpec,
+        ]);
+
+        try {
+            $repository->scopes($run);
+            $this->fail('A duplicated semantic scope key must not be overwritten.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('semantic key was duplicated', $exception->getMessage());
+        }
+        $this->assertSame(72, DB::table('backtest_bin_effect_scopes')->where('backtest_run_id', $run->id)->count());
+    }
+
+    public function test_resume_rejects_an_orphan_effect_without_deleting_it(): void
+    {
+        $this->productionSourceFixture();
+        [$decoyFold, $decoySpec] = $this->decoyTargetIdentity('00000000-0000-4000-8000-000000000303');
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $preflight = $this->preflight(72);
+        $run = $repository->createRun($preflight);
+        $effectId = $this->insertOrphanEffect((int) $run->id, $decoyFold, $decoySpec);
+
+        try {
+            $repository->resumeRun((int) $run->id, $preflight);
+            $this->fail('An orphan target-run effect must block resume.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('orphan effect', $exception->getMessage());
+        }
+        $this->assertTrue(DB::table('backtest_bin_effects')->where('id', $effectId)->exists());
+    }
+
+    public function test_finalize_rejects_an_orphan_effect_after_all_scope_rows_are_succeeded(): void
+    {
+        $this->productionSourceFixture();
+        [$decoyFold, $decoySpec] = $this->decoyTargetIdentity('00000000-0000-4000-8000-000000000304');
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $run = $repository->createRun($this->preflight(72));
+        DB::table('backtest_bin_effect_scopes')->where('backtest_run_id', $run->id)->update([
+            'status' => 'SUCCEEDED',
+            'attempt_count' => 1,
+            'effect_count' => 3,
+            'effect_manifest_hash' => str_repeat('f', 64),
+            'evaluation_row_count' => 1,
+            'evaluation_race_count' => 1,
+            'spool_byte_count' => 1,
+            'maximum_bin_sample_count' => 1,
+            'maximum_bin_race_count' => 1,
+            'started_at' => now(),
+            'finished_at' => now(),
+        ]);
+        $effectId = $this->insertOrphanEffect((int) $run->id, $decoyFold, $decoySpec);
+
+        try {
+            $repository->finalizeSuccess($run);
+            $this->fail('An orphan effect must block finalization.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('orphan effect', $exception->getMessage());
+        }
+        $this->assertSame('RUNNING', $run->refresh()->status);
+        $this->assertTrue(DB::table('backtest_bin_effects')->where('id', $effectId)->exists());
     }
 
     public function test_run_and_scope_failure_histories_are_append_only_across_resume(): void
@@ -236,6 +330,36 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         $repository->verifySucceededScope($scope);
     }
 
+    public function test_self_consistent_effect_hash_cannot_hide_source_bin_semantic_tampering(): void
+    {
+        [$scope, $summary] = $this->fixture();
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $scope = $repository->startScope($scope);
+        $repository->persistScope($scope, 'WF_2023', 'STAT-07', $summary);
+        $scope = $scope->refresh();
+        $effect = DB::table('backtest_bin_effects')->where('label_code', 'IS_WIN')->first();
+        DB::table('backtest_bin_effects')->where('id', $effect->id)->update([
+            'lower_bound' => -0.22345678901234567,
+        ]);
+        $effect = DB::table('backtest_bin_effects')->where('id', $effect->id)->first();
+        $baseline = DB::table('backtest_models')->where('id', $effect->source_baseline_model_id)->first();
+        $incremental = DB::table('backtest_models')->where('id', $effect->source_incremental_model_id)->first();
+        $artifactMethod = new ReflectionMethod($repository, 'effectArtifact');
+        $effectHash = app(Bt03EffectHasher::class)->hash($artifactMethod->invoke($repository, $effect, $baseline, $incremental));
+        DB::table('backtest_bin_effects')->where('id', $effect->id)->update(['effect_hash' => $effectHash]);
+        $rows = DB::table('backtest_bin_effects')->orderBy('label_code')->orderBy('bin_index')->get()->all();
+        $manifest = app(Bt03EffectManifestService::class)->fromPersisted($scope, 'WF_2023', 'STAT-07', $rows);
+        $scope->forceFill(['effect_manifest_hash' => $manifest])->save();
+
+        try {
+            $repository->verifySucceededScope($scope->refresh());
+            $this->fail('A self-consistent effect hash must not replace source bin semantic ownership.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('source bin semantics mismatched', $exception->getMessage());
+        }
+        $this->assertSame($effectHash, DB::table('backtest_bin_effects')->where('id', $effect->id)->value('effect_hash'));
+    }
+
     public function test_partial_effect_rows_block_resume_and_are_not_deleted(): void
     {
         [$scope, $summary] = $this->fixture();
@@ -313,6 +437,7 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        $sourceBinRow = DB::table('backtest_effect_bins')->where('id', $sourceBin)->first();
         $scope = BacktestBinEffectScope::query()->create([
             'backtest_run_id' => $targetRun,
             'backtest_fold_id' => $targetFold,
@@ -341,6 +466,8 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
                 $label,
                 $baseline,
                 $incremental,
+                (float) $sourceBinRow->lower_bound,
+                (float) $sourceBinRow->upper_bound,
             );
         }
 
@@ -429,6 +556,132 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         }
     }
 
+    private function insertDuplicateScope(int $runId, int $foldId, int $specId): void
+    {
+        $template = (array) DB::table('backtest_bin_effect_scopes')
+            ->where('id', $this->scopeId($runId, 'WF_2023', 'STAT-07', 'STRICT'))
+            ->first();
+        unset($template['id']);
+        $template['backtest_fold_id'] = $foldId;
+        $template['backtest_signal_spec_id'] = $specId;
+        $template['created_at'] = now();
+        $template['updated_at'] = now();
+        DB::table('backtest_bin_effect_scopes')->insert($template);
+    }
+
+    private function scopeId(int $runId, string $foldCode, string $statCode, string $cohort): int
+    {
+        return (int) DB::table('backtest_bin_effect_scopes')
+            ->join('backtest_folds', 'backtest_folds.id', '=', 'backtest_bin_effect_scopes.backtest_fold_id')
+            ->join('backtest_signal_specs', 'backtest_signal_specs.id', '=', 'backtest_bin_effect_scopes.backtest_signal_spec_id')
+            ->where('backtest_bin_effect_scopes.backtest_run_id', $runId)
+            ->where('backtest_folds.fold_code', $foldCode)
+            ->where('backtest_signal_specs.stat_code', $statCode)
+            ->where('backtest_bin_effect_scopes.cohort_code', $cohort)
+            ->value('backtest_bin_effect_scopes.id');
+    }
+
+    /** @return array{int, int} */
+    private function decoyTargetIdentity(string $uuid): array
+    {
+        $runId = $this->insertRun($uuid, 'BT-02', 'SUCCEEDED');
+
+        return [
+            $this->insertFold($runId, 'DECOY', 'SUCCEEDED'),
+            $this->insertSpecWithCode($runId, 'STAT-DECOY'),
+        ];
+    }
+
+    private function insertOrphanEffect(int $targetRunId, int $targetFoldId, int $targetSpecId): int
+    {
+        $sourceFold = DB::table('backtest_folds')
+            ->where('backtest_run_id', Bt03SourceManifest::SOURCE_BT02_RUN_ID)
+            ->where('fold_code', 'WF_2023')
+            ->first();
+        $sourceSpec = DB::table('backtest_signal_specs')
+            ->where('backtest_run_id', Bt03SourceManifest::SOURCE_BT02_RUN_ID)
+            ->where('stat_code', 'STAT-07')
+            ->first();
+        $sourceBin = DB::table('backtest_effect_bins')
+            ->where('backtest_run_id', Bt03SourceManifest::SOURCE_BT02_RUN_ID)
+            ->where('backtest_fold_id', $sourceFold->id)
+            ->where('backtest_signal_spec_id', $sourceSpec->id)
+            ->where('cohort_code', 'STRICT')
+            ->first();
+        $baseline = $this->insertModel(
+            Bt03SourceManifest::SOURCE_BT02_RUN_ID,
+            (int) $sourceFold->id,
+            (int) $sourceSpec->id,
+            'IS_WIN',
+            'BASELINE_MATCHED',
+        );
+        $incremental = $this->insertModel(
+            Bt03SourceManifest::SOURCE_BT02_RUN_ID,
+            (int) $sourceFold->id,
+            (int) $sourceSpec->id,
+            'IS_WIN',
+            'INCREMENTAL',
+        );
+        $now = now();
+
+        return (int) DB::table('backtest_bin_effects')->insertGetId([
+            'backtest_run_id' => $targetRunId,
+            'backtest_fold_id' => $targetFoldId,
+            'backtest_signal_spec_id' => $targetSpecId,
+            'source_backtest_run_id' => Bt03SourceManifest::SOURCE_BT02_RUN_ID,
+            'source_backtest_fold_id' => $sourceFold->id,
+            'source_baseline_model_id' => $baseline['id'],
+            'source_incremental_model_id' => $incremental['id'],
+            'source_backtest_effect_bin_id' => $sourceBin->id,
+            'cohort_code' => 'STRICT',
+            'label_code' => 'IS_WIN',
+            'bin_index' => 1,
+            'bin_origin' => 'TRAINING_BIN',
+            'bin_kind' => 'CATEGORY',
+            'lower_bound' => null,
+            'upper_bound' => null,
+            'category_value' => 'KNOWN',
+            'training_sample_count' => 10,
+            'evaluation_status' => 'OBSERVED',
+            'evaluation_sample_count' => 1,
+            'evaluation_race_count' => 1,
+            'positive_count' => 1,
+            'observed_rate' => 1.0,
+            'observed_rate_ci_lower' => 1.0,
+            'observed_rate_ci_upper' => 1.0,
+            'baseline_mean_probability' => 0.5,
+            'incremental_mean_probability' => 0.5,
+            'baseline_residual_mean' => 0.5,
+            'baseline_residual_ci_lower' => 0.5,
+            'baseline_residual_ci_upper' => 0.5,
+            'incremental_residual_mean' => 0.5,
+            'incremental_residual_ci_lower' => 0.5,
+            'incremental_residual_ci_upper' => 0.5,
+            'probability_shift_mean' => 0.0,
+            'probability_shift_ci_lower' => 0.0,
+            'probability_shift_ci_upper' => 0.0,
+            'log_loss_delta' => 0.0,
+            'log_loss_delta_ci_lower' => 0.0,
+            'log_loss_delta_ci_upper' => 0.0,
+            'brier_delta' => 0.0,
+            'brier_delta_ci_lower' => 0.0,
+            'brier_delta_ci_upper' => 0.0,
+            'overall_baseline_residual_mean' => 0.5,
+            'centered_baseline_residual_mean' => 0.0,
+            'centered_baseline_residual_ci_lower' => 0.0,
+            'centered_baseline_residual_ci_upper' => 0.0,
+            'centered_ci_status' => 'AVAILABLE',
+            'centered_bootstrap_valid_iterations' => 2000,
+            'bootstrap_iterations' => 2000,
+            'bootstrap_seed' => 20260812,
+            'boundaries_hash' => $sourceBin->boundaries_hash,
+            'effect_hash' => str_repeat('e', 64),
+            'calculated_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
     private function effect(
         int $runId,
         int $foldId,
@@ -438,9 +691,11 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         string $label,
         array $baseline,
         array $incremental,
+        float $lowerBound,
+        float $upperBound,
     ): Bt03ComputedBinEffectDto {
         $bin = new Bt03BinAssignmentDto(
-            1, 'TRAINING_BIN', 'NUMERIC_RANGE', -0.12345678901234566, 0.9876543210987654,
+            1, 'TRAINING_BIN', 'NUMERIC_RANGE', $lowerBound, $upperBound,
             null, 123, $binId, $boundariesHash,
         );
         $result = new Bt03BinEffectResultDto(
@@ -601,6 +856,9 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("SELECT setval(pg_get_serial_sequence('backtest_runs', 'id'), (SELECT MAX(id) FROM backtest_runs), true)");
+        }
 
         return $id;
     }
