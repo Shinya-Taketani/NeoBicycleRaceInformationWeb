@@ -150,6 +150,34 @@ class Bt03FoundationContractTest extends TestCase
         $this->assertNotSame($hasher->hash($artifact), $hasher->hash($changed));
     }
 
+    public function test_effect_hash_requires_and_covers_every_centered_residual_field(): void
+    {
+        $hasher = new Bt03EffectHasher(new Bt02ModelArtifactHasher);
+        $artifact = $this->effectArtifact();
+        $changes = [
+            'overall_baseline_residual_mean' => 0.031,
+            'centered_baseline_residual_mean' => 0.011,
+            'centered_baseline_residual_ci_lower' => -0.02,
+            'centered_baseline_residual_ci_upper' => 0.04,
+            'centered_ci_status' => 'SPARSE_BOOTSTRAP_UNSUPPORTED',
+            'centered_bootstrap_valid_iterations' => 1999,
+        ];
+        foreach ($changes as $key => $value) {
+            $changed = $artifact;
+            $changed[$key] = $value;
+            $this->assertNotSame($hasher->hash($artifact), $hasher->hash($changed), $key);
+
+            $missing = $artifact;
+            unset($missing[$key]);
+            try {
+                $hasher->hash($missing);
+                $this->fail("Expected missing {$key} to be rejected.");
+            } catch (InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
     public function test_effect_hash_requires_every_stored_bin_identity_key(): void
     {
         $hasher = new Bt03EffectHasher(new Bt02ModelArtifactHasher);
@@ -283,6 +311,12 @@ class Bt03FoundationContractTest extends TestCase
             'brier_delta' => -0.005,
             'brier_delta_ci_lower' => -0.01,
             'brier_delta_ci_upper' => 0.0,
+            'overall_baseline_residual_mean' => 0.02,
+            'centered_baseline_residual_mean' => 0.01,
+            'centered_baseline_residual_ci_lower' => -0.01,
+            'centered_baseline_residual_ci_upper' => 0.03,
+            'centered_ci_status' => 'AVAILABLE',
+            'centered_bootstrap_valid_iterations' => 2000,
             'bootstrap_iterations' => 2000,
             'bootstrap_seed' => 20260812,
             'calculation_version' => Bt03BinEffectCalculator::CALCULATION_VERSION,

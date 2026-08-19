@@ -7,6 +7,7 @@ namespace App\Domain\Keirin\Backtest\Services;
 use App\Domain\Keirin\Backtest\Calculators\RaceClusterBootstrap;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationReplaySelectionDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationReplaySummaryDto;
+use App\Domain\Keirin\Backtest\DTO\Bt03PreflightSummaryDto;
 use RuntimeException;
 use Throwable;
 
@@ -44,7 +45,7 @@ class Bt03EvaluationReplaySessionService
     /**
      * @template TResult
      *
-     * @param  callable(Bt03EvaluationReplayService): TResult  $operation
+     * @param  callable(Bt03EvaluationReplayService, Bt03PreflightSummaryDto): TResult  $operation
      * @return TResult
      */
     public function withVerifiedSession(callable $operation): mixed
@@ -63,7 +64,7 @@ class Bt03EvaluationReplaySessionService
 
             $this->snapshotSession->activate($snapshot);
             try {
-                $result = $operation($this->replay);
+                $result = $operation($this->replay, $preflight);
                 try {
                     $this->preflight->run();
                 } catch (Throwable $throwable) {

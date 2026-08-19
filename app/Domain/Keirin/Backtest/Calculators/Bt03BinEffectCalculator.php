@@ -11,7 +11,7 @@ use InvalidArgumentException;
 
 class Bt03BinEffectCalculator
 {
-    public const CALCULATION_VERSION = 'BT03-BIN-EFFECT-v1';
+    public const CALCULATION_VERSION = 'BT03-BIN-EFFECT-v2';
 
     public function __construct(
         private readonly RaceClusterBootstrap $bootstrap,

@@ -35,6 +35,10 @@ class BacktestBinEffect extends Model
             'brier_delta' => 'float',
             'brier_delta_ci_lower' => 'float',
             'brier_delta_ci_upper' => 'float',
+            'overall_baseline_residual_mean' => 'float',
+            'centered_baseline_residual_mean' => 'float',
+            'centered_baseline_residual_ci_lower' => 'float',
+            'centered_baseline_residual_ci_upper' => 'float',
             'calculated_at' => 'immutable_datetime',
         ];
     }

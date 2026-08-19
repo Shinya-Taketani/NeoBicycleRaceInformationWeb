@@ -11,6 +11,7 @@ readonly class Bt03ComputedBinEffectDto
         public string $labelCode,
         public Bt03ModelPairDto $models,
         public Bt03BinEffectResultDto $result,
+        public Bt03CenteredBinResidualDto $centered,
         public string $effectHash,
     ) {}
 }
