@@ -36,6 +36,7 @@ return new class extends Migration
             $table->char('effect_manifest_hash', 64)->nullable();
             $table->text('error_summary')->nullable();
             $table->text('last_interruption_summary')->nullable();
+            $this->jsonColumn($table, 'failure_history');
             $table->timestampTz('started_at')->nullable();
             $table->timestampTz('finished_at')->nullable();
             $table->timestampsTz();
@@ -59,6 +60,10 @@ return new class extends Migration
             DB::statement('ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_fixed_execution_check CHECK (expected_training_bin_count > 0 AND bootstrap_iterations = 2000 AND bootstrap_seed = 20260812)');
             DB::statement("ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_cohort_check CHECK (cohort_code IN ('STRICT', 'OPERATIONAL'))");
             DB::statement("ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_hash_check CHECK (source_boundaries_hash ~ '^[0-9a-f]{64}$' AND (effect_manifest_hash IS NULL OR effect_manifest_hash ~ '^[0-9a-f]{64}$'))");
+            DB::statement("ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_failure_history_check CHECK (jsonb_typeof(failure_history) = 'array')");
+            DB::statement('ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_counts_check CHECK (attempt_count >= 0 AND evaluation_row_count >= 0 AND evaluation_race_count >= 0 AND evaluation_race_count <= evaluation_row_count AND unseen_row_count >= 0 AND unseen_row_count <= evaluation_row_count AND effect_count >= 0 AND spool_byte_count >= 0 AND maximum_bin_sample_count >= 0 AND maximum_bin_sample_count <= evaluation_row_count AND maximum_bin_race_count >= 0 AND maximum_bin_race_count <= evaluation_race_count)');
+            DB::statement('ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_effect_count_check CHECK (status <> \'SUCCEEDED\' OR effect_count = expected_training_bin_count * 3 + CASE WHEN unseen_row_count > 0 THEN 3 ELSE 0 END)');
+            DB::statement('ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_succeeded_counts_check CHECK (status <> \'SUCCEEDED\' OR (evaluation_row_count > 0 AND evaluation_race_count > 0 AND spool_byte_count > 0 AND maximum_bin_sample_count > 0 AND maximum_bin_race_count > 0))');
             DB::statement("ALTER TABLE backtest_bin_effect_scopes ADD CONSTRAINT bt_bin_effect_scopes_lifecycle_check CHECK ((status = 'PENDING' AND attempt_count = 0 AND evaluation_row_count = 0 AND evaluation_race_count = 0 AND unseen_row_count = 0 AND effect_count = 0 AND spool_byte_count = 0 AND maximum_bin_sample_count = 0 AND maximum_bin_race_count = 0 AND effect_manifest_hash IS NULL AND error_summary IS NULL AND started_at IS NULL AND finished_at IS NULL) OR (status = 'RUNNING' AND attempt_count > 0 AND effect_count = 0 AND effect_manifest_hash IS NULL AND error_summary IS NULL AND started_at IS NOT NULL AND finished_at IS NULL) OR (status = 'SUCCEEDED' AND attempt_count > 0 AND effect_count > 0 AND effect_manifest_hash IS NOT NULL AND error_summary IS NULL AND started_at IS NOT NULL AND finished_at IS NOT NULL) OR (status = 'FAILED' AND attempt_count > 0 AND effect_count = 0 AND effect_manifest_hash IS NULL AND error_summary IS NOT NULL AND started_at IS NOT NULL AND finished_at IS NOT NULL))");
         }
     }
@@ -66,5 +71,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('backtest_bin_effect_scopes');
+    }
+
+    private function jsonColumn(Blueprint $table, string $name): void
+    {
+        if (DB::getDriverName() === 'pgsql') {
+            $table->jsonb($name)->default(DB::raw("'[]'::jsonb"));
+
+            return;
+        }
+
+        $table->json($name)->default('[]');
     }
 };

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Domain\Keirin\Backtest;
 
 use App\Domain\Keirin\Backtest\Calculators\Bt03BinEffectCalculator;
+use App\Domain\Keirin\Backtest\Calculators\Bt03CenteredBaselineResidualCalculator;
 use App\Domain\Keirin\Backtest\Calculators\Bt03FixedBinAssigner;
 use App\Domain\Keirin\Backtest\Calculators\Bt03StoredModelReplayer;
 use App\Domain\Keirin\Backtest\Calculators\EffectBinBuilder;
@@ -69,7 +70,7 @@ class Bt03EvaluationReplayServiceTest extends TestCase
         $this->assertSame(3, $summary->evaluationRowCount);
         $this->assertSame(2, $summary->evaluationRaceCount);
         $this->assertSame(2, $summary->trainingBinCount);
-        $this->assertSame(6, $summary->spoolFileCount);
+        $this->assertSame(9, $summary->spoolFileCount);
         $this->assertCount(6, $summary->effects);
         $winFirstBin = $this->effect($summary->effects, 1, 'IS_WIN');
         $top2FirstBin = $this->effect($summary->effects, 1, 'IS_TOP2');
@@ -84,6 +85,13 @@ class Bt03EvaluationReplayServiceTest extends TestCase
             $winFirstBin->result->incrementalMeanProbability,
         );
         $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $winFirstBin->effectHash);
+        foreach (Bt03EvaluationReplayService::LABELS as $label) {
+            $overall = array_map(
+                fn (Bt03ComputedBinEffectDto $effect): string => sprintf('%.17g', $effect->centered->overallBaselineResidualMean),
+                array_values(array_filter($summary->effects, fn (Bt03ComputedBinEffectDto $effect): bool => $effect->labelCode === $label)),
+            );
+            $this->assertCount(1, array_unique($overall));
+        }
         $this->assertSame([], glob($this->directory.'/*') ?: []);
     }
 
@@ -103,6 +111,9 @@ class Bt03EvaluationReplayServiceTest extends TestCase
             $empty = $this->effect($summary->effects, 2, $label);
             $this->assertSame('NO_EVALUATION_ROWS', $empty->result->evaluationStatus);
             $this->assertSame(0, $empty->result->evaluationSampleCount);
+            $this->assertSame('NO_EVALUATION_ROWS', $empty->centered->centeredCiStatus);
+            $this->assertNotNull($empty->centered->overallBaselineResidualMean);
+            $this->assertNull($empty->centered->centeredBaselineResidualMean);
         }
         $this->assertCount(9, $summary->effects);
     }
@@ -167,7 +178,7 @@ class Bt03EvaluationReplayServiceTest extends TestCase
         );
 
         $this->assertSame(2, $summary->trainingBinCount);
-        $this->assertSame(1, $summary->spoolFileCount);
+        $this->assertSame(2, $summary->spoolFileCount);
         $this->assertCount(1, $summary->effects);
         $this->assertSame(2, $summary->effects[0]->bin->binIndex);
         $this->assertSame('IS_WIN', $summary->effects[0]->labelCode);
@@ -335,6 +346,7 @@ class Bt03EvaluationReplayServiceTest extends TestCase
             new Bt03FixedBinAssigner(new EffectBinBuilder($boundaryProvider)),
             new Bt03StoredModelReplayer(new RidgeLogisticRegression, $hasher),
             new Bt03BinEffectCalculator(new RaceClusterBootstrap, new Type7Quantile),
+            new Bt03CenteredBaselineResidualCalculator(new RaceClusterBootstrap, new Type7Quantile),
             new Bt03EffectHasher($hasher),
             $this->directory,
         );

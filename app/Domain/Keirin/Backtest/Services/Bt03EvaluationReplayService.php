@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Backtest\Services;
 
 use App\Domain\Keirin\Backtest\Calculators\Bt03BinEffectCalculator;
+use App\Domain\Keirin\Backtest\Calculators\Bt03CenteredBaselineResidualCalculator;
 use App\Domain\Keirin\Backtest\Calculators\Bt03FixedBinAssigner;
 use App\Domain\Keirin\Backtest\Calculators\Bt03StoredModelReplayer;
 use App\Domain\Keirin\Backtest\Calculators\RaceClusterBootstrap;
@@ -15,6 +16,9 @@ use App\Domain\Keirin\Backtest\DTO\Bt03BinAssignmentDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03BinEffectEntryDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03BinEffectResultDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03BinSpoolIdentityDto;
+use App\Domain\Keirin\Backtest\DTO\Bt03CenteredBinResidualDto;
+use App\Domain\Keirin\Backtest\DTO\Bt03CenteredResidualEntryDto;
+use App\Domain\Keirin\Backtest\DTO\Bt03CenteredSpoolIdentityDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03ComputedBinEffectDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationReplaySelectionDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationReplaySummaryDto;
@@ -23,6 +27,7 @@ use App\Domain\Keirin\Backtest\DTO\Bt03ModelPairDto;
 use App\Domain\Keirin\Backtest\Enums\Bt02SignalCohort;
 use App\Domain\Keirin\Backtest\Support\Bt02PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\Bt03BinEffectSpool;
+use App\Domain\Keirin\Backtest\Support\Bt03CenteredResidualSpool;
 use App\Domain\Keirin\Backtest\Support\Bt03EffectHasher;
 use RuntimeException;
 
@@ -37,6 +42,7 @@ class Bt03EvaluationReplayService
         private readonly Bt03FixedBinAssigner $binAssigner,
         private readonly Bt03StoredModelReplayer $modelReplayer,
         private readonly Bt03BinEffectCalculator $calculator,
+        private readonly Bt03CenteredBaselineResidualCalculator $centeredCalculator,
         private readonly Bt03EffectHasher $effectHasher,
         private readonly ?string $temporaryDirectory = null,
     ) {}
@@ -56,7 +62,16 @@ class Bt03EvaluationReplayService
         $manifestAccumulators = $this->manifestAccumulators($source, $labels);
         $assignments = [];
         $spools = [];
+        $centeredSpools = [];
         try {
+            foreach ($labels as $label) {
+                $centeredSpools[$label] = new Bt03CenteredResidualSpool(new Bt03CenteredSpoolIdentityDto(
+                    $source->foldCode,
+                    $source->statCode,
+                    $source->cohortCode,
+                    $label,
+                ), $this->temporaryDirectory);
+            }
             foreach ($source->bins as $bin) {
                 if ($selection?->trainingBinIndex !== null && $selection->trainingBinIndex !== $bin->index) {
                     continue;
@@ -121,6 +136,12 @@ class Bt03EvaluationReplayService
                         $baselineProbability,
                         $incrementalProbability,
                     );
+                    $centeredSpools[$label]->append($row->raceId, new Bt03CenteredResidualEntryDto(
+                        $row->raceEntryId,
+                        $assignment->binIndex,
+                        $labelValue,
+                        $baselineProbability,
+                    ));
                 }
                 if ($selection?->trainingBinIndex !== null && $selection->trainingBinIndex !== $assignment->binIndex) {
                     continue;
@@ -144,9 +165,28 @@ class Bt03EvaluationReplayService
             foreach ($spools as $spool) {
                 $spool->seal();
             }
+            foreach ($centeredSpools as $spool) {
+                $spool->seal();
+            }
             ksort($assignments, SORT_NUMERIC);
+            $centeredBinIndexes = array_map(fn ($bin): int => $bin->index, $source->bins);
+            if ($unseenRowCount > 0) {
+                $centeredBinIndexes[] = 0;
+            }
+            $centeredResults = [];
+            foreach ($labels as $label) {
+                $centeredResults[$label] = $this->centeredCalculator->calculate(
+                    $centeredSpools[$label]->payloads(),
+                    $centeredBinIndexes,
+                    $iterations,
+                    $seed,
+                );
+            }
             $effects = [];
             $spoolBytes = $maximumSamples = $maximumRaces = 0;
+            foreach ($centeredSpools as $spool) {
+                $spoolBytes += $spool->metadata()->byteCount;
+            }
             foreach ($assignments as $assignment) {
                 foreach ($labels as $label) {
                     $spool = $spools[$this->key($assignment->binIndex, $label)];
@@ -156,12 +196,24 @@ class Bt03EvaluationReplayService
                     $maximumSamples = max($maximumSamples, $result->evaluationSampleCount);
                     $maximumRaces = max($maximumRaces, $result->evaluationRaceCount);
                     $models = $source->modelPairs[$label];
+                    $centered = $centeredResults[$label][$assignment->binIndex]
+                        ?? throw new RuntimeException('BT-03 centered residual result was missing.');
                     $effects[] = new Bt03ComputedBinEffectDto(
                         $assignment,
                         $label,
                         $models,
                         $result,
-                        $this->effectHasher->hash($this->effectArtifact($source, $assignment, $label, $models, $result, $iterations, $seed)),
+                        $centered,
+                        $this->effectHasher->hash($this->effectArtifact(
+                            $source,
+                            $assignment,
+                            $label,
+                            $models,
+                            $result,
+                            $centered,
+                            $iterations,
+                            $seed,
+                        )),
                     );
                 }
             }
@@ -174,7 +226,7 @@ class Bt03EvaluationReplayService
                 $raceCount,
                 count($source->bins),
                 $unseenRowCount,
-                count($spools),
+                count($spools) + count($centeredSpools),
                 $spoolBytes,
                 $maximumSamples,
                 $maximumRaces,
@@ -182,6 +234,9 @@ class Bt03EvaluationReplayService
             );
         } finally {
             foreach ($spools as $spool) {
+                $spool->cleanup();
+            }
+            foreach ($centeredSpools as $spool) {
                 $spool->cleanup();
             }
         }
@@ -332,6 +387,7 @@ class Bt03EvaluationReplayService
         string $label,
         Bt03ModelPairDto $models,
         Bt03BinEffectResultDto $result,
+        Bt03CenteredBinResidualDto $centered,
         int $iterations,
         int $seed,
     ): array {
@@ -377,6 +433,12 @@ class Bt03EvaluationReplayService
             'brier_delta' => $result->brierDelta,
             'brier_delta_ci_lower' => $result->brierDeltaCiLower,
             'brier_delta_ci_upper' => $result->brierDeltaCiUpper,
+            'overall_baseline_residual_mean' => $centered->overallBaselineResidualMean,
+            'centered_baseline_residual_mean' => $centered->centeredBaselineResidualMean,
+            'centered_baseline_residual_ci_lower' => $centered->centeredBaselineResidualCiLower,
+            'centered_baseline_residual_ci_upper' => $centered->centeredBaselineResidualCiUpper,
+            'centered_ci_status' => $centered->centeredCiStatus,
+            'centered_bootstrap_valid_iterations' => $centered->centeredBootstrapValidIterations,
             'bootstrap_iterations' => $iterations,
             'bootstrap_seed' => $seed,
             'calculation_version' => Bt03BinEffectCalculator::CALCULATION_VERSION,

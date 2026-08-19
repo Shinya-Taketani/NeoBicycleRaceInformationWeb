@@ -20,7 +20,11 @@ class Bt03BinEffectsCommandTest extends TestCase
         $service = Mockery::mock(Bt03BinEffectProductionService::class);
         $service->shouldReceive('plan')->once()->andReturn(new Bt03ProductionPlanDto(
             5, 3, 12, 2, 72, 668, 2004, 2000, 20260812,
-            ['backtest_bin_effects' => true, 'backtest_bin_effect_scopes' => false],
+            [
+                'backtest_bin_effects' => true,
+                'backtest_bin_effect_scopes' => false,
+                'bt03_centered_residual' => false,
+            ],
         ));
         $service->shouldNotReceive('execute');
         $this->app->instance(Bt03BinEffectProductionService::class, $service);
@@ -36,6 +40,7 @@ class Bt03BinEffectsCommandTest extends TestCase
             ->expectsOutputToContain('2026=BLOCKED')
             ->expectsOutputToContain('schema.backtest_bin_effects=READY')
             ->expectsOutputToContain('schema.backtest_bin_effect_scopes=PENDING_MIGRATION')
+            ->expectsOutputToContain('schema.bt03_centered_residual=PENDING_MIGRATION')
             ->assertExitCode(0);
     }
 

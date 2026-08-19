@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Domain\Keirin\Backtest;
 
 use App\Domain\Keirin\Backtest\Calculators\Bt03BinEffectCalculator;
+use App\Domain\Keirin\Backtest\Calculators\Bt03CenteredBaselineResidualCalculator;
 use App\Domain\Keirin\Backtest\Calculators\Bt03FixedBinAssigner;
 use App\Domain\Keirin\Backtest\Calculators\Bt03StoredModelReplayer;
 use App\Domain\Keirin\Backtest\Calculators\EffectBinBuilder;
@@ -128,6 +129,7 @@ class Bt03EvaluationReplayReadOnlyTest extends TestCase
             new Bt03FixedBinAssigner(new EffectBinBuilder($boundaries)),
             new Bt03StoredModelReplayer(new RidgeLogisticRegression, $hasher),
             new Bt03BinEffectCalculator(new RaceClusterBootstrap, new Type7Quantile),
+            new Bt03CenteredBaselineResidualCalculator(new RaceClusterBootstrap, new Type7Quantile),
             new Bt03EffectHasher($hasher),
         );
     }

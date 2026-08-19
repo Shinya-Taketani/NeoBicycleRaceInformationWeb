@@ -45,6 +45,7 @@ class Bt03BinEffectProductionServiceTest extends TestCase
         $schema->shouldReceive('readiness')->once()->andReturn([
             'backtest_bin_effects' => true,
             'backtest_bin_effect_scopes' => false,
+            'bt03_centered_residual' => false,
         ]);
         $lock->shouldNotReceive('acquire');
         $session->shouldNotReceive('withVerifiedSession');
@@ -57,6 +58,7 @@ class Bt03BinEffectProductionServiceTest extends TestCase
         $this->assertSame(668, $plan->sourceBinCount);
         $this->assertSame(2004, $plan->baseEffectCount);
         $this->assertFalse($plan->schemaReadiness['backtest_bin_effect_scopes']);
+        $this->assertFalse($plan->schemaReadiness['bt03_centered_residual']);
     }
 
     public function test_fresh_execution_processes_all_72_scopes_in_canonical_order_once(): void

@@ -131,6 +131,7 @@ class Bt03BinEffectAuditRepository
                     'source_boundaries_hash' => $boundariesHash,
                     'bootstrap_iterations' => Bt03ProductionContract::BOOTSTRAP_ITERATIONS,
                     'bootstrap_seed' => Bt03ProductionContract::BOOTSTRAP_SEED,
+                    'failure_history' => [],
                 ]);
             }
             if ($sourceBinCount !== $preflight->source->effectBinCount) {
@@ -151,7 +152,9 @@ class Bt03BinEffectAuditRepository
             $runtime = $parameters['runtime'];
             $runtime['execution_attempt'] = (int) ($runtime['execution_attempt'] ?? 1) + 1;
             $runtime['resume_count'] = (int) ($runtime['resume_count'] ?? 0) + 1;
-            $runtime['last_failure'] = null;
+            $runtime['failure_history'] = $this->failureHistory($runtime['failure_history'] ?? []);
+            $runtime['last_resume_at'] = (new DateTimeImmutable('now'))->format(DATE_ATOM);
+            $runtime['current_execution_started_at'] = $runtime['last_resume_at'];
             $parameters['runtime'] = $runtime;
             $run->forceFill([
                 'status' => 'RUNNING',
@@ -207,9 +210,19 @@ class Bt03BinEffectAuditRepository
                 || $this->effectCount($locked) !== 0) {
                 throw new RuntimeException('BT-03 Production incomplete scope was not safe to start.');
             }
+            $now = new DateTimeImmutable('now');
+            $failureHistory = $this->failureHistory($locked->failure_history);
             $interruption = $locked->status === 'RUNNING'
-                ? 'INTERRUPTED_BEFORE_RESUME at '.(new DateTimeImmutable('now'))->format(DATE_ATOM)
+                ? 'INTERRUPTED_BEFORE_RESUME at '.$now->format(DATE_ATOM)
                 : $locked->last_interruption_summary;
+            if ($locked->status === 'RUNNING') {
+                $failureHistory[] = [
+                    'attempt' => (int) $locked->attempt_count,
+                    'failure_class' => 'INTERRUPTED_BEFORE_RESUME',
+                    'failure_message' => 'A stale RUNNING scope was interrupted before resume.',
+                    'failed_at' => $now->format(DATE_ATOM),
+                ];
+            }
             $locked->forceFill([
                 'status' => 'RUNNING',
                 'attempt_count' => (int) $locked->attempt_count + 1,
@@ -223,7 +236,8 @@ class Bt03BinEffectAuditRepository
                 'effect_manifest_hash' => null,
                 'error_summary' => null,
                 'last_interruption_summary' => $interruption,
-                'started_at' => new DateTimeImmutable('now'),
+                'failure_history' => $failureHistory,
+                'started_at' => $now,
                 'finished_at' => null,
             ])->save();
 
@@ -273,6 +287,14 @@ class Bt03BinEffectAuditRepository
             if ($this->effectCount($locked) !== 0) {
                 throw new RuntimeException('BT-03 Production failed scope contained partial effects.');
             }
+            $now = new DateTimeImmutable('now');
+            $failureHistory = $this->failureHistory($locked->failure_history);
+            $failureHistory[] = [
+                'attempt' => (int) $locked->attempt_count,
+                'failure_class' => $failure::class,
+                'failure_message' => $this->failureMessage($failure),
+                'failed_at' => $now->format(DATE_ATOM),
+            ];
             $locked->forceFill([
                 'status' => 'FAILED',
                 'evaluation_row_count' => 0,
@@ -284,7 +306,8 @@ class Bt03BinEffectAuditRepository
                 'maximum_bin_race_count' => 0,
                 'effect_manifest_hash' => null,
                 'error_summary' => $this->error($failure),
-                'finished_at' => new DateTimeImmutable('now'),
+                'failure_history' => $failureHistory,
+                'finished_at' => $now,
             ])->save();
         });
     }
@@ -378,12 +401,23 @@ class Bt03BinEffectAuditRepository
             $parameters['runtime']['completed_scope_count'] = $completed;
             $parameters['runtime']['resume_allowed'] = $resumeAllowed;
             $parameters['runtime']['resume_block_reason'] = $resumeBlockReason;
-            $parameters['runtime']['last_failure'] = [
-                'primary' => $this->error($primary),
-                'preflight_diagnostic' => $diagnosticFailure === null ? null : $this->error($diagnosticFailure),
-                'failed_at' => (new DateTimeImmutable('now'))->format(DATE_ATOM),
-            ];
             $now = new DateTimeImmutable('now');
+            $failure = [
+                'execution_attempt' => (int) ($parameters['runtime']['execution_attempt'] ?? 1),
+                'resume_count' => (int) ($parameters['runtime']['resume_count'] ?? 0),
+                'primary_class' => $primary::class,
+                'primary_message' => $this->failureMessage($primary),
+                'preflight_diagnostic_class' => $diagnosticFailure === null ? null : $diagnosticFailure::class,
+                'preflight_diagnostic_message' => $diagnosticFailure === null ? null : $this->failureMessage($diagnosticFailure),
+                'resume_allowed' => $resumeAllowed,
+                'resume_block_reason' => $resumeBlockReason,
+                'completed_scope_count' => $completed,
+                'failed_at' => $now->format(DATE_ATOM),
+            ];
+            $history = $this->failureHistory($parameters['runtime']['failure_history'] ?? []);
+            $history[] = $failure;
+            $parameters['runtime']['failure_history'] = $history;
+            $parameters['runtime']['last_failure'] = $failure;
             $locked->forceFill([
                 'status' => $completed === 0 ? 'FAILED' : 'PARTIALLY_SUCCEEDED',
                 'parameters' => $parameters,
@@ -436,6 +470,7 @@ class Bt03BinEffectAuditRepository
         foreach ($sourceFolds as $foldCode => $source) {
             $target = $targetFolds->get($foldCode);
             if (! $target instanceof BacktestFold
+                || (int) $target->backtest_run_id !== (int) $run->id
                 || (int) $target->sequence !== (int) $source->sequence
                 || $target->train_from?->format('Y-m-d') !== (string) $source->train_from
                 || $target->train_to?->format('Y-m-d') !== (string) $source->train_to
@@ -446,21 +481,50 @@ class Bt03BinEffectAuditRepository
         }
         foreach ($sourceSpecs as $statCode => $source) {
             $target = $targetSpecs->get($statCode);
+            $targetParameters = $target instanceof BacktestSignalSpec && is_array($target->parameters)
+                ? $target->parameters
+                : [];
+            ksort($targetParameters);
+            $expectedParameters = [
+                'source_bt02_signal_spec_id' => (int) $source->id,
+                'execution' => 'BT03_BIN_EFFECT',
+            ];
+            ksort($expectedParameters);
             if (! $target instanceof BacktestSignalSpec
+                || (int) $target->backtest_run_id !== (int) $run->id
+                || $target->stat_code !== $statCode
+                || $target->subject_type !== $source->subject_type
                 || $target->analysis_role !== 'ENTRY_INCREMENTAL'
+                || $target->analysis_role !== $source->analysis_role
                 || $target->primary_feature_code !== $source->primary_feature_code
-                || ($target->parameters['source_bt02_signal_spec_id'] ?? null) !== (int) $source->id) {
+                || $target->primary_feature_path !== $source->primary_feature_path
+                || $target->transform_code !== $source->transform_code
+                || $target->strict_policy_version !== $source->strict_policy_version
+                || $target->operational_policy_version !== $source->operational_policy_version
+                || $target->operational_allowed_quality_reasons !== $this->json($source->operational_allowed_quality_reasons)
+                || $target->source_manifest_version !== Bt03SourceManifest::VERSION
+                || $target->source_manifest_hash !== Bt03SourceManifest::HASH
+                || $targetParameters !== $expectedParameters) {
                 throw new RuntimeException('BT-03 Production target signal spec differed from its fixed source.');
             }
         }
         foreach ($this->scopes($run) as $index => $scope) {
             $definition = $this->contract->scopes()[$index];
+            $sourceFold = $sourceFolds[$definition->foldCode];
+            $sourceSpec = $sourceSpecs[$definition->statCode];
+            $targetFold = $targetFolds->get($definition->foldCode);
+            $targetSpec = $targetSpecs->get($definition->statCode);
             [$count, $hash] = $this->sourceBinIdentity(
-                (int) $scope->source_backtest_fold_id,
-                (int) $scope->source_backtest_signal_spec_id,
+                (int) $sourceFold->id,
+                (int) $sourceSpec->id,
                 (string) $scope->cohort_code,
             );
-            if ((int) $scope->source_backtest_run_id !== Bt03SourceManifest::SOURCE_BT02_RUN_ID
+            if ((int) $scope->backtest_run_id !== (int) $run->id
+                || (int) $scope->backtest_fold_id !== (int) $targetFold->id
+                || (int) $scope->backtest_signal_spec_id !== (int) $targetSpec->id
+                || (int) $scope->source_backtest_run_id !== Bt03SourceManifest::SOURCE_BT02_RUN_ID
+                || (int) $scope->source_backtest_fold_id !== (int) $sourceFold->id
+                || (int) $scope->source_backtest_signal_spec_id !== (int) $sourceSpec->id
                 || (int) $scope->expected_training_bin_count !== $count
                 || ! hash_equals((string) $scope->source_boundaries_hash, $hash)
                 || (int) $scope->bootstrap_iterations !== Bt03ProductionContract::BOOTSTRAP_ITERATIONS
@@ -661,6 +725,12 @@ class Bt03BinEffectAuditRepository
             'brier_delta' => $this->canonicalFloat($result->brierDelta),
             'brier_delta_ci_lower' => $this->canonicalFloat($result->brierDeltaCiLower),
             'brier_delta_ci_upper' => $this->canonicalFloat($result->brierDeltaCiUpper),
+            'overall_baseline_residual_mean' => $this->canonicalFloat($effect->centered->overallBaselineResidualMean),
+            'centered_baseline_residual_mean' => $this->canonicalFloat($effect->centered->centeredBaselineResidualMean),
+            'centered_baseline_residual_ci_lower' => $this->canonicalFloat($effect->centered->centeredBaselineResidualCiLower),
+            'centered_baseline_residual_ci_upper' => $this->canonicalFloat($effect->centered->centeredBaselineResidualCiUpper),
+            'centered_ci_status' => $effect->centered->centeredCiStatus,
+            'centered_bootstrap_valid_iterations' => $effect->centered->centeredBootstrapValidIterations,
             'bootstrap_iterations' => $result->bootstrapIterations,
             'bootstrap_seed' => $result->bootstrapSeed,
             'boundaries_hash' => $effect->bin->boundariesHash,
@@ -716,6 +786,12 @@ class Bt03BinEffectAuditRepository
             'brier_delta' => $this->nullableFloat($row->brier_delta),
             'brier_delta_ci_lower' => $this->nullableFloat($row->brier_delta_ci_lower),
             'brier_delta_ci_upper' => $this->nullableFloat($row->brier_delta_ci_upper),
+            'overall_baseline_residual_mean' => $this->nullableFloat($row->overall_baseline_residual_mean),
+            'centered_baseline_residual_mean' => $this->nullableFloat($row->centered_baseline_residual_mean),
+            'centered_baseline_residual_ci_lower' => $this->nullableFloat($row->centered_baseline_residual_ci_lower),
+            'centered_baseline_residual_ci_upper' => $this->nullableFloat($row->centered_baseline_residual_ci_upper),
+            'centered_ci_status' => (string) $row->centered_ci_status,
+            'centered_bootstrap_valid_iterations' => (int) $row->centered_bootstrap_valid_iterations,
             'bootstrap_iterations' => (int) $row->bootstrap_iterations,
             'bootstrap_seed' => (int) $row->bootstrap_seed,
             'calculation_version' => Bt03BinEffectCalculator::CALCULATION_VERSION,
@@ -754,6 +830,9 @@ class Bt03BinEffectAuditRepository
                 'completed_scope_count' => 0,
                 'last_scope' => null,
                 'last_failure' => null,
+                'failure_history' => [],
+                'current_execution_started_at' => (new DateTimeImmutable('now'))->format(DATE_ATOM),
+                'last_resume_at' => null,
             ],
             'result' => null,
         ];
@@ -951,5 +1030,26 @@ class Bt03BinEffectAuditRepository
     private function error(Throwable $failure): string
     {
         return mb_substr($failure::class.': '.$failure->getMessage(), 0, 10000);
+    }
+
+    private function failureMessage(Throwable $failure): string
+    {
+        return mb_substr($failure->getMessage(), 0, 10000);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function failureHistory(mixed $value): array
+    {
+        $history = is_string($value) ? json_decode($value, true, 512, JSON_THROW_ON_ERROR) : $value;
+        if (! is_array($history) || ! array_is_list($history)) {
+            throw new RuntimeException('BT-03 Production failure history was invalid.');
+        }
+        foreach ($history as $entry) {
+            if (! is_array($entry)) {
+                throw new RuntimeException('BT-03 Production failure history entry was invalid.');
+            }
+        }
+
+        return $history;
     }
 }

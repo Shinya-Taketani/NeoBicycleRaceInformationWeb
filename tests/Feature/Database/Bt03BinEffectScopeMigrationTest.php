@@ -25,6 +25,7 @@ class Bt03BinEffectScopeMigrationTest extends TestCase
             'evaluation_row_count', 'evaluation_race_count', 'unseen_row_count', 'effect_count',
             'spool_byte_count', 'maximum_bin_sample_count', 'maximum_bin_race_count',
             'effect_manifest_hash', 'error_summary', 'last_interruption_summary',
+            'failure_history',
             'started_at', 'finished_at', 'created_at', 'updated_at',
         ]));
         $indexes = collect(Schema::getIndexes('backtest_bin_effect_scopes'))->pluck('name')->all();
@@ -74,6 +75,52 @@ class Bt03BinEffectScopeMigrationTest extends TestCase
             try {
                 DB::transaction(fn () => DB::table('backtest_bin_effect_scopes')->insert($invalid));
                 $this->fail('PostgreSQL must reject an invalid scope lifecycle row.');
+            } catch (QueryException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_postgresql_count_and_succeeded_effect_contracts_reject_invalid_rows(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('PostgreSQL scope count constraint test.');
+        }
+        $constraints = DB::table('information_schema.table_constraints')
+            ->where('table_name', 'backtest_bin_effect_scopes')
+            ->where('constraint_type', 'CHECK')
+            ->pluck('constraint_name')
+            ->all();
+        foreach ([
+            'bt_bin_effect_scopes_failure_history_check',
+            'bt_bin_effect_scopes_counts_check',
+            'bt_bin_effect_scopes_effect_count_check',
+            'bt_bin_effect_scopes_succeeded_counts_check',
+        ] as $constraint) {
+            $this->assertContains($constraint, $constraints);
+        }
+
+        foreach ([
+            array_replace($this->scopeRow('RUNNING'), ['attempt_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 1, 'evaluation_race_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 1, 'evaluation_race_count' => 2]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 1, 'unseen_row_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 1, 'unseen_row_count' => 2]),
+            array_replace($this->scopeRow('RUNNING'), ['effect_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['spool_byte_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 1, 'maximum_bin_sample_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 1, 'maximum_bin_sample_count' => 2]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 1, 'evaluation_race_count' => 1, 'maximum_bin_race_count' => -1]),
+            array_replace($this->scopeRow('RUNNING'), ['evaluation_row_count' => 2, 'evaluation_race_count' => 1, 'maximum_bin_race_count' => 2]),
+            array_replace($this->scopeRow('SUCCEEDED'), ['effect_count' => 2]),
+            array_replace($this->scopeRow('SUCCEEDED'), ['effect_count' => 4]),
+            array_replace($this->scopeRow('SUCCEEDED'), ['maximum_bin_sample_count' => 0]),
+            array_replace($this->scopeRow('RUNNING'), ['failure_history' => '{}']),
+        ] as $invalid) {
+            try {
+                DB::transaction(fn () => DB::table('backtest_bin_effect_scopes')->insert($invalid));
+                $this->fail('PostgreSQL must reject invalid BT-03 scope counts.');
             } catch (QueryException) {
                 $this->addToAssertionCount(1);
             }
@@ -136,6 +183,7 @@ class Bt03BinEffectScopeMigrationTest extends TestCase
             'effect_manifest_hash' => null,
             'error_summary' => null,
             'last_interruption_summary' => null,
+            'failure_history' => '[]',
             'started_at' => null,
             'finished_at' => null,
             'created_at' => $now,
@@ -150,6 +198,8 @@ class Bt03BinEffectScopeMigrationTest extends TestCase
             $row['evaluation_race_count'] = 2;
             $row['effect_count'] = 3;
             $row['spool_byte_count'] = 99;
+            $row['maximum_bin_sample_count'] = 10;
+            $row['maximum_bin_race_count'] = 2;
             $row['effect_manifest_hash'] = str_repeat('b', 64);
             $row['finished_at'] = $now;
         } elseif ($status === 'FAILED') {

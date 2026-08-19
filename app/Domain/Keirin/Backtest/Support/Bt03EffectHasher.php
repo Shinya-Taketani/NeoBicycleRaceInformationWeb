@@ -23,6 +23,9 @@ class Bt03EffectHasher
         'probability_shift_mean', 'probability_shift_ci_lower', 'probability_shift_ci_upper',
         'log_loss_delta', 'log_loss_delta_ci_lower', 'log_loss_delta_ci_upper',
         'brier_delta', 'brier_delta_ci_lower', 'brier_delta_ci_upper',
+        'overall_baseline_residual_mean', 'centered_baseline_residual_mean',
+        'centered_baseline_residual_ci_lower', 'centered_baseline_residual_ci_upper',
+        'centered_ci_status', 'centered_bootstrap_valid_iterations',
         'bootstrap_iterations', 'bootstrap_seed', 'calculation_version',
     ];
 

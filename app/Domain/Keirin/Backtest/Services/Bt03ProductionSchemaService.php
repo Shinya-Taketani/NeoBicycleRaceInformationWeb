@@ -15,6 +15,15 @@ class Bt03ProductionSchemaService
         return [
             'backtest_bin_effects' => Schema::hasTable('backtest_bin_effects'),
             'backtest_bin_effect_scopes' => Schema::hasTable('backtest_bin_effect_scopes'),
+            'bt03_centered_residual' => Schema::hasTable('backtest_bin_effects')
+                && Schema::hasColumns('backtest_bin_effects', [
+                    'overall_baseline_residual_mean',
+                    'centered_baseline_residual_mean',
+                    'centered_baseline_residual_ci_lower',
+                    'centered_baseline_residual_ci_upper',
+                    'centered_ci_status',
+                    'centered_bootstrap_valid_iterations',
+                ]),
         ];
     }
 

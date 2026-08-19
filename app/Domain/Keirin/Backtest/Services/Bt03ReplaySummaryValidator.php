@@ -37,6 +37,7 @@ class Bt03ReplaySummaryValidator
         }
 
         $byLabel = [];
+        $overallByLabel = [];
         $trainingIdentity = [];
         foreach ($summary->effects as $effect) {
             if (! $effect instanceof Bt03ComputedBinEffectDto
@@ -47,6 +48,12 @@ class Bt03ReplaySummaryValidator
                 || ! hash_equals((string) $scope->source_boundaries_hash, $effect->bin->boundariesHash)) {
                 throw new RuntimeException('BT-03 Production replay effect contract was invalid.');
             }
+            $this->assertCenteredContract($effect);
+            if (isset($overallByLabel[$effect->labelCode])
+                && $overallByLabel[$effect->labelCode] !== $effect->centered->overallBaselineResidualMean) {
+                throw new RuntimeException('BT-03 Production centered overall residual differed between bins.');
+            }
+            $overallByLabel[$effect->labelCode] = $effect->centered->overallBaselineResidualMean;
             foreach ([$effect->models->baseline, $effect->models->incremental] as $model) {
                 if ($model->sourceRunId !== (int) $scope->source_backtest_run_id
                     || $model->sourceFoldId !== (int) $scope->source_backtest_fold_id
@@ -107,6 +114,51 @@ class Bt03ReplaySummaryValidator
             if (isset($byLabel[$label.':0']) !== ($summary->unseenRowCount > 0)) {
                 throw new RuntimeException('BT-03 Production UNSEEN label set was inconsistent.');
             }
+        }
+    }
+
+    private function assertCenteredContract(Bt03ComputedBinEffectDto $effect): void
+    {
+        $centered = $effect->centered;
+        $result = $effect->result;
+        if (! is_finite($centered->overallBaselineResidualMean)
+            || $centered->centeredBootstrapValidIterations < 0
+            || $centered->centeredBootstrapValidIterations > $result->bootstrapIterations) {
+            throw new RuntimeException('BT-03 Production centered residual count or overall value was invalid.');
+        }
+        if ($result->evaluationStatus === 'NO_EVALUATION_ROWS') {
+            if ($centered->centeredCiStatus !== 'NO_EVALUATION_ROWS'
+                || $centered->centeredBaselineResidualMean !== null
+                || $centered->centeredBaselineResidualCiLower !== null
+                || $centered->centeredBaselineResidualCiUpper !== null
+                || $centered->centeredBootstrapValidIterations !== 0) {
+                throw new RuntimeException('BT-03 Production empty centered residual contract was invalid.');
+            }
+
+            return;
+        }
+        if ($result->evaluationStatus !== 'OBSERVED'
+            || $centered->centeredBaselineResidualMean === null
+            || ! is_finite($centered->centeredBaselineResidualMean)) {
+            throw new RuntimeException('BT-03 Production observed centered residual contract was invalid.');
+        }
+        if ($centered->centeredCiStatus === 'AVAILABLE') {
+            if ($centered->centeredBootstrapValidIterations !== $result->bootstrapIterations
+                || $centered->centeredBaselineResidualCiLower === null
+                || $centered->centeredBaselineResidualCiUpper === null
+                || ! is_finite($centered->centeredBaselineResidualCiLower)
+                || ! is_finite($centered->centeredBaselineResidualCiUpper)
+                || $centered->centeredBaselineResidualCiLower > $centered->centeredBaselineResidualCiUpper) {
+                throw new RuntimeException('BT-03 Production available centered residual contract was invalid.');
+            }
+
+            return;
+        }
+        if ($centered->centeredCiStatus !== 'SPARSE_BOOTSTRAP_UNSUPPORTED'
+            || $centered->centeredBootstrapValidIterations >= $result->bootstrapIterations
+            || $centered->centeredBaselineResidualCiLower !== null
+            || $centered->centeredBaselineResidualCiUpper !== null) {
+            throw new RuntimeException('BT-03 Production sparse centered residual contract was invalid.');
         }
     }
 }

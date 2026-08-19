@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
+use App\Domain\Keirin\Backtest\Services\Bt03ProductionSchemaService;
 use App\Models\BacktestRun;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\QueryException;
@@ -28,6 +29,9 @@ class Bt03BinEffectMigrationTest extends TestCase
             'positive_count', 'observed_rate', 'observed_rate_ci_lower', 'observed_rate_ci_upper',
             'baseline_mean_probability', 'incremental_mean_probability', 'baseline_residual_mean',
             'baseline_residual_ci_lower', 'baseline_residual_ci_upper', 'incremental_residual_mean',
+            'overall_baseline_residual_mean', 'centered_baseline_residual_mean',
+            'centered_baseline_residual_ci_lower', 'centered_baseline_residual_ci_upper',
+            'centered_ci_status', 'centered_bootstrap_valid_iterations',
             'incremental_residual_ci_lower', 'incremental_residual_ci_upper', 'probability_shift_mean',
             'probability_shift_ci_lower', 'probability_shift_ci_upper', 'log_loss_delta',
             'log_loss_delta_ci_lower', 'log_loss_delta_ci_upper', 'brier_delta', 'brier_delta_ci_lower',
@@ -96,6 +100,22 @@ class Bt03BinEffectMigrationTest extends TestCase
         $this->assertSame($run->id, BacktestRun::query()->findOrFail($run->id)->id);
     }
 
+    public function test_centered_residual_migration_rolls_back_only_its_columns(): void
+    {
+        $migration = require database_path('migrations/2026_08_19_000012_add_centered_residual_to_bt03_bin_effects.php');
+        try {
+            $migration->down();
+            $this->assertTrue(Schema::hasTable('backtest_bin_effects'));
+            $this->assertTrue(Schema::hasColumn('backtest_bin_effects', 'baseline_residual_mean'));
+            $this->assertFalse(Schema::hasColumn('backtest_bin_effects', 'centered_baseline_residual_mean'));
+            $this->assertFalse(app(Bt03ProductionSchemaService::class)->readiness()['bt03_centered_residual']);
+        } finally {
+            $migration->up();
+        }
+        $this->assertTrue(Schema::hasColumn('backtest_bin_effects', 'centered_baseline_residual_mean'));
+        $this->assertTrue(app(Bt03ProductionSchemaService::class)->readiness()['bt03_centered_residual']);
+    }
+
     public function test_postgresql_has_all_bt03_check_constraints(): void
     {
         if (DB::getDriverName() !== 'pgsql') {
@@ -120,6 +140,9 @@ class Bt03BinEffectMigrationTest extends TestCase
             'bt_bin_effects_probability_check',
             'bt_bin_effects_ci_order_check',
             'bt_bin_effects_value_presence_check',
+            'bt_bin_effects_centered_status_check',
+            'bt_bin_effects_centered_iterations_check',
+            'bt_bin_effects_centered_presence_check',
         ] as $constraint) {
             $this->assertContains($constraint, $constraints);
         }
@@ -147,6 +170,18 @@ class Bt03BinEffectMigrationTest extends TestCase
         ]);
         DB::table('backtest_bin_effects')->insert($unseen);
 
+        $sparse = array_replace($training, [
+            'label_code' => 'SPARSE',
+            'centered_baseline_residual_ci_lower' => null,
+            'centered_baseline_residual_ci_upper' => null,
+            'centered_ci_status' => 'SPARSE_BOOTSTRAP_UNSUPPORTED',
+            'centered_bootstrap_valid_iterations' => 9,
+        ]);
+        DB::table('backtest_bin_effects')->insert($sparse);
+
+        $validNoEvaluation = $this->noEvaluationRow($training, 'EMPTY_VALUE');
+        DB::table('backtest_bin_effects')->insert($validNoEvaluation);
+
         $this->assertDatabaseHas('backtest_bin_effects', [
             'label_code' => 'IS_WIN',
             'bin_origin' => 'TRAINING_BIN',
@@ -160,6 +195,7 @@ class Bt03BinEffectMigrationTest extends TestCase
         ]);
 
         $noEvaluation = $this->noEvaluationRow($training, 'EMPTY_VALUE');
+        $noEvaluation['label_code'] = 'EMPTY_INVALID';
         $noEvaluation['baseline_residual_mean'] = 0.1;
         foreach ([
             [array_replace($training, ['label_code' => 'NEGATIVE_POSITIVE', 'positive_count' => -1]), 'bt_bin_effects_positive_count_check'],
@@ -168,6 +204,11 @@ class Bt03BinEffectMigrationTest extends TestCase
             [array_replace($training, ['label_code' => 'NEGATIVE_SEED', 'bootstrap_seed' => -1]), 'bt_bin_effects_bootstrap_check'],
             [$noEvaluation, 'bt_bin_effects_value_presence_check'],
             [array_replace($training, ['label_code' => 'OBSERVED_NULL', 'brier_delta' => null]), 'bt_bin_effects_value_presence_check'],
+            [array_replace($training, ['label_code' => 'CENTERED_STATUS', 'centered_ci_status' => 'UNKNOWN']), 'bt_bin_effects_centered_status_check'],
+            [array_replace($training, ['label_code' => 'CENTERED_AVAILABLE_NULL', 'centered_baseline_residual_ci_lower' => null]), 'bt_bin_effects_centered_presence_check'],
+            [array_replace($sparse, ['label_code' => 'CENTERED_SPARSE_CI', 'centered_baseline_residual_ci_lower' => -0.1]), 'bt_bin_effects_centered_presence_check'],
+            [array_replace($validNoEvaluation, ['label_code' => 'CENTERED_EMPTY_OVERALL', 'overall_baseline_residual_mean' => null]), 'bt_bin_effects_centered_iterations_check'],
+            [array_replace($training, ['label_code' => 'CENTERED_ITERATIONS', 'centered_bootstrap_valid_iterations' => 11]), 'bt_bin_effects_centered_iterations_check'],
         ] as [$invalid, $constraint]) {
             $this->assertPostgresRejects($invalid, $constraint);
         }
@@ -333,6 +374,12 @@ class Bt03BinEffectMigrationTest extends TestCase
             'brier_delta' => -0.005,
             'brier_delta_ci_lower' => -0.01,
             'brier_delta_ci_upper' => 0.0,
+            'overall_baseline_residual_mean' => 0.02,
+            'centered_baseline_residual_mean' => 0.01,
+            'centered_baseline_residual_ci_lower' => -0.01,
+            'centered_baseline_residual_ci_upper' => 0.03,
+            'centered_ci_status' => 'AVAILABLE',
+            'centered_bootstrap_valid_iterations' => 10,
             'bootstrap_iterations' => 10,
             'bootstrap_seed' => 1,
             'boundaries_hash' => str_repeat('e', 64),
@@ -360,6 +407,11 @@ class Bt03BinEffectMigrationTest extends TestCase
             'evaluation_sample_count' => 0,
             'evaluation_race_count' => 0,
             'positive_count' => 0,
+            'centered_baseline_residual_mean' => null,
+            'centered_baseline_residual_ci_lower' => null,
+            'centered_baseline_residual_ci_upper' => null,
+            'centered_ci_status' => 'NO_EVALUATION_ROWS',
+            'centered_bootstrap_valid_iterations' => 0,
         ]);
     }
 

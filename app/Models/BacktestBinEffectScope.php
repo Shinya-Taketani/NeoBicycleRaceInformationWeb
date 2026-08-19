@@ -13,6 +13,7 @@ class BacktestBinEffectScope extends Model
     protected function casts(): array
     {
         return [
+            'failure_history' => 'array',
             'started_at' => 'immutable_datetime',
             'finished_at' => 'immutable_datetime',
         ];

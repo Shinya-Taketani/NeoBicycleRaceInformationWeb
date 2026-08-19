@@ -8,6 +8,7 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03BinEffectCalculator;
 use App\Domain\Keirin\Backtest\DTO\Bt02PreflightSummaryDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03BinAssignmentDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03BinEffectResultDto;
+use App\Domain\Keirin\Backtest\DTO\Bt03CenteredBinResidualDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03ComputedBinEffectDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03EvaluationReplaySummaryDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03ModelPairDto;
@@ -77,6 +78,77 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         $this->assertResumeRejected($repository, (int) $run->id);
     }
 
+    public function test_resume_rejects_same_named_foreign_ids_and_target_spec_drift(): void
+    {
+        $this->productionSourceFixture();
+        $decoyRun = $this->insertRun('00000000-0000-4000-8000-000000000299', 'BT-02', 'SUCCEEDED');
+        $decoyFold = $this->insertFold($decoyRun, 'WF_2023', 'SUCCEEDED');
+        $decoySpec = $this->insertSpec($decoyRun);
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $preflight = $this->preflight(72);
+
+        foreach ([
+            ['backtest_fold_id' => $decoyFold],
+            ['backtest_signal_spec_id' => $decoySpec],
+            ['source_backtest_fold_id' => $decoyFold],
+            ['source_backtest_signal_spec_id' => $decoySpec],
+        ] as $mutation) {
+            $run = $repository->createRun($preflight);
+            DB::table('backtest_bin_effect_scopes')
+                ->where('backtest_run_id', $run->id)
+                ->where('cohort_code', 'STRICT')
+                ->where('backtest_fold_id', DB::table('backtest_folds')->where('backtest_run_id', $run->id)->where('fold_code', 'WF_2023')->value('id'))
+                ->where('backtest_signal_spec_id', DB::table('backtest_signal_specs')->where('backtest_run_id', $run->id)->where('stat_code', 'STAT-07')->value('id'))
+                ->update($mutation);
+            $this->assertStructureResumeRejected($repository, (int) $run->id, $preflight);
+        }
+
+        foreach ([
+            ['transform_code' => 'CHANGED'],
+            ['source_manifest_hash' => str_repeat('0', 64)],
+        ] as $mutation) {
+            $run = $repository->createRun($preflight);
+            DB::table('backtest_signal_specs')
+                ->where('backtest_run_id', $run->id)
+                ->where('stat_code', 'STAT-07')
+                ->update($mutation);
+            $this->assertStructureResumeRejected($repository, (int) $run->id, $preflight);
+        }
+    }
+
+    public function test_run_and_scope_failure_histories_are_append_only_across_resume(): void
+    {
+        [$scope] = $this->fixture();
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $scope = $repository->startScope($scope);
+        $repository->failScope($scope, new RuntimeException('scope failure one'));
+        $failed = $scope->refresh();
+        $this->assertCount(1, $failed->failure_history);
+        $this->assertSame('scope failure one', $failed->failure_history[0]['failure_message']);
+
+        $scope = $repository->startScope($failed);
+        $this->assertCount(1, $scope->failure_history);
+        $repository->failScope($scope, new RuntimeException('scope failure two'));
+        $this->assertCount(2, $scope->refresh()->failure_history);
+
+    }
+
+    public function test_run_failure_history_and_last_failure_survive_resume_and_append(): void
+    {
+        $this->productionSourceFixture();
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $run = $repository->createRun($this->preflight(72));
+        $repository->markRunFailure($run, new RuntimeException('run failure one'), true, null, null);
+        $failedRun = $run->refresh();
+        $this->assertCount(1, $failedRun->parameters['runtime']['failure_history']);
+
+        $resumed = $repository->resumeRun((int) $run->id, $this->preflight(72));
+        $this->assertCount(1, $resumed->parameters['runtime']['failure_history']);
+        $this->assertSame('run failure one', $resumed->parameters['runtime']['last_failure']['primary_message']);
+        $repository->markRunFailure($resumed, new RuntimeException('run failure two'), true, null, null);
+        $this->assertCount(2, $resumed->refresh()->parameters['runtime']['failure_history']);
+    }
+
     public function test_repository_persists_nontrivial_doubles_and_verifies_round_trip_hash_and_manifest(): void
     {
         [$scope, $summary] = $this->fixture();
@@ -99,6 +171,10 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         $this->assertSame(0.02345678901234568, (float) $stored->probability_shift_mean);
         $this->assertSame(-0.03456789012345679, (float) $stored->log_loss_delta);
         $this->assertSame(-0.04567890123456789, (float) $stored->brier_delta);
+        $this->assertSame(0.031234567890123455, (float) $stored->overall_baseline_residual_mean);
+        $this->assertSame(-0.04358024679135802, (float) $stored->centered_baseline_residual_mean);
+        $this->assertSame('AVAILABLE', $stored->centered_ci_status);
+        $this->assertSame(2000, (int) $stored->centered_bootstrap_valid_iterations);
     }
 
     public function test_mid_insert_failure_rolls_back_every_effect_then_failed_scope_is_retryable(): void
@@ -135,7 +211,13 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         $retried = $repository->startScope($failed);
         $this->assertSame('RUNNING', $retried->status);
         $this->assertSame(2, (int) $retried->attempt_count);
+        $this->assertCount(1, $retried->failure_history);
         $this->assertSame(0, DB::table('backtest_bin_effects')->count());
+
+        $repository->persistScope($retried, 'WF_2023', 'STAT-07', $summary);
+        $succeeded = $retried->refresh();
+        $this->assertSame('SUCCEEDED', $succeeded->status);
+        $this->assertCount(1, $succeeded->failure_history);
     }
 
     public function test_succeeded_effect_tampering_is_detected_without_automatic_repair(): void
@@ -187,6 +269,8 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
 
         $this->assertSame(2, (int) $retried->attempt_count);
         $this->assertStringContainsString('INTERRUPTED_BEFORE_RESUME', (string) $retried->last_interruption_summary);
+        $this->assertCount(1, $retried->failure_history);
+        $this->assertSame('INTERRUPTED_BEFORE_RESUME', $retried->failure_history[0]['failure_class']);
         $this->assertSame(0, DB::table('backtest_bin_effects')->count());
     }
 
@@ -332,6 +416,19 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         }
     }
 
+    private function assertStructureResumeRejected(
+        Bt03BinEffectAuditRepository $repository,
+        int $runId,
+        Bt03PreflightSummaryDto $preflight,
+    ): void {
+        try {
+            $repository->resumeRun($runId, $preflight);
+            $this->fail('The mutated Production ownership must not be resumable.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('differed', $exception->getMessage());
+        }
+    }
+
     private function effect(
         int $runId,
         int $foldId,
@@ -360,6 +457,14 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         $models = new Bt03ModelPairDto(
             $this->modelDto($baseline, $runId, $foldId, $specId, $label, 'BASELINE_MATCHED'),
             $this->modelDto($incremental, $runId, $foldId, $specId, $label, 'INCREMENTAL'),
+        );
+        $centered = new Bt03CenteredBinResidualDto(
+            0.031234567890123455,
+            -0.04358024679135802,
+            -0.05234567890123457,
+            -0.03456789012345679,
+            'AVAILABLE',
+            2000,
         );
         $artifact = [
             'source_bt02_run_id' => $runId,
@@ -403,12 +508,25 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
             'brier_delta' => $result->brierDelta,
             'brier_delta_ci_lower' => $result->brierDeltaCiLower,
             'brier_delta_ci_upper' => $result->brierDeltaCiUpper,
+            'overall_baseline_residual_mean' => $centered->overallBaselineResidualMean,
+            'centered_baseline_residual_mean' => $centered->centeredBaselineResidualMean,
+            'centered_baseline_residual_ci_lower' => $centered->centeredBaselineResidualCiLower,
+            'centered_baseline_residual_ci_upper' => $centered->centeredBaselineResidualCiUpper,
+            'centered_ci_status' => $centered->centeredCiStatus,
+            'centered_bootstrap_valid_iterations' => $centered->centeredBootstrapValidIterations,
             'bootstrap_iterations' => 2000,
             'bootstrap_seed' => 20260812,
             'calculation_version' => Bt03BinEffectCalculator::CALCULATION_VERSION,
         ];
 
-        return new Bt03ComputedBinEffectDto($bin, $label, $models, $result, app(Bt03EffectHasher::class)->hash($artifact));
+        return new Bt03ComputedBinEffectDto(
+            $bin,
+            $label,
+            $models,
+            $result,
+            $centered,
+            app(Bt03EffectHasher::class)->hash($artifact),
+        );
     }
 
     /** @param array{id: int, hash: string} $row */
