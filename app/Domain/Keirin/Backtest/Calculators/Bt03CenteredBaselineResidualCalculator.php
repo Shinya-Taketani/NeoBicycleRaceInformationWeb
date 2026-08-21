@@ -37,11 +37,11 @@ class Bt03CenteredBaselineResidualCalculator
             throw new InvalidArgumentException('BT-03 centered residual expected bin set was invalid.');
         }
 
-        $races = $this->compactRaces($racePayloads, $binIndexes);
-        if ($races === []) {
+        $store = $this->compactRaces($racePayloads, $binIndexes);
+        if ($store['race_count'] === 0) {
             throw new InvalidArgumentException('BT-03 centered residual full evaluation universe was empty.');
         }
-        [$overallCount, $overallSum, $binPoints] = $this->aggregate($races, $binIndexes);
+        [$overallCount, $overallSum, $binPoints] = $this->aggregate($store, $binIndexes);
         $overallMean = $overallSum / $overallCount;
         $samples = $validIterations = [];
         foreach ($binIndexes as $binIndex) {
@@ -49,11 +49,8 @@ class Bt03CenteredBaselineResidualCalculator
             $validIterations[$binIndex] = 0;
         }
 
-        foreach ($this->bootstrap->resampleIndexes(count($races), $iterations, $seed) as $indexes) {
-            [$replicateOverallCount, $replicateOverallSum, $replicateBins] = $this->aggregate(
-                $this->bootstrap->apply($races, $indexes),
-                $binIndexes,
-            );
+        foreach ($this->bootstrap->resampleIndexes($store['race_count'], $iterations, $seed) as $indexes) {
+            [$replicateOverallCount, $replicateOverallSum, $replicateBins] = $this->aggregate($store, $binIndexes, $indexes);
             $replicateOverall = $replicateOverallSum / $replicateOverallCount;
             foreach ($binIndexes as $binIndex) {
                 if ($replicateBins[$binIndex]['count'] === 0) {
@@ -109,31 +106,27 @@ class Bt03CenteredBaselineResidualCalculator
     /**
      * @param  iterable<Bt03CenteredRacePayloadDto>  $payloads
      * @param  list<int>  $binIndexes
-     * @return list<array{race_id: int, sample_count: int, residual_sum: float, bins: array<int, array{count: int, sum: float}>}>
+     * @return array{values: list<int|float>, offsets: list<int>, race_count: int}
      */
     private function compactRaces(iterable $payloads, array $binIndexes): array
     {
-        $allowedBins = array_fill_keys($binIndexes, true);
-        $races = [];
+        $binPositions = array_flip($binIndexes);
+        $values = $raceIds = $offsets = [];
+        $stride = 2 + (count($binIndexes) * 2);
         foreach ($payloads as $payload) {
             if (! $payload instanceof Bt03CenteredRacePayloadDto || $payload->raceId < 1 || $payload->entries === []) {
                 throw new InvalidArgumentException('BT-03 centered race payload was invalid.');
             }
-            if (isset($races[$payload->raceId])) {
-                throw new InvalidArgumentException('BT-03 centered race payload contained a duplicate race.');
-            }
             $entries = $payload->entries;
             usort($entries, fn (Bt03CenteredResidualEntryDto $left, Bt03CenteredResidualEntryDto $right): int => $left->raceEntryId <=> $right->raceEntryId);
             $seenEntries = [];
-            $race = [
-                'race_id' => $payload->raceId,
-                'sample_count' => 0,
-                'residual_sum' => 0.0,
-                'bins' => [],
-            ];
+            $sampleCount = 0;
+            $residualSum = 0.0;
+            $binCounts = array_fill(0, count($binIndexes), 0);
+            $binSums = array_fill(0, count($binIndexes), 0.0);
             foreach ($entries as $entry) {
                 if (! $entry instanceof Bt03CenteredResidualEntryDto
-                    || $entry->raceEntryId < 1 || ! isset($allowedBins[$entry->binIndex])
+                    || $entry->raceEntryId < 1 || ! isset($binPositions[$entry->binIndex])
                     || ! in_array($entry->label, [0, 1], true)
                     || ! is_finite($entry->baselineProbability)
                     || $entry->baselineProbability < 0.0 || $entry->baselineProbability > 1.0) {
@@ -144,26 +137,46 @@ class Bt03CenteredBaselineResidualCalculator
                 }
                 $seenEntries[$entry->raceEntryId] = true;
                 $residual = $entry->label - $entry->baselineProbability;
-                $race['sample_count']++;
-                $race['residual_sum'] += $residual;
-                $race['bins'][$entry->binIndex] ??= ['count' => 0, 'sum' => 0.0];
-                $race['bins'][$entry->binIndex]['count']++;
-                $race['bins'][$entry->binIndex]['sum'] += $residual;
+                $sampleCount++;
+                $residualSum += $residual;
+                $binPosition = $binPositions[$entry->binIndex];
+                $binCounts[$binPosition]++;
+                $binSums[$binPosition] += $residual;
             }
-            ksort($race['bins'], SORT_NUMERIC);
-            $races[$payload->raceId] = $race;
+            $raceIds[] = $payload->raceId;
+            $offsets[] = count($values);
+            $values[] = $sampleCount;
+            $values[] = $residualSum;
+            foreach ($binCounts as $position => $binCount) {
+                $values[] = $binCount;
+                $values[] = $binSums[$position];
+            }
         }
-        ksort($races, SORT_NUMERIC);
+        if ($raceIds === []) {
+            return ['values' => [], 'offsets' => [], 'race_count' => 0];
+        }
+        array_multisort($raceIds, SORT_ASC, SORT_NUMERIC, $offsets, SORT_ASC, SORT_NUMERIC);
+        for ($index = 1, $count = count($raceIds); $index < $count; $index++) {
+            if ($raceIds[$index] === $raceIds[$index - 1]) {
+                throw new InvalidArgumentException('BT-03 centered race payload contained a duplicate race.');
+            }
+        }
+        foreach ($offsets as $offset) {
+            if ($offset < 0 || $offset + $stride > count($values)) {
+                throw new InvalidArgumentException('BT-03 centered race compact offset was invalid.');
+            }
+        }
 
-        return array_values($races);
+        return ['values' => $values, 'offsets' => $offsets, 'race_count' => count($offsets)];
     }
 
     /**
-     * @param  list<array{race_id: int, sample_count: int, residual_sum: float, bins: array<int, array{count: int, sum: float}>}>  $races
+     * @param  array{values: list<int|float>, offsets: list<int>, race_count: int}  $store
      * @param  list<int>  $binIndexes
+     * @param  list<int>|null  $indexes
      * @return array{int, float, array<int, array{count: int, sum: float}>}
      */
-    private function aggregate(array $races, array $binIndexes): array
+    private function aggregate(array $store, array $binIndexes, ?array $indexes = null): array
     {
         $count = 0;
         $sum = 0.0;
@@ -171,12 +184,22 @@ class Bt03CenteredBaselineResidualCalculator
         foreach ($bins as $binIndex => $_) {
             $bins[$binIndex] = ['count' => 0, 'sum' => 0.0];
         }
-        foreach ($races as $race) {
-            $count += $race['sample_count'];
-            $sum += $race['residual_sum'];
-            foreach ($race['bins'] as $binIndex => $bin) {
-                $bins[$binIndex]['count'] += $bin['count'];
-                $bins[$binIndex]['sum'] += $bin['sum'];
+        $indexes ??= range(0, $store['race_count'] - 1);
+        foreach ($indexes as $index) {
+            if (! isset($store['offsets'][$index])) {
+                throw new InvalidArgumentException('Bootstrap race index was out of range.');
+            }
+            $cursor = $store['offsets'][$index];
+            $count += $store['values'][$cursor++];
+            $sum += $store['values'][$cursor++];
+            foreach ($binIndexes as $binIndex) {
+                $binCount = $store['values'][$cursor++];
+                $binSum = $store['values'][$cursor++];
+                if ($binCount === 0) {
+                    continue;
+                }
+                $bins[$binIndex]['count'] += $binCount;
+                $bins[$binIndex]['sum'] += $binSum;
             }
         }
         if ($count < 1 || ! is_finite($sum)) {
