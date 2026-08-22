@@ -30,6 +30,7 @@ class Bt03eDatasetBuilder
         private readonly FeatureEligibilityEvaluator $baselineEligibility,
         private readonly Bt02SignalEligibilityEvaluator $signalEligibility,
         private readonly Bt03FixedBinAssigner $binAssigner,
+        private readonly Bt03eReadOnlyQueryAudit $queryAudit,
     ) {}
 
     /**
@@ -56,9 +57,11 @@ class Bt03eDatasetBuilder
             foreach ($snapshot->chunks($fold, self::CHUNK_SIZE) as $snapshotChunk) {
                 $snapshotRaces += count($snapshotChunk);
                 $raceIds = array_map(static fn (Bt02OutcomeContextRaceDto $race): int => $race->context->raceId, $snapshotChunk);
+                $this->queryAudit->recordFeatureSourceYear($year);
                 $baselineByRace = $this->baselineFeatures->forRaces($this->baselineManifest->forYear($year)->featureRunId, $raceIds);
                 $signals = [];
                 foreach (Bt03eContract::STAT_CODES as $statCode) {
+                    $this->queryAudit->recordFeatureSourceYear($year);
                     $signals[$statCode] = $this->signalFeatures->forRaces(
                         $this->signalManifest->for($year, $statCode)->featureRunId,
                         $statCode,
@@ -144,10 +147,14 @@ class Bt03eDatasetBuilder
                     : ($ruleIndex[$statCode]['directions'][$assignment->binIndex] ?? 0);
             }
             $result = $resultByBike[$feature->bikeNumber];
+            if ($feature->raceScoreRank === null || $feature->raceScoreRank < 1) {
+                throw new RuntimeException('BT-03E stored STAT-01 RACE_SCORE_RANK was invalid.');
+            }
             $entries[] = [
                 'id' => $feature->raceEntryId,
                 'bike' => $feature->bikeNumber,
                 'raw' => (float) $feature->raceScoreRaw,
+                'stat01_rank' => $feature->raceScoreRank,
                 'directions' => $directions,
                 'rank' => $result->rank,
                 'status' => $result->resultStatus,

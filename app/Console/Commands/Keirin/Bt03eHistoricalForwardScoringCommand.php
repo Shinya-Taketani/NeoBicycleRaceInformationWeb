@@ -42,8 +42,22 @@ class Bt03eHistoricalForwardScoringCommand extends Command
         $this->line('evaluation_position_hit_at_3='.$summary['evaluation_2024']['point_engine_metrics']['POSITION_HIT_RATE_AT_3']);
         $this->line('json='.$summary['artifacts']['json']);
         $this->line('csv='.$summary['artifacts']['csv']);
-        $this->line('DB writes=0; 2025 access=0; 2026 access=0');
+        $audit = $summary['audit'];
+        $this->line(sprintf(
+            'DB writes=%d; 2025 access=%d; 2026 access=%d',
+            $audit['executed_write_query_count'],
+            $this->yearAccessCount($audit, 2025),
+            $this->yearAccessCount($audit, 2026),
+        ));
 
         return self::SUCCESS;
+    }
+
+    /** @param array<string, mixed> $audit */
+    private function yearAccessCount(array $audit, int $year): int
+    {
+        return (int) ($audit['forbidden_year_query_or_binding_count'][$year] ?? 0)
+            + (int) ($audit['snapshot_partition_access'][$year] ?? 0)
+            + (int) ($audit['feature_source_access'][$year] ?? 0);
     }
 }

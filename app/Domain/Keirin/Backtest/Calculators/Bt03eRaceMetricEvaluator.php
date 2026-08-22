@@ -25,27 +25,54 @@ class Bt03eRaceMetricEvaluator
 
     public function __construct(private readonly Bt03ePointScorer $scorer) {}
 
-    /** @param iterable<array{race_id: int, entries: list<array{id: int, bike: int, raw: float, directions: list<int>, rank: ?int, status: string}>}> $races */
+    /** @param iterable<array{race_id: int, entries: list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}>}> $races */
     public function evaluate(iterable $races, Bt03eCandidateDto $candidate): Bt03eMetricSummaryDto
     {
+        return $this->evaluateRanked($races, fn (array $entries): array => $this->scorer->rank($entries, $candidate));
+    }
+
+    /** @param iterable<array{race_id: int, entries: list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}>}> $races */
+    public function evaluateBaseline(iterable $races): Bt03eMetricSummaryDto
+    {
+        return $this->evaluateRanked($races, fn (array $entries): array => $this->scorer->rankBaseline($entries));
+    }
+
+    /**
+     * @param  iterable<array{race_id: int, entries: list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}>}>  $races
+     * @param  callable(list<array<string, mixed>>): array{entries: list<array<string, mixed>>, tied_entries: int, stat01_tie_breaks: int, tied: bool}  $ranker
+     */
+    private function evaluateRanked(iterable $races, callable $ranker): Bt03eMetricSummaryDto
+    {
         $raceCount = $entryCount = $orderedEligible = $orderedExcluded = 0;
+        $positionEligible = [1 => 0, 2 => 0, 3 => 0];
         $positionHits = [1 => 0, 2 => 0, 3 => 0];
+        $orderedPositionHits = [1 => 0, 2 => 0, 3 => 0];
         $exactOrdered = $exactTop3 = $exactTop2 = 0;
         $top3Hits = $top2Hits = 0;
         $ndcgSum = 0.0;
         $tiedRaces = $tiedEntries = $stat01TieBreaks = 0;
         $exclusionReasons = [];
+        $positionExclusionReasons = [];
 
         foreach ($races as $race) {
             $raceCount++;
             $entryCount += count($race['entries']);
-            $scored = $this->scorer->rank($race['entries'], $candidate);
+            $scored = $ranker($race['entries']);
             $predicted = array_map('intval', array_column($scored['entries'], 'bike'));
             $tiedRaces += (int) $scored['tied'];
             $tiedEntries += $scored['tied_entries'];
             $stat01TieBreaks += $scored['stat01_tie_breaks'];
 
             $official = $this->officialRanks($race['entries']);
+            foreach ([1, 2, 3] as $position) {
+                if (count($official[$position] ?? []) === 1) {
+                    $positionEligible[$position]++;
+                    $positionHits[$position] += (int) (($predicted[$position - 1] ?? null) === $official[$position][0]);
+                } else {
+                    $reason = "POSITION_{$position}_NON_UNIQUE_OR_MISSING";
+                    $positionExclusionReasons[$reason] = ($positionExclusionReasons[$reason] ?? 0) + 1;
+                }
+            }
             $ordered = $this->orderedTop3($official);
             if ($ordered === null) {
                 $orderedExcluded++;
@@ -53,7 +80,7 @@ class Bt03eRaceMetricEvaluator
             } else {
                 $orderedEligible++;
                 foreach ([1, 2, 3] as $position) {
-                    $positionHits[$position] += (int) (($predicted[$position - 1] ?? null) === $ordered[$position - 1]);
+                    $orderedPositionHits[$position] += (int) (($predicted[$position - 1] ?? null) === $ordered[$position - 1]);
                 }
                 $exactOrdered += (int) (array_slice($predicted, 0, 3) === $ordered);
             }
@@ -69,14 +96,15 @@ class Bt03eRaceMetricEvaluator
             $ndcgSum += $this->ndcgAt3($predicted, $official);
         }
 
+        $positionDenominators = array_map(static fn (int $count): int => max(1, $count), $positionEligible);
         $orderedDenominator = max(1, $orderedEligible);
         $raceDenominator = max(1, $raceCount);
         $metrics = [
-            'WINNER_HIT_AT_1' => (float) ($positionHits[1] / $orderedDenominator),
-            'POSITION_1_ACCURACY' => (float) ($positionHits[1] / $orderedDenominator),
-            'POSITION_2_ACCURACY' => (float) ($positionHits[2] / $orderedDenominator),
-            'POSITION_3_ACCURACY' => (float) ($positionHits[3] / $orderedDenominator),
-            'POSITION_HIT_RATE_AT_3' => (float) (array_sum($positionHits) / (3 * $orderedDenominator)),
+            'WINNER_HIT_AT_1' => (float) ($positionHits[1] / $positionDenominators[1]),
+            'POSITION_1_ACCURACY' => (float) ($positionHits[1] / $positionDenominators[1]),
+            'POSITION_2_ACCURACY' => (float) ($positionHits[2] / $positionDenominators[2]),
+            'POSITION_3_ACCURACY' => (float) ($positionHits[3] / $positionDenominators[3]),
+            'POSITION_HIT_RATE_AT_3' => (float) (array_sum($orderedPositionHits) / (3 * $orderedDenominator)),
             'EXACT_ORDERED_TOP3_RATE' => (float) ($exactOrdered / $orderedDenominator),
             'EXACT_TOP3_SET_RATE' => (float) ($exactTop3 / $raceDenominator),
             'TOP3_COVERAGE_AT_3' => (float) ($top3Hits / (3 * $raceDenominator)),
@@ -89,9 +117,13 @@ class Bt03eRaceMetricEvaluator
             $metrics,
             $raceCount,
             $entryCount,
+            $positionEligible[1],
+            $positionEligible[2],
+            $positionEligible[3],
             $orderedEligible,
             $orderedExcluded,
             $exclusionReasons,
+            $positionExclusionReasons,
             $tiedRaces,
             $tiedEntries,
             $stat01TieBreaks,

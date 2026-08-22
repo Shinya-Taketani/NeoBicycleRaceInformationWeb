@@ -18,6 +18,12 @@ class Bt03eHistoricalForwardScoringCommandTest extends TestCase
                 'chosen_candidate' => ['base_step' => 10, 'weights' => ['STAT-07' => 20]],
                 'training_2023' => ['race_count' => 100, 'metrics' => ['POSITION_HIT_RATE_AT_3' => 0.25]],
                 'evaluation_2024' => ['race_count' => 110, 'point_engine_metrics' => ['POSITION_HIT_RATE_AT_3' => 0.24]],
+                'audit' => [
+                    'executed_write_query_count' => 0,
+                    'forbidden_year_query_or_binding_count' => [2025 => 0, 2026 => 0],
+                    'snapshot_partition_access' => [2025 => 0, 2026 => 0],
+                    'feature_source_access' => [2025 => 0, 2026 => 0],
+                ],
                 'artifacts' => ['json' => '/tmp/result.json', 'csv' => '/tmp/result.csv'],
             ]);
         });

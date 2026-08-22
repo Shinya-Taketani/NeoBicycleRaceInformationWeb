@@ -11,16 +11,16 @@ use RuntimeException;
 class Bt03ePointScorer
 {
     /**
-     * @param  list<array{id: int, bike: int, raw: float, directions: list<int>, rank: ?int, status: string}>  $entries
+     * @param  list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}>  $entries
      * @return array{entries: list<array<string, mixed>>, tied_entries: int, stat01_tie_breaks: int, tied: bool}
      */
     public function rank(array $entries, Bt03eCandidateDto $candidate): array
     {
+        $maximumStat01Rank = $this->maximumStat01Rank($entries);
         $ranked = [];
         foreach ($entries as $entry) {
             $this->assertEntry($entry);
-            $lower = count(array_filter($entries, fn (array $other): bool => (float) $other['raw'] < (float) $entry['raw']));
-            $points = $lower * $candidate->baseStep;
+            $points = ($maximumStat01Rank - $entry['stat01_rank']) * $candidate->baseStep;
             foreach (Bt03eContract::STAT_CODES as $index => $statCode) {
                 $points += $entry['directions'][$index] * ($candidate->weights[$statCode] ?? 0);
             }
@@ -55,11 +55,51 @@ class Bt03ePointScorer
         ];
     }
 
+    /**
+     * @param  list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}>  $entries
+     * @return array{entries: list<array<string, mixed>>, tied_entries: int, stat01_tie_breaks: int, tied: bool}
+     */
+    public function rankBaseline(array $entries): array
+    {
+        foreach ($entries as $entry) {
+            $this->assertEntry($entry);
+        }
+        usort($entries, static fn (array $left, array $right): int => [
+            -$left['raw'], $left['bike'],
+        ] <=> [
+            -$right['raw'], $right['bike'],
+        ]);
+
+        return [
+            'entries' => $entries,
+            'tied_entries' => 0,
+            'stat01_tie_breaks' => 0,
+            'tied' => false,
+        ];
+    }
+
+    /** @param list<array<string, mixed>> $entries */
+    private function maximumStat01Rank(array $entries): int
+    {
+        if ($entries === []) {
+            throw new RuntimeException('BT-03E scoring entries were empty.');
+        }
+        foreach ($entries as $entry) {
+            $this->assertEntry($entry);
+        }
+        if (max(array_column($entries, 'stat01_rank')) > count($entries)) {
+            throw new RuntimeException('BT-03E stored STAT-01 rank exceeded the entrant count.');
+        }
+
+        return max(array_column($entries, 'stat01_rank'));
+    }
+
     /** @param array<string, mixed> $entry */
     private function assertEntry(array $entry): void
     {
         if (! is_int($entry['id'] ?? null) || ! is_int($entry['bike'] ?? null)
             || ! is_numeric($entry['raw'] ?? null) || ! is_array($entry['directions'] ?? null)
+            || ! is_int($entry['stat01_rank'] ?? null) || $entry['stat01_rank'] < 1
             || count($entry['directions']) !== count(Bt03eContract::STAT_CODES)
             || array_filter($entry['directions'], static fn (mixed $value): bool => ! is_int($value) || $value < -2 || $value > 2) !== []) {
             throw new RuntimeException('BT-03E scoring entry was invalid.');

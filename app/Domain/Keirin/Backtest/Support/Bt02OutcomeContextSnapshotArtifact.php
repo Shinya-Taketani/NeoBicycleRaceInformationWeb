@@ -153,6 +153,19 @@ class Bt02OutcomeContextSnapshotArtifact implements Bt02OutcomeContextSnapshot
         return $this->rootPath.'/'.$partition->file;
     }
 
+    /** @return array<string, int|string> */
+    public function partitionAudit(int $year): array
+    {
+        return $this->partition($year)->canonical();
+    }
+
+    public function verifyPartition(int $year): void
+    {
+        foreach ($this->partitionRows($this->partition($year)) as $_) {
+            // Exhausting one selected partition verifies its count, bytes, and SHA-256 seal.
+        }
+    }
+
     /** @param list<Bt02OutcomeSnapshotPartitionDto> $partitions @return array{format_version: string, target_from: string, target_to: string, partitions: list<array<string, int|string>>} */
     public static function manifestPayload(array $partitions): array
     {

@@ -20,6 +20,9 @@ class Bt03eRaceMetricEvaluatorTest extends TestCase
             $this->assertSame(1.0, $summary->metrics[$metric], $metric);
         }
         $this->assertSame(1, $summary->orderedEligibleRaceCount);
+        $this->assertSame(1, $summary->uniquePosition1RaceCount);
+        $this->assertSame(1, $summary->uniquePosition2RaceCount);
+        $this->assertSame(1, $summary->uniquePosition3RaceCount);
         $this->assertSame(0, $summary->orderedExcludedRaceCount);
     }
 
@@ -48,9 +51,36 @@ class Bt03eRaceMetricEvaluatorTest extends TestCase
 
         $this->assertSame(0, $summary->orderedEligibleRaceCount);
         $this->assertSame(1, $summary->orderedExcludedRaceCount);
+        $this->assertSame(0, $summary->uniquePosition1RaceCount);
+        $this->assertSame(0, $summary->uniquePosition2RaceCount);
+        $this->assertSame(1, $summary->uniquePosition3RaceCount);
         $this->assertSame(['NON_UNIQUE_OR_MISSING_OFFICIAL_TOP3' => 1], $summary->orderedExclusionReasons);
+        $this->assertSame([
+            'POSITION_1_NON_UNIQUE_OR_MISSING' => 1,
+            'POSITION_2_NON_UNIQUE_OR_MISSING' => 1,
+        ], $summary->positionExclusionReasons);
+        $this->assertSame(0.0, $summary->metrics['WINNER_HIT_AT_1']);
+        $this->assertSame(1.0, $summary->metrics['POSITION_3_ACCURACY']);
+        $this->assertSame(0.0, $summary->metrics['POSITION_HIT_RATE_AT_3']);
         $this->assertSame(1.0, $summary->metrics['EXACT_TOP3_SET_RATE']);
         $this->assertSame(1.0, $summary->metrics['TOP3_COVERAGE_AT_3']);
+    }
+
+    public function test_each_position_uses_its_own_unique_official_rank_denominator(): void
+    {
+        $summary = $this->evaluator()->evaluate([
+            $this->race([1, 1, 2, 4, 5], 1),
+            $this->race([1, 2, 2, 4, 5], 2),
+            $this->race([1, 2, 3, 4, 5], 3),
+        ], $this->baseline());
+
+        $this->assertSame(2, $summary->uniquePosition1RaceCount);
+        $this->assertSame(2, $summary->uniquePosition2RaceCount);
+        $this->assertSame(1, $summary->uniquePosition3RaceCount);
+        $this->assertSame(1, $summary->orderedEligibleRaceCount);
+        $this->assertEqualsWithDelta(1.0, $summary->metrics['WINNER_HIT_AT_1'], 1e-12);
+        $this->assertEqualsWithDelta(0.5, $summary->metrics['POSITION_2_ACCURACY'], 1e-12);
+        $this->assertEqualsWithDelta(1.0, $summary->metrics['POSITION_3_ACCURACY'], 1e-12);
     }
 
     private function evaluator(): Bt03eRaceMetricEvaluator
@@ -64,7 +94,7 @@ class Bt03eRaceMetricEvaluatorTest extends TestCase
     }
 
     /** @param list<int> $ranks @return array{race_id: int, entries: list<array{id: int, bike: int, raw: float, directions: list<int>, rank: ?int, status: string}>} */
-    private function race(array $ranks): array
+    private function race(array $ranks, int $raceId = 1): array
     {
         $entries = [];
         foreach ($ranks as $offset => $rank) {
@@ -72,12 +102,13 @@ class Bt03eRaceMetricEvaluatorTest extends TestCase
                 'id' => $offset + 1,
                 'bike' => $offset + 1,
                 'raw' => 100.0 - $offset,
+                'stat01_rank' => $offset + 1,
                 'directions' => array_fill(0, 12, 0),
                 'rank' => $rank,
                 'status' => count(array_keys($ranks, $rank, true)) > 1 ? 'TIED' : 'FINISHED',
             ];
         }
 
-        return ['race_id' => 1, 'entries' => $entries];
+        return ['race_id' => $raceId, 'entries' => $entries];
     }
 }

@@ -14,7 +14,7 @@ class Bt03eCoordinateDescentOptimizer
     public function __construct(private readonly Bt03eRaceMetricEvaluator $metrics) {}
 
     /**
-     * @param  callable(): iterable<array{race_id: int, entries: list<array{id: int, bike: int, raw: float, directions: list<int>, rank: ?int, status: string}>}>  $raceSource
+     * @param  callable(): iterable<array{race_id: int, entries: list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}>}>  $raceSource
      * @return array{candidate: Bt03eCandidateDto, metrics: Bt03eMetricSummaryDto, evaluated_candidate_count: int, starts: int}
      */
     public function optimize(callable $raceSource): array

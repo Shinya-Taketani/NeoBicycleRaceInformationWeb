@@ -7,7 +7,6 @@ namespace App\Domain\Keirin\Backtest\Services;
 use App\Domain\Keirin\Backtest\Calculators\Bt03eCoordinateDescentOptimizer;
 use App\Domain\Keirin\Backtest\Calculators\Bt03eDirectionRuleBuilder;
 use App\Domain\Keirin\Backtest\Calculators\Bt03eRaceMetricEvaluator;
-use App\Domain\Keirin\Backtest\DTO\Bt03eCandidateDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03eMetricSummaryDto;
 use App\Domain\Keirin\Backtest\Repositories\Bt03eRuleSourceRepository;
 use App\Domain\Keirin\Backtest\Support\Bt02OutcomeContextSnapshotArtifact;
@@ -25,6 +24,8 @@ class Bt03eHistoricalForwardScoringService
         private readonly Bt03eRaceMetricEvaluator $metrics,
         private readonly Bt03eArtifactWriter $artifacts,
         private readonly Bt03eReadOnlyQueryAudit $queryAudit,
+        private readonly Bt03eReadOnlyDatabaseGuard $databaseGuard,
+        private readonly Bt03eOutcomeSnapshotProvider $snapshots,
     ) {}
 
     /** @return array<string, mixed> */
@@ -34,14 +35,17 @@ class Bt03eHistoricalForwardScoringService
         $this->queryAudit->start();
         $training = $evaluation = null;
         try {
-            $run6Before = $this->ruleSource->auditState();
-            $rules = $this->ruleBuilder->build($this->ruleSource->rows());
-            $sourcePreflight = $this->preflight->run();
+            $this->databaseGuard->begin();
+            $startPreflight = $this->preflight->run();
+            $sourceStart = $this->ruleSource->sourceSnapshot();
+            $rules = $this->ruleBuilder->build($sourceStart['rows']);
+            unset($sourceStart['rows']);
             $snapshotPath = $this->ruleSource->outcomeSnapshotPath();
-            $snapshot = Bt02OutcomeContextSnapshotArtifact::open(storage_path('app/'.$snapshotPath), $snapshotPath);
+            $snapshot = $this->snapshots->open(storage_path('app/'.$snapshotPath), $snapshotPath);
             if (! hash_equals(Bt03SourceManifest::OUTCOME_SNAPSHOT_MANIFEST_HASH, $snapshot->manifestHash())) {
                 throw new RuntimeException('BT-03E outcome snapshot manifest identity was invalid.');
             }
+            $snapshotStart = $this->snapshotAudit($snapshot);
 
             $trainingStarted = hrtime(true);
             $this->queryAudit->recordSnapshotYear(Bt03eContract::TRAINING_YEAR);
@@ -54,15 +58,37 @@ class Bt03eHistoricalForwardScoringService
             $evaluationStarted = hrtime(true);
             $this->queryAudit->recordSnapshotYear(Bt03eContract::EVALUATION_YEAR);
             $evaluation = $this->datasets->build(Bt03eContract::EVALUATION_YEAR, $rules, $snapshot, sys_get_temp_dir());
-            $zeroWeights = array_fill_keys(Bt03eContract::STAT_CODES, 0);
-            $baselineMetrics = $this->metrics->evaluate($evaluation['spool']->races(), new Bt03eCandidateDto(1, $zeroWeights));
+            $baselineMetrics = $this->metrics->evaluateBaseline($evaluation['spool']->races());
             $engineMetrics = $this->metrics->evaluate($evaluation['spool']->races(), $candidate);
             $evaluationElapsed = $this->secondsSince($evaluationStarted);
-            $run6After = $this->ruleSource->auditState();
-            if ($run6Before !== $run6After) {
-                throw new RuntimeException('BT-03E detected a mutation of fixed run 6.');
+
+            foreach ([Bt03eContract::TRAINING_YEAR, Bt03eContract::EVALUATION_YEAR] as $year) {
+                $this->queryAudit->recordSnapshotYear($year);
+                $snapshot->verifyPartition($year);
+            }
+            $snapshotEnd = $this->snapshotAudit($this->snapshots->open(
+                storage_path('app/'.$snapshotPath),
+                $snapshotPath,
+            ));
+            if ($snapshotStart !== $snapshotEnd) {
+                throw new RuntimeException('BT-03E selected outcome snapshot partitions drifted.');
+            }
+
+            $endPreflight = $this->preflight->run();
+            if ($startPreflight !== $endPreflight) {
+                throw new RuntimeException('BT-03E selected feature source preflight drifted.');
+            }
+            $sourceEnd = $this->ruleSource->sourceSnapshot();
+            unset($sourceEnd['rows']);
+            if (! hash_equals($sourceStart['semantic_digest'], $sourceEnd['semantic_digest'])) {
+                throw new RuntimeException('BT-03E fixed effect source semantic digest drifted.');
             }
             $queryAudit = $this->queryAudit->finish();
+            if ($sourceStart['audit'] !== $sourceEnd['audit']
+                || $sourceStart['used_effect_row_count'] !== $sourceEnd['used_effect_row_count']) {
+                throw new RuntimeException('BT-03E detected a mutation of fixed run 6.');
+            }
+            $databaseAudit = $this->databaseGuard->rollback();
 
             $summary = [
                 'contract' => [
@@ -73,10 +99,27 @@ class Bt03eHistoricalForwardScoringService
                     'effect_manifest_hash' => Bt03eContract::EFFECT_MANIFEST_HASH,
                     'training_year' => Bt03eContract::TRAINING_YEAR,
                     'evaluation_year' => Bt03eContract::EVALUATION_YEAR,
-                    'source_effect_row_count' => count($rules) * 3,
+                    'source_effect_row_count' => $sourceStart['used_effect_row_count'],
                     'rule_count' => count($rules),
+                    'base_points_formula' => '(max_stat01_rank - stat01_rank) * base_step',
                 ],
-                'source_preflight' => $sourcePreflight,
+                'source_preflight' => [
+                    'start' => $startPreflight,
+                    'end' => $endPreflight,
+                    'unchanged' => true,
+                ],
+                'effect_source' => [
+                    'start_semantic_digest' => $sourceStart['semantic_digest'],
+                    'end_semantic_digest' => $sourceEnd['semantic_digest'],
+                    'semantic_digest_unchanged' => true,
+                    'start_run6' => $sourceStart['audit'],
+                    'end_run6' => $sourceEnd['audit'],
+                ],
+                'outcome_snapshot' => [
+                    'start' => $snapshotStart,
+                    'end' => $snapshotEnd,
+                    'unchanged' => true,
+                ],
                 'chosen_candidate' => $candidate->canonical(),
                 'nonzero_rule_counts' => $this->nonzeroRuleCounts($rules),
                 'point_rules' => array_map(fn ($rule): array => [
@@ -103,7 +146,7 @@ class Bt03eHistoricalForwardScoringService
                 ],
                 'audit' => [
                     ...$queryAudit,
-                    'source_year_access' => [2023 => 13, 2024 => 13, 2025 => 0, 2026 => 0],
+                    ...$databaseAudit,
                     'run6_unchanged' => true,
                 ],
                 'runtime' => [
@@ -119,9 +162,18 @@ class Bt03eHistoricalForwardScoringService
             return [...$summary, 'artifacts' => $paths];
         } catch (Throwable $throwable) {
             try {
-                $this->queryAudit->finish();
+                if ($this->queryAudit->active()) {
+                    $this->queryAudit->finish();
+                }
             } catch (Throwable) {
                 // Preserve the primary failure while still disabling the listener.
+            }
+            try {
+                if ($this->databaseGuard->active()) {
+                    $this->databaseGuard->rollback();
+                }
+            } catch (Throwable) {
+                // Preserve the primary failure while still attempting rollback.
             }
             throw $throwable;
         } finally {
@@ -158,8 +210,13 @@ class Bt03eHistoricalForwardScoringService
             'source_excluded_race_count' => $dataset['excluded_races'],
             'source_exclusion_reasons' => $dataset['excluded_reasons'],
             'ordered_eligible_race_count' => $metrics->orderedEligibleRaceCount,
+            'unique_position1_race_count' => $metrics->uniquePosition1RaceCount,
+            'unique_position2_race_count' => $metrics->uniquePosition2RaceCount,
+            'unique_position3_race_count' => $metrics->uniquePosition3RaceCount,
+            'ordered_top3_eligible_race_count' => $metrics->orderedEligibleRaceCount,
             'ordered_excluded_race_count' => $metrics->orderedExcludedRaceCount,
             'ordered_exclusion_reasons' => $metrics->orderedExclusionReasons,
+            'position_exclusion_reasons' => $metrics->positionExclusionReasons,
             'metrics' => $metrics->metrics,
             'ties' => $this->ties($metrics),
             'spool_bytes' => $metadata->byteCount,
@@ -191,5 +248,17 @@ class Bt03eHistoricalForwardScoringService
     private function secondsSince(int $started): float
     {
         return (hrtime(true) - $started) / 1_000_000_000;
+    }
+
+    /** @return array{manifest_sha256: string, partitions: array<int, array<string, int|string>>} */
+    private function snapshotAudit(Bt02OutcomeContextSnapshotArtifact $snapshot): array
+    {
+        return [
+            'manifest_sha256' => $snapshot->manifestHash(),
+            'partitions' => [
+                Bt03eContract::TRAINING_YEAR => $snapshot->partitionAudit(Bt03eContract::TRAINING_YEAR),
+                Bt03eContract::EVALUATION_YEAR => $snapshot->partitionAudit(Bt03eContract::EVALUATION_YEAR),
+            ],
+        ];
     }
 }

@@ -38,7 +38,7 @@ class Bt03eRaceSpool
         $this->hash = hash_init('sha256');
     }
 
-    /** @param list<array{id: int, bike: int, raw: float, directions: list<int>, rank: ?int, status: string}> $entries */
+    /** @param list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}> $entries */
     public function append(int $raceId, array $entries): void
     {
         if ($this->handle === null || $this->metadata !== null || $raceId < 1 || $entries === []) {
@@ -79,7 +79,7 @@ class Bt03eRaceSpool
         return $this->metadata;
     }
 
-    /** @return \Generator<int, array{race_id: int, entries: list<array{id: int, bike: int, raw: float, directions: list<int>, rank: ?int, status: string}>}> */
+    /** @return \Generator<int, array{race_id: int, entries: list<array{id: int, bike: int, raw: float, stat01_rank: int, directions: list<int>, rank: ?int, status: string}>}> */
     public function races(): \Generator
     {
         $metadata = $this->metadata ?? throw new RuntimeException('BT-03E spool must be sealed before replay.');

@@ -56,6 +56,7 @@ class Bt03eCoordinateDescentOptimizerTest extends TestCase
                 'id' => $offset + 1,
                 'bike' => $offset + 1,
                 'raw' => 100.0 - $offset,
+                'stat01_rank' => $offset + 1,
                 'directions' => $directions,
                 'rank' => $rank,
                 'status' => 'FINISHED',

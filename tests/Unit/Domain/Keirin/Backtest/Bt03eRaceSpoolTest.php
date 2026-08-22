@@ -22,6 +22,7 @@ class Bt03eRaceSpoolTest extends TestCase
                         'id' => (($raceId - 1) * 9) + $bike,
                         'bike' => $bike,
                         'raw' => 100.0 - $bike,
+                        'stat01_rank' => $bike,
                         'directions' => array_fill(0, 12, 0),
                         'rank' => $bike,
                         'status' => 'FINISHED',

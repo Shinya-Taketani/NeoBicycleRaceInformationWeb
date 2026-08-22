@@ -14,6 +14,10 @@ final class Bt03eContract
 
     public const EFFECT_MANIFEST_HASH = '1bcf2eb3ff4d7857e16622d5d719f6034764dd1785f4dbd7ceafbb63069c88cb';
 
+    public const SOURCE_SCOPE_COUNT = 12;
+
+    public const SOURCE_EFFECT_ROW_COUNT = 333;
+
     public const TRAINING_YEAR = 2023;
 
     public const EVALUATION_YEAR = 2024;
