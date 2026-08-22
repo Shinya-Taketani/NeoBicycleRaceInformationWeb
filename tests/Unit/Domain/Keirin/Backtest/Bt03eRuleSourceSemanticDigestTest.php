@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Domain\Keirin\Backtest;
 
+use App\Domain\Keirin\Backtest\Repositories\Bt03BinEffectAuditRepository;
 use App\Domain\Keirin\Backtest\Repositories\Bt03eRuleSourceRepository;
-use App\Domain\Keirin\Backtest\Services\Bt03EffectManifestService;
 use App\Domain\Keirin\Backtest\Support\Bt02ModelArtifactHasher;
 use Mockery;
 use Tests\TestCase;
@@ -15,7 +15,7 @@ class Bt03eRuleSourceSemanticDigestTest extends TestCase
     public function test_digest_changes_when_a_rule_used_effect_field_drifts(): void
     {
         $repository = new Bt03eRuleSourceRepository(
-            Mockery::mock(Bt03EffectManifestService::class),
+            Mockery::mock(Bt03BinEffectAuditRepository::class),
             new Bt02ModelArtifactHasher,
         );
         $before = $this->row();

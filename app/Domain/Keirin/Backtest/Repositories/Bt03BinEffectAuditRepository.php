@@ -357,6 +357,49 @@ class Bt03BinEffectAuditRepository
         return count($rows);
     }
 
+    /**
+     * @param  list<string>  $statCodes
+     * @return array{scope_count: int, effect_count: int}
+     */
+    public function verifySucceededScopeSet(
+        int $runId,
+        string $foldCode,
+        string $cohortCode,
+        array $statCodes,
+    ): array {
+        $expectedStatCodes = array_values(array_unique($statCodes));
+        sort($expectedStatCodes);
+        if ($expectedStatCodes === [] || count($expectedStatCodes) !== count($statCodes)) {
+            throw new RuntimeException('BT-03 Production verification stat set was invalid.');
+        }
+
+        $scopes = BacktestBinEffectScope::query()
+            ->select('backtest_bin_effect_scopes.*', 'backtest_folds.fold_code', 'backtest_signal_specs.stat_code')
+            ->join('backtest_folds', 'backtest_folds.id', '=', 'backtest_bin_effect_scopes.backtest_fold_id')
+            ->join('backtest_signal_specs', 'backtest_signal_specs.id', '=', 'backtest_bin_effect_scopes.backtest_signal_spec_id')
+            ->where('backtest_bin_effect_scopes.backtest_run_id', $runId)
+            ->where('backtest_folds.fold_code', $foldCode)
+            ->where('backtest_bin_effect_scopes.cohort_code', $cohortCode)
+            ->whereIn('backtest_signal_specs.stat_code', $expectedStatCodes)
+            ->orderBy('backtest_signal_specs.stat_code')
+            ->get();
+        $actualStatCodes = $scopes->pluck('stat_code')->map(static fn (mixed $code): string => (string) $code)->all();
+        sort($actualStatCodes);
+        if ($actualStatCodes !== $expectedStatCodes) {
+            throw new RuntimeException('BT-03 Production verification scope set was incomplete or duplicated.');
+        }
+
+        $effectCount = 0;
+        foreach ($scopes as $scope) {
+            $effectCount += $this->verifySucceededScope($scope);
+        }
+
+        return [
+            'scope_count' => $scopes->count(),
+            'effect_count' => $effectCount,
+        ];
+    }
+
     public function finalizeSuccess(BacktestRun $run, int $skippedScopeCount = 0): Bt03ProductionSummaryDto
     {
         if ($skippedScopeCount < 0 || $skippedScopeCount > Bt03ProductionContract::SCOPE_COUNT) {

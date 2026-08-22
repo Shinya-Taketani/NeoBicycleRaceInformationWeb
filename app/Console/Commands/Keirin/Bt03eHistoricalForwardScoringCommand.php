@@ -40,6 +40,7 @@ class Bt03eHistoricalForwardScoringCommand extends Command
         $this->line('evaluation_races='.$summary['evaluation_2024']['race_count']);
         $this->line('training_position_hit_at_3='.$summary['training_2023']['metrics']['POSITION_HIT_RATE_AT_3']);
         $this->line('evaluation_position_hit_at_3='.$summary['evaluation_2024']['point_engine_metrics']['POSITION_HIT_RATE_AT_3']);
+        $this->line('bundle='.$summary['artifacts']['bundle_directory']);
         $this->line('json='.$summary['artifacts']['json']);
         $this->line('csv='.$summary['artifacts']['csv']);
         $audit = $summary['audit'];

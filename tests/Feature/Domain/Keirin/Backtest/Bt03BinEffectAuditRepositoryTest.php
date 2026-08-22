@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Domain\Keirin\Backtest;
 
 use App\Domain\Keirin\Backtest\Calculators\Bt03BinEffectCalculator;
+use App\Domain\Keirin\Backtest\Calculators\Bt03eDirectionRuleBuilder;
 use App\Domain\Keirin\Backtest\DTO\Bt02PreflightSummaryDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03BinAssignmentDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03BinEffectResultDto;
@@ -17,6 +18,8 @@ use App\Domain\Keirin\Backtest\DTO\Bt03SourceArtifactFingerprintsDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03SourceVerificationDto;
 use App\Domain\Keirin\Backtest\DTO\Bt03StoredModelDto;
 use App\Domain\Keirin\Backtest\Repositories\Bt03BinEffectAuditRepository;
+use App\Domain\Keirin\Backtest\Repositories\Bt03eRuleSourceRepository;
+use App\Domain\Keirin\Backtest\Services\Bt03eContract;
 use App\Domain\Keirin\Backtest\Services\Bt03EffectManifestService;
 use App\Domain\Keirin\Backtest\Services\Bt03ProductionContract;
 use App\Domain\Keirin\Backtest\Services\Bt03SourceManifest;
@@ -330,6 +333,110 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         $repository->verifySucceededScope($scope);
     }
 
+    public function test_scope_set_full_verification_rehashes_every_persisted_effect(): void
+    {
+        [$scope, $summary] = $this->fixture();
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $scope = $repository->startScope($scope);
+        $repository->persistScope($scope, 'WF_2023', 'STAT-07', $summary);
+
+        $verified = $repository->verifySucceededScopeSet(
+            (int) $scope->backtest_run_id,
+            'WF_2023',
+            'STRICT',
+            ['STAT-07'],
+        );
+
+        $this->assertSame(['scope_count' => 1, 'effect_count' => 3], $verified);
+    }
+
+    public function test_centered_effect_value_tampering_with_unchanged_hash_fails_full_verification(): void
+    {
+        $this->assertPersistedEffectFieldTamperingFails('centered_baseline_residual_mean', 0.987654321);
+    }
+
+    public function test_rule_unused_log_loss_tampering_with_unchanged_hash_fails_full_verification(): void
+    {
+        $this->assertPersistedEffectFieldTamperingFails('log_loss_delta', 0.87654321);
+    }
+
+    public function test_scope_manifest_tampering_fails_full_verification(): void
+    {
+        [$scope, $summary] = $this->fixture();
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $scope = $repository->startScope($scope);
+        $repository->persistScope($scope, 'WF_2023', 'STAT-07', $summary);
+        $scope = $scope->refresh();
+        $scope->forceFill(['effect_manifest_hash' => str_repeat('0', 64)])->save();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('manifest');
+        $repository->verifySucceededScopeSet(
+            (int) $scope->backtest_run_id,
+            'WF_2023',
+            'STRICT',
+            ['STAT-07'],
+        );
+    }
+
+    public function test_wf_2024_and_wf_2025_effects_cannot_influence_selected_rows_or_rules(): void
+    {
+        [$scope, $summary] = $this->fixture();
+        $auditRepository = app(Bt03BinEffectAuditRepository::class);
+        $scope = $auditRepository->startScope($scope);
+        $auditRepository->persistScope($scope, 'WF_2023', 'STAT-07', $summary);
+        DB::table('backtest_bin_effect_scopes')->where('id', $scope->id)->update(['cohort_code' => 'OPERATIONAL']);
+        DB::table('backtest_bin_effects')->where('backtest_run_id', $scope->backtest_run_id)->update(['cohort_code' => 'OPERATIONAL']);
+
+        $decoyFoldIds = [
+            $this->insertFold((int) $scope->backtest_run_id, 'WF_2024', 'SUCCEEDED'),
+            $this->insertFold((int) $scope->backtest_run_id, 'WF_2025', 'SUCCEEDED'),
+        ];
+        $sourceEffects = DB::table('backtest_bin_effects')
+            ->where('backtest_fold_id', $scope->backtest_fold_id)
+            ->get();
+        foreach ($decoyFoldIds as $decoyFoldId) {
+            foreach ($sourceEffects as $effect) {
+                $copy = (array) $effect;
+                unset($copy['id']);
+                $copy['backtest_fold_id'] = $decoyFoldId;
+                $copy['created_at'] = now();
+                $copy['updated_at'] = now();
+                DB::table('backtest_bin_effects')->insert($copy);
+            }
+        }
+
+        $repository = app(Bt03eRuleSourceRepository::class);
+        $builder = app(Bt03eDirectionRuleBuilder::class);
+        $beforeRows = $repository->selectedRuleEffectRows();
+        $beforeAudit = $repository->auditState();
+        $beforeDigest = $repository->semanticDigest($beforeRows);
+        $beforeRules = array_map(
+            static fn ($rule): array => $rule->canonical(),
+            $builder->build($this->completeRuleRows($beforeRows)),
+        );
+
+        DB::table('backtest_bin_effects')->whereIn('backtest_fold_id', $decoyFoldIds)->update([
+            'centered_baseline_residual_mean' => 999999.0,
+            'centered_baseline_residual_ci_lower' => 999998.0,
+            'centered_baseline_residual_ci_upper' => 1000000.0,
+            'log_loss_delta' => 999999.0,
+        ]);
+
+        $afterRows = $repository->selectedRuleEffectRows();
+        $afterAudit = $repository->auditState();
+        $afterRules = array_map(
+            static fn ($rule): array => $rule->canonical(),
+            $builder->build($this->completeRuleRows($afterRows)),
+        );
+
+        $this->assertCount(3, $beforeRows);
+        $this->assertCount(3, $afterRows);
+        $this->assertSame($beforeAudit['selected_scope_manifest_digest'], $afterAudit['selected_scope_manifest_digest']);
+        $this->assertSame($beforeDigest, $repository->semanticDigest($afterRows));
+        $this->assertSame($beforeRules, $afterRules);
+    }
+
     public function test_self_consistent_effect_hash_cannot_hide_source_bin_semantic_tampering(): void
     {
         [$scope, $summary] = $this->fixture();
@@ -474,6 +581,42 @@ class Bt03BinEffectAuditRepositoryTest extends TestCase
         return [$scope, new Bt03EvaluationReplaySummaryDto(
             'WF_2023', 'STAT-07', 'STRICT', 17, 5, 1, 0, 3, 987, 17, 5, $effects,
         )];
+    }
+
+    private function assertPersistedEffectFieldTamperingFails(string $field, float $value): void
+    {
+        [$scope, $summary] = $this->fixture();
+        $repository = app(Bt03BinEffectAuditRepository::class);
+        $scope = $repository->startScope($scope);
+        $repository->persistScope($scope, 'WF_2023', 'STAT-07', $summary);
+        DB::table('backtest_bin_effects')->where('label_code', 'IS_WIN')->update([$field => $value]);
+
+        try {
+            $repository->verifySucceededScopeSet(
+                (int) $scope->backtest_run_id,
+                'WF_2023',
+                'STRICT',
+                ['STAT-07'],
+            );
+            $this->fail("Persisted {$field} tampering must fail full verification.");
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('effect hash mismatched', $exception->getMessage());
+        }
+    }
+
+    /** @param list<object> $selectedRows @return list<object> */
+    private function completeRuleRows(array $selectedRows): array
+    {
+        $rows = [];
+        foreach (Bt03eContract::STAT_CODES as $statCode) {
+            foreach ($selectedRows as $selectedRow) {
+                $row = clone $selectedRow;
+                $row->stat_code = $statCode;
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
     }
 
     private function productionSourceFixture(): void

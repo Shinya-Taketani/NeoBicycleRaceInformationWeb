@@ -70,11 +70,17 @@ class Bt03ePointScorer
             -$right['raw'], $right['bike'],
         ]);
 
+        $rawGroups = [];
+        foreach ($entries as $entry) {
+            $rawGroups[(string) $entry['raw']] = ($rawGroups[(string) $entry['raw']] ?? 0) + 1;
+        }
+        $tiedEntries = array_sum(array_filter($rawGroups, static fn (int $count): bool => $count >= 2));
+
         return [
             'entries' => $entries,
-            'tied_entries' => 0,
+            'tied_entries' => $tiedEntries,
             'stat01_tie_breaks' => 0,
-            'tied' => false,
+            'tied' => $tiedEntries > 0,
         ];
     }
 

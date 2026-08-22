@@ -25,6 +25,41 @@ use Tests\TestCase;
 
 class Bt03eHistoricalForwardScoringServiceTest extends TestCase
 {
+    public function test_start_full_effect_verification_failure_prevents_all_artifact_publication(): void
+    {
+        $ruleSource = Mockery::mock(Bt03eRuleSourceRepository::class);
+        $ruleSource->shouldReceive('sourceSnapshot')->once()->andThrow(new RuntimeException('start full effect verification failed'));
+        $preflight = Mockery::mock(Bt03eSelectedSourcePreflightService::class);
+        $preflight->shouldReceive('run')->once()->andReturn(['verification_digest' => 'fixed']);
+        $audit = Mockery::mock(Bt03eReadOnlyQueryAudit::class);
+        $audit->shouldReceive('start')->once();
+        $audit->shouldReceive('finish')->once()->andReturn([]);
+        $audit->allows('active')->andReturn(true);
+        $guard = Mockery::mock(Bt03eReadOnlyDatabaseGuard::class);
+        $guard->shouldReceive('begin')->once();
+        $guard->shouldReceive('rollback')->once()->andReturn([]);
+        $guard->allows('active')->andReturn(true);
+        $artifacts = Mockery::mock(Bt03eArtifactWriter::class);
+        $artifacts->shouldNotReceive('write');
+        $metrics = new Bt03eRaceMetricEvaluator(new Bt03ePointScorer);
+        $service = new Bt03eHistoricalForwardScoringService(
+            $ruleSource,
+            Mockery::mock(Bt03eDirectionRuleBuilder::class),
+            $preflight,
+            Mockery::mock(Bt03eDatasetBuilder::class),
+            new Bt03eCoordinateDescentOptimizer($metrics),
+            $metrics,
+            $artifacts,
+            $audit,
+            $guard,
+            Mockery::mock(Bt03eOutcomeSnapshotProvider::class),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('start full effect verification failed');
+        $service->run('/tmp');
+    }
+
     public function test_changing_only_2024_outcomes_does_not_change_the_2023_frozen_candidate(): void
     {
         $first = $this->runService([1, 2, 3, 4, 5]);
@@ -55,24 +90,37 @@ class Bt03eHistoricalForwardScoringServiceTest extends TestCase
         $this->runService([1, 2, 3, 4, 5], effectDrift: true);
     }
 
+    public function test_end_full_effect_verification_failure_prevents_artifact_publication(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('full effect verification failed');
+        $this->runService([1, 2, 3, 4, 5], endFullVerificationFailure: true);
+    }
+
     /** @param list<int> $evaluationRanks @return array<string, mixed> */
     private function runService(
         array $evaluationRanks,
         bool $preflightDrift = false,
         bool $effectDrift = false,
         array $trainingRanks = [2, 1, 3, 4, 5],
+        bool $endFullVerificationFailure = false,
     ): array {
         $training = $this->spool(2023, $trainingRanks, true);
         $evaluation = $this->spool(2024, $evaluationRanks, false);
         $ruleSource = Mockery::mock(Bt03eRuleSourceRepository::class);
         $sourceCall = 0;
-        $ruleSource->shouldReceive('sourceSnapshot')->times($preflightDrift ? 1 : 2)->andReturnUsing(function () use (&$sourceCall, $effectDrift): array {
+        $ruleSource->shouldReceive('sourceSnapshot')->times($preflightDrift ? 1 : 2)->andReturnUsing(function () use (&$sourceCall, $effectDrift, $endFullVerificationFailure): array {
             $sourceCall++;
+            if ($endFullVerificationFailure && $sourceCall === 2) {
+                throw new RuntimeException('full effect verification failed');
+            }
 
             return [
                 'audit' => ['status' => 'SUCCEEDED'],
                 'semantic_digest' => $effectDrift && $sourceCall === 2 ? str_repeat('b', 64) : str_repeat('a', 64),
                 'used_effect_row_count' => 333,
+                'full_verified_scope_count' => 12,
+                'full_verified_effect_count' => 333,
                 'rows' => [],
             ];
         });
@@ -126,10 +174,10 @@ class Bt03eHistoricalForwardScoringServiceTest extends TestCase
         ]);
         $guard->allows('active')->andReturn(true);
         $artifacts = Mockery::mock(Bt03eArtifactWriter::class);
-        if ($preflightDrift || $effectDrift) {
+        if ($preflightDrift || $effectDrift || $endFullVerificationFailure) {
             $artifacts->shouldNotReceive('write');
         } else {
-            $artifacts->shouldReceive('write')->once()->andReturn(['json' => '/tmp/result.json', 'csv' => '/tmp/result.csv']);
+            $artifacts->shouldReceive('write')->once()->andReturn(['bundle_directory' => '/tmp/bundle', 'json' => '/tmp/result.json', 'csv' => '/tmp/result.csv']);
         }
         $metrics = new Bt03eRaceMetricEvaluator(new Bt03ePointScorer);
         $service = new Bt03eHistoricalForwardScoringService(

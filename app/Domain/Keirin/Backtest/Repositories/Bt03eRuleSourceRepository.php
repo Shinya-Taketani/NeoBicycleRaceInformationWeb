@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Backtest\Repositories;
 
 use App\Domain\Keirin\Backtest\Services\Bt03eContract;
-use App\Domain\Keirin\Backtest\Services\Bt03EffectManifestService;
 use App\Domain\Keirin\Backtest\Services\Bt03SourceManifest;
 use App\Domain\Keirin\Backtest\Support\Bt02ModelArtifactHasher;
-use App\Models\BacktestBinEffectScope;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class Bt03eRuleSourceRepository
 {
     public function __construct(
-        private readonly Bt03EffectManifestService $manifests,
+        private readonly Bt03BinEffectAuditRepository $effectAudit,
         private readonly Bt02ModelArtifactHasher $hasher,
     ) {}
 
@@ -58,13 +56,21 @@ class Bt03eRuleSourceRepository
         ];
     }
 
-    /** @return array{audit: array<string, int|string>, semantic_digest: string, used_effect_row_count: int, rows: list<object>} */
+    /** @return array{audit: array<string, int|string>, semantic_digest: string, used_effect_row_count: int, full_verified_scope_count: int, full_verified_effect_count: int, rows: list<object>} */
     public function sourceSnapshot(): array
     {
         $audit = $this->auditState();
+        $verification = $this->effectAudit->verifySucceededScopeSet(
+            Bt03eContract::SOURCE_RUN_ID,
+            Bt03eContract::SOURCE_FOLD,
+            Bt03eContract::COHORT,
+            Bt03eContract::STAT_CODES,
+        );
         $rows = $this->rows();
         if ($audit['selected_scope_count'] !== Bt03eContract::SOURCE_SCOPE_COUNT
             || $audit['selected_effect_count'] !== Bt03eContract::SOURCE_EFFECT_ROW_COUNT
+            || $verification['scope_count'] !== Bt03eContract::SOURCE_SCOPE_COUNT
+            || $verification['effect_count'] !== Bt03eContract::SOURCE_EFFECT_ROW_COUNT
             || count($rows) !== Bt03eContract::SOURCE_EFFECT_ROW_COUNT
             || $audit['effect_manifest_hash'] !== Bt03eContract::EFFECT_MANIFEST_HASH) {
             throw new RuntimeException('BT-03E selected run 6 source contract was incomplete.');
@@ -74,6 +80,8 @@ class Bt03eRuleSourceRepository
             'audit' => $audit,
             'semantic_digest' => $this->semanticDigest($rows),
             'used_effect_row_count' => count($rows),
+            'full_verified_scope_count' => $verification['scope_count'],
+            'full_verified_effect_count' => $verification['effect_count'],
             'rows' => $rows,
         ];
     }
@@ -139,7 +147,37 @@ class Bt03eRuleSourceRepository
             }
         }
 
-        $rows = DB::table('backtest_bin_effects as effect')
+        $rows = $this->selectedRuleEffectRows();
+        if (count($rows) !== (int) $scopes->sum('effect_count')) {
+            throw new RuntimeException('BT-03E source effect rows did not match the fixed scopes.');
+        }
+        $scopeByStat = $scopes->keyBy('stat_code');
+        $rowCounts = [];
+        foreach ($rows as $row) {
+            $scope = $scopeByStat->get($row->stat_code);
+            $rowCounts[$row->stat_code] = ($rowCounts[$row->stat_code] ?? 0) + 1;
+            if ($scope === null || ! hash_equals((string) $scope->source_boundaries_hash, (string) $row->boundaries_hash)) {
+                throw new RuntimeException('BT-03E effect bin identity did not match its fixed source scope.');
+            }
+        }
+        foreach ($scopes as $scope) {
+            if (($rowCounts[$scope->stat_code] ?? 0) !== (int) $scope->effect_count) {
+                throw new RuntimeException('BT-03E effect count did not match its fixed source scope.');
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Query boundary for the fixed WF_2023/OPERATIONAL rule source.
+     * Full integrity verification remains the responsibility of sourceSnapshot().
+     *
+     * @return list<object>
+     */
+    public function selectedRuleEffectRows(): array
+    {
+        return DB::table('backtest_bin_effects as effect')
             ->join('backtest_folds as fold', 'fold.id', '=', 'effect.backtest_fold_id')
             ->join('backtest_signal_specs as spec', 'spec.id', '=', 'effect.backtest_signal_spec_id')
             ->where('effect.backtest_run_id', Bt03eContract::SOURCE_RUN_ID)
@@ -157,35 +195,6 @@ class Bt03eRuleSourceRepository
                 'effect.centered_baseline_residual_mean', 'effect.centered_baseline_residual_ci_lower',
                 'effect.centered_baseline_residual_ci_upper', 'effect.effect_hash',
             ])->all();
-        if (count($rows) !== (int) $scopes->sum('effect_count')) {
-            throw new RuntimeException('BT-03E source effect rows did not match the fixed scopes.');
-        }
-        $scopeByStat = $scopes->keyBy('stat_code');
-        $rowCounts = [];
-        foreach ($rows as $row) {
-            $scope = $scopeByStat->get($row->stat_code);
-            $rowCounts[$row->stat_code] = ($rowCounts[$row->stat_code] ?? 0) + 1;
-            if ($scope === null || ! hash_equals((string) $scope->source_boundaries_hash, (string) $row->boundaries_hash)) {
-                throw new RuntimeException('BT-03E effect bin identity did not match its fixed source scope.');
-            }
-        }
-        foreach ($scopes as $scope) {
-            if (($rowCounts[$scope->stat_code] ?? 0) !== (int) $scope->effect_count) {
-                throw new RuntimeException('BT-03E effect count did not match its fixed source scope.');
-            }
-            $scopeEffects = array_values(array_filter($rows, fn (object $row): bool => $row->stat_code === $scope->stat_code));
-            $actualManifest = $this->manifests->fromPersisted(
-                new BacktestBinEffectScope((array) $scope),
-                Bt03eContract::SOURCE_FOLD,
-                (string) $scope->stat_code,
-                $scopeEffects,
-            );
-            if (! hash_equals((string) $scope->effect_manifest_hash, $actualManifest)) {
-                throw new RuntimeException('BT-03E fixed source scope effect manifest mismatched.');
-            }
-        }
-
-        return $rows;
     }
 
     /** @param list<object> $rows */

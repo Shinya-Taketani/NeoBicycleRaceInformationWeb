@@ -24,7 +24,7 @@ class Bt03eHistoricalForwardScoringCommandTest extends TestCase
                     'snapshot_partition_access' => [2025 => 0, 2026 => 0],
                     'feature_source_access' => [2025 => 0, 2026 => 0],
                 ],
-                'artifacts' => ['json' => '/tmp/result.json', 'csv' => '/tmp/result.csv'],
+                'artifacts' => ['bundle_directory' => '/tmp/bundle', 'json' => '/tmp/result.json', 'csv' => '/tmp/result.csv'],
             ]);
         });
 

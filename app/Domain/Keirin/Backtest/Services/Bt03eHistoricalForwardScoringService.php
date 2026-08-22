@@ -85,7 +85,9 @@ class Bt03eHistoricalForwardScoringService
             }
             $queryAudit = $this->queryAudit->finish();
             if ($sourceStart['audit'] !== $sourceEnd['audit']
-                || $sourceStart['used_effect_row_count'] !== $sourceEnd['used_effect_row_count']) {
+                || $sourceStart['used_effect_row_count'] !== $sourceEnd['used_effect_row_count']
+                || $sourceStart['full_verified_scope_count'] !== $sourceEnd['full_verified_scope_count']
+                || $sourceStart['full_verified_effect_count'] !== $sourceEnd['full_verified_effect_count']) {
                 throw new RuntimeException('BT-03E detected a mutation of fixed run 6.');
             }
             $databaseAudit = $this->databaseGuard->rollback();
@@ -112,6 +114,14 @@ class Bt03eHistoricalForwardScoringService
                     'start_semantic_digest' => $sourceStart['semantic_digest'],
                     'end_semantic_digest' => $sourceEnd['semantic_digest'],
                     'semantic_digest_unchanged' => true,
+                    'start_full_verification' => [
+                        'scope_count' => $sourceStart['full_verified_scope_count'],
+                        'effect_count' => $sourceStart['full_verified_effect_count'],
+                    ],
+                    'end_full_verification' => [
+                        'scope_count' => $sourceEnd['full_verified_scope_count'],
+                        'effect_count' => $sourceEnd['full_verified_effect_count'],
+                    ],
                     'start_run6' => $sourceStart['audit'],
                     'end_run6' => $sourceEnd['audit'],
                 ],

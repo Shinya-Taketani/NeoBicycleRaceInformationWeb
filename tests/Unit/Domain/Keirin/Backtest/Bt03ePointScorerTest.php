@@ -80,6 +80,38 @@ class Bt03ePointScorerTest extends TestCase
         ]);
 
         $this->assertSame([2, 3, 1], array_column($ranked['entries'], 'bike'));
+        $this->assertFalse($ranked['tied']);
+        $this->assertSame(0, $ranked['tied_entries']);
+        $this->assertSame(0, $ranked['stat01_tie_breaks']);
+    }
+
+    public function test_baseline_audits_equal_raw_scores_and_uses_bike_number_order(): void
+    {
+        $ranked = (new Bt03ePointScorer)->rankBaseline([
+            $this->entry(1, 4, 80.0, 4),
+            $this->entry(2, 3, 90.0, 2),
+            $this->entry(3, 1, 100.0, 1),
+            $this->entry(4, 2, 90.0, 2),
+        ]);
+
+        $this->assertSame([1, 2, 3, 4], array_column($ranked['entries'], 'bike'));
+        $this->assertTrue($ranked['tied']);
+        $this->assertSame(2, $ranked['tied_entries']);
+        $this->assertSame(0, $ranked['stat01_tie_breaks']);
+    }
+
+    public function test_baseline_counts_every_entry_when_all_raw_scores_are_equal(): void
+    {
+        $ranked = (new Bt03ePointScorer)->rankBaseline([
+            $this->entry(1, 3, 90.0, 1),
+            $this->entry(2, 1, 90.0, 1),
+            $this->entry(3, 2, 90.0, 1),
+        ]);
+
+        $this->assertSame([1, 2, 3], array_column($ranked['entries'], 'bike'));
+        $this->assertTrue($ranked['tied']);
+        $this->assertSame(3, $ranked['tied_entries']);
+        $this->assertSame(0, $ranked['stat01_tie_breaks']);
     }
 
     public function test_explicit_baseline_matches_stored_stat01_rank_order_when_contracts_agree(): void
