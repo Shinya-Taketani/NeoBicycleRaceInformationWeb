@@ -14,6 +14,7 @@ final class Bt03e02ScoringEngineCommand extends Command
     protected $signature = 'keirin:backtest:bt03e02
         {--plan : Display the frozen implementation contract without fitting}
         {--execute : Execute the 2022-2025 development evaluation}
+        {--verify-reproducibility= : Previous BT-03E-02 result.json to verify a deterministic rerun}
         {--output-dir=/tmp : Non-Git directory for immutable execution artifacts}';
 
     protected $description = 'Plan or execute the leakage-safe BT-03E-02 development scoring evaluation.';
@@ -22,8 +23,14 @@ final class Bt03e02ScoringEngineCommand extends Command
     {
         $plan = (bool) $this->option('plan');
         $execute = (bool) $this->option('execute');
+        $verification = $this->option('verify-reproducibility');
         if ($plan === $execute) {
             $this->error('Specify exactly one of --plan or --execute.');
+
+            return self::FAILURE;
+        }
+        if ($plan && $verification !== null) {
+            $this->error('--verify-reproducibility is valid only with --execute.');
 
             return self::FAILURE;
         }
@@ -51,7 +58,7 @@ final class Bt03e02ScoringEngineCommand extends Command
             return self::FAILURE;
         }
         try {
-            $result = $service->run($directory);
+            $result = $service->run($directory, is_string($verification) && $verification !== '' ? $verification : null);
         } catch (Throwable $throwable) {
             $this->error($throwable->getMessage());
 
@@ -87,6 +94,7 @@ final class Bt03e02ScoringEngineCommand extends Command
             $this->line("gate_{$gate}=".($passed ? 'PASS' : 'FAIL'));
         }
         $this->line('status='.$result['acceptance_gate']['status']);
+        $this->line('reproducibility='.$result['reproducibility_verification']['status']);
         $this->line('2026_access='.$result['audit']['2026_access_count']);
         $this->line('bundle='.$result['artifacts']['bundle_directory']);
 

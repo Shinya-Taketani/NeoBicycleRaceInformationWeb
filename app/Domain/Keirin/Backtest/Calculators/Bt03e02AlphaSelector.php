@@ -19,15 +19,23 @@ final class Bt03e02AlphaSelector
     public function __construct(private readonly Bt03e02MetricEvaluator $metrics) {}
 
     /**
-     * @param  callable(): iterable<array<string,mixed>>  $predictionSource
+     * @param  array<int,callable(): iterable<array<string,mixed>>>  $predictionSources
      * @param  list<string>  $degenerateChannels
-     * @return array{alpha:array{IS_WIN:float,IS_TOP2:float,IS_TOP3:float,key:string},metrics:array<string,mixed>,candidate_count:int}
+     * @return array{alpha:array{IS_WIN:float,IS_TOP2:float,IS_TOP3:float,key:string},metrics:array<string,mixed>,per_year_metrics:array<int,array<string,mixed>>,year_equal_deltas:array<string,float>,candidate_count:int}
      */
-    public function select(callable $predictionSource, array $degenerateChannels = []): array
+    public function select(array $predictionSources, array $degenerateChannels = []): array
     {
+        if ($predictionSources === []) {
+            throw new RuntimeException('BT-03E-02 alpha selection year sources were empty.');
+        }
+        ksort($predictionSources, SORT_NUMERIC);
         $evaluated = [];
         foreach (Bt03e02Contract::alphaCandidates($degenerateChannels) as $alpha) {
-            $evaluated[] = ['alpha' => $alpha, 'metrics' => $this->metrics->evaluatePaired($predictionSource, $alpha)];
+            $perYear = [];
+            foreach ($predictionSources as $year => $predictionSource) {
+                $perYear[$year] = $this->metrics->evaluatePaired($predictionSource, $alpha);
+            }
+            $evaluated[] = ['alpha' => $alpha, 'metrics' => $this->yearEqualMetrics($perYear), 'per_year_metrics' => $perYear];
         }
         if ($evaluated === []) {
             throw new RuntimeException('BT-03E-02 alpha grid had no valid candidates.');
@@ -55,8 +63,29 @@ final class Bt03e02AlphaSelector
         return [
             'alpha' => $frontier[0]['alpha'],
             'metrics' => $frontier[0]['metrics'],
+            'per_year_metrics' => $frontier[0]['per_year_metrics'],
+            'year_equal_deltas' => $frontier[0]['metrics']['delta'],
             'candidate_count' => count($evaluated),
         ];
+    }
+
+    /** @param array<int,array<string,mixed>> $perYear @return array<string,mixed> */
+    private function yearEqualMetrics(array $perYear): array
+    {
+        $aggregate = [
+            'candidate' => array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, 0.0),
+            'baseline' => array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, 0.0),
+            'delta' => array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, 0.0),
+        ];
+        foreach ($perYear as $metrics) {
+            foreach (array_keys($aggregate) as $role) {
+                foreach (Bt03e02MetricEvaluator::METRIC_CODES as $metric) {
+                    $aggregate[$role][$metric] += $metrics[$role][$metric] / count($perYear);
+                }
+            }
+        }
+
+        return $aggregate;
     }
 
     /** @param array<string,mixed> $left @param array<string,mixed> $right */

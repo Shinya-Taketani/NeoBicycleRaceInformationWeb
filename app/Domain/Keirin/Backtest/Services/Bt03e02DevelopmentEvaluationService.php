@@ -17,6 +17,7 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03e02Scorer;
 use App\Domain\Keirin\Backtest\DTO\Bt03e02FitResultDto;
 use App\Domain\Keirin\Backtest\Repositories\Bt03eRuleSourceRepository;
 use App\Domain\Keirin\Backtest\Support\Bt03e02RaceSpool;
+use App\Domain\Keirin\Backtest\Support\Bt03e02ValidationLossSpool;
 use RuntimeException;
 use Throwable;
 
@@ -24,6 +25,9 @@ class Bt03e02DevelopmentEvaluationService
 {
     /** @var list<Bt03e02RaceSpool> */
     private array $temporarySpools = [];
+
+    /** @var list<Bt03e02ValidationLossSpool> */
+    private array $temporaryLossSpools = [];
 
     public function __construct(
         private readonly Bt03eRuleSourceRepository $sourceRepository,
@@ -40,13 +44,14 @@ class Bt03e02DevelopmentEvaluationService
         private readonly Bt03e02OneSeSelector $oneSe,
         private readonly Bt03e02PairedBootstrap $bootstrap,
         private readonly Bt03e02AcceptanceGate $acceptance,
+        private readonly Bt03e02ReproducibilityVerifier $reproducibility,
         private readonly Bt03e02ArtifactWriter $artifacts,
         private readonly Bt03e02ReadOnlyQueryAudit $queryAudit,
         private readonly Bt03eReadOnlyDatabaseGuard $databaseGuard,
     ) {}
 
     /** @return array<string,mixed> */
-    public function run(string $outputDirectory = '/tmp'): array
+    public function run(string $outputDirectory = '/tmp', ?string $verifyReproducibility = null): array
     {
         $startedAt = hrtime(true);
         $runIdentity = 'bt03e02-'.gmdate('Ymd-His').'-'.bin2hex(random_bytes(16));
@@ -61,14 +66,17 @@ class Bt03e02DevelopmentEvaluationService
             }
             $snapshotStart = $snapshot->auditParameters();
             $raw = [];
-            foreach (Bt03e02Contract::DEVELOPMENT_YEARS as $year) {
+            foreach ([2022, 2023] as $year) {
                 $this->queryAudit->recordSnapshotYear($year);
                 $raw[$year] = $this->track($this->datasets->buildRaw($year, $snapshot, sys_get_temp_dir()));
             }
 
             $innerA = $this->fitGrid([$raw[2022]], [$raw[2023]], 'inner-a');
             $outer2024Selection = $this->oneSe->select([2023 => $innerA['losses']]);
-            $outer2024Alpha = $this->selectAlpha([$innerA], $outer2024Selection['lambda'], 'outer-2024-inner');
+            $outer2024Alpha = $this->selectAlpha([2023 => $innerA], $outer2024Selection['lambda'], 'outer-2024-inner');
+            $this->queryAudit->recordCandidateFrozen(2024);
+            $this->queryAudit->recordSnapshotYear(2024);
+            $raw[2024] = $this->track($this->datasets->buildRaw(2024, $snapshot, sys_get_temp_dir()));
             $outer2024 = $this->fitOuter([$raw[2022], $raw[2023]], $raw[2024], $outer2024Selection['lambda'], $outer2024Alpha['alpha'], 'outer-2024');
 
             $innerB = $this->fitGrid([$raw[2022], $raw[2023]], [$raw[2024]], 'inner-b');
@@ -76,7 +84,10 @@ class Bt03e02DevelopmentEvaluationService
                 2023 => $innerA['losses'],
                 2024 => $innerB['losses'],
             ]);
-            $outer2025Alpha = $this->selectAlpha([$innerA, $innerB], $outer2025Selection['lambda'], 'outer-2025-inner');
+            $outer2025Alpha = $this->selectAlpha([2023 => $innerA, 2024 => $innerB], $outer2025Selection['lambda'], 'outer-2025-inner');
+            $this->queryAudit->recordCandidateFrozen(2025);
+            $this->queryAudit->recordSnapshotYear(2025);
+            $raw[2025] = $this->track($this->datasets->buildRaw(2025, $snapshot, sys_get_temp_dir()));
             $outer2025 = $this->fitOuter([$raw[2022], $raw[2023], $raw[2024]], $raw[2025], $outer2025Selection['lambda'], $outer2025Alpha['alpha'], 'outer-2025');
 
             $intervals = $this->bootstrap->evaluate([
@@ -92,8 +103,6 @@ class Bt03e02DevelopmentEvaluationService
                 ],
             ]);
             $outerResults = [2024 => $outer2024['metrics'], 2025 => $outer2025['metrics']];
-            $gate = $this->acceptance->evaluate($outerResults, $intervals, true);
-
             foreach (Bt03e02Contract::DEVELOPMENT_YEARS as $year) {
                 $this->queryAudit->recordSnapshotYear($year);
                 $snapshot->verifyPartition($year);
@@ -123,7 +132,6 @@ class Bt03e02DevelopmentEvaluationService
                     'metrics' => $outer2025['metrics'],
                 ],
                 'paired_bootstrap_ci' => $intervals,
-                'acceptance_gate' => $gate,
                 'audit' => [
                     ...$queryAudit,
                     ...$databaseAudit,
@@ -131,6 +139,18 @@ class Bt03e02DevelopmentEvaluationService
                     'partial_publication' => false,
                     '2026_access_count' => 0,
                 ],
+            ];
+            $reproducibilityHash = $this->reproducibility->hash($summary);
+            $verification = $this->reproducibility->verify($verifyReproducibility, $reproducibilityHash);
+            $gate = $this->acceptance->evaluate($outerResults, $intervals, $verification['verified']);
+            if (! $verification['verified']) {
+                $gate['status'] = 'REPRODUCIBILITY VERIFICATION REQUIRED';
+            }
+            $summary = [
+                ...$summary,
+                'reproducibility_hash' => $reproducibilityHash,
+                'reproducibility_verification' => $verification,
+                'acceptance_gate' => $gate,
                 'runtime' => [
                     'seconds' => (hrtime(true) - $startedAt) / 1_000_000_000,
                     'peak_bytes' => memory_get_peak_usage(true),
@@ -161,43 +181,56 @@ class Bt03e02DevelopmentEvaluationService
                 $spool->cleanup();
             }
             $this->temporarySpools = [];
+            foreach ($this->temporaryLossSpools as $spool) {
+                $spool->cleanup();
+            }
+            $this->temporaryLossSpools = [];
         }
     }
 
     /**
      * @param  list<Bt03e02RaceSpool>  $training
      * @param  list<Bt03e02RaceSpool>  $validation
-     * @return array{layout:Bt03e02ParameterLayout,training:Bt03e02RaceSpool,validation:Bt03e02RaceSpool,fits:array<string,Bt03e02FitResultDto>,losses:array<string,array<string,array<int,float>>>}
+     * @return array{layout:Bt03e02ParameterLayout,training:Bt03e02RaceSpool,validation:Bt03e02RaceSpool,fits:array<string,Bt03e02FitResultDto>,losses:Bt03e02ValidationLossSpool}
      */
     private function fitGrid(array $training, array $validation, string $role): array
     {
         $layout = $this->layouts->build($this->source($training));
         $binnedTraining = $this->track($this->datasets->buildBinned($training, $layout, sys_get_temp_dir(), $role.'-training'));
         $binnedValidation = $this->track($this->datasets->buildBinned($validation, $layout, sys_get_temp_dir(), $role.'-validation'));
-        $fits = $losses = [];
+        $fits = [];
         foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
             $key = $this->lambdaKey($lambda);
-            $fit = $this->optimizer->fit($this->source([$binnedTraining]), $layout, $lambda);
-            $fits[$key] = $fit;
-            foreach (Bt03e02Contract::CHANNELS as $channel) {
-                $losses[$key][$channel] = $this->objective->raceLosses(
-                    $this->source([$binnedValidation]),
-                    $layout,
-                    $fit->coefficients[$channel],
-                    $channel,
-                );
-            }
+            $fits[$key] = $this->optimizer->fit($this->source([$binnedTraining]), $layout, $lambda);
         }
+        $losses = $this->trackLoss(new Bt03e02ValidationLossSpool(
+            sys_get_temp_dir().'/bt03e02-validation-loss-'.$role.'-'.bin2hex(random_bytes(8)).'.bin',
+        ));
+        foreach ($binnedValidation->races() as $race) {
+            $raceLosses = [];
+            foreach ($fits as $key => $fit) {
+                foreach (Bt03e02Contract::CHANNELS as $channel) {
+                    $raceLosses[$key][$channel] = $this->objective->raceLoss(
+                        $race,
+                        $layout,
+                        $fit->coefficients[$channel],
+                        $channel,
+                    );
+                }
+            }
+            $losses->append($raceLosses);
+        }
+        $losses->seal();
 
         return ['layout' => $layout, 'training' => $binnedTraining, 'validation' => $binnedValidation, 'fits' => $fits, 'losses' => $losses];
     }
 
-    /** @param list<array<string,mixed>> $inner */
+    /** @param array<int,array<string,mixed>> $inner */
     private function selectAlpha(array $inner, float $lambda, string $role): array
     {
         $predictions = [];
         $degenerate = [];
-        foreach ($inner as $offset => $fold) {
+        foreach ($inner as $year => $fold) {
             $fit = $fold['fits'][$this->lambdaKey($lambda)];
             $scales = $this->scorer->trainingScales($this->source([$fold['training']]), $fit);
             foreach ($scales as $channel => $scale) {
@@ -205,10 +238,13 @@ class Bt03e02DevelopmentEvaluationService
                     $degenerate[$channel] = true;
                 }
             }
-            $predictions[] = $this->predictionSpool($fold['validation'], $fit, $scales, $role.'-'.$offset);
+            $predictions[$year] = $this->predictionSpool($fold['validation'], $fit, $scales, $role.'-'.$year);
         }
 
-        return $this->alphaSelector->select($this->source($predictions), array_keys($degenerate));
+        return $this->alphaSelector->select(
+            array_map(fn (Bt03e02RaceSpool $spool): callable => $this->source([$spool]), $predictions),
+            array_keys($degenerate),
+        );
     }
 
     /** @param list<Bt03e02RaceSpool> $training @return array<string,mixed> */
@@ -258,6 +294,13 @@ class Bt03e02DevelopmentEvaluationService
     private function track(Bt03e02RaceSpool $spool): Bt03e02RaceSpool
     {
         $this->temporarySpools[] = $spool;
+
+        return $spool;
+    }
+
+    private function trackLoss(Bt03e02ValidationLossSpool $spool): Bt03e02ValidationLossSpool
+    {
+        $this->temporaryLossSpools[] = $spool;
 
         return $spool;
     }

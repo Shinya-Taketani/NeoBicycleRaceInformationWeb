@@ -17,6 +17,8 @@ use App\Domain\Keirin\Backtest\DTO\EffectBinDto;
 use App\Domain\Keirin\Backtest\Services\Bt03e02Contract;
 use App\Domain\Keirin\Backtest\Services\Bt03e02ReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Support\Bt03e02RaceSpool;
+use App\Domain\Keirin\Backtest\Support\Bt03e02ValidationLossSpool;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -134,18 +136,45 @@ class Bt03e02CoreTest extends TestCase
 
     public function test_one_se_uses_largest_lambda_inside_threshold(): void
     {
-        $losses = [];
-        foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
-            $key = sprintf('%.17g', $lambda);
-            foreach (Bt03e02Contract::CHANNELS as $channel) {
-                $losses[2023][$key][$channel] = [1 => 0.5, 2 => 0.5];
+        $spool = new Bt03e02ValidationLossSpool(sys_get_temp_dir().'/bt03e02-one-se-'.bin2hex(random_bytes(8)).'.bin');
+        try {
+            for ($race = 0; $race < 2; $race++) {
+                $losses = [];
+                foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
+                    $key = sprintf('%.17g', $lambda);
+                    foreach (Bt03e02Contract::CHANNELS as $channel) {
+                        $losses[$key][$channel] = 0.5;
+                    }
+                }
+                $spool->append($losses);
             }
+            $spool->seal();
+
+            $selected = (new Bt03e02OneSeSelector)->select([2023 => $spool], 20);
+
+            $this->assertSame(1.0, $selected['lambda']);
+            $this->assertSame(0.0, $selected['lambda_best']);
+        } finally {
+            $spool->cleanup();
         }
+    }
 
-        $selected = (new Bt03e02OneSeSelector)->select($losses, 20);
+    public function test_zero_beta_candidate_and_paired_baseline_share_the_technical_tie_break(): void
+    {
+        $layout = $this->layout();
+        $scorer = new Bt03e02Scorer;
+        $metrics = new Bt03e02MetricEvaluator($scorer);
+        $fit = $this->zeroFit($layout->size());
+        $race = $this->binnedRace(79, [1.0, 1.0, 0.0, -1.0, -1.0], [1, 0, 0, 0, 0]);
+        $scales = $scorer->trainingScales(fn (): array => [$race], $fit);
+        $predictions = $scorer->predictions($race, $fit, $scales);
+        $alpha = ['IS_WIN' => 0.35, 'IS_TOP2' => 0.35, 'IS_TOP3' => 0.30, 'key' => '07-07-06'];
 
-        $this->assertSame(1.0, $selected['lambda']);
-        $this->assertSame(0.0, $selected['lambda_best']);
+        $candidate = $scorer->rank(79, $predictions, $alpha)['entries'];
+        $baseline = $metrics->rankBaseline(79, $predictions);
+
+        $this->assertSame(array_column($baseline, 'bike'), array_column($candidate, 'bike'));
+        $this->assertSame(array_column($baseline, 'technical_key'), array_column($candidate, 'technical_key'));
     }
 
     public function test_metric_denominators_and_acceptance_status_are_explicit(): void
@@ -177,6 +206,69 @@ class Bt03e02CoreTest extends TestCase
             $this->assertStringContainsString('forbidden', $exception->getMessage());
         } finally {
             $audit->finish();
+        }
+    }
+
+    public function test_outer_partition_access_requires_the_corresponding_candidate_freeze(): void
+    {
+        $audit = new Bt03e02ReadOnlyQueryAudit;
+        $audit->start();
+        $audit->recordSnapshotYear(2022);
+        $audit->recordSnapshotYear(2023);
+
+        try {
+            $audit->recordSnapshotYear(2024);
+            $this->fail('Outer 2024 must not be read before its candidate is frozen.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('preceded candidate freeze', $exception->getMessage());
+        }
+
+        $audit->recordCandidateFrozen(2024);
+        $audit->recordSnapshotYear(2024);
+        try {
+            $audit->recordSnapshotYear(2025);
+            $this->fail('Outer 2025 must not be read before its candidate is frozen.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('preceded candidate freeze', $exception->getMessage());
+        }
+
+        $audit->recordCandidateFrozen(2025);
+        $audit->recordSnapshotYear(2025);
+        $result = $audit->finish();
+
+        $this->assertSame([
+            'SNAPSHOT_2022',
+            'SNAPSHOT_2023',
+            'FREEZE_OUTER_2024',
+            'SNAPSHOT_2024',
+            'FREEZE_OUTER_2025',
+            'SNAPSHOT_2025',
+        ], $result['temporal_access_order']);
+    }
+
+    public function test_integer_2026_query_binding_is_not_misclassified_as_year_access(): void
+    {
+        $audit = new Bt03e02ReadOnlyQueryAudit;
+        $audit->start();
+        DB::select('SELECT ? AS race_id', [2026]);
+        $result = $audit->finish();
+
+        $this->assertSame(0, $result['2026_query_or_binding_count']);
+    }
+
+    public function test_both_semantic_2026_access_entry_points_remain_forbidden(): void
+    {
+        foreach (['recordSnapshotYear', 'recordFeatureSourceYear'] as $method) {
+            $audit = new Bt03e02ReadOnlyQueryAudit;
+            $audit->start();
+            try {
+                $audit->{$method}(2026);
+                $this->fail("{$method} must reject 2026.");
+            } catch (RuntimeException $exception) {
+                $this->assertStringContainsString('forbidden', $exception->getMessage());
+            } finally {
+                $audit->finish();
+            }
         }
     }
 

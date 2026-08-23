@@ -28,10 +28,11 @@ final class Bt03e02ArtifactWriter
         }
         $this->filesystem->createDirectory($temporary);
         try {
-            $reproducible = $summary;
-            unset($reproducible['run_identity'], $reproducible['runtime']);
-            $reproducibilityHash = $this->hasher->hash($reproducible);
-            $result = [...$summary, 'reproducibility_hash' => $reproducibilityHash];
+            $reproducibilityHash = $summary['reproducibility_hash'] ?? null;
+            if (! is_string($reproducibilityHash) || preg_match('/\A[a-f0-9]{64}\z/', $reproducibilityHash) !== 1) {
+                throw new RuntimeException('BT-03E-02 reproducibility hash was invalid.');
+            }
+            $result = $summary;
             $resultJson = $this->json($result);
             $resultSha256 = hash('sha256', $resultJson);
             $resultPath = $temporary.'/result.json';

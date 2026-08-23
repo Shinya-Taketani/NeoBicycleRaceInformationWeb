@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Domain\Keirin\Backtest;
 
+use App\Domain\Keirin\Backtest\Calculators\Bt03e02AlphaSelector;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02MetricEvaluator;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02PairedBootstrap;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayoutBuilder;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02Scorer;
+use App\Domain\Keirin\Backtest\Calculators\DeterministicRandom;
 use App\Domain\Keirin\Backtest\Calculators\EffectBinBuilder;
 use App\Domain\Keirin\Backtest\Calculators\InMemoryEffectBinBoundaryProvider;
 use App\Domain\Keirin\Backtest\Calculators\Type7Quantile;
@@ -98,6 +100,42 @@ class Bt03e02ContractsTest extends TestCase
         $this->assertSame(0.0, $first['WINNER_HIT_AT_1']['ci_upper']);
     }
 
+    public function test_compact_bootstrap_matches_the_naive_reference_ci(): void
+    {
+        $metrics = new Bt03e02MetricEvaluator(new Bt03e02Scorer);
+        $alpha = ['IS_WIN' => 1.0, 'IS_TOP2' => 0.0, 'IS_TOP3' => 0.0, 'key' => '20-00-00'];
+        $races = [$this->discordantRace(2024, 1, true), $this->discordantRace(2024, 2, false)];
+        $years = [2024 => ['source' => fn (): array => $races, 'race_count' => 2, 'alpha' => $alpha]];
+
+        $compact = (new Bt03e02PairedBootstrap($metrics, new Type7Quantile))->evaluate($years, 40);
+        $naive = $this->naiveBootstrap($metrics, $years, 40);
+
+        $this->assertSame($naive, $compact);
+    }
+
+    public function test_bootstrap_ranks_each_race_once_before_two_thousand_resamples(): void
+    {
+        $metrics = new class(new Bt03e02Scorer) extends Bt03e02MetricEvaluator
+        {
+            public int $comparisons = 0;
+
+            public function raceComparison(array $race, array $alpha): array
+            {
+                $this->comparisons++;
+
+                return parent::raceComparison($race, $alpha);
+            }
+        };
+        $alpha = ['IS_WIN' => 1.0, 'IS_TOP2' => 0.0, 'IS_TOP3' => 0.0, 'key' => '20-00-00'];
+        $races = array_map(fn (int $raceId): array => $this->predictionRace(2024, $raceId), range(1, 3));
+
+        (new Bt03e02PairedBootstrap($metrics, new Type7Quantile))->evaluate([
+            2024 => ['source' => fn (): array => $races, 'race_count' => 3, 'alpha' => $alpha],
+        ], 2000);
+
+        $this->assertSame(3, $metrics->comparisons);
+    }
+
     public function test_outer_years_are_not_inputs_to_selection_contracts(): void
     {
         $plan = Bt03e02Contract::plan();
@@ -105,6 +143,44 @@ class Bt03e02ContractsTest extends TestCase
         $this->assertSame('inner 2022->2023; refit 2022-2023; outer 2024', $plan['outer_folds']['2024']);
         $this->assertSame('inner 2022->2023 + 2022-2023->2024; refit 2022-2024; outer 2025', $plan['outer_folds']['2025']);
         $this->assertSame('OPERATIONAL', $plan['cohort']);
+    }
+
+    public function test_alpha_selection_uses_year_equal_metrics_instead_of_race_weighting(): void
+    {
+        $metrics = new class(new Bt03e02Scorer) extends Bt03e02MetricEvaluator
+        {
+            public function evaluatePaired(callable $predictionSource, array $alpha): array
+            {
+                $rows = iterator_to_array((static function () use ($predictionSource): \Generator {
+                    yield from $predictionSource();
+                })());
+                $year = (int) $rows[0]['year'];
+                $deltaValue = $year === 2023 ? 1.0 - $alpha['IS_WIN'] : 0.2 * $alpha['IS_WIN'];
+                $zero = array_fill_keys(self::METRIC_CODES, 0.0);
+                $delta = array_fill_keys(self::METRIC_CODES, $deltaValue);
+
+                return [
+                    'candidate' => $delta,
+                    'baseline' => $zero,
+                    'delta' => $delta,
+                    'race_count' => count($rows),
+                ];
+            }
+        };
+        $selection = (new Bt03e02AlphaSelector($metrics))->select([
+            2023 => fn (): array => [['year' => 2023]],
+            2024 => fn (): array => array_fill(0, 20, ['year' => 2024]),
+        ]);
+
+        $this->assertEquals(0.0, $selection['alpha']['IS_WIN']);
+        $this->assertSame('00-00-20', $selection['alpha']['key']);
+        $this->assertEqualsWithDelta(0.5, $selection['year_equal_deltas']['WINNER_HIT_AT_1'], 1e-15);
+        $this->assertSame(1, $selection['per_year_metrics'][2023]['race_count']);
+        $this->assertSame(20, $selection['per_year_metrics'][2024]['race_count']);
+
+        $raceWeightedSelected = 1.0 / 21.0;
+        $raceWeightedRejected = 4.0 / 21.0;
+        $this->assertGreaterThan($raceWeightedSelected, $raceWeightedRejected);
     }
 
     private function binBuilder(): EffectBinBuilder
@@ -152,5 +228,63 @@ class Bt03e02ContractsTest extends TestCase
             'race_id' => $raceId,
             'entries' => array_map(fn (int $bike): array => $this->prediction($bike, 6.0 - $bike), range(1, 5)),
         ];
+    }
+
+    /** @return array<string,mixed> */
+    private function discordantRace(int $year, int $raceId, bool $candidateCorrect): array
+    {
+        $entries = [];
+        foreach (range(1, 5) as $bike) {
+            $candidateScore = $candidateCorrect ? 6.0 - $bike : (float) $bike;
+            $raw = $candidateCorrect ? (float) $bike : 6.0 - $bike;
+            $entries[] = [
+                ...$this->prediction($bike, $candidateScore),
+                'raw' => $raw,
+            ];
+        }
+
+        return ['year' => $year, 'race_id' => $raceId, 'entries' => $entries];
+    }
+
+    /**
+     * @param  array<int,array{source:callable():iterable<array<string,mixed>>,race_count:int,alpha:array<string,mixed>}>  $years
+     * @return array<string,array{ci_lower:float,ci_upper:float}>
+     */
+    private function naiveBootstrap(Bt03e02MetricEvaluator $metrics, array $years, int $iterations): array
+    {
+        $samples = array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, []);
+        $random = new DeterministicRandom(Bt03e02Contract::BOOTSTRAP_SEED);
+        for ($iteration = 0; $iteration < $iterations; $iteration++) {
+            $yearDeltas = array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, []);
+            foreach ($years as $year) {
+                $weights = array_fill(0, $year['race_count'], 0);
+                for ($draw = 0; $draw < $year['race_count']; $draw++) {
+                    $weights[$random->integer($year['race_count'])]++;
+                }
+                $candidate = $baseline = $denominators = array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, 0.0);
+                foreach (($year['source'])() as $raceIndex => $race) {
+                    $comparison = $metrics->raceComparison($race, $year['alpha']);
+                    foreach (Bt03e02MetricEvaluator::METRIC_CODES as $metric) {
+                        $candidate[$metric] += $weights[$raceIndex] * $comparison['candidate'][$metric]['numerator'];
+                        $baseline[$metric] += $weights[$raceIndex] * $comparison['baseline'][$metric]['numerator'];
+                        $denominators[$metric] += $weights[$raceIndex] * $comparison['candidate'][$metric]['denominator'];
+                    }
+                }
+                foreach (Bt03e02MetricEvaluator::METRIC_CODES as $metric) {
+                    $yearDeltas[$metric][] = $denominators[$metric] > 0.0
+                        ? ($candidate[$metric] - $baseline[$metric]) / $denominators[$metric]
+                        : 0.0;
+                }
+            }
+            foreach ($samples as $metric => $_) {
+                $samples[$metric][] = array_sum($yearDeltas[$metric]) / count($yearDeltas[$metric]);
+            }
+        }
+        $quantile = new Type7Quantile;
+
+        return array_map(static fn (array $values): array => [
+            'ci_lower' => $quantile->calculate($values, 0.025),
+            'ci_upper' => $quantile->calculate($values, 0.975),
+        ], $samples);
     }
 }

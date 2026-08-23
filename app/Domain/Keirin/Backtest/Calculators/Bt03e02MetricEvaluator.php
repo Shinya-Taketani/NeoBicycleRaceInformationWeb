@@ -6,7 +6,7 @@ namespace App\Domain\Keirin\Backtest\Calculators;
 
 use RuntimeException;
 
-final class Bt03e02MetricEvaluator
+class Bt03e02MetricEvaluator
 {
     public const METRIC_CODES = [
         'WINNER_HIT_AT_1',
@@ -98,8 +98,7 @@ final class Bt03e02MetricEvaluator
     {
         $ranked = $this->scorer->rank($race['race_id'], $race['entries'], $alpha);
         $candidate = array_map('intval', array_column($ranked['entries'], 'bike'));
-        $baselineEntries = $race['entries'];
-        usort($baselineEntries, static fn (array $left, array $right): int => [-$left['raw'], $left['bike']] <=> [-$right['raw'], $right['bike']]);
+        $baselineEntries = $this->rankBaseline((int) $race['race_id'], $race['entries']);
         $baseline = array_map('intval', array_column($baselineEntries, 'bike'));
         $official = $this->officialRanks($race['entries']);
 
@@ -109,6 +108,22 @@ final class Bt03e02MetricEvaluator
             'ordered_eligible' => (int) ($this->orderedTop3($official) !== null),
             'ties' => [...$ranked['diagnostics'], ...$this->baselineTies($baselineEntries)],
         ];
+    }
+
+    /** @param list<array<string,mixed>> $entries @return list<array<string,mixed>> */
+    public function rankBaseline(int $raceId, array $entries): array
+    {
+        foreach ($entries as &$entry) {
+            $entry['technical_key'] = $this->scorer->technicalKey($raceId, (int) $entry['bike']);
+        }
+        unset($entry);
+        usort($entries, static fn (array $left, array $right): int => [
+            -(float) $left['raw'], $left['technical_key'],
+        ] <=> [
+            -(float) $right['raw'], $right['technical_key'],
+        ]);
+
+        return $entries;
     }
 
     /** @param list<int> $predicted @param array<int,list<int>> $official @return array<string,array{numerator:float,denominator:float}> */

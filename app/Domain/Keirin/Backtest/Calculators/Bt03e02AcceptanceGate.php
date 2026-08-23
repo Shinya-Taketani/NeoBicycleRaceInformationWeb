@@ -17,7 +17,7 @@ final class Bt03e02AcceptanceGate
      */
     public function evaluate(array $outerResults, array $intervals, bool $integrity): array
     {
-        $nonInferiority = $integrity;
+        $nonInferiority = true;
         foreach (self::PRIMARY as $metric) {
             $nonInferiority = $nonInferiority && ($intervals[$metric]['ci_lower'] ?? -INF) > -0.0015;
         }
@@ -57,12 +57,17 @@ final class Bt03e02AcceptanceGate
             'supporting' => $supporting,
             'tie_quality' => $tieQuality,
         ];
+        $performanceStatus = match (true) {
+            ! $nonInferiority || ! $temporal || ! $supporting || ! $tieQuality => 'FAIL / REDESIGN_REQUIRED',
+            ! $superiority => 'HOLD / PROMISING_NOT_ADOPTABLE',
+            default => 'PASS / GO_TO_FREEZE',
+        };
         $status = match (true) {
             ! $integrity || ! $nonInferiority || ! $temporal || ! $supporting || ! $tieQuality => 'FAIL / REDESIGN_REQUIRED',
             ! $superiority => 'HOLD / PROMISING_NOT_ADOPTABLE',
             default => 'PASS / GO_TO_FREEZE',
         };
 
-        return ['status' => $status, 'gates' => $gates, 'year_equal_deltas' => $yearEqual];
+        return ['status' => $status, 'performance_status' => $performanceStatus, 'gates' => $gates, 'year_equal_deltas' => $yearEqual];
     }
 }

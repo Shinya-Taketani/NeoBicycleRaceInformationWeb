@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Backtest\Calculators;
 
 use App\Domain\Keirin\Backtest\Services\Bt03e02Contract;
+use App\Domain\Keirin\Backtest\Support\Bt03e02MetricContributionSpool;
 use RuntimeException;
 
 final class Bt03e02PairedBootstrap
@@ -24,12 +25,42 @@ final class Bt03e02PairedBootstrap
             throw new RuntimeException('BT-03E-02 paired bootstrap input was invalid.');
         }
         ksort($years, SORT_NUMERIC);
+        $contributions = [];
+        try {
+            foreach ($years as $year => $definition) {
+                $spool = new Bt03e02MetricContributionSpool(
+                    sys_get_temp_dir().'/bt03e02-bootstrap-'.$year.'-'.bin2hex(random_bytes(8)).'.bin',
+                );
+                $contributions[$year] = $spool;
+                foreach (($definition['source'])() as $race) {
+                    $spool->append($this->metrics->raceComparison($race, $definition['alpha']));
+                }
+                $spool->seal();
+                if ($spool->raceCount() !== $definition['race_count']) {
+                    throw new RuntimeException('BT-03E-02 paired bootstrap source count drifted.');
+                }
+            }
+
+            return $this->bootstrap($contributions, $iterations);
+        } finally {
+            foreach ($contributions as $spool) {
+                $spool->cleanup();
+            }
+        }
+    }
+
+    /**
+     * @param  array<int,Bt03e02MetricContributionSpool>  $years
+     * @return array<string,array{ci_lower:float,ci_upper:float}>
+     */
+    private function bootstrap(array $years, int $iterations): array
+    {
         $samples = array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, []);
         $random = new DeterministicRandom(Bt03e02Contract::BOOTSTRAP_SEED);
         for ($iteration = 0; $iteration < $iterations; $iteration++) {
             $yearDeltas = array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, []);
-            foreach ($years as $year) {
-                $count = $year['race_count'];
+            foreach ($years as $spool) {
+                $count = $spool->raceCount();
                 if ($count < 1) {
                     throw new RuntimeException('BT-03E-02 paired bootstrap year was empty.');
                 }
@@ -39,7 +70,7 @@ final class Bt03e02PairedBootstrap
                 }
                 $candidateNumerators = $baselineNumerators = $denominators = array_fill_keys(Bt03e02MetricEvaluator::METRIC_CODES, 0.0);
                 $raceIndex = 0;
-                foreach (($year['source'])() as $race) {
+                foreach ($spool->records() as $values) {
                     if (! array_key_exists($raceIndex, $weights)) {
                         throw new RuntimeException('BT-03E-02 paired bootstrap source exceeded its sealed count.');
                     }
@@ -47,11 +78,11 @@ final class Bt03e02PairedBootstrap
                     if ($weight === 0) {
                         continue;
                     }
-                    $comparison = $this->metrics->raceComparison($race, $year['alpha']);
-                    foreach (Bt03e02MetricEvaluator::METRIC_CODES as $metric) {
-                        $candidateNumerators[$metric] += $weight * $comparison['candidate'][$metric]['numerator'];
-                        $baselineNumerators[$metric] += $weight * $comparison['baseline'][$metric]['numerator'];
-                        $denominators[$metric] += $weight * $comparison['candidate'][$metric]['denominator'];
+                    foreach (Bt03e02MetricEvaluator::METRIC_CODES as $metricOffset => $metric) {
+                        $valueOffset = $metricOffset * 3;
+                        $candidateNumerators[$metric] += $weight * $values[$valueOffset];
+                        $baselineNumerators[$metric] += $weight * $values[$valueOffset + 1];
+                        $denominators[$metric] += $weight * $values[$valueOffset + 2];
                     }
                 }
                 if ($raceIndex !== $count) {

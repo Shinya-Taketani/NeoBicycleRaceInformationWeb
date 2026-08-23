@@ -100,28 +100,43 @@ final class Bt03e02PairwiseObjective
         }
         $losses = [];
         foreach ($raceSource() as $race) {
-            $positive = $negative = [];
-            foreach ($race['entries'] as $entry) {
-                if (($entry['labels'][$channelIndex] ?? false) === true) {
-                    $positive[] = $entry;
-                } else {
-                    $negative[] = $entry;
-                }
+            $loss = $this->raceLoss($race, $layout, $coefficients, $channel);
+            if ($loss !== null) {
+                $losses[(int) $race['race_id']] = $loss;
             }
-            if ($positive === [] || $negative === []) {
-                continue;
-            }
-            $sum = new Bt03e02CompensatedSum;
-            $pairs = count($positive) * count($negative);
-            foreach ($positive as $positiveEntry) {
-                foreach ($negative as $negativeEntry) {
-                    $sum->add($this->softplus(-($this->score($positiveEntry, $coefficients) - $this->score($negativeEntry, $coefficients))));
-                }
-            }
-            $losses[(int) $race['race_id']] = $sum->value() / $pairs;
         }
 
         return $losses;
+    }
+
+    /** @param array<string,mixed> $race @param list<float> $coefficients */
+    public function raceLoss(array $race, Bt03e02ParameterLayout $layout, array $coefficients, string $channel): ?float
+    {
+        $channelIndex = array_search($channel, Bt03e02Contract::CHANNELS, true);
+        if ($channelIndex === false || count($coefficients) !== $layout->size()) {
+            throw new InvalidArgumentException('BT-03E-02 race loss input was invalid.');
+        }
+        $positive = $negative = [];
+        foreach ($race['entries'] as $entry) {
+            $this->assertEntry($entry, $layout);
+            if (($entry['labels'][$channelIndex] ?? false) === true) {
+                $positive[] = $entry;
+            } else {
+                $negative[] = $entry;
+            }
+        }
+        if ($positive === [] || $negative === []) {
+            return null;
+        }
+        $sum = new Bt03e02CompensatedSum;
+        $pairs = count($positive) * count($negative);
+        foreach ($positive as $positiveEntry) {
+            foreach ($negative as $negativeEntry) {
+                $sum->add($this->softplus(-($this->score($positiveEntry, $coefficients) - $this->score($negativeEntry, $coefficients))));
+            }
+        }
+
+        return $sum->value() / $pairs;
     }
 
     /** @param list<float> $coefficients */

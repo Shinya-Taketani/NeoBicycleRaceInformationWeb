@@ -131,7 +131,7 @@ final class Bt03e02Scorer
             $ranked[] = [
                 ...$entry,
                 'ranking_score' => $score->value(),
-                'technical_key' => hash('sha256', Bt03e02Contract::TIE_RULE_VERSION.'|'.$raceId.'|'.$entry['bike']),
+                'technical_key' => $this->technicalKey($raceId, (int) $entry['bike']),
             ];
         }
         usort($ranked, static function (array $left, array $right): int {
@@ -147,6 +147,11 @@ final class Bt03e02Scorer
         });
 
         return ['entries' => $ranked, 'diagnostics' => $this->tieDiagnostics($ranked)];
+    }
+
+    public function technicalKey(int $raceId, int $bikeNumber): string
+    {
+        return hash('sha256', Bt03e02Contract::TIE_RULE_VERSION.'|'.$raceId.'|'.$bikeNumber);
     }
 
     /** @param list<float> $values */
