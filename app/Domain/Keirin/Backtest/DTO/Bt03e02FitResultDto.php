@@ -12,6 +12,7 @@ readonly class Bt03e02FitResultDto
      * @param  array<string, int>  $iterations
      * @param  array<string, int>  $eligibleRaceCounts
      * @param  array<string, int>  $excludedRaceCounts
+     * @param  array<string, array<string, int|float|string>>  $diagnostics
      */
     public function __construct(
         public float $lambda,
@@ -20,5 +21,6 @@ readonly class Bt03e02FitResultDto
         public array $iterations,
         public array $eligibleRaceCounts,
         public array $excludedRaceCounts,
+        public array $diagnostics = [],
     ) {}
 }

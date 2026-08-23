@@ -12,7 +12,7 @@ final class Bt03e02OneSeSelector
 {
     /**
      * @param  array<int,Bt03e02ValidationLossSpool>  $losses
-     * @return array{lambda:float,lambda_best:float,one_se_threshold:float,point_losses:array<string,float>,standard_errors:array<string,float>}
+     * @return array{lambda:float,lambda_best:float,one_se_threshold:float,point_losses:array<string,float>,standard_errors:array<string,float>,eligible_lambda_keys:list<string>,excluded_lambda_keys:list<string>}
      */
     public function select(array $losses, int $iterations = Bt03e02Contract::BOOTSTRAP_ITERATIONS): array
     {
@@ -20,7 +20,14 @@ final class Bt03e02OneSeSelector
             throw new RuntimeException('BT-03E-02 One-SE input was empty or invalid.');
         }
         ksort($losses, SORT_NUMERIC);
-        $lambdaKeys = array_map(fn (float $lambda): string => Bt03e02ValidationLossSpool::lambdaKey($lambda), Bt03e02Contract::LAMBDA_GRID);
+        $canonicalKeys = array_map(fn (float $lambda): string => Bt03e02ValidationLossSpool::lambdaKey($lambda), Bt03e02Contract::LAMBDA_GRID);
+        $lambdaKeys = $canonicalKeys;
+        foreach ($losses as $spool) {
+            $lambdaKeys = array_values(array_intersect($lambdaKeys, $spool->availableLambdaKeys()));
+        }
+        if ($lambdaKeys === []) {
+            throw new RuntimeException('BT-03E-02 One-SE had no fully converged lambda candidate.');
+        }
         $point = $this->pointLosses($losses, $lambdaKeys);
         $samples = array_fill_keys($lambdaKeys, []);
         $random = new DeterministicRandom(Bt03e02Contract::BOOTSTRAP_SEED);
@@ -69,6 +76,8 @@ final class Bt03e02OneSeSelector
             'one_se_threshold' => $threshold,
             'point_losses' => $point,
             'standard_errors' => $standardErrors,
+            'eligible_lambda_keys' => $lambdaKeys,
+            'excluded_lambda_keys' => array_values(array_diff($canonicalKeys, $lambdaKeys)),
         ];
     }
 
@@ -97,6 +106,10 @@ final class Bt03e02OneSeSelector
      */
     private function weightedAggregates(Bt03e02ValidationLossSpool $spool, array $weights, array $lambdaKeys): array
     {
+        $canonicalOffsets = array_flip(array_map(
+            fn (float $lambda): string => Bt03e02ValidationLossSpool::lambdaKey($lambda),
+            Bt03e02Contract::LAMBDA_GRID,
+        ));
         $sums = $counts = [];
         foreach ($lambdaKeys as $key) {
             $sums[$key] = array_fill_keys(Bt03e02Contract::CHANNELS, 0.0);
@@ -108,7 +121,9 @@ final class Bt03e02OneSeSelector
             if ($weight === 0) {
                 continue;
             }
-            foreach ($lambdaKeys as $lambdaOffset => $key) {
+            foreach ($lambdaKeys as $key) {
+                $lambdaOffset = $canonicalOffsets[$key]
+                    ?? throw new RuntimeException("BT-03E-02 One-SE lambda {$key} offset was invalid.");
                 foreach (Bt03e02Contract::CHANNELS as $channelOffset => $channel) {
                     $loss = $values[$lambdaOffset * count(Bt03e02Contract::CHANNELS) + $channelOffset];
                     if ($loss !== null) {

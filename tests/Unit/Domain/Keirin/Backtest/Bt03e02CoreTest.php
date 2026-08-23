@@ -14,6 +14,7 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayout;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02Scorer;
 use App\Domain\Keirin\Backtest\DTO\Bt03e02FitResultDto;
 use App\Domain\Keirin\Backtest\DTO\EffectBinDto;
+use App\Domain\Keirin\Backtest\Enums\Bt03e02CandidateStatus;
 use App\Domain\Keirin\Backtest\Services\Bt03e02Contract;
 use App\Domain\Keirin\Backtest\Services\Bt03e02ReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Support\Bt03e02RaceSpool;
@@ -32,6 +33,8 @@ class Bt03e02CoreTest extends TestCase
         $this->assertCount(231, Bt03e02Contract::alphaCandidates());
         $this->assertSame([2022, 2023, 2024, 2025], Bt03e02Contract::DEVELOPMENT_YEARS);
         $this->assertStringNotContainsString('2026', implode(',', Bt03e02Contract::DEVELOPMENT_YEARS));
+        $this->assertSame('BT03E02-FISTA-GROUP-PROX-v2', Bt03e02Contract::OPTIMIZER_VERSION);
+        $this->assertSame('BT03E02-SCORING-v2', Bt03e02Contract::CALCULATION_VERSION);
     }
 
     public function test_bt02_label_semantics_are_reused_for_pair_generation(): void
@@ -154,6 +157,63 @@ class Bt03e02CoreTest extends TestCase
 
             $this->assertSame(1.0, $selected['lambda']);
             $this->assertSame(0.0, $selected['lambda_best']);
+        } finally {
+            $spool->cleanup();
+        }
+    }
+
+    public function test_one_se_selects_only_candidates_that_converged_in_every_channel(): void
+    {
+        $available = [sprintf('%.17g', 1e-6), sprintf('%.17g', 0.1)];
+        $spool = new Bt03e02ValidationLossSpool(
+            sys_get_temp_dir().'/bt03e02-one-se-filtered-'.bin2hex(random_bytes(8)).'.bin',
+            $available,
+        );
+        try {
+            for ($race = 0; $race < 2; $race++) {
+                $losses = [];
+                foreach ($available as $key) {
+                    foreach (Bt03e02Contract::CHANNELS as $channel) {
+                        $losses[$key][$channel] = 0.5;
+                    }
+                }
+                $spool->append($losses);
+            }
+            $spool->seal();
+
+            $selected = (new Bt03e02OneSeSelector)->select([2023 => $spool], 20);
+
+            $this->assertSame(0.1, $selected['lambda']);
+            $this->assertSame($available, $selected['eligible_lambda_keys']);
+            $this->assertContains(sprintf('%.17g', 0.0), $selected['excluded_lambda_keys']);
+            $this->assertArrayNotHasKey(sprintf('%.17g', 0.0), $selected['point_losses']);
+        } finally {
+            $spool->cleanup();
+        }
+    }
+
+    public function test_one_se_fails_closed_when_all_fixed_candidates_are_non_converged(): void
+    {
+        $candidateStatuses = [];
+        foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
+            $candidateStatuses[sprintf('%.17g', $lambda)] = Bt03e02CandidateStatus::NumericallyNonConverged->value;
+        }
+        $this->assertCount(8, $candidateStatuses);
+        $this->assertSame(
+            [Bt03e02CandidateStatus::NumericallyNonConverged->value],
+            array_values(array_unique($candidateStatuses)),
+        );
+        $spool = new Bt03e02ValidationLossSpool(
+            sys_get_temp_dir().'/bt03e02-one-se-empty-'.bin2hex(random_bytes(8)).'.bin',
+            [],
+        );
+        try {
+            $spool->append([]);
+            $spool->seal();
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('no fully converged lambda candidate');
+
+            (new Bt03e02OneSeSelector)->select([2023 => $spool], 20);
         } finally {
             $spool->cleanup();
         }

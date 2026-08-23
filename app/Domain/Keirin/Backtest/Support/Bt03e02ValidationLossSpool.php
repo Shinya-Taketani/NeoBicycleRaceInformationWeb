@@ -20,8 +20,23 @@ final class Bt03e02ValidationLossSpool
 
     private bool $sealed = false;
 
-    public function __construct(private readonly string $path)
+    /** @var list<string> */
+    private readonly array $availableLambdaKeys;
+
+    /** @param list<string>|null $availableLambdaKeys */
+    public function __construct(private readonly string $path, ?array $availableLambdaKeys = null)
     {
+        $canonicalKeys = array_map(self::lambdaKey(...), Bt03e02Contract::LAMBDA_GRID);
+        $availableLambdaKeys ??= $canonicalKeys;
+        $availableLambdaKeys = array_map(static fn (int|string $key): string => (string) $key, $availableLambdaKeys);
+        if (count($availableLambdaKeys) !== count(array_unique($availableLambdaKeys))
+            || array_diff($availableLambdaKeys, $canonicalKeys) !== []) {
+            throw new RuntimeException('BT-03E-02 validation loss available candidates were invalid.');
+        }
+        $this->availableLambdaKeys = array_values(array_filter(
+            $canonicalKeys,
+            static fn (string $key): bool => in_array($key, $availableLambdaKeys, true),
+        ));
         $this->handle = fopen($path, 'xb');
         if ($this->handle === false) {
             throw new RuntimeException('Could not create the BT-03E-02 validation loss spool.');
@@ -38,7 +53,9 @@ final class Bt03e02ValidationLossSpool
         foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
             $key = self::lambdaKey($lambda);
             foreach (Bt03e02Contract::CHANNELS as $channel) {
-                $value = $losses[$key][$channel] ?? null;
+                $value = in_array($key, $this->availableLambdaKeys, true)
+                    ? ($losses[$key][$channel] ?? null)
+                    : null;
                 if ($value !== null && ! is_finite($value)) {
                     throw new RuntimeException('BT-03E-02 validation loss was not finite.');
                 }
@@ -68,6 +85,12 @@ final class Bt03e02ValidationLossSpool
     public function raceCount(): int
     {
         return $this->raceCount;
+    }
+
+    /** @return list<string> */
+    public function availableLambdaKeys(): array
+    {
+        return $this->availableLambdaKeys;
     }
 
     /** @return \Generator<int,list<?float>> */
