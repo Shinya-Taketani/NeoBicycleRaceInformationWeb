@@ -1,7 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.1
+- Version: 1.0
 - Created: 2026-08-23
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
@@ -167,46 +167,12 @@ current_engine_state: BT-03E-01_COMPLETED
 current_scoring_hypothesis_status: REJECTED_FOR_ADOPTION
 next_allowed_action: BT-03E-02_DESIGN_ONLY
 next_implementation_phase: NOT_FROZEN
-
-completed_phases:
-- STATISTICS_FEATURE_FOUNDATION_CURRENT_SCOPE
-- BT-01
-- BT-02
-- BT-03A
-- BT-03B
-- BT-03C
-- BT-03E-01_ENGINEERING
-
-superseded_phases:
-- BT-03D-PREDICTIVE-SELECTION
-
-blocked_phases:
-- BT-03E-02_IMPLEMENTATION
-- BT-04
-- BT-05-LIVE
-
-frozen_contracts:
-- LEAKAGE
-- SOURCE_INTEGRITY
-- MISSING_STATUS_SEMANTICS
-- ABNORMAL_RESULT_HANDLING
-- BOUNDED_MEMORY
-- READ_ONLY_BACKTEST
-- ARTIFACT_INTEGRITY
-
-unfrozen_contracts:
-- FINAL_STAT_SELECTION
-- FINAL_POINTS
-- FINAL_THRESHOLDS
-- FINAL_SCORE_FORMULA
-- FINAL_OPTIMIZATION_ALGORITHM
-- FINAL_ACCEPTANCE_THRESHOLD
-
-holdout_status:
-  development_corpus: 2022-2025
-  final_holdout: 2026
-  final_holdout_model_selection_access: FORBIDDEN
-  final_holdout_performance_evaluation: FORBIDDEN
+2025_next_evaluation: BLOCKED_AS_NEXT_ACTION
+2026_holdout: FROZEN_FOR_MODEL_SELECTION
+final_points: UNFROZEN
+final_thresholds: UNFROZEN
+final_score_formula: UNFROZEN
+final_stat_selection: PARTIAL
 ```
 
 ## 5.1 意味
@@ -1512,14 +1478,6 @@ reason:
 ---
 
 # 25. 変更履歴
-
-## v1.1 — 2026-08-23
-
-PR #41レビュー反映。
-
-- 正式repository pathを `docs/statistical-engine-master-plan.md` へ統一
-- Section 5を機械参照可能なCanonical Control Blockへ更新
-- `AGENTS.md` から統計エンジン工程ゲートを常時参照する運用へ統一
 
 ## v1.0 — 2026-08-23
 

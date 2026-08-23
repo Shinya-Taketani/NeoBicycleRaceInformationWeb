@@ -426,35 +426,3 @@ Codexは最終報告を次の順で記載してください。
 ```
 
 エラーや未完了部分を隠さず、確認できた事実と推測を分けて記載してください。
-
----
-
-## 17. 統計エンジン工程ゲート
-
-統計エンジンに関する設計、実装、修正、レビュー、Production実行、バックテスト結果の解釈を開始する前に、必ず次のSingle Source of Truthを全文確認します。
-
-```text
-docs/statistical-engine-master-plan.md
-```
-
-最低限、Section 5のCanonical Control Blockにある次のキーを確認します。
-
-- `current_engine_state`
-- `next_allowed_action`
-- `completed_phases`
-- `superseded_phases`
-- `blocked_phases`
-- `frozen_contracts`
-- `unfrozen_contracts`
-- `holdout_status`
-
-規則：
-
-- ユーザー指示とMASTER PLANが一致しない場合、コードや文書を変更せずSTOPして工程不整合を報告する
-- `COMPLETED`済み工程を、明示的な再検証理由またはversion変更なしに再実装しない
-- `SUPERSEDED`工程を復活させない
-- `blocked_phases`の実装やProduction実行を開始しない
-- `frozen_contracts`を暗黙に変更しない
-- `holdout_status`で禁止されたデータを参照しない
-- MASTER PLANと実コード、正式run、manifest、immutable artifactに矛盾がある場合、推測で進めずSTOPする
-- 過去チャットの記憶だけを根拠に次工程を提案しない
