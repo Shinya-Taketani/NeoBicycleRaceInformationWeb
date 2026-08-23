@@ -3,6 +3,7 @@
 use App\Console\Commands\Keirin\BackfillRetiredPlayersCommand;
 use App\Console\Commands\Keirin\Bt02PreflightCommand;
 use App\Console\Commands\Keirin\Bt02SignalEvaluationCommand;
+use App\Console\Commands\Keirin\Bt03e02ScoringEngineCommand;
 use App\Console\Commands\Keirin\Bt03eHistoricalForwardScoringCommand;
 use App\Console\Commands\Keirin\Bt03PreflightCommand;
 use App\Console\Commands\Keirin\BuildBt01BaselineCommand;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
         Bt02SignalEvaluationCommand::class,
         Bt03PreflightCommand::class,
         Bt03eHistoricalForwardScoringCommand::class,
+        Bt03e02ScoringEngineCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         //
