@@ -1,11 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.0
+- Version: 1.1
 - Created: 2026-08-23
+- Updated: 2026-08-23
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
+- Remote `main` at last update: `e379bcc5761c38c8d61f610ee4f528edc81115a5`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -55,7 +57,7 @@
 - Production実行手順の作成
 - バックテスト結果の解釈
 - STAT採否判断
-- threshold / points / score仕様の提案
+- threshold / score / parameter仕様の提案
 - 2025・2026データ利用判断
 - 統計エンジンの完成判定
 
@@ -136,7 +138,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 影響項目についてバックテスト結果を利用し、
 
-**1着・2着・3着を最大限正確に予測できる加点数・減点数を決定する。**
+**1着・2着・3着を最大限正確に予測できる連続値scoreと学習済みparameterを決定する。**
+
+整数の加点数・減点数はBT-03E-01で棄却した仮説であり、最終仕様の必須成果物ではない。
 
 ## Goal 4
 
@@ -163,25 +167,28 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: BT-03E-01_COMPLETED
-current_scoring_hypothesis_status: REJECTED_FOR_ADOPTION
-next_allowed_action: BT-03E-02_DESIGN_ONLY
-next_implementation_phase: NOT_FROZEN
-2025_next_evaluation: BLOCKED_AS_NEXT_ACTION
+current_engine_state: BT-03E-02_DESIGN_FROZEN
+current_scoring_hypothesis_status: BT-03E-02_DESIGN_APPROVED_NOT_IMPLEMENTED
+next_allowed_action: BT-03E-02_IMPLEMENTATION
+next_implementation_phase: BT-03E-02_IMPLEMENTATION
+2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
-final_points: UNFROZEN
+bt03e02_design_contract: FROZEN
+final_points: NOT_APPLICABLE_CONTINUOUS_SCORE
 final_thresholds: UNFROZEN
-final_score_formula: UNFROZEN
+final_score_formula: STRUCTURE_FROZEN_PARAMETERS_UNFROZEN
 final_stat_selection: PARTIAL
+acceptance_gate: FROZEN
 ```
 
 ## 5.1 意味
 
 - BT-03E-01の **historical-forward scoring基盤実装自体は完成** している。
-- ただしBT-03E-01で試した粗い加点方式は2024でSTAT-01 baselineを下回ったため、**最終配点としては採用しない**。
-- 次に許可されるのは **BT-03E-02の設計** であり、仕様をfreezeする前にCodexへ実装させない。
-- 2025を「次のholdout」としてそのまま開いて評価する工程には進まない。
-- 2026は最終モデル選択・配点・score仕様がfreezeされるまで評価禁止。
+- ただしBT-03E-01で試した粗い整数加点方式は2024でSTAT-01 baselineを下回ったため、**最終仕様としては採用しない**。
+- BT-03E-02のDecision 01～12および補助Decision 10-A・10-Bはユーザー承認済みで、**設計をfreezeした**。
+- 次に許可されるのは **BT-03E-02の実装** である。モデル、係数、最終lambda・alpha、性能はまだ未確定である。
+- 2024・2025はdevelopment corpusとしてのみ利用し、final untouched holdoutとは扱わない。
+- 2026は最終モデル選択・fitted parameter・score仕様がfreezeされるまで評価禁止。
 
 ---
 
@@ -189,7 +196,7 @@ final_stat_selection: PARTIAL
 
 統計エンジン要件定義はSTAT-01～STAT-46を管理対象としている。
 
-配点・閾値・減衰率は原則としてバックテスト後に決定する契約であり、確定前のpointsは `NULL` / `NOT_SCORED` が原則である。
+score parameter・閾値・減衰率は原則としてバックテスト後に決定する契約であり、確定前のcontributionは `NULL` / `NOT_SCORED` が原則である。最終prediction contractに整数pointsは要求しない。
 
 現時点でBT-02 / BT-03 / BT-03Eの中心評価に使用した範囲は次のとおり。
 
@@ -308,13 +315,13 @@ BT-03E-02以降で利用する場合は、
 
 2026について、過去のinventoryでrace数等のメタデータを確認した履歴はあるが、
 
-**統計エンジンのモデル選択・配点決定・予測性能評価には使用しない。**
+**統計エンジンのモデル選択・parameter決定・予測性能評価には使用しない。**
 
 禁止対象:
 
 - 2026 result labelを用いた性能評価
 - 2026 outcomeを見たthreshold決定
-- 2026 outcomeを見たpoints調整
+- 2026 outcomeを見たscore parameter調整
 - 2026 outcomeを見たSTAT採否
 - 2026 outcomeを見たscore formula変更
 
@@ -340,7 +347,7 @@ BT-03E-02以降で利用する場合は、
 | BT-03C | 年次安定性整理 | COMPLETED as analysis | PASS |
 | BT-03D old predictive-selection plan | broad再選択 / joint ablationを独立工程化 | SUPERSEDED | DO NOT IMPLEMENT |
 | BT-03E-01 | 粗い加減点方式を2023→2024で検証 | COMPLETED_WITH_NEGATIVE_RESULT | TOOL GO / RULE REJECT |
-| BT-03E-02 | scoring方式再設計 | READY_FOR_DESIGN | IMPLEMENTATION BLOCKED |
+| BT-03E-02 | scoring方式再設計 | DESIGN_FROZEN | IMPLEMENTATION ALLOWED |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -978,139 +985,141 @@ STAT単一weight
 
 ---
 
-# 15. 次工程 — BT-03E-02 Scoring Redesign
+# 15. BT-03E-02 — Scoring Redesign
 
 ## 15.1 状態
 
 ```yaml
 working_name: BT-03E-02-SCORING-RULE-REDESIGN
-name_status: PROVISIONAL
-phase_status: READY_FOR_DESIGN
-codex_implementation: BLOCKED_UNTIL_SPEC_APPROVAL
+name_status: FROZEN_FOR_V1
+phase_status: DESIGN_FROZEN
+codex_implementation: ALLOWED
+implementation_status: NOT_STARTED
+performance_status: NOT_EVALUATED
+goal_3_status: NOT_COMPLETED
+approved_decisions:
+  - DECISION_01
+  - DECISION_02
+  - DECISION_03
+  - DECISION_04
+  - DECISION_05
+  - DECISION_06
+  - DECISION_07
+  - DECISION_08
+  - DECISION_09
+  - DECISION_10
+  - DECISION_10_A
+  - DECISION_10_B
+  - DECISION_11
+  - DECISION_12
 ```
 
-## 15.2 次に許可される作業
+Decision 01～12および補助Decision 10-A / 10-Bは、BT-03E-02 v1の実装前契約として承認・freeze済みである。
 
-**設計のみ。**
+これは設計完了を意味するが、モデル実装、係数fit、性能評価、Goal 3達成を意味しない。実装時に契約変更が必要になった場合は、理由、影響範囲、versionを明示して本MASTER PLANを先に更新する。
 
-以下をChatGPT上で先に決める。
+## 15.2 Decision 01 — Score Representation
 
-1. score表現
-2. bin別pointsをどこまで独立させるか
-3. `IS_WIN / IS_TOP2 / IS_TOP3` の情報をどう統合するか
-4. STAT単位weightを残すか
-5. 非線形STATをどう扱うか
-6. redundancy / correlationをどう制御するか
-7. optimization objective
-8. optimization algorithm
-9. overfitting抑制
-10. tie削減
-11. development validation設計
-12. Goal 3 acceptance gate
+- 内部scoreは符号付きcontinuous valueとする。
+- 全score軸で高いscoreほど上位評価とする。
+- 人工的な上限・下限を設けない。
+- ランキングに表示用丸め値を使用しない。
+- per-STAT contributionを監査可能にする。
+- missingと数値0を区別する。
+- 表示用pointsと内部scoreは別概念にできる。
+- BT-03E-01の粗い整数加点・減点方式へ戻さない。
 
-これをfreezeする前にCodexへ実装させない。
+BT-03E-01の整数pointsは最終仕様ではなく、continuous score採用後のprediction contractでは `NOT_APPLICABLE / SUPERSEDED` とする。
 
-## 15.3 設計上の重点候補
+## 15.3 Decision 02 — 3 Score Channel Architecture
 
-### A. 3label共通方向への過度な圧縮を見直す
+独立した次の3 channelを保持する。
 
-BT-03E-01では、
+- `WIN_SCORE`
+- `TOP2_SCORE`
+- `TOP3_SCORE`
+
+各channelは独立したcontinuous contributionを持ち、その後に別途 `RANKING_SCORE` を生成する。WIN / TOP2 / TOP3の情報を、`RANKING_SCORE` 生成前に共通directionへ圧縮しない。
+
+## 15.4 Decision 03 — Hierarchical Regularized Bin Score
+
+採用方式は `Hierarchical Regularized Bin Score` とする。
+
+- STATごとの単一weightだけに縮約しない。
+- bin固有効果およびchannel固有bin効果を保持する。
+- 基本parameterは `STAT × BIN × CHANNEL` 単位のcontinuous coefficientとする。
+- 全parameterを無制限な完全自由parameterにはしない。
+- hierarchical regularizationおよびshrinkageを使用する。
+- numeric ordered binにはsmoothnessを許可する。
+- monotonicityを強制しない。
+- missingは独立状態であり、数値0または0 binではない。
+
+概念parameter:
 
 ```text
-IS_WIN
-IS_TOP2
-IS_TOP3
+beta[stat, bin, channel]
 ```
 
-がすべて同方向でないbinを0へ寄せた。
+## 15.5 Decision 04 — STAT単位weight
 
-これにより、有効な順位境界固有signalを捨てた可能性がある。
+明示的な `STAT weight × BIN weight` 方式や、`STAT-07 weight = 0.8` のようなprediction用独立STAT乗算weightは採用しない。
 
-次工程では、
+`beta[stat, bin, channel]` を直接prediction contributionとし、STAT全体はgroup-level regularization / shrinkageで制御する。各STAT / channel内のbin contributionは、training fold内supportを用いて相対効果として中心化できる構造とする。
 
-- winner contribution
-- top2 contribution
-- top3 contribution
+概念上のidentifiability contract:
 
-を分離保持する方式を比較対象とする。
+```text
+sum(support[b] * beta[s, b, c]) = 0
+```
 
-### B. STAT単一weightだけでなくbin固有強度を検討
+実装式は数値安定性とidentifiabilityを確認して厳密化する。STAT importanceはprediction用追加weightではなく、診断指標として算出する。
 
-BT-03でbinごとの効果量差が明確だったため、
+## 15.6 Decision 05 — Nonlinear STAT
 
-「STAT全体で1 weight」
+採用方式は `Regularized Piecewise-Bin Nonlinear Model` とする。
 
-だけでは情報損失が大きい可能性がある。
+- 全STAT線形モデルにはしない。
+- 全STATへmonotonic constraintを強制しない。
+- v1ではraw-value polynomial / splineモデルを新規導入しない。
+- BT-03 bin構造を使って非線形性を表現する。
+- WIN / TOP2 / TOP3で異なるshapeを許可する。
+- numeric binにはadjacent smoothness penaltyを許可する。
+- category binにはadjacent smoothnessを掛けない。
 
-ただし全bin独立pointの無制限探索は過学習・組合せ爆発を起こすため禁止。
+STAT固有契約:
 
-候補:
+- `STAT-31`: `NON_MONOTONIC_ALLOWED`。中央プラス・両端マイナスを手作業で固定せず、training dataから学習する。
+- `STAT-26`: fold / year間でbin indexを直接同一視せず、raw-value semantic alignmentを維持する。
+- `STAT-39`: cohort dependencyを維持し、STRICT / OPERATIONAL等の意味差を無条件統合しない。
 
-- effect magnitudeを段階化
-- monotonic / shape constraint
-- grouped point levels
-- regularized bin points
-- hierarchical STAT weight × bin multiplier
-- shrinkage
+既存development findingsをfuture OOS結果として扱わない。
 
-### C. STAT-31
+## 15.7 Decision 06 — Redundancy / Correlation
 
-非線形専用扱いを検討する。
+採用方式は `Soft Redundancy Control + Temporal Ablation` とする。
 
-### D. STAT-26
+- 相関が高いだけでSTATを削除しない。
+- 固定correlation thresholdによるpre-filterを採用しない。
+- STAT-level correlation、bin-level overlap、channel別redundancyの診断を許可する。
+- leave-one-STAT-outを必須診断とする。
+- 必要な相関groupについてgroup ablationを行える。
+- 局所bin shrinkageを許可する。
+- temporal validationで除外時性能が改善した場合だけSTAT除外を許可する。
 
-bin indexではなくraw-value semantic alignmentを維持する。
+BT-03E-02 v1では独立した `lambda_REDUNDANCY` や新しい大量hyperparameterを追加しない。L2、STAT group shrinkage、numeric smoothness、temporal ablationを基本制御とし、correlation / overlapは主に診断情報として扱う。旧BT-03D predictive selectionは復活させない。
 
-### E. STAT-39
+## 15.8 Decision 07 — Optimization Objective
 
-cohort差を無視しない。
+採用方式は `Pareto-Constrained Multi-Objective` とする。
 
-### F. Tie
-
-BT-03E-01ではPoint Engine tie raceが3052まで増加した。
-
-point resolution / score representationを改善し、
-
-**大量tieを最終性能のボトルネックにしない。**
-
-## 15.4 correlation / redundancy
-
-独立工程として再選択はしないが、
-
-scoring optimizer内で次を診断してよい。
-
-- 高相関STATの二重加点
-- 同じ情報を含むbin ruleの重複
-- leave-one-STAT-out
-- group ablation
-- point shrinkage
-
-「相関が高い」という理由だけでSTATを削除しない。
-
-実際に除外して順位性能が悪化するなら有用とみなす。
-
-## 15.5 Development evaluation
-
-2022～2025はdevelopment corpusとして扱う。
-
-次工程では、必要に応じてfold-localなnested temporal validationを使用する。
-
-重要:
-
-**2024 / 2025をfinal untouched holdoutとは呼ばない。**
-
-## 15.6 Acceptance gate
-
-現時点では具体的な改善閾値を未freezeとする。
-
-BT-03E-02実装前に、最低限次をpre-registerする。
-
-Primary:
+Primary Objective:
 
 - `WINNER_HIT_AT_1`
 - `POSITION_2_ACCURACY`
 - `POSITION_3_ACCURACY`
 - `POSITION_HIT_RATE_AT_3`
+
+4指標を単一の固定weight objectiveへ圧縮しない。candidateごとにmetric value、baseline value、deltaを保持し、Pareto dominanceを使用する。一つのPrimary改善で他のPrimaryの重大悪化を自動相殺しない。
 
 Supporting:
 
@@ -1121,11 +1130,364 @@ Supporting:
 - `TOP2_COVERAGE_AT_2`
 - `NDCG_AT_3`
 
-次工程で、
+Complexityは性能が同等の場合の後順位判定にのみ使用する。
 
-**1着だけを上げ、2着・3着を大きく悪化させるcandidateを自動採用しない。**
+## 15.9 Decision 08 — Optimization Algorithm
 
-複数metricのPareto比較を許可する。
+採用方式は `Deterministic Two-Stage Regularized Ranking Optimization` とする。
+
+### Stage 1
+
+WIN / TOP2 / TOP3を独立fitする。surrogate lossには同一レース内の `Pairwise Logistic Ranking Loss` を用いる。
+
+- WIN: 実1着 > その他
+- TOP2: 実1・2着 > 3着以下
+- TOP3: 実1・2・3着 > 4着以下
+
+coefficient optimizerにはdeterministic Proximal Gradient / FISTA系を採用する。概念objectiveは `Pairwise Ranking Loss + regularization` とする。random search、genetic algorithm、BT-03E-01の粗いcoordinate descent流用は採用しない。
+
+### Stage 2
+
+```text
+RANKING_SCORE
+= alpha_WIN  * normalized_WIN_SCORE
++ alpha_TOP2 * normalized_TOP2_SCORE
++ alpha_TOP3 * normalized_TOP3_SCORE
+```
+
+制約:
+
+```text
+alpha_WIN >= 0
+alpha_TOP2 >= 0
+alpha_TOP3 >= 0
+alpha_WIN + alpha_TOP2 + alpha_TOP3 = 1
+```
+
+non-negative convex combinationとし、alphaを手作業で決めない。deterministic simplex candidate searchで決定する。Primary hit metricsをgradientで直接最適化せず、Stage 1はsmooth surrogate loss、Stage 2は実際のPrimary Metricsでcandidateを評価する。Production相当処理はbounded-memory / streamingを必須とする。
+
+## 15.10 Decision 09 — Overfitting
+
+採用方式は `Nested Temporal Regularization Selection + One-SE Rule` とする。
+
+regularization:
+
+1. L2 shrinkage
+2. STAT group shrinkage
+3. numeric adjacent-bin smoothness
+
+categoryにはsmoothnessを掛けない。v1ではこれらを大量の独立lambdaとして探索せず、正規化Composite Penaltyに単一共通lambdaを乗じる。
+
+```text
+Objective = PairwiseRankingLoss + lambda * CompositePenalty
+```
+
+lambda candidate gridは次でfreezeする。
+
+```text
+0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1
+```
+
+結果確認後に0.0037等の追加gridを作らない。lambdaはWIN / TOP2 / TOP3共通とする。最良validation loss + 1 standard error以内のcandidateから最も強くregularizeされたlambdaを選ぶOne-Standard-Error Ruleを使用する。
+
+validation-based early stoppingは行わず、FISTA停止条件は数値収束条件だけとする。
+
+alpha simplex contract:
+
+```text
+step: 0.05
+constraints: alpha >= 0, sum(alpha) = 1
+candidate_count: 231
+adaptive_refinement: FORBIDDEN
+```
+
+最低限のcomplexity diagnostics:
+
+- `non_zero_coefficients`
+- `active_stat_groups`
+- `coefficient_norm`
+- `smoothness_measure`
+- `regularization_lambda`
+- `channel_alpha`
+
+## 15.11 Decision 10 — Tie / Determinism
+
+採用方式は `Full-Precision Deterministic Ranking` とする。
+
+- 内部scoreはIEEE-754 binary64を使用する。
+- 順位決定前のroundは禁止する。
+- contributionをcanonical orderで加算する。
+- 浮動小数点集計はKahan / Neumaier系の妥当なcompensated summationを使用する。
+- artifact serializationはbinary64 round-trip可能なcanonical representationを用いる。例: `sprintf('%.17g', $score)`。
+- NaN / +INF / -INFはERRORとする。
+- epsilon以内をtieとみなさず、exact score comparisonを使用する。
+
+Ranking tie-break:
+
+1. `RANKING_SCORE DESC`
+2. `WIN_SCORE DESC`
+3. `TOP2_SCORE DESC`
+4. `TOP3_SCORE DESC`
+5. `STAT-01 RACE_SCORE_RAW DESC`
+6. deterministic technical tie key ASC
+
+bike number ASCをpredictive fallbackに使用しない。technical tie keyは、例えば次のoutcome-independent deterministic keyとする。
+
+```text
+SHA-256(fixed versioned salt + race_id + bike_number)
+```
+
+technical fallbackを「モデルが区別できた」と扱わず、`technical_tiebreak_used` 等で監査する。
+
+最低限のtie diagnostics:
+
+- `exact_ranking_score_tied_races`
+- `exact_ranking_score_tied_entries`
+- `resolved_by_win_score`
+- `resolved_by_top2_score`
+- `resolved_by_top3_score`
+- `resolved_by_stat01_raw`
+- `technical_tiebreak_races`
+- `technical_tiebreak_entries`
+- `minimum_score_gap`
+- `score_gap_distribution`
+
+## 15.12 Decision 10-A — Channel Scale Normalization
+
+採用方式は `Training-Fold Race-Centered RMS Normalization` とする。
+
+WIN / TOP2 / TOP3を `RANKING_SCORE` へ統合する前に尺度を揃える。各training race内でscoreをcenterし、race内dispersionからchannel scaleを算出し、各raceを等weightとする。
+
+validation側のscore分布で再標準化してはならない。順序は常にtrainingでscale計算、freeze、validationへ適用とする。
+
+scale = 0の場合は `DEGENERATE_CHANNEL` とし、そのchannelのalpha = 0を強制する。epsilonを足して無理に有効化しない。
+
+artifactへ最低限次を保存する。
+
+- `channel`
+- `training_race_count`
+- `training_entry_count`
+- `scale_method`
+- `scale_value`
+- `degenerate_status`
+- `calculation_version`
+
+scale methodのversion名は実装時にversioned contractとして固定する。
+
+## 15.13 Decision 10-B — STAT-01 Anchor
+
+採用方式は `Fixed STAT-01 Anchor + Learned Incremental Residuals` とする。STAT-01を再学習対象として消してはならない。
+
+```text
+STAT01_ANCHOR = RACE_SCORE_Z
+anchor_coefficient = 1.0 (fixed)
+
+WIN_SCORE_raw  = STAT01_ANCHOR + WIN incremental contributions
+TOP2_SCORE_raw = STAT01_ANCHOR + TOP2 incremental contributions
+TOP3_SCORE_raw = STAT01_ANCHOR + TOP3 incremental contributions
+```
+
+STAT-01 Anchorはregularization対象外とし、他STATのbetaだけを学習する。v1ではSTAT-01 RAW、RANK、percentile、Zを複数featureとして同時predictor投入しない。prediction anchorは `RACE_SCORE_Z` だけとし、他のSTAT-01 featureはbaseline comparison / audit / tie / diagnostics用途とする。
+
+全incremental coefficientが0なら、最終rankingがSTAT-01 baseline順位へ帰着する `Baseline Nesting Contract` をfreezeする。
+
+必須Baseline Equivalence Test:
+
+- raw scoreが異なるentry間の順位一致
+- raw score tie group一致
+- rank1 set一致
+- top3 boundary set一致
+
+STAT-01 standard deviation = 0の場合は欠損補完と区別し、`STAT01_ANCHOR = 0`、`anchor_status = ZERO_VARIANCE` とする。STAT-01 missingを0補完してはならない。
+
+## 15.14 Decision 11 — Development Validation
+
+採用方式は `Expanding-Window Nested Temporal Validation + Final Development OOF Refit` とする。2022～2025はすべてdevelopment corpusであり、2024 / 2025をfinal untouched holdoutと呼ばない。
+
+### Outer 2024
+
+```text
+Inner: Train 2022 -> Validation 2023でlambda / alpha選択
+Refit: 2022-2023
+Outer Development Validation: 2024
+```
+
+### Outer 2025
+
+```text
+Inner A: Train 2022 -> Validation 2023
+Inner B: Train 2022-2023 -> Validation 2024
+inner OOFでlambda / alpha選択
+Refit: 2022-2024
+Outer Development Validation: 2025
+```
+
+lambda選択lossはrace-balanced Pairwise Logistic Ranking Lossとする。race内pair lossを先に平均し、1 race = 1 unitとする。WIN / TOP2 / TOP3を等weight、複数validation yearをyear equal weightとする。
+
+One-SE bootstrap:
+
+```yaml
+unit: race
+iterations: 2000
+seed: 20260812
+multiple_years: year-stratified race bootstrap
+```
+
+lambdaを先に選び、その後だけ0.05 simplexの231 alpha candidateをinner OOF predictionで評価する。lambda × alphaのjoint exhaustive searchは行わない。
+
+次はすべてtraining foldだけで決定し、validation情報で再計算しない。
+
+- bin boundaries
+- category definitions
+- coefficients
+- lambda
+- channel scale
+- STAT-26 semantic alignment
+- STAT-39 cohort-specific basis
+
+candidateとSTAT-01 baselineは同一race集合・同一metric denominatorで比較する。追加STAT missingだけを理由にcandidate側だけraceを除外しない。
+
+Acceptance Gate通過後のFinal Development Fit:
+
+```text
+OOF 1: Train 2022 -> Validate 2023
+OOF 2: Train 2022-2023 -> Validate 2024
+OOF 3: Train 2022-2024 -> Validate 2025
+```
+
+このOOFだけで同じpre-registered algorithmを用いて最終lambda / alphaを決定し、2022～2025でfinal bin / basis、coefficients、channel scaleをrefitしてfreezeする。この工程でも2026参照は禁止する。
+
+## 15.15 Decision 12 — Goal 3 Acceptance Gate
+
+採用方式は `Hierarchical Pre-Registered Acceptance Gate` とし、次の順で判定する。
+
+1. Integrity Gate
+2. Non-Inferiority Gate
+3. Superiority Gate
+4. Temporal Stability Gate
+5. Supporting Metric Gate
+6. Tie Quality Gate
+7. Pareto / Maximin Selection
+
+### Integrity Gate
+
+次は絶対条件であり、1件でも失敗した場合は性能結果を無効とする。
+
+- outcome leakageなし
+- 2026 access = 0
+- candidate / baseline cohortが完全paired
+- Decision 11 fold contract遵守
+- bins / scalesがtraining-local
+- lambda / alphaがinner dataのみ
+- Baseline Nesting Test PASS
+- deterministic rerun artifact / hash一致
+- NaN / INF = 0
+- source fingerprint START / END一致
+- outer result確認後に同foldを再調整していない
+
+Primary metricsとdelta:
+
+- `WINNER_HIT_AT_1`
+- `POSITION_2_ACCURACY`
+- `POSITION_3_ACCURACY`
+- `POSITION_HIT_RATE_AT_3`
+- delta = BT-03E-02 - STAT-01 baseline
+
+### Non-Inferiority Gate
+
+year-stratified paired race bootstrap 95% CIを使用し、全4 Primaryで次を要求する。
+
+```text
+margin = -0.0015
+95% CI lower bound > -0.0015
+```
+
+### Superiority Gate
+
+次のA、B、Cをすべて要求する。
+
+- A: `POSITION_HIT_RATE_AT_3` の95% CI lower bound > 0
+- B: WINNER / POSITION_2 / POSITION_3のうち最低1つで95% CI lower bound > 0
+- C: Primary 4指標のうち最低3つでpoint estimate delta > 0
+
+### Temporal Stability Gate
+
+Outer 2024 / Outer 2025の各年について、全Primary metricで `delta >= -0.0030` を要求する。平均が良くても、一年度で下回ればFAILとする。
+
+### Supporting Metric Gate
+
+対象は次の6指標。
+
+- `EXACT_ORDERED_TOP3_RATE`
+- `EXACT_TOP3_SET_RATE`
+- `TOP3_COVERAGE_AT_3`
+- `EXACT_TOP2_SET_RATE`
+- `TOP2_COVERAGE_AT_2`
+- `NDCG_AT_3`
+
+6指標中4指標以上でyear-equal mean delta >= 0、かつ全Supportingでyear-equal mean delta >= -0.0020を要求する。
+
+### Tie Quality Gate
+
+- exact `RANKING_SCORE` tied race rateはpaired STAT-01 baseline以下とする。
+- `technical_tiebreak_races / eligible_races <= 0.001`、すなわち0.1%以下とする。
+
+### Bootstrap Contract
+
+```yaml
+unit: race
+iterations: 2000
+seed: 20260812
+confidence_interval: 95%
+resampling: paired_candidate_baseline
+multiple_years: year_stratified
+```
+
+### Final Candidate Selection
+
+Acceptance Gate通過candidate間で次の順に選択する。
+
+1. Primary Pareto dominance
+2. maximin primary delta
+3. `POSITION_HIT_RATE_AT_3` delta
+4. `EXACT_ORDERED_TOP3_RATE` delta
+5. `EXACT_TOP3_SET_RATE` delta
+6. `NDCG_AT_3` delta
+7. lower model complexity
+8. canonical candidate key
+
+```text
+worst_primary_delta = min(delta WIN, delta P2, delta P3, delta HIT3)
+```
+
+Final status:
+
+- `PASS / GO_TO_FREEZE`: 全Gate通過。これだけがFinal Development FitとBT-04準備へ進める。
+- `HOLD / PROMISING_NOT_ADOPTABLE`: 非劣性等は保つがsuperiority不足。2026へ進まない。
+- `FAIL / REDESIGN_REQUIRED`: Integrity / Non-Inferiority / Stability / Tie等に失敗。
+
+## 15.16 用語対応と非拘束期待値
+
+プロジェクト上の用語対応:
+
+- 単勝的中率 = `WINNER_HIT_AT_1`
+- 3連単的中率 = `EXACT_ORDERED_TOP3_RATE`
+- 3連複的中率 = `EXACT_TOP3_SET_RATE`
+
+BT-03E-01の2024正式実測値:
+
+| Engine | 単勝 | 3連単 | 3連複 |
+|---|---:|---:|---:|
+| STAT-01 baseline | 38.6040% | 4.2572% | 15.0603% |
+| BT-03E-01 Point Engine | 38.4132% | 4.2372% | 15.0365% |
+
+BT-03E-02について会話上置いた次の範囲は `NON_BINDING_EXPECTATION_ONLY` である。
+
+- 単勝: 38.8～39.5%
+- 3連単: 4.3～4.6%
+- 3連複: 15.2～15.8%
+
+これは参考期待レンジ、非契約、実測前の値であり、Acceptance Gate、性能保証、目標達成条件ではない。この範囲へ合わせるための事後調整は禁止する。
 
 ---
 
@@ -1144,8 +1506,10 @@ Supporting:
 - rule generation
 - threshold
 - bin semantics
-- points
-- score formula
+- fitted beta coefficients
+- selected lambda / alpha
+- channel scale
+- continuous score formula
 - missing handling
 - confidence handling
 - tie rule
@@ -1161,9 +1525,9 @@ Supporting:
 ```yaml
 final_engine_version:
 final_rule_version:
-final_points_manifest_hash:
+final_model_parameter_manifest_hash:
 final_feature_manifest_hash:
-final_score_formula_hash:
+final_scoring_contract_hash:
 final_code_main_sha:
 freeze_datetime:
 ```
@@ -1226,7 +1590,7 @@ prediction vs actual評価
 ## 18.1 Leakage
 
 - 対象レースより未来の情報禁止
-- outcomeを見て同じevaluation対象のpointsを決定しない
+- outcomeを見て同じevaluation対象のscore parameterを決定しない
 - prediction freeze後にlabelを開く
 
 ## 18.2 Source integrity
@@ -1282,27 +1646,53 @@ read-only benchmarkではPostgreSQL READ ONLYを使用し、
 
 であること。
 
+## 18.8 BT-03E-02 v1 Design Contract
+
+次の構造・方式はBT-03E-02 v1の実装前契約としてfreeze済みである。
+
+- 符号付きcontinuous score、高いscoreほど上位、ランキング前round禁止
+- WIN / TOP2 / TOP3の独立3 channelと、それらから作る `RANKING_SCORE`
+- `beta[stat, bin, channel]` によるhierarchical regularized bin model
+- prediction用の明示的STAT単一weightを置かない
+- piecewise-bin nonlinear model、STAT-31 non-monotonic許可、STAT-26 semantic alignment、STAT-39 cohort維持
+- correlation thresholdで削除せず、soft controlとtemporal ablationを使用する
+- Pareto-constrained multi-objectiveとPrimary / Supporting metrics
+- pairwise logistic loss、deterministic Proximal Gradient / FISTA、2-stage optimization
+- L2 / STAT group / numeric smoothnessのComposite Penaltyと単一共通lambda
+- lambda grid `0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1`
+- alpha grid step 0.05、231 simplex candidates、adaptive refinement禁止
+- binary64、compensated summation、exact comparison、固定tie-break contract
+- training-fold race-centered RMS channel normalization
+- `RACE_SCORE_Z`、係数1.0固定、regularization対象外のSTAT-01 anchor
+- expanding-window nested temporal validation、One-SE Rule、final development OOF refit
+- Decision 12の事前登録済みAcceptance Gate
+- BT-03E-02のfit、選択、development evaluationで2026参照禁止
+
+詳細な数値・順序・例外条件の正本はSection 15とする。設計変更にはversioned reasonと本MASTER PLANの先行更新が必要である。
+
 ---
 
 # 19. Unfrozen Contracts
 
-現時点で **最終仕様として確定していない**。
+現時点で **実装・training・選択を経なければ最終値が確定しない** のは次である。
 
-- 最終STAT採否
-- 最終points
-- bin別points
-- threshold
-- STAT weight
-- STAT-01 base scale
-- final score formula
-- confidenceによるpoints補正
-- STAT-20統合方法
-- correlation penalty
-- optimization algorithm
-- exact acceptance threshold
-- market overlay（STAT-22）
+- fitted beta coefficients
+- selected final lambda
+- selected final alpha
+- final training-generated bin boundaries / category definitions
+- final channel scale values
+- temporal ablation後の最終STAT採否
+- output interpretationにthresholdを設ける場合の最終threshold
+- final engine / model / calculation version
+- final model parameter / feature / scoring manifests and hashes
 - final prediction confidence
+- 未実装の将来STAT統合方法（STAT-20等）
+- market overlay（STAT-22）
 - bet / ROI rule
+
+continuous score、3 channel、STAT-01 anchor、optimizer family、regularization policy、lambda / alpha grid、tie、normalization、temporal validation、Acceptance GateはunfrozenではなくSection 15 / 18のfrozen contractである。
+
+整数のfinal points、bin別points、STAT-01 base step、prediction用STAT単一weightは `NOT_APPLICABLE / SUPERSEDED` とする。独立したcorrelation penalty parameterもv1では採用しない。
 
 BT-03E-01の以下は **実験パラメータ** であり、最終仕様ではない。
 
@@ -1342,7 +1732,7 @@ run 6は正式完了済み。
 
 ## 20.6 2026を「少しだけ確認」しない
 
-性能・threshold・point選定につながる確認は禁止。
+性能・threshold・parameter選定につながる確認は禁止。
 
 ---
 
@@ -1369,11 +1759,12 @@ run 6は正式完了済み。
 | #38 | BT-03 bin effect Production | MERGED |
 | #39 | BT-03 centered residual bounded memory | MERGED |
 | #40 | BT-03E historical forward scoring | MERGED |
+| #41 | docs: add statistical engine master plan | MERGED |
 
-Current remote `main` at this document creation:
+Current remote `main` at the v1.1 update:
 
 ```text
-82d394ec014b46ca4792858fbe9fe35eaa7434d5
+e379bcc5761c38c8d61f610ee4f528edc81115a5
 ```
 
 ---
@@ -1439,7 +1830,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 加減点決定 | NOT_COMPLETED | BT-03E-01 coarse ruleはbaseline未満 |
+| Goal 3 score / parameter決定 | DESIGN_FROZEN / IMPLEMENTATION_PENDING | BT-03E-02設計はfreeze済みだが、実装・fit・Acceptance Gate評価は未完 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -1455,7 +1846,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 - phaseがCOMPLETED
 - phaseがSUPERSEDED
 - 次工程が正式決定
-- point / threshold / score formulaがfreeze
+- scoring architecture / fitted parameter / thresholdがfreeze
 - 2026 holdoutを開く許可が出た
 - final engine versionが決定
 - live predictionへ移行
@@ -1478,6 +1869,28 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.1 — 2026-08-23
+
+```yaml
+document_version: 1.1
+updated_at: 2026-08-23
+remote_main_sha: e379bcc5761c38c8d61f610ee4f528edc81115a5
+phase_changed: BT-03E-02_DESIGN_FROZEN
+related_pr: none_yet
+related_run: none
+decision: BT-03E-02 Decision 01-12 + 10-A + 10-B approved
+reason: ChatGPT design review completed and user explicitly approved all decisions
+```
+
+反映:
+
+- BT-03E-02 v1のDecision 01～12、補助Decision 10-A / 10-Bを実装前契約としてfreeze
+- 次工程をBT-03E-02 implementationへ変更
+- continuous score採用に伴い整数final pointsを `NOT_APPLICABLE / SUPERSEDED` へ変更
+- frozen / unfrozen contract、Goal Completion Matrix、BT-04開始条件を整合
+- PR #41および更新時のremote `main` SHAを記録
+- 2026 final holdout freezeを維持
 
 ## v1.0 — 2026-08-23
 
@@ -1505,20 +1918,16 @@ Remote `main`:
 
 ---
 
-# 26. リポジトリへ追加する前の同期注意
+# 26. リポジトリ同期契約
 
-この初版作成時点で、ユーザーのローカルrepositoryはPR #40 merge後の`main`をまだpullしていない。
-
-このファイルをrepositoryへ追加する前に、
+今後このMASTER PLANまたは統計エンジン実装を更新する前に、現在のlocal状態を推測せず、次を実施する。
 
 1. 現在の作業ツリーがcleanであることを確認
-2. `main`へ移動
-3. `git pull --ff-only`
-4. `main`がremoteの最新mergeを含むことを確認
-5. その後、文書追加用branchを作成
-6. `docs/statistical-engine-master-plan.md` として追加
-
-する。
+2. `git fetch origin`でremote状態を確認
+3. `main`へ移動
+4. `git pull --ff-only`
+5. `main`がremoteの最新mergeを含むことを確認
+6. その後、目的に対応する未使用branchを作成
 
 未コミット変更が存在する場合は、勝手にreset / restore / stash / cleanせずSTOPする。
 
@@ -1532,17 +1941,22 @@ Remote `main`:
 Current:
 BT-03E-01 engineering = COMPLETED
 BT-03E-01 coarse points = REJECTED
+BT-03E-02 design = FROZEN
+BT-03E-02 implementation = NOT_STARTED
+
+Next:
+BT-03E-02 implementation
 
 Do not:
 redo BT-02 discovery
 restart old BT-03D
 rerun BT-03 run6
+reopen Decision 01-12 / 10-A / 10-B without an explicit versioned reason
+rerun BT-03E-01 with the same hypothesis
 adopt base_step=30 / STAT23=5 / STAT31=5 as final points
 open 2026
+modify scraping
 treat 2024 or 2025 as untouched final holdout
-
-Next:
-BT-03E-02 design only
 
 Objective:
 maximize actual 1st / 2nd / 3rd prediction accuracy
