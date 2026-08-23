@@ -104,6 +104,20 @@ class Bt03e02IntegrityTest extends TestCase
         }
     }
 
+    public function test_outer_refit_path_audit_is_part_of_the_reproducibility_hash(): void
+    {
+        $verifier = new Bt03e02ReproducibilityVerifier(new CanonicalHasher);
+        $first = $this->resultFixture('run-1', 1.0);
+        $second = $first;
+        $second['outer_2024']['refit_path']['fit_order'] = [1.0, 0.1];
+
+        $this->assertSame(
+            ['selected_lambda', 'fit_order', 'candidate_statuses'],
+            array_keys($first['outer_2024']['refit_path']),
+        );
+        $this->assertNotSame($verifier->hash($first), $verifier->hash($second));
+    }
+
     /** @return array<string,mixed> */
     private function resultFixture(string $runIdentity, float $runtime): array
     {
@@ -111,6 +125,15 @@ class Bt03e02IntegrityTest extends TestCase
             'lambda_selection' => ['lambda' => 0.01],
             'alpha_selection' => ['alpha' => ['IS_WIN' => 1.0, 'IS_TOP2' => 0.0, 'IS_TOP3' => 0.0]],
             'model' => ['bins' => [['index' => 1]], 'support' => [10], 'coefficients' => [0.5], 'scales' => [1.2]],
+            'refit_path' => [
+                'selected_lambda' => 0.01,
+                'fit_order' => [1.0, 0.1, 0.01],
+                'candidate_statuses' => [
+                    '0.01' => ['status' => 'CONVERGED', 'warm_start_from_lambda' => 0.1],
+                    '0.10000000000000001' => ['status' => 'CONVERGED', 'warm_start_from_lambda' => 1.0],
+                    '1' => ['status' => 'CONVERGED', 'warm_start_from_lambda' => null],
+                ],
+            ],
             'metrics' => ['candidate' => ['WINNER_HIT_AT_1' => 0.4], 'baseline' => ['WINNER_HIT_AT_1' => 0.3]],
         ];
 

@@ -27,12 +27,78 @@ final class Bt03e02FistaOptimizer
      */
     public function fitPath(callable $raceSource, Bt03e02ParameterLayout $layout): array
     {
+        $path = $this->runPath($raceSource, $layout);
+        if (count($path['candidate_statuses']) !== count(Bt03e02Contract::LAMBDA_GRID)) {
+            throw new RuntimeException('BT-03E-02 full lambda path did not audit every fixed candidate.');
+        }
+        if ($path['fits'] === []) {
+            throw new RuntimeException('BT-03E-02 all fixed lambda candidates were numerically non-converged.');
+        }
+
+        return [
+            'fits' => $path['fits'],
+            'candidate_statuses' => $path['candidate_statuses'],
+            'fit_order' => $path['fit_order'],
+        ];
+    }
+
+    /**
+     * @param  callable(): iterable<array<string, mixed>>  $raceSource
+     * @return array{
+     *   fit:Bt03e02FitResultDto,
+     *   selected_lambda:float,
+     *   candidate_statuses:array<string,array<string,mixed>>,
+     *   fit_order:list<float>
+     * }
+     */
+    public function fitSelectedViaPath(
+        callable $raceSource,
+        Bt03e02ParameterLayout $layout,
+        float $selectedLambda,
+    ): array {
+        if (! in_array($selectedLambda, Bt03e02Contract::LAMBDA_GRID, true)) {
+            throw new RuntimeException('BT-03E-02 selected lambda was outside the frozen grid.');
+        }
+        $path = $this->runPath($raceSource, $layout, $selectedLambda);
+        $selectedKey = $this->lambdaKey($selectedLambda);
+        if (! isset($path['fits'][$selectedKey])) {
+            throw new RuntimeException(
+                sprintf('BT-03E-02 selected lambda %.17g did not converge during path refit; fallback was forbidden.', $selectedLambda),
+                previous: $path['failures'][$selectedKey] ?? null,
+            );
+        }
+
+        return [
+            'fit' => $path['fits'][$selectedKey],
+            'selected_lambda' => $selectedLambda,
+            'candidate_statuses' => $path['candidate_statuses'],
+            'fit_order' => $path['fit_order'],
+        ];
+    }
+
+    /**
+     * @param  callable(): iterable<array<string, mixed>>  $raceSource
+     * @return array{
+     *   fits:array<string,Bt03e02FitResultDto>,
+     *   candidate_statuses:array<string,array<string,mixed>>,
+     *   fit_order:list<float>,
+     *   failures:array<string,Bt03e02OptimizerNonConvergenceException>
+     * }
+     */
+    private function runPath(
+        callable $raceSource,
+        Bt03e02ParameterLayout $layout,
+        ?float $stopAtLambda = null,
+    ): array {
         $fitsByExecution = [];
         $statusesByExecution = [];
+        $failuresByExecution = [];
+        $fitOrder = [];
         $warmStart = [];
         $warmStartLambda = null;
 
         foreach (self::FIT_EXECUTION_ORDER as $lambda) {
+            $fitOrder[] = $lambda;
             $key = $this->lambdaKey($lambda);
             try {
                 $fit = $this->fit($raceSource, $layout, $lambda, $warmStart);
@@ -53,26 +119,30 @@ final class Bt03e02FistaOptimizer
                     'failed_channel' => $exception->diagnostics['channel'],
                     'channels' => [$exception->diagnostics['channel'] => $exception->diagnostics],
                 ];
+                $failuresByExecution[$key] = $exception;
+            }
+            if ($stopAtLambda !== null && $lambda === $stopAtLambda) {
+                break;
             }
         }
 
         $fits = $candidateStatuses = [];
         foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
             $key = $this->lambdaKey($lambda);
-            $candidateStatuses[$key] = $statusesByExecution[$key]
-                ?? throw new RuntimeException("BT-03E-02 lambda {$key} candidate status was missing.");
+            if (! isset($statusesByExecution[$key])) {
+                continue;
+            }
+            $candidateStatuses[$key] = $statusesByExecution[$key];
             if (isset($fitsByExecution[$key])) {
                 $fits[$key] = $fitsByExecution[$key];
             }
-        }
-        if ($fits === []) {
-            throw new RuntimeException('BT-03E-02 all fixed lambda candidates were numerically non-converged.');
         }
 
         return [
             'fits' => $fits,
             'candidate_statuses' => $candidateStatuses,
-            'fit_order' => self::FIT_EXECUTION_ORDER,
+            'fit_order' => $fitOrder,
+            'failures' => $failuresByExecution,
         ];
     }
 

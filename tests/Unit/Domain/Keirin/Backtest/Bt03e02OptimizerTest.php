@@ -123,11 +123,53 @@ class Bt03e02OptimizerTest extends TestCase
         );
     }
 
+    public function test_selected_lambda_path_stops_at_the_selection_and_preserves_the_warm_start_chain(): void
+    {
+        $selected = $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.01);
+
+        $this->assertSame(0.01, $selected['selected_lambda']);
+        $this->assertSame([1.0, 0.1, 0.01], $selected['fit_order']);
+        $this->assertCount(3, $selected['candidate_statuses']);
+        $this->assertSame(null, $selected['candidate_statuses'][1]['warm_start_from_lambda']);
+        $this->assertSame(1.0, $selected['candidate_statuses']['0.10000000000000001']['warm_start_from_lambda']);
+        $this->assertSame(0.1, $selected['candidate_statuses']['0.01']['warm_start_from_lambda']);
+        $this->assertArrayNotHasKey('0.001', $selected['candidate_statuses']);
+    }
+
+    public function test_selected_lambda_path_matches_the_same_candidate_from_the_full_inner_path(): void
+    {
+        $full = $this->optimizer()->fitPath($this->source(), $this->layout());
+        $selected = $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.01);
+        $fullFit = $full['fits']['0.01'];
+        $selectedFit = $selected['fit'];
+
+        $this->assertSame($fullFit->coefficients, $selectedFit->coefficients);
+        $this->assertSame($fullFit->objectives, $selectedFit->objectives);
+        $this->assertSame($fullFit->iterations, $selectedFit->iterations);
+        $this->assertSame($fullFit->diagnostics, $selectedFit->diagnostics);
+        $this->assertSame(
+            ['fit', 'selected_lambda', 'candidate_statuses', 'fit_order'],
+            array_keys($selected),
+        );
+    }
+
     public function test_selected_outer_lambda_non_convergence_is_not_replaced_by_another_candidate(): void
     {
-        $this->expectException(Bt03e02OptimizerNonConvergenceException::class);
+        try {
+            $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.0);
+            $this->fail('The selected non-converged lambda must fail closed.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('fallback was forbidden', $exception->getMessage());
+            $this->assertInstanceOf(Bt03e02OptimizerNonConvergenceException::class, $exception->getPrevious());
+        }
+    }
 
-        $this->optimizer()->fit($this->source(), $this->layout(), 0.0);
+    public function test_selected_lambda_path_rejects_a_value_outside_the_fixed_grid(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('outside the frozen grid');
+
+        $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.2);
     }
 
     public function test_invalid_training_input_is_not_downgraded_to_candidate_non_convergence(): void

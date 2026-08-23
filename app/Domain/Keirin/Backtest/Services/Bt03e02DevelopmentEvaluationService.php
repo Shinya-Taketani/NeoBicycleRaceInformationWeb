@@ -15,7 +15,6 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayout;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayoutBuilder;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02Scorer;
 use App\Domain\Keirin\Backtest\DTO\Bt03e02FitResultDto;
-use App\Domain\Keirin\Backtest\Exceptions\Bt03e02OptimizerNonConvergenceException;
 use App\Domain\Keirin\Backtest\Repositories\Bt03eRuleSourceRepository;
 use App\Domain\Keirin\Backtest\Support\Bt03e02RaceSpool;
 use App\Domain\Keirin\Backtest\Support\Bt03e02ValidationLossSpool;
@@ -121,12 +120,14 @@ class Bt03e02DevelopmentEvaluationService
                     'lambda_selection' => $outer2024Selection,
                     'alpha_selection' => $outer2024Alpha,
                     'model' => $this->modelArtifact($outer2024['layout'], $outer2024['fit'], $outer2024['scales']),
+                    'refit_path' => $outer2024['refit_path'],
                     'metrics' => $outer2024['metrics'],
                 ],
                 'outer_2025' => [
                     'lambda_selection' => $outer2025Selection,
                     'alpha_selection' => $outer2025Alpha,
                     'model' => $this->modelArtifact($outer2025['layout'], $outer2025['fit'], $outer2025['scales']),
+                    'refit_path' => $outer2025['refit_path'],
                     'metrics' => $outer2025['metrics'],
                 ],
                 'paired_bootstrap_ci' => $intervals,
@@ -272,20 +273,19 @@ class Bt03e02DevelopmentEvaluationService
         $layout = $this->layouts->build($this->source($training));
         $binnedTraining = $this->track($this->datasets->buildBinned($training, $layout, sys_get_temp_dir(), $role.'-training'));
         $binnedValidation = $this->track($this->datasets->buildBinned([$validation], $layout, sys_get_temp_dir(), $role.'-validation'));
-        try {
-            $fit = $this->optimizer->fit($this->source([$binnedTraining]), $layout, $lambda);
-        } catch (Bt03e02OptimizerNonConvergenceException $exception) {
-            throw new RuntimeException(
-                sprintf('BT-03E-02 %s selected lambda %.17g did not converge during Outer refit; fallback was forbidden.', $role, $lambda),
-                previous: $exception,
-            );
-        }
+        $refitPath = $this->optimizer->fitSelectedViaPath($this->source([$binnedTraining]), $layout, $lambda);
+        $fit = $refitPath['fit'];
         $scales = $this->scorer->trainingScales($this->source([$binnedTraining]), $fit);
         $predictions = $this->predictionSpool($binnedValidation, $fit, $scales, $role);
 
         return [
             'layout' => $layout,
             'fit' => $fit,
+            'refit_path' => [
+                'selected_lambda' => $refitPath['selected_lambda'],
+                'fit_order' => $refitPath['fit_order'],
+                'candidate_statuses' => $refitPath['candidate_statuses'],
+            ],
             'scales' => $scales,
             'predictions' => $predictions,
             'metrics' => $this->metrics->evaluatePaired($this->source([$predictions]), $alpha),
