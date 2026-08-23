@@ -72,7 +72,7 @@ class Bt03e02DevelopmentEvaluationService
             }
 
             $innerA = $this->fitGrid([$raw[2022]], [$raw[2023]], 'inner-a');
-            $outer2024Selection = $this->oneSe->select([2023 => $innerA['losses']]);
+            $outer2024Selection = $this->selectLambda([2023 => $innerA]);
             $outer2024Alpha = $this->selectAlpha([2023 => $innerA], $outer2024Selection['lambda'], 'outer-2024-inner');
             $this->queryAudit->recordCandidateFrozen(2024);
             $this->queryAudit->recordSnapshotYear(2024);
@@ -80,10 +80,7 @@ class Bt03e02DevelopmentEvaluationService
             $outer2024 = $this->fitOuter([$raw[2022], $raw[2023]], $raw[2024], $outer2024Selection['lambda'], $outer2024Alpha['alpha'], 'outer-2024');
 
             $innerB = $this->fitGrid([$raw[2022], $raw[2023]], [$raw[2024]], 'inner-b');
-            $outer2025Selection = $this->oneSe->select([
-                2023 => $innerA['losses'],
-                2024 => $innerB['losses'],
-            ]);
+            $outer2025Selection = $this->selectLambda([2023 => $innerA, 2024 => $innerB]);
             $outer2025Alpha = $this->selectAlpha([2023 => $innerA, 2024 => $innerB], $outer2025Selection['lambda'], 'outer-2025-inner');
             $this->queryAudit->recordCandidateFrozen(2025);
             $this->queryAudit->recordSnapshotYear(2025);
@@ -123,12 +120,14 @@ class Bt03e02DevelopmentEvaluationService
                     'lambda_selection' => $outer2024Selection,
                     'alpha_selection' => $outer2024Alpha,
                     'model' => $this->modelArtifact($outer2024['layout'], $outer2024['fit'], $outer2024['scales']),
+                    'refit_path' => $outer2024['refit_path'],
                     'metrics' => $outer2024['metrics'],
                 ],
                 'outer_2025' => [
                     'lambda_selection' => $outer2025Selection,
                     'alpha_selection' => $outer2025Alpha,
                     'model' => $this->modelArtifact($outer2025['layout'], $outer2025['fit'], $outer2025['scales']),
+                    'refit_path' => $outer2025['refit_path'],
                     'metrics' => $outer2025['metrics'],
                 ],
                 'paired_bootstrap_ci' => $intervals,
@@ -191,20 +190,18 @@ class Bt03e02DevelopmentEvaluationService
     /**
      * @param  list<Bt03e02RaceSpool>  $training
      * @param  list<Bt03e02RaceSpool>  $validation
-     * @return array{layout:Bt03e02ParameterLayout,training:Bt03e02RaceSpool,validation:Bt03e02RaceSpool,fits:array<string,Bt03e02FitResultDto>,losses:Bt03e02ValidationLossSpool}
+     * @return array{layout:Bt03e02ParameterLayout,training:Bt03e02RaceSpool,validation:Bt03e02RaceSpool,fits:array<string,Bt03e02FitResultDto>,candidate_statuses:array<string,array<string,mixed>>,fit_order:list<float>,losses:Bt03e02ValidationLossSpool}
      */
     private function fitGrid(array $training, array $validation, string $role): array
     {
         $layout = $this->layouts->build($this->source($training));
         $binnedTraining = $this->track($this->datasets->buildBinned($training, $layout, sys_get_temp_dir(), $role.'-training'));
         $binnedValidation = $this->track($this->datasets->buildBinned($validation, $layout, sys_get_temp_dir(), $role.'-validation'));
-        $fits = [];
-        foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
-            $key = $this->lambdaKey($lambda);
-            $fits[$key] = $this->optimizer->fit($this->source([$binnedTraining]), $layout, $lambda);
-        }
+        $path = $this->optimizer->fitPath($this->source([$binnedTraining]), $layout);
+        $fits = $path['fits'];
         $losses = $this->trackLoss(new Bt03e02ValidationLossSpool(
             sys_get_temp_dir().'/bt03e02-validation-loss-'.$role.'-'.bin2hex(random_bytes(8)).'.bin',
+            array_keys($fits),
         ));
         foreach ($binnedValidation->races() as $race) {
             $raceLosses = [];
@@ -222,7 +219,30 @@ class Bt03e02DevelopmentEvaluationService
         }
         $losses->seal();
 
-        return ['layout' => $layout, 'training' => $binnedTraining, 'validation' => $binnedValidation, 'fits' => $fits, 'losses' => $losses];
+        return [
+            'layout' => $layout,
+            'training' => $binnedTraining,
+            'validation' => $binnedValidation,
+            'fits' => $fits,
+            'candidate_statuses' => $path['candidate_statuses'],
+            'fit_order' => $path['fit_order'],
+            'losses' => $losses,
+        ];
+    }
+
+    /** @param array<int,array<string,mixed>> $inner @return array<string,mixed> */
+    private function selectLambda(array $inner): array
+    {
+        $selection = $this->oneSe->select(array_map(
+            static fn (array $fold): Bt03e02ValidationLossSpool => $fold['losses'],
+            $inner,
+        ));
+
+        return [
+            ...$selection,
+            'fit_order' => array_map(static fn (array $fold): array => $fold['fit_order'], $inner),
+            'candidate_statuses' => array_map(static fn (array $fold): array => $fold['candidate_statuses'], $inner),
+        ];
     }
 
     /** @param array<int,array<string,mixed>> $inner */
@@ -253,13 +273,19 @@ class Bt03e02DevelopmentEvaluationService
         $layout = $this->layouts->build($this->source($training));
         $binnedTraining = $this->track($this->datasets->buildBinned($training, $layout, sys_get_temp_dir(), $role.'-training'));
         $binnedValidation = $this->track($this->datasets->buildBinned([$validation], $layout, sys_get_temp_dir(), $role.'-validation'));
-        $fit = $this->optimizer->fit($this->source([$binnedTraining]), $layout, $lambda);
+        $refitPath = $this->optimizer->fitSelectedViaPath($this->source([$binnedTraining]), $layout, $lambda);
+        $fit = $refitPath['fit'];
         $scales = $this->scorer->trainingScales($this->source([$binnedTraining]), $fit);
         $predictions = $this->predictionSpool($binnedValidation, $fit, $scales, $role);
 
         return [
             'layout' => $layout,
             'fit' => $fit,
+            'refit_path' => [
+                'selected_lambda' => $refitPath['selected_lambda'],
+                'fit_order' => $refitPath['fit_order'],
+                'candidate_statuses' => $refitPath['candidate_statuses'],
+            ],
             'scales' => $scales,
             'predictions' => $predictions,
             'metrics' => $this->metrics->evaluatePaired($this->source([$predictions]), $alpha),
@@ -323,6 +349,7 @@ class Bt03e02DevelopmentEvaluationService
             'iterations' => $fit->iterations,
             'pairwise_eligible_races' => $fit->eligibleRaceCounts,
             'pairwise_excluded_races' => $fit->excludedRaceCounts,
+            'optimizer_diagnostics' => $fit->diagnostics,
         ];
     }
 

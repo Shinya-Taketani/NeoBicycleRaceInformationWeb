@@ -8,11 +8,11 @@ final class Bt03e02Contract
 {
     public const NAME = 'BT-03E-02-SCORING-RULE-REDESIGN';
 
-    public const CALCULATION_VERSION = 'BT03E02-SCORING-v1';
+    public const CALCULATION_VERSION = 'BT03E02-SCORING-v2';
 
     public const COHORT = 'OPERATIONAL';
 
-    public const OPTIMIZER_VERSION = 'BT03E02-FISTA-GROUP-PROX-v1';
+    public const OPTIMIZER_VERSION = 'BT03E02-FISTA-GROUP-PROX-v2';
 
     public const CENTERING_VERSION = 'BT03E02-SUPPORT-WEIGHTED-CENTERING-v1';
 

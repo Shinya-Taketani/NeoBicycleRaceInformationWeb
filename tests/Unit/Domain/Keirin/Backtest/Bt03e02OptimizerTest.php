@@ -8,8 +8,11 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03e02FistaOptimizer;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02PairwiseObjective;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayout;
 use App\Domain\Keirin\Backtest\DTO\EffectBinDto;
+use App\Domain\Keirin\Backtest\Enums\Bt03e02CandidateStatus;
+use App\Domain\Keirin\Backtest\Exceptions\Bt03e02OptimizerNonConvergenceException;
 use App\Domain\Keirin\Backtest\Services\Bt03e02Contract;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class Bt03e02OptimizerTest extends TestCase
 {
@@ -51,6 +54,141 @@ class Bt03e02OptimizerTest extends TestCase
         $this->assertGreaterThan($projected[$stat31Start], $projected[$stat31Start + 1]);
         $this->assertGreaterThan($projected[$stat31Start + 2], $projected[$stat31Start + 1]);
         $this->assertEqualsWithDelta($projected[$stat31Start], $projected[$stat31Start + 2], 1e-15);
+    }
+
+    public function test_regularization_path_is_strong_to_weak_and_warm_starts_from_the_previous_converged_candidate(): void
+    {
+        $path = $this->optimizer()->fitPath($this->source(), $this->layout());
+
+        $this->assertSame([1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001, 0.0], $path['fit_order']);
+        $this->assertSame([0.0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0], Bt03e02Contract::LAMBDA_GRID);
+        $canonicalKeys = [];
+        foreach (Bt03e02Contract::LAMBDA_GRID as $lambda) {
+            $canonicalKeys[sprintf('%.17g', $lambda)] = true;
+        }
+        $this->assertSame(array_keys($canonicalKeys), array_keys($path['candidate_statuses']));
+
+        $previousConverged = null;
+        foreach ($path['fit_order'] as $lambda) {
+            $candidate = $path['candidate_statuses'][sprintf('%.17g', $lambda)];
+            $this->assertSame($previousConverged, $candidate['warm_start_from_lambda']);
+            if ($candidate['status'] === Bt03e02CandidateStatus::Converged->value) {
+                $previousConverged = $lambda;
+            }
+        }
+
+        $strong = $this->optimizer()->fit($this->source(), $this->layout(), 1.0);
+        $explicitWarm = $this->optimizer()->fit($this->source(), $this->layout(), 0.1, $strong->coefficients);
+        $this->assertSame($strong->coefficients, $path['fits'][1]->coefficients);
+        $this->assertSame($explicitWarm->coefficients, $path['fits']['0.10000000000000001']->coefficients);
+    }
+
+    public function test_separable_unregularized_candidate_is_audited_without_aborting_the_grid(): void
+    {
+        $path = $this->optimizer()->fitPath($this->source(), $this->layout());
+        $unregularized = $path['candidate_statuses']['0'];
+
+        $this->assertSame(Bt03e02CandidateStatus::NumericallyNonConverged->value, $unregularized['status']);
+        $this->assertSame(Bt03e02CandidateStatus::Converged->value, $path['candidate_statuses']['0.10000000000000001']['status']);
+        $this->assertArrayNotHasKey('0', $path['fits']);
+        $this->assertArrayHasKey('0.10000000000000001', $path['fits']);
+        $diagnostics = $unregularized['channels']['IS_WIN'];
+        $this->assertSame(Bt03e02Contract::MAX_ITERATIONS, $diagnostics['iteration']);
+        foreach ([
+            'lambda', 'channel', 'iteration', 'max_iterations', 'final_objective', 'previous_objective',
+            'relative_objective_change', 'maximum_coefficient_change', 'current_step',
+            'coefficient_l2_norm', 'maximum_absolute_coefficient', 'eligible_race_count',
+            'excluded_race_count', 'line_search_steps_last_iteration',
+        ] as $key) {
+            $this->assertArrayHasKey($key, $diagnostics);
+            if (is_float($diagnostics[$key])) {
+                $this->assertTrue(is_finite($diagnostics[$key]), $key);
+            }
+        }
+    }
+
+    public function test_regularization_path_status_coefficients_iterations_and_diagnostics_are_deterministic(): void
+    {
+        $first = $this->optimizer()->fitPath($this->source(), $this->layout());
+        $second = $this->optimizer()->fitPath($this->source(), $this->layout());
+
+        $this->assertSame($first['candidate_statuses'], $second['candidate_statuses']);
+        $this->assertSame(
+            array_map(static fn ($fit): array => $fit->coefficients, $first['fits']),
+            array_map(static fn ($fit): array => $fit->coefficients, $second['fits']),
+        );
+        $this->assertSame(
+            array_map(static fn ($fit): array => $fit->iterations, $first['fits']),
+            array_map(static fn ($fit): array => $fit->iterations, $second['fits']),
+        );
+    }
+
+    public function test_selected_lambda_path_stops_at_the_selection_and_preserves_the_warm_start_chain(): void
+    {
+        $selected = $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.01);
+
+        $this->assertSame(0.01, $selected['selected_lambda']);
+        $this->assertSame([1.0, 0.1, 0.01], $selected['fit_order']);
+        $this->assertCount(3, $selected['candidate_statuses']);
+        $this->assertSame(null, $selected['candidate_statuses'][1]['warm_start_from_lambda']);
+        $this->assertSame(1.0, $selected['candidate_statuses']['0.10000000000000001']['warm_start_from_lambda']);
+        $this->assertSame(0.1, $selected['candidate_statuses']['0.01']['warm_start_from_lambda']);
+        $this->assertArrayNotHasKey('0.001', $selected['candidate_statuses']);
+    }
+
+    public function test_selected_lambda_path_matches_the_same_candidate_from_the_full_inner_path(): void
+    {
+        $full = $this->optimizer()->fitPath($this->source(), $this->layout());
+        $selected = $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.01);
+        $fullFit = $full['fits']['0.01'];
+        $selectedFit = $selected['fit'];
+
+        $this->assertSame($fullFit->coefficients, $selectedFit->coefficients);
+        $this->assertSame($fullFit->objectives, $selectedFit->objectives);
+        $this->assertSame($fullFit->iterations, $selectedFit->iterations);
+        $this->assertSame($fullFit->diagnostics, $selectedFit->diagnostics);
+        $this->assertSame(
+            ['fit', 'selected_lambda', 'candidate_statuses', 'fit_order'],
+            array_keys($selected),
+        );
+    }
+
+    public function test_selected_outer_lambda_non_convergence_is_not_replaced_by_another_candidate(): void
+    {
+        try {
+            $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.0);
+            $this->fail('The selected non-converged lambda must fail closed.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('fallback was forbidden', $exception->getMessage());
+            $this->assertInstanceOf(Bt03e02OptimizerNonConvergenceException::class, $exception->getPrevious());
+        }
+    }
+
+    public function test_selected_lambda_path_rejects_a_value_outside_the_fixed_grid(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('outside the frozen grid');
+
+        $this->optimizer()->fitSelectedViaPath($this->source(), $this->layout(), 0.2);
+    }
+
+    public function test_invalid_training_input_is_not_downgraded_to_candidate_non_convergence(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('no pairwise-eligible races');
+
+        $this->optimizer()->fitPath(fn (): array => [], $this->layout());
+    }
+
+    private function optimizer(): Bt03e02FistaOptimizer
+    {
+        return new Bt03e02FistaOptimizer(new Bt03e02PairwiseObjective);
+    }
+
+    /** @return callable():array<int,array<string,mixed>> */
+    private function source(): callable
+    {
+        return fn (): array => array_map(fn (int $raceId): array => $this->race($raceId), range(1, 12));
     }
 
     private function layout(int $binCount = 2): Bt03e02ParameterLayout
