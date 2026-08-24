@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.1
+- Version: 1.2
 - Created: 2026-08-23
-- Updated: 2026-08-23
+- Updated: 2026-08-25
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `e379bcc5761c38c8d61f610ee4f528edc81115a5`
+- Remote `main` at last update: `6fc68f9d17a1b70f8dcb196bd6bf38fb98d75301`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,16 +167,20 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: BT-03E-02_DESIGN_FROZEN
-current_scoring_hypothesis_status: BT-03E-02_DESIGN_APPROVED_NOT_IMPLEMENTED
-next_allowed_action: BT-03E-02_IMPLEMENTATION
-next_implementation_phase: BT-03E-02_IMPLEMENTATION
+current_engine_state: BT-03E-03_DESIGN_FROZEN
+current_scoring_hypothesis_status: BT-03E-02_REJECTED_FOR_ADOPTION
+next_allowed_action: BT-03E-03_IMPLEMENTATION
+next_implementation_phase: BT-03E-03_IMPLEMENTATION
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
-bt03e02_design_contract: FROZEN
+bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
+bt03e02_performance: FAIL / REDESIGN_REQUIRED
+bt03e02_reproducibility: VERIFIED
+bt03e03_design_contract: FROZEN
+2026_access: 0
 final_points: NOT_APPLICABLE_CONTINUOUS_SCORE
 final_thresholds: UNFROZEN
-final_score_formula: STRUCTURE_FROZEN_PARAMETERS_UNFROZEN
+final_score_formula: POSITION_SPECIFIC_PROBABILITY_STRUCTURE_FROZEN_PARAMETERS_UNFROZEN
 final_stat_selection: PARTIAL
 acceptance_gate: FROZEN
 
@@ -188,6 +192,8 @@ completed_phases:
   - BT-03B
   - BT-03C
   - BT-03E-01_ENGINEERING
+  - BT-03E-02_ENGINEERING
+  - BT-03E-02_DEVELOPMENT_EVALUATION
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -215,6 +221,15 @@ frozen_contracts:
   - BT03E02_STAT01_ANCHOR
   - BT03E02_NESTED_TEMPORAL_VALIDATION
   - BT03E02_ACCEPTANCE_GATE
+  - BT03E03_POSITION_SPECIFIC_UTILITY
+  - BT03E03_SEQUENTIAL_CONDITIONAL_SOFTMAX
+  - BT03E03_EXACT_POSITION_MARGINALIZATION
+  - BT03E03_MAP_ORDERED_TOP3
+  - BT03E03_PROBABILITY_OUTPUT
+  - BT03E03_SHARED_LAMBDA_SELECTION
+  - BT03E03_NO_ALPHA_COMBINATION
+  - BT03E03_2022_2025_DEVELOPMENT_ONLY
+  - BT03E03_2026_FORBIDDEN
   - LEAKAGE
   - SOURCE_INTEGRITY
   - MISSING_STATUS_SEMANTICS
@@ -226,7 +241,7 @@ frozen_contracts:
 unfrozen_contracts:
   - FITTED_BETA_COEFFICIENTS
   - SELECTED_FINAL_LAMBDA
-  - SELECTED_FINAL_ALPHA
+  - FINAL_POSITION_SPECIFIC_PROBABILITY_PARAMETERS
   - FINAL_TRAINING_GENERATED_BINS
   - FINAL_CHANNEL_SCALE_VALUES
   - FINAL_STAT_SELECTION_AFTER_DIAGNOSTICS
@@ -251,8 +266,9 @@ holdout_status:
 
 - BT-03E-01の **historical-forward scoring基盤実装自体は完成** している。
 - ただしBT-03E-01で試した粗い整数加点方式は2024でSTAT-01 baselineを下回ったため、**最終仕様としては採用しない**。
-- BT-03E-02のDecision 01～12および補助Decision 10-A・10-Bはユーザー承認済みで、**設計をfreezeした**。
-- 次に許可されるのは **BT-03E-02の実装** である。モデル、係数、最終lambda・alpha、性能はまだ未確定である。
+- BT-03E-02はengineeringと2024/2025 development evaluationを完了し、再現性 `VERIFIED`、2026 access `0`を確認した。
+- BT-03E-02はWINを2024/2025とも改善したが、2024のPosition 3が悪化して正式Gateは `FAIL / REDESIGN_REQUIRED` となった。
+- 次に許可されるのは **BT-03E-03の実装** である。position-specific conditional probability modelの構造はfreeze済みだが、係数、最終lambda、性能は未確定である。
 - 2024・2025はdevelopment corpusとしてのみ利用し、final untouched holdoutとは扱わない。
 - 2026は最終モデル選択・fitted parameter・score仕様がfreezeされるまで評価禁止。
 
@@ -414,7 +430,8 @@ BT-03E-02以降で利用する場合は、
 | BT-03C | 年次安定性整理 | COMPLETED as analysis | PASS |
 | BT-03D old predictive-selection plan | broad再選択 / joint ablationを独立工程化 | SUPERSEDED | DO NOT IMPLEMENT |
 | BT-03E-01 | 粗い加減点方式を2023→2024で検証 | COMPLETED_WITH_NEGATIVE_RESULT | TOOL GO / RULE REJECT |
-| BT-03E-02 | scoring方式再設計 | DESIGN_FROZEN | IMPLEMENTATION ALLOWED |
+| BT-03E-02 | continuous 3-channel scoring方式 | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
+| BT-03E-03 | position-specific sequential probability方式 | DESIGN_FROZEN | IMPLEMENTATION ALLOWED |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -1769,6 +1786,39 @@ Development backtestは原則PostgreSQL READ ONLYとし、Statistics source、Sc
 
 partial publicationは禁止し、source drift時はfail closedとする。
 
+## 15.19 BT-03E-02正式Development Evaluation結果
+
+```yaml
+engineering_status: COMPLETED
+development_evaluation_status: COMPLETED
+reproducibility: VERIFIED
+integrity: PASS
+2026_access: 0
+performance: FAIL / REDESIGN_REQUIRED
+```
+
+- WINNERは2024・2025ともSTAT-01 baselineを改善した。
+- POSITION_2も2024・2025とも点推定では改善した。
+- POSITION_3 deltaは2024 `-0.004981270423208728`、2025 `+0.0031124944419742007`だった。
+- temporal stability failureの主因は2024 POSITION_3である。
+- この結果は1着改善を保持しつつ、正確な2着・3着位置生成を再設計する根拠とする。
+
+## 15.20 BT-03E-03 Frozen Design
+
+BT-03E-03は次を実装前契約としてfreezeする。
+
+- `POSITION_SPECIFIC_UTILITY`
+- `SEQUENTIAL_CONDITIONAL_SOFTMAX`
+- `EXACT_POSITION_MARGINALIZATION`
+- `MAP_ORDERED_TOP3`
+- `PROBABILITY_OUTPUT`
+- `SHARED_LAMBDA_SELECTION`
+- `NO_ALPHA_COMBINATION`
+- `2022_2025_DEVELOPMENT_ONLY`
+- `2026_FORBIDDEN`
+
+BT-03E-02を上書きせず、別versionの監査可能なmodelとして実装する。詳細な数式・eligibility・確率不変条件・GateはBT-03E-03実装指示を正本とする。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation
@@ -2057,12 +2107,14 @@ run 6は正式完了済み。
 | #39 | BT-03 centered residual bounded memory | MERGED |
 | #40 | BT-03E historical forward scoring | MERGED |
 | #41 | docs: add statistical engine master plan | MERGED |
-| #42 | docs:bt03e02 design freeze | OPEN / UNDER_REVIEW |
+| #42 | docs:bt03e02 design freeze | MERGED |
+| #43 | feature:bt03e02 scoring engine | MERGED |
+| #44 | fix:bt03e02 fista nonconvergence | MERGED |
 
-Current remote `main` at the v1.1 update:
+Current remote `main` at the v1.2 update:
 
 ```text
-e379bcc5761c38c8d61f610ee4f528edc81115a5
+6fc68f9d17a1b70f8dcb196bd6bf38fb98d75301
 ```
 
 ---
@@ -2128,7 +2180,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | DESIGN_FROZEN / IMPLEMENTATION_PENDING | BT-03E-02設計はfreeze済みだが、実装・fit・Acceptance Gate評価は未完 |
+| Goal 3 score / parameter決定 | REDESIGN_FROZEN / IMPLEMENTATION_PENDING | BT-03E-02は再現可能なnegative result。BT-03E-03 position probability modelの実装・fit・Gate評価が次工程 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -2167,6 +2219,27 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.2 — 2026-08-25
+
+```yaml
+document_version: 1.2
+updated_at: 2026-08-25
+remote_main_sha: 6fc68f9d17a1b70f8dcb196bd6bf38fb98d75301
+phase_changed: BT-03E-03_DESIGN_FROZEN
+related_pr: PR #43 / PR #44
+related_run: BT-03E-02 formal development evaluation artifact
+decision: BT-03E-02 completed with reproducible negative result; BT-03E-03 implementation authorized
+reason: exact Position 3 performance was temporally unstable while Winner performance improved
+```
+
+反映:
+
+- BT-03E-02 engineering / development evaluation完了、reproducibility `VERIFIED`
+- BT-03E-02 performance `FAIL / REDESIGN_REQUIRED`
+- 2024/2025 WIN改善と2024 POSITION_3悪化を記録
+- BT-03E-03 position-specific sequential probability designをfreeze
+- 2026 access `0`とholdout freezeを維持
 
 ## v1.1 — 2026-08-23
 
@@ -2241,17 +2314,19 @@ Remote `main`:
 Current:
 BT-03E-01 engineering = COMPLETED
 BT-03E-01 coarse points = REJECTED
-BT-03E-02 design = FROZEN
-BT-03E-02 implementation = NOT_STARTED
+BT-03E-02 engineering / development evaluation = COMPLETED
+BT-03E-02 reproducibility = VERIFIED
+BT-03E-02 performance = FAIL / REDESIGN_REQUIRED
+BT-03E-03 design = FROZEN
 
 Next:
-BT-03E-02 implementation
+BT-03E-03 implementation
 
 Do not:
 redo BT-02 discovery
 restart old BT-03D
 rerun BT-03 run6
-reopen Decision 01-12 / 10-A / 10-B without an explicit versioned reason
+rewrite the audited BT-03E-02 result
 rerun BT-03E-01 with the same hypothesis
 adopt base_step=30 / STAT23=5 / STAT31=5 as final points
 open 2026
