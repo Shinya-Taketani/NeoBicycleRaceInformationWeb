@@ -88,8 +88,8 @@ final class Bt03e03PairedBootstrap
         }
 
         return array_map(fn (array $values): array => [
-            'ci_lower' => $this->quantile->calculate($values, 0.025),
-            'ci_upper' => $this->quantile->calculate($values, 0.975),
+            'ci_lower' => $this->quantile->calculate($values, Bt03e03Contract::BOOTSTRAP_CI_LOWER),
+            'ci_upper' => $this->quantile->calculate($values, Bt03e03Contract::BOOTSTRAP_CI_UPPER),
         ], $samples);
     }
 }

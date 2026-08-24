@@ -10,6 +10,7 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03e03FistaOptimizer;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e03OneSeSelector;
 use App\Domain\Keirin\Backtest\DTO\EffectBinDto;
 use App\Domain\Keirin\Backtest\Enums\Bt03e03CandidateStatus;
+use App\Domain\Keirin\Backtest\Exceptions\Bt03e03OptimizerNonConvergenceException;
 use App\Domain\Keirin\Backtest\Services\Bt03e03Contract;
 use App\Domain\Keirin\Backtest\Support\Bt03e03ValidationLossSpool;
 use PHPUnit\Framework\TestCase;
@@ -53,6 +54,28 @@ class Bt03e03OptimizerSelectionTest extends TestCase
         $this->assertSame([1.0], $selected['fit_order']);
         $this->assertSame($full['fits']['1']->coefficients, $selected['fit']->coefficients);
         $this->assertSame($full['fits']['1']->objectives, $selected['fit']->objectives);
+    }
+
+    public function test_monotone_restart_retains_the_backtracked_step_and_is_deterministic(): void
+    {
+        $first = $this->nonConvergenceDiagnostics(1.0);
+        $second = $this->nonConvergenceDiagnostics(1.0);
+
+        $this->assertSame($first, $second);
+        $this->assertGreaterThan(0, $first['backtracking_iteration_count']);
+        $this->assertGreaterThan(0, $first['monotone_restart_count']);
+        $this->assertSame($first['monotone_restart_count'], $first['restart_step_retention_count']);
+        $this->assertLessThan(Bt03e03Contract::INITIAL_STEP, $first['last_monotone_restart_step']);
+        $this->assertSame($first['last_monotone_restart_step'], $first['last_post_restart_iteration_start_step']);
+        $this->assertSame($first['last_monotone_restart_step'], $first['current_step']);
+        $this->assertGreaterThan($first['last_monotone_restart_iteration'], $first['iteration']);
+
+        $restart = $this->nonConvergenceDiagnostics(0.1);
+        $this->assertSame($restart['last_monotone_restart_iteration'], $restart['iteration']);
+        $this->assertSame($restart['previous_objective'], $restart['final_objective']);
+        $this->assertSame(0.0, $restart['relative_objective_change']);
+        $this->assertSame(0.0, $restart['maximum_coefficient_change']);
+        $this->assertSame($restart['last_monotone_restart_step'], $restart['current_step']);
     }
 
     public function test_one_se_uses_position_equal_and_year_equal_loss(): void
@@ -109,6 +132,19 @@ class Bt03e03OptimizerSelectionTest extends TestCase
         return fn (): array => array_map(fn (int $race): array => $this->race($race), range(1, 12));
     }
 
+    /** @return array<string,int|float|string> */
+    private function nonConvergenceDiagnostics(float $lambda): array
+    {
+        $source = fn (): array => array_map(fn (int $race): array => $this->restartRace($race), range(1, 12));
+
+        try {
+            $this->optimizer()->fit($source, $this->layout(), $lambda);
+            $this->fail('The fixed restart fixture must reach the frozen iteration limit.');
+        } catch (Bt03e03OptimizerNonConvergenceException $exception) {
+            return $exception->diagnostics;
+        }
+    }
+
     private function layout(): Bt03e02ParameterLayout
     {
         $bins = [];
@@ -136,6 +172,26 @@ class Bt03e03OptimizerSelectionTest extends TestCase
                 'stat01_rank' => $bike,
                 'anchor' => 0.0,
                 'bins' => $bins,
+                'rank' => $bike,
+                'status' => 'FINISHED',
+            ];
+        }
+
+        return ['year' => 2023, 'race_id' => $raceId, 'entries' => $entries];
+    }
+
+    /** @return array<string,mixed> */
+    private function restartRace(int $raceId): array
+    {
+        $entries = [];
+        foreach (range(1, 5) as $bike) {
+            $entries[] = [
+                'id' => $raceId * 10 + $bike,
+                'bike' => $bike,
+                'raw' => 100.0 - $bike,
+                'stat01_rank' => $bike,
+                'anchor' => 0.0,
+                'bins' => array_fill(0, count(Bt03e03Contract::STAT_CODES), $bike === 1 ? 0 : 1),
                 'rank' => $bike,
                 'status' => 'FINISHED',
             ];

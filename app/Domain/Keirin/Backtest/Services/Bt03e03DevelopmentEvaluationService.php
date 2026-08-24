@@ -16,7 +16,9 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03e03ProbabilityScorer;
 use App\Domain\Keirin\Backtest\DTO\Bt03e03FitResultDto;
 use App\Domain\Keirin\Backtest\Repositories\Bt03eRuleSourceRepository;
 use App\Domain\Keirin\Backtest\Support\Bt03e02RaceSpool;
+use App\Domain\Keirin\Backtest\Support\Bt03e03PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\Bt03e03ValidationLossSpool;
+use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use RuntimeException;
 use Throwable;
 
@@ -44,6 +46,7 @@ class Bt03e03DevelopmentEvaluationService
         private readonly Bt03e03AcceptanceGate $acceptance,
         private readonly Bt03e03ReproducibilityVerifier $reproducibility,
         private readonly Bt03e03ArtifactWriter $artifacts,
+        private readonly CanonicalHasher $canonicalHasher,
         private readonly Bt03e02ReadOnlyQueryAudit $queryAudit,
         private readonly Bt03eReadOnlyDatabaseGuard $databaseGuard,
     ) {}
@@ -242,23 +245,28 @@ class Bt03e03DevelopmentEvaluationService
                 'fit_order' => $refitPath['fit_order'],
                 'candidate_statuses' => $refitPath['candidate_statuses'],
             ],
-            'predictions' => $predictions,
-            'metrics' => $this->metrics->evaluate($this->source([$predictions])),
+            'predictions' => $predictions['spool'],
+            'prediction_manifest' => $predictions['manifest'],
+            'metrics' => $this->metrics->evaluate($this->source([$predictions['spool']])),
         ];
     }
 
-    private function predictionSpool(Bt03e02RaceSpool $source, Bt03e03FitResultDto $fit, string $role): Bt03e02RaceSpool
+    /** @return array{spool:Bt03e02RaceSpool,manifest:array{version:string,race_count:int,entry_count:int,semantic_sha256:string}} */
+    private function predictionSpool(Bt03e02RaceSpool $source, Bt03e03FitResultDto $fit, string $role): array
     {
         $spool = $this->track(new Bt03e02RaceSpool(
             'PREDICTION',
             sys_get_temp_dir().'/bt03e03-prediction-'.$role.'-'.bin2hex(random_bytes(8)).'.jsonl',
         ));
+        $manifest = new Bt03e03PredictionManifestAccumulator($this->canonicalHasher);
         foreach ($source->races() as $race) {
-            $spool->append($this->scorer->predict($race, $fit));
+            $prediction = $this->scorer->predict($race, $fit);
+            $manifest->append($prediction);
+            $spool->append($prediction);
         }
         $spool->seal();
 
-        return $spool;
+        return ['spool' => $spool, 'manifest' => $manifest->seal()];
     }
 
     /** @param list<Bt03e02RaceSpool> $spools @return callable():\Generator<int,array<string,mixed>> */
@@ -296,6 +304,7 @@ class Bt03e03DevelopmentEvaluationService
             'probability_metrics' => $outer['metrics']['probability_metrics'],
             'calibration' => $outer['metrics']['calibration'],
             'map_diagnostics' => $outer['metrics']['map_diagnostics'],
+            'prediction_manifest' => $outer['prediction_manifest'],
         ];
     }
 

@@ -14,6 +14,7 @@ use App\Domain\Keirin\Backtest\Services\Bt03e03Contract;
 use App\Domain\Keirin\Backtest\Services\Bt03e03ReproducibilityVerifier;
 use App\Domain\Keirin\Backtest\Services\Bt03eArtifactFilesystem;
 use App\Domain\Keirin\Backtest\Support\Bt03e02RaceSpool;
+use App\Domain\Keirin\Backtest\Support\Bt03e03PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use RuntimeException;
 use Tests\TestCase;
@@ -39,6 +40,60 @@ class Bt03e03IntegrityTest extends TestCase
         } finally {
             $audit->finish();
         }
+    }
+
+    public function test_frozen_numeric_contract_is_fully_exposed_by_the_plan(): void
+    {
+        $plan = Bt03e03Contract::plan();
+
+        $this->assertSame(Bt03e03Contract::FIT_EXECUTION_ORDER, $plan['fit_execution_order']);
+        $this->assertSame([
+            'max_iterations' => 200,
+            'convergence_tolerance' => 1e-7,
+            'objective_tolerance' => 1e-10,
+            'initial_step' => 1.0,
+            'backtrack_factor' => 0.5,
+            'max_line_search_steps' => 24,
+            'restart_rule' => 'MONOTONE_OBJECTIVE_RESTART',
+        ], $plan['solver_constants']);
+        $this->assertSame([
+            'iterations' => 2000,
+            'seed' => 20260812,
+            'ci_lower_quantile' => 0.025,
+            'ci_upper_quantile' => 0.975,
+            'resampling_unit' => 'YEAR_STRATIFIED_RACE_CLUSTER',
+        ], $plan['bootstrap']);
+        $this->assertSame(1e-12, $plan['probability_tolerance']);
+        $this->assertSame(Bt03e03Contract::PREDICTION_MANIFEST_VERSION, $plan['prediction_manifest_version']);
+        $this->assertSame([
+            'non_inferiority' => ['primary_ci_lower_gt' => -0.0015],
+            'superiority' => [
+                'hit3_ci_lower_gt' => 0.0,
+                'one_of_win_p2_p3_ci_lower_gt' => 0.0,
+                'one_of_win_p2_p3_positive_min_count' => 1,
+                'primary_year_equal_positive_min_count' => 3,
+            ],
+            'temporal_stability' => ['each_outer_primary_delta_gte' => -0.003],
+            'supporting' => [
+                'non_negative_min_count' => 4,
+                'non_negative_threshold' => 0.0,
+                'none_below' => -0.002,
+            ],
+            'tie_quality' => [
+                'technical_tiebreak_rate_lte' => 0.001,
+                'candidate_tie_rate_lte_baseline' => true,
+            ],
+            'position_redesign' => [
+                'winner_year_equal_gt' => 0.0,
+                'p2_year_equal_gte' => 0.0,
+                'p3_year_equal_gt' => 0.0,
+                'hit3_year_equal_gt' => 0.0,
+            ],
+            'win_preservation' => ['each_outer_year_winner_delta_gte' => 0.0],
+        ], $plan['acceptance_gate']);
+        $this->assertSame('BT03E03-POSITION-PROBABILITY-v1', $plan['calculation_version']);
+        $this->assertSame('BT03E03-FISTA-POSITION-SOFTMAX-v1', $plan['optimizer_version']);
+        $this->assertSame('BT03E03-SEQUENTIAL-MARGINAL-v1', $plan['probability_version']);
     }
 
     public function test_outer_outcome_access_requires_candidate_freeze(): void
@@ -91,6 +146,7 @@ class Bt03e03IntegrityTest extends TestCase
             ['outer_2024', 'probability_metrics', 'POSITION_1_LOG_LOSS'],
             ['outer_2024', 'map_diagnostics', 'TOP3_SET_MAP_RATE'],
             ['outer_2024', 'calibration', 'positions'],
+            ['outer_2024', 'prediction_manifest', 'semantic_sha256'],
         ] as $path) {
             $changed = $base;
             $changed[$path[0]][$path[1]][$path[2]] = ['changed'];
@@ -102,17 +158,25 @@ class Bt03e03IntegrityTest extends TestCase
     {
         $directory = sys_get_temp_dir().'/bt03e03-artifact-'.bin2hex(random_bytes(8));
         mkdir($directory, 0775, true);
-        $spool = new Bt03e02RaceSpool('PREDICTION', $directory.'/predictions.jsonl');
+        $spools = [
+            2024 => new Bt03e02RaceSpool('PREDICTION', $directory.'/predictions-2024.jsonl'),
+            2025 => new Bt03e02RaceSpool('PREDICTION', $directory.'/predictions-2025.jsonl'),
+        ];
         try {
-            $prediction = (new Bt03e03ProbabilityScorer)->predict($this->race(), $this->fit());
-            $spool->append($prediction);
-            $spool->seal();
             $summary = $this->resultFixture();
+            foreach ($spools as $year => $spool) {
+                $prediction = (new Bt03e03ProbabilityScorer)->predict($this->race($year), $this->fit());
+                $manifest = new Bt03e03PredictionManifestAccumulator(new CanonicalHasher);
+                $manifest->append($prediction);
+                $summary["outer_{$year}"]['prediction_manifest'] = $manifest->seal();
+                $spool->append($prediction);
+                $spool->seal();
+            }
             $summary['reproducibility_hash'] = (new Bt03e03ReproducibilityVerifier(new CanonicalHasher))->hash($summary);
             $paths = (new Bt03e03ArtifactWriter(new Bt03eArtifactFilesystem, new CanonicalHasher))->write(
                 $directory,
                 $summary,
-                [2024 => $spool],
+                $spools,
             );
             $handle = fopen($paths['probabilities_csv'], 'rb');
             $header = $handle === false ? false : fgetcsv($handle, escape: '');
@@ -139,7 +203,9 @@ class Bt03e03IntegrityTest extends TestCase
             $this->assertNotSame('', $map[4]);
             $this->assertFileExists($paths['manifest_json']);
         } finally {
-            $spool->cleanup();
+            foreach ($spools as $spool) {
+                $spool->cleanup();
+            }
             $this->removeDirectory($directory);
         }
     }
@@ -155,6 +221,12 @@ class Bt03e03IntegrityTest extends TestCase
             'probability_metrics' => ['POSITION_1_LOG_LOSS' => 1.0],
             'calibration' => ['positions' => []],
             'map_diagnostics' => ['TOP3_SET_MAP_RATE' => 0.1],
+            'prediction_manifest' => [
+                'version' => Bt03e03Contract::PREDICTION_MANIFEST_VERSION,
+                'race_count' => 1,
+                'entry_count' => 5,
+                'semantic_sha256' => str_repeat('a', 64),
+            ],
         ];
 
         return [
@@ -170,7 +242,7 @@ class Bt03e03IntegrityTest extends TestCase
     }
 
     /** @return array<string,mixed> */
-    private function race(): array
+    private function race(int $year = 2024): array
     {
         $entries = [];
         foreach (range(1, 5) as $bike) {
@@ -188,7 +260,7 @@ class Bt03e03IntegrityTest extends TestCase
             ];
         }
 
-        return ['year' => 2024, 'race_id' => 1, 'entries' => $entries];
+        return ['year' => $year, 'race_id' => $year - 2023, 'entries' => $entries];
     }
 
     private function fit(): Bt03e03FitResultDto

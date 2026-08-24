@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Backtest\Services;
 
 use App\Domain\Keirin\Backtest\Support\Bt03e02RaceSpool;
+use App\Domain\Keirin\Backtest\Support\Bt03e03PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use RuntimeException;
 use Throwable;
@@ -48,8 +49,13 @@ final class Bt03e03ArtifactWriter
                     'position_3_probability', 'top2_probability', 'top3_probability', 'predicted_position', 'is_map_top3',
                 ]);
                 ksort($predictions, SORT_NUMERIC);
+                if (array_keys($predictions) !== Bt03e03Contract::OUTER_YEARS) {
+                    throw new RuntimeException('BT-03E-03 artifact required exactly the frozen Outer prediction years.');
+                }
                 foreach ($predictions as $year => $spool) {
+                    $predictionManifest = new Bt03e03PredictionManifestAccumulator($this->hasher);
                     foreach ($spool->races() as $race) {
+                        $predictionManifest->append($race);
                         foreach ($race['entries'] as $entry) {
                             $this->filesystem->writeCsvRow($handle, [
                                 $year,
@@ -64,6 +70,11 @@ final class Bt03e03ArtifactWriter
                                 $entry['is_map_top3'] ? 1 : 0,
                             ]);
                         }
+                    }
+                    $actualManifest = $predictionManifest->seal();
+                    $expectedManifest = $summary["outer_{$year}"]['prediction_manifest'] ?? null;
+                    if (! is_array($expectedManifest) || $actualManifest !== $expectedManifest) {
+                        throw new RuntimeException("BT-03E-03 Outer {$year} prediction semantic manifest mismatched its artifact stream.");
                     }
                 }
                 $this->filesystem->flushAndSync($handle);

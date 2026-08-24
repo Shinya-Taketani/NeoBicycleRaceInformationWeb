@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Backtest\Calculators;
 
+use App\Domain\Keirin\Backtest\Services\Bt03e03Contract;
+
 final class Bt03e03AcceptanceGate
 {
     private const PRIMARY = ['WINNER_HIT_AT_1', 'POSITION_2_ACCURACY', 'POSITION_3_ACCURACY', 'POSITION_HIT_RATE_AT_3'];
@@ -15,26 +17,38 @@ final class Bt03e03AcceptanceGate
     {
         $nonInferiority = true;
         foreach (self::PRIMARY as $metric) {
-            $nonInferiority = $nonInferiority && ($intervals[$metric]['ci_lower'] ?? -INF) > -0.0015;
+            $nonInferiority = $nonInferiority
+                && ($intervals[$metric]['ci_lower'] ?? -INF) > Bt03e03Contract::NON_INFERIORITY_CI_LOWER_THRESHOLD;
         }
         $yearEqual = [];
         foreach (Bt03e03MetricEvaluator::METRIC_CODES as $metric) {
             $yearEqual[$metric] = array_sum(array_map(static fn (array $result): float => $result['delta'][$metric], $outer)) / count($outer);
         }
-        $superiority = ($intervals['POSITION_HIT_RATE_AT_3']['ci_lower'] ?? -INF) > 0.0
+        $superiority = ($intervals['POSITION_HIT_RATE_AT_3']['ci_lower'] ?? -INF) > Bt03e03Contract::SUPERIORITY_CI_LOWER_THRESHOLD
             && count(array_filter(
                 ['WINNER_HIT_AT_1', 'POSITION_2_ACCURACY', 'POSITION_3_ACCURACY'],
-                static fn (string $metric): bool => ($intervals[$metric]['ci_lower'] ?? -INF) > 0.0,
-            )) >= 1
-            && count(array_filter(self::PRIMARY, static fn (string $metric): bool => $yearEqual[$metric] > 0.0)) >= 3;
+                static fn (string $metric): bool => ($intervals[$metric]['ci_lower'] ?? -INF) > Bt03e03Contract::SUPERIORITY_CI_LOWER_THRESHOLD,
+            )) >= Bt03e03Contract::SUPERIORITY_POSITION_CI_POSITIVE_MIN_COUNT
+            && count(array_filter(
+                self::PRIMARY,
+                static fn (string $metric): bool => $yearEqual[$metric] > Bt03e03Contract::SUPERIORITY_CI_LOWER_THRESHOLD,
+            )) >= Bt03e03Contract::SUPERIORITY_PRIMARY_POSITIVE_MIN_COUNT;
         $temporal = true;
         foreach ($outer as $result) {
             foreach (self::PRIMARY as $metric) {
-                $temporal = $temporal && $result['delta'][$metric] >= -0.0030;
+                $temporal = $temporal
+                    && $result['delta'][$metric] >= Bt03e03Contract::TEMPORAL_STABILITY_DELTA_THRESHOLD;
             }
         }
-        $supporting = count(array_filter(self::SUPPORTING, static fn (string $metric): bool => $yearEqual[$metric] >= 0.0)) >= 4
-            && count(array_filter(self::SUPPORTING, static fn (string $metric): bool => $yearEqual[$metric] < -0.0020)) === 0;
+        $supporting = count(array_filter(
+            self::SUPPORTING,
+            static fn (string $metric): bool => $yearEqual[$metric] >= Bt03e03Contract::SUPPORTING_NON_NEGATIVE_THRESHOLD,
+        ))
+                >= Bt03e03Contract::SUPPORTING_MIN_NON_NEGATIVE_COUNT
+            && count(array_filter(
+                self::SUPPORTING,
+                static fn (string $metric): bool => $yearEqual[$metric] < Bt03e03Contract::SUPPORTING_MIN_ALLOWED_DELTA,
+            )) === 0;
         $candidateTies = $baselineTies = $technicalTies = $races = 0;
         foreach ($outer as $result) {
             $candidateTies += $result['tie_diagnostics']['ordered_probability_tied_races'];
@@ -42,12 +56,16 @@ final class Bt03e03AcceptanceGate
             $technicalTies += $result['tie_diagnostics']['technical_tiebreak_races'];
             $races += $result['race_count'];
         }
-        $tieQuality = $races > 0 && $candidateTies / $races <= $baselineTies / $races && $technicalTies / $races <= 0.001;
-        $positionRedesign = $yearEqual['WINNER_HIT_AT_1'] > 0.0
-            && $yearEqual['POSITION_2_ACCURACY'] >= 0.0
-            && $yearEqual['POSITION_3_ACCURACY'] > 0.0
-            && $yearEqual['POSITION_HIT_RATE_AT_3'] > 0.0;
-        $winPreservation = count(array_filter($outer, static fn (array $result): bool => $result['delta']['WINNER_HIT_AT_1'] >= 0.0)) === count($outer);
+        $tieQuality = $races > 0 && $candidateTies / $races <= $baselineTies / $races
+            && $technicalTies / $races <= Bt03e03Contract::TECHNICAL_TIE_RATE_MAX;
+        $positionRedesign = $yearEqual['WINNER_HIT_AT_1'] > Bt03e03Contract::POSITION_REDESIGN_WIN_MIN_EXCLUSIVE
+            && $yearEqual['POSITION_2_ACCURACY'] >= Bt03e03Contract::POSITION_REDESIGN_P2_MIN_INCLUSIVE
+            && $yearEqual['POSITION_3_ACCURACY'] > Bt03e03Contract::POSITION_REDESIGN_P3_MIN_EXCLUSIVE
+            && $yearEqual['POSITION_HIT_RATE_AT_3'] > Bt03e03Contract::POSITION_REDESIGN_HIT3_MIN_EXCLUSIVE;
+        $winPreservation = count(array_filter(
+            $outer,
+            static fn (array $result): bool => $result['delta']['WINNER_HIT_AT_1'] >= Bt03e03Contract::WIN_PRESERVATION_MIN_INCLUSIVE,
+        )) === count($outer);
         $gates = [
             'integrity' => $integrity,
             'non_inferiority' => $nonInferiority,
