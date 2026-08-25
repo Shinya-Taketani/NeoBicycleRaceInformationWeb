@@ -62,20 +62,48 @@ class Bt03e03OptimizerSelectionTest extends TestCase
         $second = $this->nonConvergenceDiagnostics(1.0);
 
         $this->assertSame($first, $second);
+        $this->assertSame(Bt03e03Contract::MAX_ITERATIONS, $first['iteration']);
+        $this->assertSame(Bt03e03Contract::MAX_ITERATIONS, $first['accepted_update_count']);
+        $this->assertGreaterThan($first['accepted_update_count'], $first['optimizer_attempt_count']);
+        $this->assertSame(
+            $first['accepted_update_count'] + $first['monotone_restart_count'],
+            $first['optimizer_attempt_count'],
+        );
         $this->assertGreaterThan(0, $first['backtracking_iteration_count']);
         $this->assertGreaterThan(0, $first['monotone_restart_count']);
         $this->assertSame($first['monotone_restart_count'], $first['restart_step_retention_count']);
         $this->assertLessThan(Bt03e03Contract::INITIAL_STEP, $first['last_monotone_restart_step']);
         $this->assertSame($first['last_monotone_restart_step'], $first['last_post_restart_iteration_start_step']);
         $this->assertSame($first['last_monotone_restart_step'], $first['current_step']);
-        $this->assertGreaterThan($first['last_monotone_restart_iteration'], $first['iteration']);
+        $this->assertSame($first['last_monotone_restart_iteration'], $first['last_post_restart_accepted_update_iteration']);
+        $this->assertSame($first['last_monotone_restart_iteration'], $first['iteration']);
+        $this->assertTrue(
+            $first['relative_objective_change'] > Bt03e03Contract::OBJECTIVE_TOLERANCE
+            || $first['maximum_coefficient_change'] > Bt03e03Contract::CONVERGENCE_TOLERANCE,
+        );
+        $this->assertFalse(
+            $first['relative_objective_change'] === 0.0
+            && $first['maximum_coefficient_change'] === 0.0,
+        );
+    }
 
-        $restart = $this->nonConvergenceDiagnostics(0.1);
-        $this->assertSame($restart['last_monotone_restart_iteration'], $restart['iteration']);
-        $this->assertSame($restart['previous_objective'], $restart['final_objective']);
-        $this->assertSame(0.0, $restart['relative_objective_change']);
-        $this->assertSame(0.0, $restart['maximum_coefficient_change']);
-        $this->assertSame($restart['last_monotone_restart_step'], $restart['current_step']);
+    public function test_converged_fit_is_deterministic_with_accepted_update_accounting(): void
+    {
+        $first = $this->optimizer()->fit($this->source(), $this->layout(), 1.0);
+        $second = $this->optimizer()->fit($this->source(), $this->layout(), 1.0);
+
+        $this->assertSame($first->coefficients, $second->coefficients);
+        $this->assertSame($first->objectives, $second->objectives);
+        $this->assertSame($first->iterations, $second->iterations);
+        $this->assertSame($first->diagnostics, $second->diagnostics);
+        foreach ($first->diagnostics as $position => $diagnostics) {
+            $this->assertSame($first->iterations[$position], $diagnostics['iteration']);
+            $this->assertSame($diagnostics['iteration'], $diagnostics['accepted_update_count']);
+            $this->assertSame(
+                $diagnostics['accepted_update_count'] + $diagnostics['monotone_restart_count'],
+                $diagnostics['optimizer_attempt_count'],
+            );
+        }
     }
 
     public function test_one_se_uses_position_equal_and_year_equal_loss(): void

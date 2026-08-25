@@ -8,9 +8,9 @@ final class Bt03e03Contract
 {
     public const NAME = 'BT-03E-03-POSITION-SPECIFIC-PROBABILITY';
 
-    public const CALCULATION_VERSION = 'BT03E03-POSITION-PROBABILITY-v1';
+    public const CALCULATION_VERSION = 'BT03E03-POSITION-PROBABILITY-v2';
 
-    public const OPTIMIZER_VERSION = 'BT03E03-FISTA-POSITION-SOFTMAX-v1';
+    public const OPTIMIZER_VERSION = 'BT03E03-FISTA-POSITION-SOFTMAX-v2';
 
     public const PROBABILITY_VERSION = 'BT03E03-SEQUENTIAL-MARGINAL-v1';
 
@@ -18,7 +18,7 @@ final class Bt03e03Contract
 
     public const CALIBRATION_DIAGNOSTIC_VERSION = 'BT03E03-CALIBRATION-10BIN-v1';
 
-    public const ARTIFACT_VERSION = 'BT03E03-DEVELOPMENT-ARTIFACT-v1';
+    public const ARTIFACT_VERSION = 'BT03E03-DEVELOPMENT-ARTIFACT-v2';
 
     public const PREDICTION_MANIFEST_VERSION = 'BT03E03-PREDICTION-SEMANTIC-MANIFEST-v1';
 
@@ -36,7 +36,9 @@ final class Bt03e03Contract
 
     public const MAX_LINE_SEARCH_STEPS = 24;
 
-    public const RESTART_RULE = 'MONOTONE_OBJECTIVE_RESTART';
+    public const RESTART_RULE = 'MONOTONE_OBJECTIVE_RESTART_SAME_UPDATE_RETRY-v2';
+
+    public const ITERATION_SEMANTICS_VERSION = 'BT03E03-ACCEPTED-UPDATE-BUDGET-v1';
 
     public const BOOTSTRAP_ITERATIONS = 2000;
 
@@ -104,9 +106,11 @@ final class Bt03e03Contract
             'contract' => self::NAME,
             'calculation_version' => self::CALCULATION_VERSION,
             'optimizer_version' => self::OPTIMIZER_VERSION,
+            'iteration_semantics_version' => self::ITERATION_SEMANTICS_VERSION,
             'probability_version' => self::PROBABILITY_VERSION,
             'tie_rule_version' => self::TIE_RULE_VERSION,
             'calibration_version' => self::CALIBRATION_DIAGNOSTIC_VERSION,
+            'artifact_version' => self::ARTIFACT_VERSION,
             'cohort' => self::COHORT,
             'positions' => self::POSITIONS,
             'stat01_anchor' => 'RACE_SCORE_Z coefficient=1.0 fixed for every position',
@@ -120,6 +124,7 @@ final class Bt03e03Contract
             'alpha_combination' => 'FORBIDDEN',
             'solver_constants' => [
                 'max_iterations' => self::MAX_ITERATIONS,
+                'max_iterations_semantics' => 'ACCEPTED_PARAMETER_UPDATES',
                 'convergence_tolerance' => self::CONVERGENCE_TOLERANCE,
                 'objective_tolerance' => self::OBJECTIVE_TOLERANCE,
                 'initial_step' => self::INITIAL_STEP,
