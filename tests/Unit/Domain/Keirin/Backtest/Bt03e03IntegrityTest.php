@@ -49,12 +49,13 @@ class Bt03e03IntegrityTest extends TestCase
         $this->assertSame(Bt03e03Contract::FIT_EXECUTION_ORDER, $plan['fit_execution_order']);
         $this->assertSame([
             'max_iterations' => 200,
+            'max_iterations_semantics' => 'ACCEPTED_PARAMETER_UPDATES',
             'convergence_tolerance' => 1e-7,
             'objective_tolerance' => 1e-10,
             'initial_step' => 1.0,
             'backtrack_factor' => 0.5,
             'max_line_search_steps' => 24,
-            'restart_rule' => 'MONOTONE_OBJECTIVE_RESTART',
+            'restart_rule' => 'MONOTONE_OBJECTIVE_RESTART_SAME_UPDATE_RETRY-v2',
         ], $plan['solver_constants']);
         $this->assertSame([
             'iterations' => 2000,
@@ -91,9 +92,28 @@ class Bt03e03IntegrityTest extends TestCase
             ],
             'win_preservation' => ['each_outer_year_winner_delta_gte' => 0.0],
         ], $plan['acceptance_gate']);
-        $this->assertSame('BT03E03-POSITION-PROBABILITY-v1', $plan['calculation_version']);
-        $this->assertSame('BT03E03-FISTA-POSITION-SOFTMAX-v1', $plan['optimizer_version']);
+        $this->assertSame('BT03E03-POSITION-PROBABILITY-v2', $plan['calculation_version']);
+        $this->assertSame('BT03E03-FISTA-POSITION-SOFTMAX-v2', $plan['optimizer_version']);
+        $this->assertSame('BT03E03-DEVELOPMENT-ARTIFACT-v2', $plan['artifact_version']);
+        $this->assertSame('BT03E03-ACCEPTED-UPDATE-BUDGET-v1', $plan['iteration_semantics_version']);
         $this->assertSame('BT03E03-SEQUENTIAL-MARGINAL-v1', $plan['probability_version']);
+        $this->assertSame('BT03E03-PREDICTION-SEMANTIC-MANIFEST-v1', $plan['prediction_manifest_version']);
+    }
+
+    public function test_v1_and_v2_iteration_contracts_have_different_reproducibility_hashes(): void
+    {
+        $verifier = new Bt03e03ReproducibilityVerifier(new CanonicalHasher);
+        $v2 = $this->resultFixture();
+        $v1 = $v2;
+        $v1['calculation_version'] = 'BT03E03-POSITION-PROBABILITY-v1';
+        $v1['contract']['calculation_version'] = 'BT03E03-POSITION-PROBABILITY-v1';
+        $v1['contract']['optimizer_version'] = 'BT03E03-FISTA-POSITION-SOFTMAX-v1';
+        $v1['contract']['artifact_version'] = 'BT03E03-DEVELOPMENT-ARTIFACT-v1';
+        unset($v1['contract']['iteration_semantics_version']);
+        unset($v1['contract']['solver_constants']['max_iterations_semantics']);
+        $v1['contract']['solver_constants']['restart_rule'] = 'MONOTONE_OBJECTIVE_RESTART';
+
+        $this->assertNotSame($verifier->hash($v1), $verifier->hash($v2));
     }
 
     public function test_outer_outcome_access_requires_candidate_freeze(): void

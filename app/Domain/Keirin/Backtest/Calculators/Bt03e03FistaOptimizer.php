@@ -166,9 +166,12 @@ final class Bt03e03FistaOptimizer
         $monotoneRestartCount = 0;
         $backtrackingIterationCount = 0;
         $restartStepRetentionCount = 0;
+        $acceptedUpdateCount = 0;
+        $optimizerAttemptCount = 0;
         $lastMonotoneRestartIteration = 0;
         $lastMonotoneRestartStep = $step;
         $lastPostRestartIterationStartStep = $step;
+        $lastPostRestartAcceptedUpdateIteration = 0;
         $pendingRestartStep = null;
         $initialEvaluation = $this->objective->lossAndGradient($raceSource, $layout, $current, $position);
         $previousObjective = $this->fullObjective($initialEvaluation['loss'], $layout, $current, $lambda);
@@ -192,78 +195,117 @@ final class Bt03e03FistaOptimizer
             $monotoneRestartCount,
             $backtrackingIterationCount,
             $restartStepRetentionCount,
+            $acceptedUpdateCount,
+            $optimizerAttemptCount,
             $lastMonotoneRestartIteration,
             $lastMonotoneRestartStep,
             $lastPostRestartIterationStartStep,
+            $lastPostRestartAcceptedUpdateIteration,
         );
 
         for ($iteration = 1; $iteration <= Bt03e03Contract::MAX_ITERATIONS; $iteration++) {
-            if ($pendingRestartStep !== null) {
-                if ($step !== $pendingRestartStep) {
-                    throw new RuntimeException("BT-03E-03 {$position} monotone restart step was not retained.");
+            $attemptsWithinUpdate = 0;
+            while (true) {
+                $attemptsWithinUpdate++;
+                if ($attemptsWithinUpdate > 2) {
+                    throw new RuntimeException("BT-03E-03 {$position} monotone restart retry invariant failed.");
                 }
-                $restartStepRetentionCount++;
-                $lastPostRestartIterationStartStep = $step;
-                $pendingRestartStep = null;
-            }
-            $evaluation = $this->objective->lossAndGradient($raceSource, $layout, $accelerated, $position);
-            $penaltyGradient = $this->objective->smoothPenaltyGradient($layout, $accelerated, $lambda);
-            $gradient = array_map(
-                static fn (float $loss, float $penalty): float => $loss + $penalty,
-                $evaluation['gradient'],
-                $penaltyGradient,
-            );
-            $smoothAtAccelerated = $evaluation['loss'] + $this->objective->smoothPenalty($layout, $accelerated, $lambda);
-            $accepted = $acceptedLoss = null;
-            $trialStep = $step;
-            for ($lineSearch = 0; $lineSearch <= Bt03e03Contract::MAX_LINE_SEARCH_STEPS; $lineSearch++) {
-                $trial = [];
-                foreach ($accelerated as $index => $value) {
-                    $trial[$index] = $value - $trialStep * $gradient[$index];
+                $optimizerAttemptCount++;
+                $retryingAfterRestart = false;
+                if ($pendingRestartStep !== null) {
+                    if ($step !== $pendingRestartStep) {
+                        throw new RuntimeException("BT-03E-03 {$position} monotone restart step was not retained.");
+                    }
+                    $restartStepRetentionCount++;
+                    $lastPostRestartIterationStartStep = $step;
+                    $pendingRestartStep = null;
+                    $retryingAfterRestart = true;
                 }
-                $trial = $layout->project($this->objective->groupProx($layout, $trial, $trialStep, $lambda));
-                $trialLoss = $this->objective->loss($raceSource, $layout, $trial, $position);
-                $trialSmooth = $trialLoss + $this->objective->smoothPenalty($layout, $trial, $lambda);
-                $linear = new Bt03e03CompensatedSum;
-                $distance = new Bt03e03CompensatedSum;
-                foreach ($trial as $index => $value) {
-                    $delta = $value - $accelerated[$index];
-                    $linear->add($gradient[$index] * $delta);
-                    $distance->add($delta * $delta);
+                $evaluation = $this->objective->lossAndGradient($raceSource, $layout, $accelerated, $position);
+                $penaltyGradient = $this->objective->smoothPenaltyGradient($layout, $accelerated, $lambda);
+                $gradient = array_map(
+                    static fn (float $loss, float $penalty): float => $loss + $penalty,
+                    $evaluation['gradient'],
+                    $penaltyGradient,
+                );
+                $smoothAtAccelerated = $evaluation['loss'] + $this->objective->smoothPenalty($layout, $accelerated, $lambda);
+                $accepted = $acceptedLoss = null;
+                $trialStep = $step;
+                for ($lineSearch = 0; $lineSearch <= Bt03e03Contract::MAX_LINE_SEARCH_STEPS; $lineSearch++) {
+                    $trial = [];
+                    foreach ($accelerated as $index => $value) {
+                        $trial[$index] = $value - $trialStep * $gradient[$index];
+                    }
+                    $trial = $layout->project($this->objective->groupProx($layout, $trial, $trialStep, $lambda));
+                    $trialLoss = $this->objective->loss($raceSource, $layout, $trial, $position);
+                    $trialSmooth = $trialLoss + $this->objective->smoothPenalty($layout, $trial, $lambda);
+                    $linear = new Bt03e03CompensatedSum;
+                    $distance = new Bt03e03CompensatedSum;
+                    foreach ($trial as $index => $value) {
+                        $delta = $value - $accelerated[$index];
+                        $linear->add($gradient[$index] * $delta);
+                        $distance->add($delta * $delta);
+                    }
+                    $upper = $smoothAtAccelerated + $linear->value() + $distance->value() / (2.0 * $trialStep);
+                    if (is_finite($trialSmooth) && $trialSmooth <= $upper + 8.0 * PHP_FLOAT_EPSILON * max(1.0, abs($upper))) {
+                        $accepted = $trial;
+                        $acceptedLoss = $trialLoss;
+                        break;
+                    }
+                    $trialStep *= Bt03e03Contract::BACKTRACK_FACTOR;
                 }
-                $upper = $smoothAtAccelerated + $linear->value() + $distance->value() / (2.0 * $trialStep);
-                if (is_finite($trialSmooth) && $trialSmooth <= $upper + 8.0 * PHP_FLOAT_EPSILON * max(1.0, abs($upper))) {
-                    $accepted = $trial;
-                    $acceptedLoss = $trialLoss;
-                    break;
+                if ($accepted === null || $acceptedLoss === null) {
+                    throw new RuntimeException("BT-03E-03 {$position} FISTA line search failed.");
                 }
-                $trialStep *= Bt03e03Contract::BACKTRACK_FACTOR;
-            }
-            if ($accepted === null || $acceptedLoss === null) {
-                throw new RuntimeException("BT-03E-03 {$position} FISTA line search failed.");
-            }
-            if ($lineSearch > 0) {
-                $backtrackingIterationCount++;
-            }
-            $step = $trialStep;
-            $acceptedObjective = $this->fullObjective($acceptedLoss, $layout, $accepted, $lambda);
-            if (! is_finite($acceptedObjective)) {
-                throw new RuntimeException("BT-03E-03 {$position} optimizer produced a non-finite objective.");
-            }
-            if ($momentum > 1.0 && $acceptedObjective > $previousObjective) {
-                $monotoneRestartCount++;
-                $lastMonotoneRestartIteration = $iteration;
-                $lastMonotoneRestartStep = $trialStep;
-                $pendingRestartStep = $trialStep;
+                if ($lineSearch > 0) {
+                    $backtrackingIterationCount++;
+                }
+                $step = $trialStep;
+                $acceptedObjective = $this->fullObjective($acceptedLoss, $layout, $accepted, $lambda);
+                if (! is_finite($acceptedObjective)) {
+                    throw new RuntimeException("BT-03E-03 {$position} optimizer produced a non-finite objective.");
+                }
+                if ($momentum > 1.0 && $acceptedObjective > $previousObjective) {
+                    $monotoneRestartCount++;
+                    $lastMonotoneRestartIteration = $iteration;
+                    $lastMonotoneRestartStep = $trialStep;
+                    $pendingRestartStep = $trialStep;
+                    $accelerated = $current;
+                    $momentum = 1.0;
+
+                    continue;
+                }
+                $maximumChange = 0.0;
+                foreach ($accepted as $index => $value) {
+                    $maximumChange = max($maximumChange, abs($value - $current[$index]));
+                }
+                $relativeObjective = abs($previousObjective - $acceptedObjective) / max(1.0, abs($previousObjective));
+                $before = $previousObjective;
+                $nextMomentum = (1.0 + sqrt(1.0 + 4.0 * $momentum * $momentum)) / 2.0;
+                $nextAccelerated = [];
+                foreach ($accepted as $index => $value) {
+                    $nextAccelerated[$index] = $value + (($momentum - 1.0) / $nextMomentum) * ($value - $current[$index]);
+                }
+                $current = $accepted;
+                $accelerated = $nextAccelerated;
+                $momentum = $nextMomentum;
+                $previousObjective = $acceptedObjective;
+                $acceptedUpdateCount++;
+                if ($acceptedUpdateCount !== $iteration) {
+                    throw new RuntimeException("BT-03E-03 {$position} accepted update accounting drifted.");
+                }
+                if ($retryingAfterRestart) {
+                    $lastPostRestartAcceptedUpdateIteration = $iteration;
+                }
                 $lastDiagnostics = $this->diagnostics(
                     Bt03e03CandidateStatus::NumericallyNonConverged,
                     $lambda,
                     $position,
                     $iteration,
-                    $previousObjective,
-                    $previousObjective,
-                    0.0,
-                    0.0,
+                    $acceptedObjective,
+                    $before,
+                    $relativeObjective,
+                    $maximumChange,
                     $trialStep,
                     $current,
                     $evaluation['eligible_races'],
@@ -272,63 +314,28 @@ final class Bt03e03FistaOptimizer
                     $monotoneRestartCount,
                     $backtrackingIterationCount,
                     $restartStepRetentionCount,
+                    $acceptedUpdateCount,
+                    $optimizerAttemptCount,
                     $lastMonotoneRestartIteration,
                     $lastMonotoneRestartStep,
                     $lastPostRestartIterationStartStep,
+                    $lastPostRestartAcceptedUpdateIteration,
                 );
-                $accelerated = $current;
-                $momentum = 1.0;
+                if ($maximumChange <= Bt03e03Contract::CONVERGENCE_TOLERANCE
+                    && $relativeObjective <= Bt03e03Contract::OBJECTIVE_TOLERANCE) {
+                    $lastDiagnostics['status'] = Bt03e03CandidateStatus::Converged->value;
 
-                continue;
-            }
-            $maximumChange = 0.0;
-            foreach ($accepted as $index => $value) {
-                $maximumChange = max($maximumChange, abs($value - $current[$index]));
-            }
-            $relativeObjective = abs($previousObjective - $acceptedObjective) / max(1.0, abs($previousObjective));
-            $before = $previousObjective;
-            $nextMomentum = (1.0 + sqrt(1.0 + 4.0 * $momentum * $momentum)) / 2.0;
-            $nextAccelerated = [];
-            foreach ($accepted as $index => $value) {
-                $nextAccelerated[$index] = $value + (($momentum - 1.0) / $nextMomentum) * ($value - $current[$index]);
-            }
-            $current = $accepted;
-            $accelerated = $nextAccelerated;
-            $momentum = $nextMomentum;
-            $previousObjective = $acceptedObjective;
-            $lastDiagnostics = $this->diagnostics(
-                Bt03e03CandidateStatus::NumericallyNonConverged,
-                $lambda,
-                $position,
-                $iteration,
-                $acceptedObjective,
-                $before,
-                $relativeObjective,
-                $maximumChange,
-                $trialStep,
-                $current,
-                $evaluation['eligible_races'],
-                $evaluation['excluded_races'],
-                $lineSearch + 1,
-                $monotoneRestartCount,
-                $backtrackingIterationCount,
-                $restartStepRetentionCount,
-                $lastMonotoneRestartIteration,
-                $lastMonotoneRestartStep,
-                $lastPostRestartIterationStartStep,
-            );
-            if ($maximumChange <= Bt03e03Contract::CONVERGENCE_TOLERANCE
-                && $relativeObjective <= Bt03e03Contract::OBJECTIVE_TOLERANCE) {
-                $lastDiagnostics['status'] = Bt03e03CandidateStatus::Converged->value;
+                    return [
+                        'coefficients' => $current,
+                        'objective' => $previousObjective,
+                        'iterations' => $acceptedUpdateCount,
+                        'eligible_races' => $evaluation['eligible_races'],
+                        'excluded_races' => $evaluation['excluded_races'],
+                        'diagnostics' => $lastDiagnostics,
+                    ];
+                }
 
-                return [
-                    'coefficients' => $current,
-                    'objective' => $previousObjective,
-                    'iterations' => $iteration,
-                    'eligible_races' => $evaluation['eligible_races'],
-                    'excluded_races' => $evaluation['excluded_races'],
-                    'diagnostics' => $lastDiagnostics,
-                ];
+                break;
             }
         }
 
@@ -353,9 +360,12 @@ final class Bt03e03FistaOptimizer
         int $monotoneRestartCount,
         int $backtrackingIterationCount,
         int $restartStepRetentionCount,
+        int $acceptedUpdateCount,
+        int $optimizerAttemptCount,
         int $lastMonotoneRestartIteration,
         float $lastMonotoneRestartStep,
         float $lastPostRestartIterationStartStep,
+        int $lastPostRestartAcceptedUpdateIteration,
     ): array {
         $squares = new Bt03e03CompensatedSum;
         $maximumAbsolute = 0.0;
@@ -368,6 +378,8 @@ final class Bt03e03FistaOptimizer
             'lambda' => $lambda,
             'position' => $position,
             'iteration' => $iteration,
+            'accepted_update_count' => $acceptedUpdateCount,
+            'optimizer_attempt_count' => $optimizerAttemptCount,
             'max_iterations' => Bt03e03Contract::MAX_ITERATIONS,
             'final_objective' => $finalObjective,
             'previous_objective' => $previousObjective,
@@ -385,6 +397,7 @@ final class Bt03e03FistaOptimizer
             'last_monotone_restart_iteration' => $lastMonotoneRestartIteration,
             'last_monotone_restart_step' => $lastMonotoneRestartStep,
             'last_post_restart_iteration_start_step' => $lastPostRestartIterationStartStep,
+            'last_post_restart_accepted_update_iteration' => $lastPostRestartAcceptedUpdateIteration,
         ];
         foreach ($diagnostics as $value) {
             if (is_float($value) && ! is_finite($value)) {
