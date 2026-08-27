@@ -111,6 +111,39 @@ class Bt03e04SourceBundleTest extends TestCase
         }, '2026 access'];
     }
 
+    #[DataProvider('futureSourceVersionProvider')]
+    public function test_future_e03_source_versions_are_rejected_after_rehash_and_reseal(callable $mutator): void
+    {
+        $bundle = $this->bundle();
+        $bundle->mutateResult($mutator);
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('non-v2 source model contract');
+            $this->loader()->load($bundle->directory);
+        } finally {
+            $bundle->cleanup();
+        }
+    }
+
+    /** @return iterable<string,array{callable(array<string,mixed>):array<string,mixed>}> */
+    public static function futureSourceVersionProvider(): iterable
+    {
+        yield 'calculation v3' => [static function (array $result): array {
+            $result['calculation_version'] = 'BT03E03-POSITION-PROBABILITY-v3';
+            $result['contract']['calculation_version'] = 'BT03E03-POSITION-PROBABILITY-v3';
+
+            return $result;
+        }];
+        yield 'optimizer v3' => [static function (array $result): array {
+            $result['contract']['optimizer_version'] = 'BT03E03-FISTA-POSITION-SOFTMAX-v3';
+            foreach ([2024, 2025] as $year) {
+                $result["outer_{$year}"]['model']['optimizer_version'] = 'BT03E03-FISTA-POSITION-SOFTMAX-v3';
+            }
+
+            return $result;
+        }];
+    }
+
     public function test_2026_probability_row_is_rejected_even_with_a_resealed_manifest(): void
     {
         $bundle = $this->bundle();

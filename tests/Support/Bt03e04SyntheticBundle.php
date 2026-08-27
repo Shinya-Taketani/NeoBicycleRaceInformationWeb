@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Domain\Keirin\Backtest\Services\Bt03e03Contract;
 use App\Domain\Keirin\Backtest\Services\Bt03e03ReproducibilityVerifier;
+use App\Domain\Keirin\Backtest\Services\Bt03e04Contract;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 
 final class Bt03e04SyntheticBundle
@@ -49,7 +49,7 @@ final class Bt03e04SyntheticBundle
                 'sha256' => hash_file('sha256', $path),
             ];
         }
-        $manifest = ['artifact_version' => Bt03e03Contract::ARTIFACT_VERSION, 'files' => $files];
+        $manifest = ['artifact_version' => Bt03e04Contract::SOURCE_ARTIFACT_VERSION, 'files' => $files];
         $manifest['manifest_sha256'] = $this->hasher->hash($manifest);
         file_put_contents($this->directory.'/manifest.json', $this->json($manifest));
     }
@@ -114,15 +114,15 @@ final class Bt03e04SyntheticBundle
     private function result(): array
     {
         $manifest = [
-            'version' => Bt03e03Contract::PREDICTION_MANIFEST_VERSION,
+            'version' => Bt03e04Contract::SOURCE_PREDICTION_MANIFEST_VERSION,
             'race_count' => $this->racesPerYear,
             'entry_count' => $this->racesPerYear * $this->entrantCount,
             'semantic_sha256' => str_repeat('a', 64),
         ];
         $outer = [
             'model' => [
-                'optimizer_version' => Bt03e03Contract::OPTIMIZER_VERSION,
-                'probability_version' => Bt03e03Contract::PROBABILITY_VERSION,
+                'optimizer_version' => Bt03e04Contract::SOURCE_OPTIMIZER_VERSION,
+                'probability_version' => Bt03e04Contract::SOURCE_PROBABILITY_VERSION,
             ],
             'prediction_manifest' => $manifest,
         ];
@@ -137,8 +137,16 @@ final class Bt03e04SyntheticBundle
             ];
         }
         $result = [
-            'calculation_version' => Bt03e03Contract::CALCULATION_VERSION,
-            'contract' => Bt03e03Contract::plan(),
+            'calculation_version' => Bt03e04Contract::SOURCE_CALCULATION_VERSION,
+            'contract' => [
+                'contract' => Bt03e04Contract::SOURCE_CONTRACT_NAME,
+                'calculation_version' => Bt03e04Contract::SOURCE_CALCULATION_VERSION,
+                'optimizer_version' => Bt03e04Contract::SOURCE_OPTIMIZER_VERSION,
+                'iteration_semantics_version' => Bt03e04Contract::SOURCE_ITERATION_SEMANTICS_VERSION,
+                'probability_version' => Bt03e04Contract::SOURCE_PROBABILITY_VERSION,
+                'artifact_version' => Bt03e04Contract::SOURCE_ARTIFACT_VERSION,
+                'prediction_manifest_version' => Bt03e04Contract::SOURCE_PREDICTION_MANIFEST_VERSION,
+            ],
             'source_integrity' => ['start' => ['fingerprints' => $fingerprints], 'end' => ['fingerprints' => $fingerprints], 'unchanged' => true],
             'outcome_snapshot' => [
                 'start' => ['outcome_snapshot_manifest_hash' => str_repeat('b', 64)],

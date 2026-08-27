@@ -39,6 +39,7 @@ class Bt03e04DevelopmentEvaluationService
         private readonly Bt03e04ArtifactWriter $artifacts,
         private readonly CanonicalHasher $hasher,
         private readonly Bt03e04ReadOnlyQueryAudit $queryAudit,
+        private readonly Bt03e04OutcomeSnapshotEndVerifier $endSnapshotVerifier,
         private readonly Bt03eReadOnlyDatabaseGuard $databaseGuard,
     ) {}
 
@@ -107,7 +108,8 @@ class Bt03e04DevelopmentEvaluationService
             }
 
             $intervals = $this->bootstrap->evaluate($metricSpools);
-            $snapshotEnd = $this->snapshots->open(storage_path('app/'.$snapshotPath), $snapshotPath)->auditParameters();
+            $endSnapshot = $this->snapshots->open(storage_path('app/'.$snapshotPath), $snapshotPath);
+            $snapshotEnd = $this->endSnapshotVerifier->verify($endSnapshot, $this->queryAudit);
             $this->integrity->assertUnchanged($snapshotStart, $snapshotEnd, 'BT-03E-04 outcome snapshot');
             $baselineEnd = $this->preflight->run();
             $this->integrity->assertUnchanged($baselineStart, $baselineEnd, 'BT-03E-04 STAT-01 baseline source');

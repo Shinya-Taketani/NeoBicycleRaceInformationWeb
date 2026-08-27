@@ -2250,7 +2250,7 @@ document_version: 1.3
 updated_at: 2026-08-27
 remote_main_sha: 05c7f9340414b5f5695fb5aa238512372d46c33c
 phase_changed: BT-03E-04_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
-related_pr: PR #46 / BT-03E-04 implementation branch
+related_pr: PR #47 / BT-03E-04 implementation
 related_run: BT-03E-03 v2 formal development evaluation artifact
 decision: BT-03E-03 v2 completed with reproducible negative result; BT-03E-04 decoder separation implemented
 reason: fixed probabilities improved P2/P3/Hit@3 but not WIN, requiring decision-rule separation without retraining

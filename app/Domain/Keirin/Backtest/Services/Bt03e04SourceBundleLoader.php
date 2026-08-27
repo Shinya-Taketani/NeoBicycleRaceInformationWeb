@@ -85,7 +85,7 @@ final class Bt03e04SourceBundleLoader
     /** @param array<string,mixed> $manifest @param array<string,string> $paths @return array<string,array{name:string,bytes:int,sha256:string}> */
     private function validateManifest(array $manifest, array $paths): array
     {
-        if (($manifest['artifact_version'] ?? null) !== Bt03e03Contract::ARTIFACT_VERSION
+        if (($manifest['artifact_version'] ?? null) !== Bt03e04Contract::SOURCE_ARTIFACT_VERSION
             || ! is_array($manifest['files'] ?? null)
             || ! is_string($manifest['manifest_sha256'] ?? null)
             || preg_match('/\A[a-f0-9]{64}\z/', $manifest['manifest_sha256']) !== 1) {
@@ -122,24 +122,24 @@ final class Bt03e04SourceBundleLoader
     private function validateResult(array $result): void
     {
         $contract = $result['contract'] ?? null;
-        if (($result['calculation_version'] ?? null) !== Bt03e03Contract::CALCULATION_VERSION
+        if (($result['calculation_version'] ?? null) !== Bt03e04Contract::SOURCE_CALCULATION_VERSION
             || ! is_array($contract)
-            || ($contract['contract'] ?? null) !== Bt03e03Contract::NAME
-            || ($contract['calculation_version'] ?? null) !== Bt03e03Contract::CALCULATION_VERSION
-            || ($contract['optimizer_version'] ?? null) !== Bt03e03Contract::OPTIMIZER_VERSION
-            || ($contract['iteration_semantics_version'] ?? null) !== Bt03e03Contract::ITERATION_SEMANTICS_VERSION
-            || ($contract['probability_version'] ?? null) !== Bt03e03Contract::PROBABILITY_VERSION
-            || ($contract['artifact_version'] ?? null) !== Bt03e03Contract::ARTIFACT_VERSION
-            || ($contract['prediction_manifest_version'] ?? null) !== Bt03e03Contract::PREDICTION_MANIFEST_VERSION) {
+            || ($contract['contract'] ?? null) !== Bt03e04Contract::SOURCE_CONTRACT_NAME
+            || ($contract['calculation_version'] ?? null) !== Bt03e04Contract::SOURCE_CALCULATION_VERSION
+            || ($contract['optimizer_version'] ?? null) !== Bt03e04Contract::SOURCE_OPTIMIZER_VERSION
+            || ($contract['iteration_semantics_version'] ?? null) !== Bt03e04Contract::SOURCE_ITERATION_SEMANTICS_VERSION
+            || ($contract['probability_version'] ?? null) !== Bt03e04Contract::SOURCE_PROBABILITY_VERSION
+            || ($contract['artifact_version'] ?? null) !== Bt03e04Contract::SOURCE_ARTIFACT_VERSION
+            || ($contract['prediction_manifest_version'] ?? null) !== Bt03e04Contract::SOURCE_PREDICTION_MANIFEST_VERSION) {
             throw new RuntimeException('BT-03E-04 rejected a non-v2 source model contract.');
         }
         foreach (Bt03e04Contract::DEVELOPMENT_YEARS as $year) {
             $outer = $result["outer_{$year}"] ?? null;
             if (! is_array($outer)
-                || ($outer['model']['optimizer_version'] ?? null) !== Bt03e03Contract::OPTIMIZER_VERSION
-                || ($outer['model']['probability_version'] ?? null) !== Bt03e03Contract::PROBABILITY_VERSION
+                || ($outer['model']['optimizer_version'] ?? null) !== Bt03e04Contract::SOURCE_OPTIMIZER_VERSION
+                || ($outer['model']['probability_version'] ?? null) !== Bt03e04Contract::SOURCE_PROBABILITY_VERSION
                 || ! is_array($outer['prediction_manifest'] ?? null)
-                || ($outer['prediction_manifest']['version'] ?? null) !== Bt03e03Contract::PREDICTION_MANIFEST_VERSION
+                || ($outer['prediction_manifest']['version'] ?? null) !== Bt03e04Contract::SOURCE_PREDICTION_MANIFEST_VERSION
                 || ! is_int($outer['prediction_manifest']['race_count'] ?? null)
                 || ! is_int($outer['prediction_manifest']['entry_count'] ?? null)
                 || preg_match('/\A[a-f0-9]{64}\z/', (string) ($outer['prediction_manifest']['semantic_sha256'] ?? '')) !== 1) {
@@ -147,7 +147,7 @@ final class Bt03e04SourceBundleLoader
             }
         }
         $verification = $result['reproducibility_verification'] ?? null;
-        if (! is_array($verification) || ($verification['status'] ?? null) !== 'VERIFIED'
+        if (! is_array($verification) || ($verification['status'] ?? null) !== Bt03e04Contract::SOURCE_REPRODUCIBILITY_STATUS
             || ($verification['verified'] ?? null) !== true
             || ! is_string($result['reproducibility_hash'] ?? null)) {
             throw new RuntimeException('BT-03E-04 source reproducibility was not VERIFIED.');

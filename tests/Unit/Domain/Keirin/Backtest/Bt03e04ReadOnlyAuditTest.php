@@ -22,12 +22,15 @@ class Bt03e04ReadOnlyAuditTest extends TestCase
             $audit->recordSnapshotYear($year);
             $audit->recordBaselineYear($year);
         }
+        foreach ([2024, 2025] as $year) {
+            $audit->recordSnapshotYear($year);
+        }
         $result = $audit->finish();
 
         $this->assertSame(0, $result['snapshot_partition_access'][2022]);
         $this->assertSame(0, $result['snapshot_partition_access'][2023]);
-        $this->assertSame(1, $result['snapshot_partition_access'][2024]);
-        $this->assertSame(1, $result['snapshot_partition_access'][2025]);
+        $this->assertGreaterThan(0, $result['snapshot_partition_access'][2024]);
+        $this->assertGreaterThan(0, $result['snapshot_partition_access'][2025]);
         $this->assertSame(0, $result['snapshot_partition_access'][2026]);
         $this->assertSame(0, $result['baseline_feature_access'][2022]);
         $this->assertSame(0, $result['baseline_feature_access'][2023]);

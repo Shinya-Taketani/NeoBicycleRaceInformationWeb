@@ -20,6 +20,24 @@ final class Bt03e04Contract
 
     public const DECODER_MANIFEST_VERSION = 'BT03E04-DECODER-SEMANTIC-MANIFEST-v1';
 
+    public const SOURCE_CONTRACT_NAME = 'BT-03E-03-POSITION-SPECIFIC-PROBABILITY';
+
+    public const SOURCE_CALCULATION_VERSION = 'BT03E03-POSITION-PROBABILITY-v2';
+
+    public const SOURCE_OPTIMIZER_VERSION = 'BT03E03-FISTA-POSITION-SOFTMAX-v2';
+
+    public const SOURCE_ITERATION_SEMANTICS_VERSION = 'BT03E03-ACCEPTED-UPDATE-BUDGET-v1';
+
+    public const SOURCE_PROBABILITY_VERSION = 'BT03E03-SEQUENTIAL-MARGINAL-v1';
+
+    public const SOURCE_ARTIFACT_VERSION = 'BT03E03-DEVELOPMENT-ARTIFACT-v2';
+
+    public const SOURCE_PREDICTION_MANIFEST_VERSION = 'BT03E03-PREDICTION-SEMANTIC-MANIFEST-v1';
+
+    public const SOURCE_REPRODUCIBILITY_STATUS = 'VERIFIED';
+
+    public const SOURCE_INTEGRITY_STATUS = 'PASS';
+
     public const BOOTSTRAP_ITERATIONS = 2000;
 
     public const BOOTSTRAP_SEED = 20260812;
@@ -87,14 +105,15 @@ final class Bt03e04Contract
             'artifact_version' => self::ARTIFACT_VERSION,
             'decoder_manifest_version' => self::DECODER_MANIFEST_VERSION,
             'source_model_contract' => [
-                'calculation_version' => Bt03e03Contract::CALCULATION_VERSION,
-                'optimizer_version' => Bt03e03Contract::OPTIMIZER_VERSION,
-                'iteration_semantics_version' => Bt03e03Contract::ITERATION_SEMANTICS_VERSION,
-                'probability_version' => Bt03e03Contract::PROBABILITY_VERSION,
-                'artifact_version' => Bt03e03Contract::ARTIFACT_VERSION,
-                'prediction_manifest_version' => Bt03e03Contract::PREDICTION_MANIFEST_VERSION,
-                'reproducibility' => 'VERIFIED',
-                'integrity' => 'PASS',
+                'contract' => self::SOURCE_CONTRACT_NAME,
+                'calculation_version' => self::SOURCE_CALCULATION_VERSION,
+                'optimizer_version' => self::SOURCE_OPTIMIZER_VERSION,
+                'iteration_semantics_version' => self::SOURCE_ITERATION_SEMANTICS_VERSION,
+                'probability_version' => self::SOURCE_PROBABILITY_VERSION,
+                'artifact_version' => self::SOURCE_ARTIFACT_VERSION,
+                'prediction_manifest_version' => self::SOURCE_PREDICTION_MANIFEST_VERSION,
+                'reproducibility' => self::SOURCE_REPRODUCIBILITY_STATUS,
+                'integrity' => self::SOURCE_INTEGRITY_STATUS,
             ],
             'metric_to_decoder' => self::METRIC_DECODERS,
             'primary_objective' => 'argmax distinct(a,b,c) [P1(a)+P2(b)+P3(c)]',

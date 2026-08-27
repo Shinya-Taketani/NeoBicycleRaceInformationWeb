@@ -13,6 +13,7 @@ use App\Domain\Keirin\Backtest\Services\Bt03e04ArtifactWriter;
 use App\Domain\Keirin\Backtest\Services\Bt03e04Contract;
 use App\Domain\Keirin\Backtest\Services\Bt03e04DevelopmentEvaluationService;
 use App\Domain\Keirin\Backtest\Services\Bt03e04ReproducibilityVerifier;
+use App\Domain\Keirin\Backtest\Services\Bt03e04SourceBundleLoader;
 use App\Domain\Keirin\Backtest\Services\Bt03eArtifactFilesystem;
 use App\Domain\Keirin\Backtest\Support\Bt03e04DecoderManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\Bt03e04MetricContributionSpool;
@@ -39,6 +40,43 @@ class Bt03e04IntegrityTest extends TestCase
         $this->assertSame(2000, $plan['bootstrap']['iterations']);
         $this->assertSame(20260812, $plan['bootstrap']['seed']);
         $this->assertSame('PRIMARY_COHERENT_POSITION', $plan['metric_to_decoder']['WINNER_HIT_AT_1']);
+    }
+
+    public function test_source_model_contract_is_literal_frozen_to_verified_e03_v2(): void
+    {
+        $expected = [
+            'contract' => 'BT-03E-03-POSITION-SPECIFIC-PROBABILITY',
+            'calculation_version' => 'BT03E03-POSITION-PROBABILITY-v2',
+            'optimizer_version' => 'BT03E03-FISTA-POSITION-SOFTMAX-v2',
+            'iteration_semantics_version' => 'BT03E03-ACCEPTED-UPDATE-BUDGET-v1',
+            'probability_version' => 'BT03E03-SEQUENTIAL-MARGINAL-v1',
+            'artifact_version' => 'BT03E03-DEVELOPMENT-ARTIFACT-v2',
+            'prediction_manifest_version' => 'BT03E03-PREDICTION-SEMANTIC-MANIFEST-v1',
+            'reproducibility' => 'VERIFIED',
+            'integrity' => 'PASS',
+        ];
+
+        $this->assertSame($expected['contract'], Bt03e04Contract::SOURCE_CONTRACT_NAME);
+        $this->assertSame($expected['calculation_version'], Bt03e04Contract::SOURCE_CALCULATION_VERSION);
+        $this->assertSame($expected['optimizer_version'], Bt03e04Contract::SOURCE_OPTIMIZER_VERSION);
+        $this->assertSame($expected['iteration_semantics_version'], Bt03e04Contract::SOURCE_ITERATION_SEMANTICS_VERSION);
+        $this->assertSame($expected['probability_version'], Bt03e04Contract::SOURCE_PROBABILITY_VERSION);
+        $this->assertSame($expected['artifact_version'], Bt03e04Contract::SOURCE_ARTIFACT_VERSION);
+        $this->assertSame($expected['prediction_manifest_version'], Bt03e04Contract::SOURCE_PREDICTION_MANIFEST_VERSION);
+        $this->assertSame($expected['reproducibility'], Bt03e04Contract::SOURCE_REPRODUCIBILITY_STATUS);
+        $this->assertSame($expected['integrity'], Bt03e04Contract::SOURCE_INTEGRITY_STATUS);
+        $this->assertSame($expected, Bt03e04Contract::plan()['source_model_contract']);
+    }
+
+    public function test_e04_source_version_contract_does_not_dynamically_reference_e03_contract(): void
+    {
+        foreach ([Bt03e04Contract::class, Bt03e04SourceBundleLoader::class] as $class) {
+            $path = (new ReflectionClass($class))->getFileName();
+            $this->assertIsString($path);
+            $source = file_get_contents($path);
+            $this->assertIsString($source);
+            $this->assertStringNotContainsString('Bt03e03Contract::', $source);
+        }
     }
 
     public function test_bootstrap_is_paired_year_equal_and_bit_exact_deterministic(): void
