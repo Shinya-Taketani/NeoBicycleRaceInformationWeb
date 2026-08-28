@@ -42,6 +42,8 @@ final class Bt03e05DecisionDecoderCommand extends Command
             $this->line('contract='.$contract['contract']);
             $this->line('calculation_version='.$contract['calculation_version']);
             $this->line('decoder_version='.$contract['decoder_version']);
+            $this->line('primary_tie_rule_version='.$contract['tie_rule_version']);
+            $this->line('supporting_tie_rule_version='.$contract['supporting_tie_rule_version']);
             $this->line('source_calculation='.$contract['source_model_contract']['calculation_version']);
             foreach ($contract['metric_to_decoder'] as $metric => $decoder) {
                 $this->line("decoder_{$metric}={$decoder}");

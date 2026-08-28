@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Domain\Keirin\Backtest;
 
+use App\Domain\Keirin\Backtest\Calculators\Bt03e04DecisionDecoder;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e05DecisionDecoder;
 use App\Domain\Keirin\Backtest\Services\Bt03e05Contract;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -145,6 +146,27 @@ class Bt03e05DecoderTest extends TestCase
         yield 'five' => [5];
         yield 'seven' => [7];
         yield 'nine' => [9];
+    }
+
+    #[DataProvider('supportingTieCompatibilityProvider')]
+    public function test_supporting_exact_ties_preserve_e04_semantics(int $raceId, int $entrantCount): void
+    {
+        $race = $this->uniformRace($raceId, $entrantCount);
+        $e04 = (new Bt03e04DecisionDecoder)->decode($race);
+        $e05 = (new Bt03e05DecisionDecoder)->decode($race);
+
+        $this->assertSame($e04['top2_marginal_bikes'], $e05['top2_marginal_bikes']);
+        $this->assertSame($e04['top3_marginal_bikes'], $e05['top3_marginal_bikes']);
+        $this->assertSame($e04['expected_ndcg_top3'], $e05['expected_ndcg_top3']);
+    }
+
+    /** @return iterable<string,array{int,int}> */
+    public static function supportingTieCompatibilityProvider(): iterable
+    {
+        yield 'race 1 with five entrants' => [1, 5];
+        yield 'race 91 with five entrants' => [91, 5];
+        yield 'race 1 with seven entrants' => [1, 7];
+        yield 'race 91 with nine entrants' => [91, 9];
     }
 
     /** @return array<string,mixed> */

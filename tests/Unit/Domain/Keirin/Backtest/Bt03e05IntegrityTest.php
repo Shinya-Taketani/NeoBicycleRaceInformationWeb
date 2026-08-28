@@ -32,6 +32,7 @@ class Bt03e05IntegrityTest extends TestCase
         $this->assertSame('BT03E05-WINNER-PRESERVING-DECODER-v1', $plan['calculation_version']);
         $this->assertSame('BT03E05-WINNER-PRESERVING-LEXICOGRAPHIC-v1', $plan['decoder_version']);
         $this->assertSame('BT03E05-DECODER-TIE-v1', $plan['tie_rule_version']);
+        $this->assertSame('BT03E04-DECODER-TIE-v1', $plan['supporting_tie_rule_version']);
         $this->assertSame('BT03E05-DEVELOPMENT-ARTIFACT-v1', $plan['artifact_version']);
         $this->assertSame('BT03E05-DECODER-SEMANTIC-MANIFEST-v1', $plan['decoder_manifest_version']);
         $this->assertSame([2024, 2025], $plan['development_years']);
@@ -76,6 +77,19 @@ class Bt03e05IntegrityTest extends TestCase
             $source = file_get_contents($path);
             $this->assertIsString($source);
             $this->assertStringNotContainsString('Bt03e03Contract::', $source);
+        }
+    }
+
+    public function test_e05_supporting_tie_contract_is_literal_and_does_not_reference_e04_contract(): void
+    {
+        $this->assertSame('BT03E04-DECODER-TIE-v1', Bt03e05Contract::SUPPORTING_TIE_RULE_VERSION);
+
+        foreach ([Bt03e05Contract::class, Bt03e05DecisionDecoder::class] as $class) {
+            $path = (new ReflectionClass($class))->getFileName();
+            $this->assertIsString($path);
+            $source = file_get_contents($path);
+            $this->assertIsString($source);
+            $this->assertStringNotContainsString('Bt03e04Contract::', $source);
         }
     }
 

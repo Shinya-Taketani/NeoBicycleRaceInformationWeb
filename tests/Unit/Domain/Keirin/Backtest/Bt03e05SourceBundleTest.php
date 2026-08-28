@@ -142,6 +142,24 @@ class Bt03e05SourceBundleTest extends TestCase
 
             return $result;
         }];
+        yield 'result artifact v3' => [static function (array $result): array {
+            $result['contract']['artifact_version'] = 'BT03E03-DEVELOPMENT-ARTIFACT-v3';
+
+            return $result;
+        }];
+    }
+
+    public function test_future_e03_manifest_artifact_version_is_rejected_after_reseal(): void
+    {
+        $bundle = $this->bundle();
+        $bundle->sealManifest('BT03E03-DEVELOPMENT-ARTIFACT-v3');
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('source artifact manifest contract was invalid');
+            $this->loader()->load($bundle->directory);
+        } finally {
+            $bundle->cleanup();
+        }
     }
 
     public function test_2026_probability_row_is_rejected_even_with_a_resealed_manifest(): void

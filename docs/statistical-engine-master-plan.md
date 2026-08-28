@@ -2268,7 +2268,7 @@ document_version: 1.4
 updated_at: 2026-08-29
 remote_main_sha: 842a73272e9adc8c21a6a0ff7fc46518afd47484
 phase_changed: BT-03E-05_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
-related_pr: BT-03E-05 implementation worktree
+related_pr: PR #49 / BT-03E-05 implementation
 related_run: BT-03E-04 formal development evaluation artifact
 decision: BT-03E-04 closed as a reproducible negative result; BT-03E-05 winner-preserving decoder frozen and implemented
 reason: P1 winner signal exceeded coherent first while P3 non-inferiority and overall superiority remained insufficient

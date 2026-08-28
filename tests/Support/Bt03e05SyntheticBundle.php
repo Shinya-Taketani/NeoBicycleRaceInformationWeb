@@ -38,7 +38,7 @@ final class Bt03e05SyntheticBundle
         $this->sealManifest();
     }
 
-    public function sealManifest(): void
+    public function sealManifest(string $artifactVersion = Bt03e05Contract::SOURCE_ARTIFACT_VERSION): void
     {
         $files = [];
         foreach (['result.json', 'probabilities.csv', 'map_predictions.csv'] as $name) {
@@ -49,7 +49,7 @@ final class Bt03e05SyntheticBundle
                 'sha256' => hash_file('sha256', $path),
             ];
         }
-        $manifest = ['artifact_version' => Bt03e05Contract::SOURCE_ARTIFACT_VERSION, 'files' => $files];
+        $manifest = ['artifact_version' => $artifactVersion, 'files' => $files];
         $manifest['manifest_sha256'] = $this->hasher->hash($manifest);
         file_put_contents($this->directory.'/manifest.json', $this->json($manifest));
     }

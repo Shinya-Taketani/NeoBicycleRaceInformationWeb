@@ -20,6 +20,8 @@ class Bt03e05DecisionDecoderCommandTest extends TestCase
             ->expectsOutputToContain('BT-03E-05 PLAN')
             ->expectsOutputToContain('decoder_WINNER_HIT_AT_1=WINNER_PRESERVING_LEXICOGRAPHIC')
             ->expectsOutputToContain('decoder_EXACT_ORDERED_TOP3_RATE=MAP_ORDERED_TOP3')
+            ->expectsOutputToContain('primary_tie_rule_version=BT03E05-DECODER-TIE-v1')
+            ->expectsOutputToContain('supporting_tie_rule_version=BT03E04-DECODER-TIE-v1')
             ->expectsOutputToContain('model_fitting=FORBIDDEN')
             ->expectsOutputToContain('2026_access=FORBIDDEN')
             ->expectsOutputToContain('read_only=true')

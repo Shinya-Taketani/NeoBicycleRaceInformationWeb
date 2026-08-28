@@ -16,6 +16,8 @@ final class Bt03e05Contract
 
     public const TIE_RULE_VERSION = 'BT03E05-DECODER-TIE-v1';
 
+    public const SUPPORTING_TIE_RULE_VERSION = 'BT03E04-DECODER-TIE-v1';
+
     public const ARTIFACT_VERSION = 'BT03E05-DEVELOPMENT-ARTIFACT-v1';
 
     public const DECODER_MANIFEST_VERSION = 'BT03E05-DECODER-SEMANTIC-MANIFEST-v1';
@@ -102,6 +104,7 @@ final class Bt03e05Contract
             'calculation_version' => self::CALCULATION_VERSION,
             'decoder_version' => self::DECODER_VERSION,
             'tie_rule_version' => self::TIE_RULE_VERSION,
+            'supporting_tie_rule_version' => self::SUPPORTING_TIE_RULE_VERSION,
             'artifact_version' => self::ARTIFACT_VERSION,
             'decoder_manifest_version' => self::DECODER_MANIFEST_VERSION,
             'source_model_contract' => [

@@ -67,8 +67,8 @@ final class Bt03e05DecisionDecoder
             $entries,
             static fn (array $entry): bool => (float) $entry['position_1_probability'] === $maximumP1,
         ));
-        usort($winnerCandidates, fn (array $left, array $right): int => $this->tieKey('PRIMARY_WINNER_P1', $raceId, (string) $left['bike'])
-            <=> $this->tieKey('PRIMARY_WINNER_P1', $raceId, (string) $right['bike'])
+        usort($winnerCandidates, fn (array $left, array $right): int => $this->primaryTieKey('PRIMARY_WINNER_P1', $raceId, (string) $left['bike'])
+            <=> $this->primaryTieKey('PRIMARY_WINNER_P1', $raceId, (string) $right['bike'])
         );
         $winner = $winnerCandidates[0];
         $winnerBike = (int) $winner['bike'];
@@ -87,7 +87,7 @@ final class Bt03e05DecisionDecoder
                 }
                 $bikes = [(int) $second['bike'], (int) $third['bike']];
                 $score = (float) $second['position_2_probability'] + (float) $third['position_3_probability'];
-                $key = $this->tieKey('PRIMARY_SECOND_THIRD', $raceId, $winnerBike.'-'.implode('-', $bikes));
+                $key = $this->primaryTieKey('PRIMARY_SECOND_THIRD', $raceId, $winnerBike.'-'.implode('-', $bikes));
                 if ($score > $bestScore) {
                     $bestPair = [$second, $third];
                     $bestScore = $score;
@@ -121,7 +121,7 @@ final class Bt03e05DecisionDecoder
         $ranked = array_map(fn (array $entry): array => [
             'bike' => (int) $entry['bike'],
             'score' => (float) $entry[$field],
-            'key' => $this->tieKey($decoder, $raceId, (string) $entry['bike']),
+            'key' => $this->supportingTieKey($decoder, $raceId, (string) $entry['bike']),
         ], $entries);
         usort($ranked, static function (array $left, array $right): int {
             if ($left['score'] > $right['score']) {
@@ -157,8 +157,18 @@ final class Bt03e05DecisionDecoder
         return $this->rank($raceId, $entries, 'EXPECTED_NDCG', 'expected_ndcg_gain', 3);
     }
 
-    private function tieKey(string $decoder, int $raceId, string $identity): string
+    private function primaryTieKey(string $decoder, int $raceId, string $identity): string
     {
-        return hash('sha256', Bt03e05Contract::TIE_RULE_VERSION.'|'.$decoder.'|'.$raceId.'|'.$identity);
+        return $this->tieKey(Bt03e05Contract::TIE_RULE_VERSION, $decoder, $raceId, $identity);
+    }
+
+    private function supportingTieKey(string $decoder, int $raceId, string $identity): string
+    {
+        return $this->tieKey(Bt03e05Contract::SUPPORTING_TIE_RULE_VERSION, $decoder, $raceId, $identity);
+    }
+
+    private function tieKey(string $version, string $decoder, int $raceId, string $identity): string
+    {
+        return hash('sha256', $version.'|'.$decoder.'|'.$raceId.'|'.$identity);
     }
 }
