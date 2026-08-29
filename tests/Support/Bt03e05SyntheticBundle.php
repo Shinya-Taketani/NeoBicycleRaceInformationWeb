@@ -123,6 +123,7 @@ final class Bt03e05SyntheticBundle
             'model' => [
                 'optimizer_version' => Bt03e05Contract::SOURCE_OPTIMIZER_VERSION,
                 'probability_version' => Bt03e05Contract::SOURCE_PROBABILITY_VERSION,
+                'tie_rule_version' => 'BT03E03-ORDERED-TOP3-TIE-v1',
             ],
             'prediction_manifest' => $manifest,
         ];
@@ -144,6 +145,7 @@ final class Bt03e05SyntheticBundle
                 'optimizer_version' => Bt03e05Contract::SOURCE_OPTIMIZER_VERSION,
                 'iteration_semantics_version' => Bt03e05Contract::SOURCE_ITERATION_SEMANTICS_VERSION,
                 'probability_version' => Bt03e05Contract::SOURCE_PROBABILITY_VERSION,
+                'tie_rule_version' => 'BT03E03-ORDERED-TOP3-TIE-v1',
                 'artifact_version' => Bt03e05Contract::SOURCE_ARTIFACT_VERSION,
                 'prediction_manifest_version' => Bt03e05Contract::SOURCE_PREDICTION_MANIFEST_VERSION,
             ],
