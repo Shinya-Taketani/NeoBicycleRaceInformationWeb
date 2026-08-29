@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Domain\Keirin\Backtest;
 
+use App\Domain\Keirin\Backtest\Services\Bt03e04ReadOnlyQueryAudit;
+use App\Domain\Keirin\Backtest\Services\Bt03e05ReadOnlyQueryAudit;
+use App\Domain\Keirin\Backtest\Services\Bt03e06ReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Services\Bt03e07DevelopmentEvaluationService;
 use App\Domain\Keirin\Backtest\Services\Bt03e07PredictionDatasetBuilder;
 use App\Domain\Keirin\Backtest\Services\Bt03e07ReadOnlyQueryAudit;
@@ -27,6 +30,10 @@ final class Bt03e07ContainerWiringTest extends TestCase
             $property = new ReflectionProperty($service, str_contains($service::class, 'Development') ? 'audit' : (str_contains($service::class, 'Training') ? 'queryAudit' : 'audit'));
             $this->assertSame($audit, $property->getValue($service));
         }
+
+        $this->assertNotSame($audit, app(Bt03e04ReadOnlyQueryAudit::class));
+        $this->assertNotSame($audit, app(Bt03e05ReadOnlyQueryAudit::class));
+        $this->assertNotSame($audit, app(Bt03e06ReadOnlyQueryAudit::class));
     }
 
     public function test_plan_requires_no_source_bundle_or_database_access(): void

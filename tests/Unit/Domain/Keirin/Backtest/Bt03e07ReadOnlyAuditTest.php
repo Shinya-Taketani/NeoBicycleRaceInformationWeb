@@ -73,6 +73,24 @@ final class Bt03e07ReadOnlyAuditTest extends TestCase
         }
     }
 
+    public function test_2026_snapshot_semantic_access_is_explicitly_rejected(): void
+    {
+        $audit = $this->started();
+        try {
+            $audit->recordSnapshotYear(2026);
+            $this->fail('2026 snapshot access must fail.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('2026 outcome access', $exception->getMessage());
+        }
+
+        try {
+            $audit->finish();
+            $this->fail('The incomplete audit must not finish successfully.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('2026 audit failed', $exception->getMessage());
+        }
+    }
+
     private function started(): Bt03e07ReadOnlyQueryAudit
     {
         $audit = new Bt03e07ReadOnlyQueryAudit;

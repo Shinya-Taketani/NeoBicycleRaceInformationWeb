@@ -77,6 +77,28 @@ final class Bt03e07ProbabilityDecoderTest extends TestCase
         }
         asort($winnerKeys, SORT_STRING);
         $this->assertSame((int) array_key_first($winnerKeys), $decision['primary_position_1_bike']);
+
+        $pairKeys = [];
+        $winner = $decision['primary_position_1_bike'];
+        foreach (range(1, 5) as $second) {
+            foreach (range(1, 5) as $third) {
+                if ($second === $winner || $third === $winner || $second === $third) {
+                    continue;
+                }
+                $identity = $winner.'-'.$second.'-'.$third;
+                $pairKeys[$second.'-'.$third] = hash(
+                    'sha256',
+                    Bt03e07Contract::PRIMARY_TIE_RULE_VERSION.'|PRIMARY_SECOND_THIRD|77|'.$identity,
+                );
+            }
+        }
+        asort($pairKeys, SORT_STRING);
+        $expectedPair = array_map('intval', explode('-', (string) array_key_first($pairKeys)));
+        $this->assertSame(
+            $expectedPair,
+            [$decision['primary_position_2_bike'], $decision['primary_position_3_bike']],
+        );
+        $this->assertSame(count($pairKeys), $decision['second_third_tie_count']);
         $this->assertGreaterThan(1, $decision['second_third_tie_count']);
         $this->assertTrue($decision['primary_technical_tiebreak_used']);
     }
