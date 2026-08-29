@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.5
+- Version: 1.6
 - Created: 2026-08-23
 - Updated: 2026-08-29
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `842a73272e9adc8c21a6a0ff7fc46518afd47484`
+- Remote `main` at last update: `72c91713b6c1ed4e71021231c369d9b25579e5fa`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,10 +167,10 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: BT-03E-06_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
-current_scoring_hypothesis_status: BT-03E-05_REJECTED_FOR_ADOPTION
-next_allowed_action: BT-03E-06_DEVELOPMENT_EVALUATION_AFTER_MERGE
-next_implementation_phase: NONE_BEFORE_BT-03E-06_EVALUATION
+current_engine_state: BT-03E-07_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
+current_scoring_hypothesis_status: BT-03E-06_REJECTED_FOR_ADOPTION
+next_allowed_action: BT-03E-07_DEVELOPMENT_EVALUATION_AFTER_MERGE
+next_implementation_phase: NONE_BEFORE_BT-03E-07_EVALUATION
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
 bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
@@ -197,7 +197,15 @@ bt03e05_2026_access: 0
 bt03e05_gates: NI_FAIL_SUPERIORITY_PASS_TEMPORAL_PASS_SUPPORTING_PASS_TIE_PASS_POSITION_REDESIGN_PASS_WIN_PRESERVATION_PASS
 bt03e05_non_inferiority_failures: POSITION_2_ACCURACY_POSITION_3_ACCURACY
 bt03e06_design_contract: FROZEN
-bt03e06_implementation: IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
+bt03e06_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
+bt03e06_reproducibility: VERIFIED
+bt03e06_integrity: PASS
+bt03e06_performance: FAIL / REDESIGN_REQUIRED
+bt03e06_2026_access: 0
+bt03e06_gates: NI_FAIL_SUPERIORITY_PASS_TEMPORAL_PASS_SUPPORTING_PASS_TIE_PASS_POSITION_REDESIGN_PASS_WIN_PRESERVATION_PASS
+bt03e06_non_inferiority_failures: POSITION_2_ACCURACY_POSITION_3_ACCURACY
+bt03e07_design_contract: FROZEN
+bt03e07_implementation: IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
 2026_access: 0
 final_points: NOT_APPLICABLE_CONTINUOUS_SCORE
 final_thresholds: UNFROZEN
@@ -222,6 +230,8 @@ completed_phases:
   - BT-03E-05_ENGINEERING
   - BT-03E-05_DEVELOPMENT_EVALUATION
   - BT-03E-06_ENGINEERING
+  - BT-03E-06_DEVELOPMENT_EVALUATION
+  - BT-03E-07_ENGINEERING
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -268,6 +278,11 @@ frozen_contracts:
   - BT03E05_FIXED_E03_V2_PROBABILITY_SOURCE
   - BT03E05_2024_2025_DEVELOPMENT_ONLY
   - BT03E05_2026_FORBIDDEN
+  - BT03E07_P1_BIT_EXACT_FREEZE
+  - BT03E07_DIRECT_P2_P3_FULL_FIELD_SOFTMAX
+  - BT03E07_SHARED_ONE_SE_P2_P3_ONLY
+  - BT03E07_2022_2025_DEVELOPMENT_ONLY
+  - BT03E07_2026_FORBIDDEN
   - LEAKAGE
   - SOURCE_INTEGRITY
   - MISSING_STATUS_SEMANTICS
@@ -309,8 +324,9 @@ holdout_status:
 - BT-03E-03 v2はoptimizer縮退を解消し、lambda `0.1` / `1.0`をeligible、selected lambdaを`0.1`として再現性検証まで完了した。P2・P3・Hit@3のyear-equalは改善したがWINは負で、performanceは `FAIL / REDESIGN_REQUIRED` となった。
 - BT-03E-04は再現性 `VERIFIED`、integrity `PASS`で完了したが、NIとSuperiorityがFAILし、performanceは `FAIL / REDESIGN_REQUIRED` となった。Primary 4指標のpoint estimateは両年で全てpositiveだった一方、NI failureはP3 CI lowerだけだった。
 - BT-03E-05は再現性 `VERIFIED`、integrity `PASS`で完了したが、P2・P3のNon-InferiorityがFAILし、performanceは `FAIL / REDESIGN_REQUIRED` となった。Superiority、Temporal、Supporting、Tie、Position Redesign、Win PreservationはPASS、2026 accessは`0`だった。
-- BT-03E-06はE03 v2の固定modelとfeature sourceから確率を前向き再構築し、P1 winner条件付きでP2/P3を逐次選択する設計をfreezeして実装した。
-- 次に許可されるのはmerge後の **BT-03E-06 development evaluation** である。
+- BT-03E-06は再現性 `VERIFIED`、integrity `PASS`で完了したが、P2・P3のNon-InferiorityがFAILし、performanceは `FAIL / REDESIGN_REQUIRED` となった。その他のGateはPASS、2026 accessは`0`だった。
+- BT-03E-07はE03 v2のP1をbit-exact固定し、teacher forcingを使わないfull-field direct softmaxでP2/P3だけを学習する設計をfreezeして実装した。
+- 次に許可されるのはmerge後の **BT-03E-07 development evaluation** である。
 - 2024・2025はdevelopment corpusとしてのみ利用し、final untouched holdoutとは扱わない。
 - 2026は最終モデル選択・fitted parameter・score仕様がfreezeされるまで評価禁止。
 
@@ -476,7 +492,8 @@ BT-03E-02以降で利用する場合は、
 | BT-03E-03 | position-specific sequential probability方式 | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
 | BT-03E-04 | fixed probabilityに対するdecision decoder分離 | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
 | BT-03E-05 | winner-preserving lexicographic decoder | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
-| BT-03E-06 | winner-conditioned sequential decoder | IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION | EVALUATE AFTER MERGE |
+| BT-03E-06 | winner-conditioned sequential decoder | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
+| BT-03E-07 | P1-frozen direct P2/P3 position model | IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION | EVALUATE AFTER MERGE |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -1872,7 +1889,9 @@ BT-03E-04はこのverified v2 probability artifactを固定入力とし、再学
 
 P1単独のwinner精度がcoherent firstより両年で高く、first decisionが約7%不一致だったため、BT-03E-05ではP1 winnerを固定し、残りのP2/P3 pairだけを最適化した。formal development evaluationと再現性検証は完了し、reproducibilityは`VERIFIED`、integrityは`PASS`、performanceは`FAIL / REDESIGN_REQUIRED`だった。Non-InferiorityはP2・P3でFAILし、その他のGateはPASS、2026 accessは`0`だった。
 
-BT-03E-06ではE03 v2 artifactの固定modelを再構築し、2024/2025の固定feature sourceからE03 forward出力が完全一致した場合だけ、P1 winner条件付きのP2/P3逐次decoderを評価する。design contractはfreeze済み、実装は完了し、merge後のdevelopment evaluationを待つ。2026は引き続きclosedとする。
+BT-03E-06ではE03 v2 artifactの固定modelを再構築し、P1 winner条件付きのP2/P3逐次decoderを評価した。formal development evaluationは再現性`VERIFIED`、integrity`PASS`だったが、P2・P3のNon-InferiorityがFAILし、performanceは`FAIL / REDESIGN_REQUIRED`となった。
+
+BT-03E-07ではE03 v2 artifactのP1をbit-exact固定し、P2/P3だけを全出走者direct softmaxで学習する。teacher forcingによる候補除外は行わず、Primary winnerとSupporting出力を変更しない。design contractはfreeze済み、実装は完了し、merge後のdevelopment evaluationを待つ。2026は引き続きclosedとする。
 
 ---
 
@@ -2235,7 +2254,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | DEVELOPMENT_REDESIGN_EVALUATION_PENDING | BT-03E-05は再現可能なnegative result。BT-03E-06 winner-conditioned sequential decoderのmerge後評価が次工程 |
+| Goal 3 score / parameter決定 | DEVELOPMENT_REDESIGN_EVALUATION_PENDING | BT-03E-06は再現可能なnegative result。BT-03E-07 P1-frozen direct position modelのmerge後評価が次工程 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -2274,6 +2293,26 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.6 — 2026-08-29
+
+```yaml
+document_version: 1.6
+updated_at: 2026-08-29
+remote_main_sha: 72c91713b6c1ed4e71021231c369d9b25579e5fa
+phase_changed: BT-03E-07_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
+related_pr: BT-03E-07 implementation branch
+related_run: BT-03E-06 formal development evaluation artifact
+decision: BT-03E-06 closed as a reproducible negative result; BT-03E-07 P1-frozen direct P2/P3 model frozen and implemented
+reason: BT-03E-06 preserved winner and passed all gates except P2/P3 non-inferiority
+```
+
+反映:
+
+- BT-03E-06 reproducibility `VERIFIED`、integrity `PASS`、performance `FAIL / REDESIGN_REQUIRED`
+- Non-InferiorityはP2・P3でFAILし、その他のGateはPASS、2026 accessは`0`
+- BT-03E-07 design freezeと実装完了、merge後development evaluation待ち
+- 2026 access `0`とBT-04 / BT-05 blockを維持
 
 ## v1.5 — 2026-08-29
 
@@ -2447,10 +2486,15 @@ BT-03E-05 reproducibility = VERIFIED
 BT-03E-05 integrity = PASS
 BT-03E-05 performance = FAIL / REDESIGN_REQUIRED
 BT-03E-06 design = FROZEN
-BT-03E-06 implementation = IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
+BT-03E-06 = COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
+BT-03E-06 reproducibility = VERIFIED
+BT-03E-06 integrity = PASS
+BT-03E-06 performance = FAIL / REDESIGN_REQUIRED
+BT-03E-07 design = FROZEN
+BT-03E-07 implementation = IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
 
 Next:
-BT-03E-06 development evaluation after merge
+BT-03E-07 development evaluation after merge
 
 Do not:
 redo BT-02 discovery

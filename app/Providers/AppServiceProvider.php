@@ -14,6 +14,7 @@ use App\Domain\Keirin\Backtest\Services\Bt03e02ReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Services\Bt03e04ReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Services\Bt03e05ReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Services\Bt03e06ReadOnlyQueryAudit;
+use App\Domain\Keirin\Backtest\Services\Bt03e07ReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Services\Bt03eReadOnlyQueryAudit;
 use App\Domain\Keirin\Backtest\Services\Bt03EvaluationSourceLoader;
 use Illuminate\Support\ServiceProvider;
@@ -34,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(Bt03e04ReadOnlyQueryAudit::class);
         $this->app->singleton(Bt03e05ReadOnlyQueryAudit::class);
         $this->app->singleton(Bt03e06ReadOnlyQueryAudit::class);
+        $this->app->singleton(Bt03e07ReadOnlyQueryAudit::class);
         $this->app->bind(EffectBinBoundaryProvider::class, ExternalSortEffectBinBoundaryProvider::class);
     }
 
