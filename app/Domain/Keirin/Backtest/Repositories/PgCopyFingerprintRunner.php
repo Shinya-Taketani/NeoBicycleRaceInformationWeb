@@ -14,9 +14,9 @@ use RuntimeException;
 
 class PgCopyFingerprintRunner implements Bt02FingerprintRunner
 {
-    public const REQUIRED_CLIENT_VERSION = '18.4';
+    public const REQUIRED_CLIENT_VERSION = '18.6';
 
-    public const REQUIRED_SERVER_VERSION_NUM = '180004';
+    public const REQUIRED_SERVER_VERSION_NUM = '180006';
 
     public function __construct(
         private readonly ?PgConnectionConfigDto $connection = null,
@@ -39,7 +39,7 @@ class PgCopyFingerprintRunner implements Bt02FingerprintRunner
         if ($client->exitCode !== 0
             || preg_match('/^psql \(PostgreSQL\) ([0-9]+\.[0-9]+)(?:\s|$)/', trim($clientOutput), $matches) !== 1
             || ($matches[1] ?? null) !== self::REQUIRED_CLIENT_VERSION) {
-            throw new RuntimeException('BT-02 fingerprint requires psql client 18.4.');
+            throw new RuntimeException('BT-02 fingerprint requires psql client 18.6.');
         }
 
         $serverOutput = '';
@@ -47,7 +47,7 @@ class PgCopyFingerprintRunner implements Bt02FingerprintRunner
             $serverOutput .= $chunk;
         });
         if ($server->exitCode !== 0 || trim($serverOutput) !== self::REQUIRED_SERVER_VERSION_NUM) {
-            throw new RuntimeException('BT-02 fingerprint requires PostgreSQL server 18.4.');
+            throw new RuntimeException('BT-02 fingerprint requires PostgreSQL server 18.6.');
         }
     }
 

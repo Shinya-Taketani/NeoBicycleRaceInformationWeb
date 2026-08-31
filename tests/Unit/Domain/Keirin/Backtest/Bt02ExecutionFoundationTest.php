@@ -59,30 +59,47 @@ class Bt02ExecutionFoundationTest extends TestCase
         }
     }
 
-    public function test_psql_client_and_server_version_guards_fail_closed(): void
+    public function test_psql_client_and_server_version_18_6_are_accepted(): void
     {
-        $wrongClient = $this->script(<<<'SH'
-#!/bin/sh
-echo 'psql (PostgreSQL) 17.9'
-SH);
-        $this->assertCallbackThrows(
-            fn () => $this->pgRunner($wrongClient)->assertVersionContract(),
-            RuntimeException::class,
-        );
+        $this->pgRunner($this->versionScript('18.6', '180006'))->assertVersionContract();
+        $this->addToAssertionCount(1);
+    }
 
-        $wrongServer = $this->script(<<<'SH'
-#!/bin/sh
-if [ "$1" = "--version" ]; then
-  echo 'psql (PostgreSQL) 18.4'
-  exit 0
-fi
-cat >/dev/null
-echo '180003'
-SH);
-        $this->assertCallbackThrows(
-            fn () => $this->pgRunner($wrongServer)->assertVersionContract(),
-            RuntimeException::class,
-        );
+    public function test_psql_client_version_guard_rejects_other_patch_versions(): void
+    {
+        foreach (['17.9', '18.4', '18.5'] as $version) {
+            $this->assertCallbackThrows(
+                fn () => $this->pgRunner($this->versionScript($version, '180006'))->assertVersionContract(),
+                RuntimeException::class,
+            );
+        }
+    }
+
+    public function test_postgresql_server_version_guard_rejects_other_patch_versions(): void
+    {
+        foreach (['180004', '180005', '180007'] as $version) {
+            $this->assertCallbackThrows(
+                fn () => $this->pgRunner($this->versionScript('18.6', $version))->assertVersionContract(),
+                RuntimeException::class,
+            );
+        }
+    }
+
+    public function test_psql_binary_environment_override_is_used(): void
+    {
+        $previous = getenv('BT02_PSQL_BINARY');
+        putenv('BT02_PSQL_BINARY='.$this->versionScript('18.6', '180006'));
+
+        try {
+            (new PgCopyFingerprintRunner(
+                new PgConnectionConfigDto('127.0.0.1', '5432', 'unused', 'unused', ''),
+            ))->assertVersionContract();
+            $this->addToAssertionCount(1);
+        } finally {
+            $previous === false
+                ? putenv('BT02_PSQL_BINARY')
+                : putenv('BT02_PSQL_BINARY='.$previous);
+        }
     }
 
     public function test_nonzero_psql_copy_exit_is_rejected_without_hashing_stderr(): void
@@ -288,6 +305,19 @@ SH);
         $this->temporaryPaths[] = $path;
 
         return $path;
+    }
+
+    private function versionScript(string $clientVersion, string $serverVersion): string
+    {
+        return $this->script(<<<SH
+#!/bin/sh
+if [ "\$1" = "--version" ]; then
+  echo 'psql (PostgreSQL) {$clientVersion}'
+  exit 0
+fi
+cat >/dev/null
+echo '{$serverVersion}'
+SH);
     }
 
     private function temporaryDirectory(): string
