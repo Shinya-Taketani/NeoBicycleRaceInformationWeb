@@ -22,7 +22,7 @@ class Bt02PgCopyFingerprintIntegrationTest extends TestCase
     {
         parent::setUp();
         if (getenv('BT02_PG_INTEGRATION') !== '1' || DB::getDriverName() !== 'pgsql') {
-            $this->markTestSkipped('BT-02 COPY fingerprint integration requires an isolated PostgreSQL 18.4 database.');
+            $this->markTestSkipped('BT-02 COPY fingerprint integration requires an isolated PostgreSQL 18.6 database.');
         }
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $this->psqlBinary = getenv('BT02_PSQL_BINARY') ?: '/usr/pgsql-18/bin/psql';
