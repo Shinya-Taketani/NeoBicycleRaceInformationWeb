@@ -64,6 +64,38 @@ final class Bt03e08Contract
 
     public const BOOTSTRAP_SEED = 20260812;
 
+    public const BOOTSTRAP_CI_LOWER = 0.025;
+
+    public const BOOTSTRAP_CI_UPPER = 0.975;
+
+    public const NON_INFERIORITY_CI_LOWER_THRESHOLD = -0.0015;
+
+    public const SUPERIORITY_CI_LOWER_THRESHOLD = 0.0;
+
+    public const SUPERIORITY_POSITION_CI_POSITIVE_MIN_COUNT = 1;
+
+    public const SUPERIORITY_PRIMARY_POSITIVE_MIN_COUNT = 3;
+
+    public const TEMPORAL_STABILITY_DELTA_THRESHOLD = -0.0030;
+
+    public const TECHNICAL_TIE_RATE_MAX = 0.001;
+
+    public const SUPPORTING_MIN_NON_NEGATIVE_COUNT = 4;
+
+    public const SUPPORTING_NON_NEGATIVE_THRESHOLD = 0.0;
+
+    public const SUPPORTING_MIN_ALLOWED_DELTA = -0.0020;
+
+    public const POSITION_REDESIGN_WIN_MIN_EXCLUSIVE = 0.0;
+
+    public const POSITION_REDESIGN_P2_MIN_INCLUSIVE = 0.0;
+
+    public const POSITION_REDESIGN_P3_MIN_EXCLUSIVE = 0.0;
+
+    public const POSITION_REDESIGN_HIT3_MIN_EXCLUSIVE = 0.0;
+
+    public const WIN_PRESERVATION_MIN_INCLUSIVE = 0.0;
+
     /** @var list<int> */
     public const DEVELOPMENT_YEARS = [2022, 2023, 2024, 2025];
 
@@ -129,11 +161,30 @@ final class Bt03e08Contract
                 '2024' => 'inner 2022->2023; refit 2022-2023; predict and seal 2024 before opening 2024 outcomes',
                 '2025' => 'inner 2022->2023 + 2022-2023->2024 equal-year; refit 2022-2024; predict and seal 2025 before opening 2025 outcomes',
             ],
-            'bootstrap' => ['iterations' => self::BOOTSTRAP_ITERATIONS, 'seed' => self::BOOTSTRAP_SEED, 'type' => 7, 'unit' => 'YEAR_STRATIFIED_PAIRED_RACE_CLUSTER'],
-            'acceptance_gate' => Bt03e07Contract::acceptanceGate(),
+            'bootstrap' => ['iterations' => self::BOOTSTRAP_ITERATIONS, 'seed' => self::BOOTSTRAP_SEED, 'ci_lower_quantile' => self::BOOTSTRAP_CI_LOWER, 'ci_upper_quantile' => self::BOOTSTRAP_CI_UPPER, 'type' => 7, 'unit' => 'YEAR_STRATIFIED_PAIRED_RACE_CLUSTER'],
+            'acceptance_gate' => self::acceptanceGate(),
             'development_years' => self::DEVELOPMENT_YEARS,
             '2026_access' => 'FORBIDDEN',
             'read_only' => true,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function acceptanceGate(): array
+    {
+        return [
+            'non_inferiority' => ['primary_ci_lower_gt' => self::NON_INFERIORITY_CI_LOWER_THRESHOLD],
+            'superiority' => [
+                'hit3_ci_lower_gt' => self::SUPERIORITY_CI_LOWER_THRESHOLD,
+                'one_of_win_p2_p3_ci_lower_gt' => self::SUPERIORITY_CI_LOWER_THRESHOLD,
+                'one_of_win_p2_p3_positive_min_count' => self::SUPERIORITY_POSITION_CI_POSITIVE_MIN_COUNT,
+                'primary_year_equal_positive_min_count' => self::SUPERIORITY_PRIMARY_POSITIVE_MIN_COUNT,
+            ],
+            'temporal_stability' => ['each_outer_primary_delta_gte' => self::TEMPORAL_STABILITY_DELTA_THRESHOLD],
+            'supporting' => ['non_negative_min_count' => self::SUPPORTING_MIN_NON_NEGATIVE_COUNT, 'non_negative_threshold' => self::SUPPORTING_NON_NEGATIVE_THRESHOLD, 'none_below' => self::SUPPORTING_MIN_ALLOWED_DELTA],
+            'tie_quality' => ['technical_tiebreak_rate_lte' => self::TECHNICAL_TIE_RATE_MAX, 'candidate_tie_rate_lte_baseline' => true],
+            'position_redesign' => ['winner_year_equal_gt' => self::POSITION_REDESIGN_WIN_MIN_EXCLUSIVE, 'p2_year_equal_gte' => self::POSITION_REDESIGN_P2_MIN_INCLUSIVE, 'p3_year_equal_gt' => self::POSITION_REDESIGN_P3_MIN_EXCLUSIVE, 'hit3_year_equal_gt' => self::POSITION_REDESIGN_HIT3_MIN_EXCLUSIVE],
+            'win_preservation' => ['each_outer_year_winner_delta_gte' => self::WIN_PRESERVATION_MIN_INCLUSIVE],
         ];
     }
 

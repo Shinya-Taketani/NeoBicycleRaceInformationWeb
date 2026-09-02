@@ -1,9 +1,9 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.7
+- Version: 1.8
 - Created: 2026-08-23
-- Updated: 2026-09-02
+- Updated: 2026-09-03
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -167,10 +167,10 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: BT-03E-08_ENGINEERING
+current_engine_state: BT-03E-08_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
 current_scoring_hypothesis_status: BT-03E-07_REJECTED_FOR_ADOPTION
-next_allowed_action: BT-03E-08_ENGINEERING
-next_implementation_phase: BT-03E-08
+next_allowed_action: BT-03E-08_DEVELOPMENT_EVALUATION_AFTER_MERGE
+next_implementation_phase: NONE_BEFORE_BT-03E-08_EVALUATION
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
 bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
@@ -210,7 +210,7 @@ bt03e07_reproducibility: VERIFIED
 bt03e07_performance: FAIL / REDESIGN_REQUIRED
 bt03e07_2026_access: 0
 bt03e06_vs_e07_diagnostic: COMPLETED
-bt03e08_status: ENGINEERING
+bt03e08_status: IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
 2026_access: 0
 final_points: NOT_APPLICABLE_CONTINUOUS_SCORE
 final_thresholds: UNFROZEN
@@ -239,6 +239,7 @@ completed_phases:
   - BT-03E-07_ENGINEERING
   - BT-03E-07_DEVELOPMENT_EVALUATION
   - BT-03E-06_VS_E07_DIAGNOSTIC
+  - BT-03E-08_ENGINEERING
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -290,6 +291,12 @@ frozen_contracts:
   - BT03E07_SHARED_ONE_SE_P2_P3_ONLY
   - BT03E07_2022_2025_DEVELOPMENT_ONLY
   - BT03E07_2026_FORBIDDEN
+  - BT03E08_SOURCE_P1_BIT_EXACT_FREEZE
+  - BT03E08_E06_WINNER_CONDITIONED_Q2_FREEZE
+  - BT03E08_WINNER_CONDITIONED_DIRECT_P3_ONLY
+  - BT03E08_ACTUAL_RANK2_REMAINS_P3_CANDIDATE
+  - BT03E08_2022_2025_DEVELOPMENT_ONLY
+  - BT03E08_2026_FORBIDDEN
   - LEAKAGE
   - SOURCE_INTEGRITY
   - MISSING_STATUS_SEMANTICS
@@ -332,8 +339,9 @@ holdout_status:
 - BT-03E-04は再現性 `VERIFIED`、integrity `PASS`で完了したが、NIとSuperiorityがFAILし、performanceは `FAIL / REDESIGN_REQUIRED` となった。Primary 4指標のpoint estimateは両年で全てpositiveだった一方、NI failureはP3 CI lowerだけだった。
 - BT-03E-05は再現性 `VERIFIED`、integrity `PASS`で完了したが、P2・P3のNon-InferiorityがFAILし、performanceは `FAIL / REDESIGN_REQUIRED` となった。Superiority、Temporal、Supporting、Tie、Position Redesign、Win PreservationはPASS、2026 accessは`0`だった。
 - BT-03E-06は再現性 `VERIFIED`、integrity `PASS`で完了したが、P2・P3のNon-InferiorityがFAILし、performanceは `FAIL / REDESIGN_REQUIRED` となった。その他のGateはPASS、2026 accessは`0`だった。
-- BT-03E-07はE03 v2のP1をbit-exact固定し、teacher forcingを使わないfull-field direct softmaxでP2/P3だけを学習する設計をfreezeして実装した。
-- 次に許可されるのはmerge後の **BT-03E-07 development evaluation** である。
+- BT-03E-07はformal development evaluationと再現性検証を完了し、performance `FAIL / REDESIGN_REQUIRED`のため採用を棄却した。
+- BT-03E-08はE03 source artifactのP1とE06 winner-conditioned Q2を固定し、actual rank2をcandidateに残したwinner-conditioned direct P3だけを再学習する設計で実装済みである。
+- 次に許可されるのはPR merge後の **BT-03E-08 development evaluation** である。
 - 2024・2025はdevelopment corpusとしてのみ利用し、final untouched holdoutとは扱わない。
 - 2026は最終モデル選択・fitted parameter・score仕様がfreezeされるまで評価禁止。
 
@@ -501,7 +509,7 @@ BT-03E-02以降で利用する場合は、
 | BT-03E-05 | winner-preserving lexicographic decoder | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
 | BT-03E-06 | winner-conditioned sequential decoder | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
 | BT-03E-07 | P1-frozen direct P2/P3 position model | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | CLOSED / REDESIGN_REQUIRED |
-| BT-03E-08 | P1/Q2-frozen winner-conditioned direct P3 model | ENGINEERING | IMPLEMENT AND REVIEW |
+| BT-03E-08 | P1/Q2-frozen winner-conditioned direct P3 model | IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION | EVALUATE AFTER MERGE |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -1905,7 +1913,7 @@ BT-03E-07ではE03 v2 artifactのP1をbit-exact固定し、P2/P3だけを全出�
 
 E06とE07の診断は完了した。P1は50,078 racesでexact matchし、E07の悪化はP2/P3に限定された。E07 full-field分布ではwinner massがD2平均約0.38、D3平均約0.34を消費していた。D2のwinner除外後正規化はE06 Q2へ大きく近づき、D3も改善したがshape差が残った。eligibility増加は主因ではなく、7車cohortで悪化が明確だった。
 
-次工程BT-03E-08ではE03/E06のP1とQ2を固定し、P3だけを学習時・推論時ともwinnerを分母から除くdirect softmaxとして再設計する。rank2はP3 candidateに残し、2026は引き続きclosedとする。
+BT-03E-08はE03 source artifactのP1とE06 winner-conditioned Q2を固定し、P3だけを学習時・推論時ともwinnerを分母から除くdirect softmaxとして実装した。rank2はP3 candidateに残し、2026は引き続きclosedとする。development evaluationはPR merge後に行う。
 
 ---
 
@@ -2268,7 +2276,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | DEVELOPMENT_REDESIGN_ENGINEERING | BT-03E-07は再現可能なnegative result。BT-03E-08 P1/Q2-frozen winner-conditioned direct P3 modelを実装中 |
+| Goal 3 score / parameter決定 | DEVELOPMENT_EVALUATION_PENDING | BT-03E-07は再現可能なnegative result。BT-03E-08 P1/Q2-frozen winner-conditioned direct P3 modelは実装済み・merge後評価待ち |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -2307,6 +2315,19 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.8 — 2026-09-03
+
+```yaml
+document_version: 1.8
+updated_at: 2026-09-03
+remote_main_sha: 376b291452e2d682ddc5b22d90a7e0fc286d1e06
+phase_changed: BT-03E-08_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
+related_pr: PR #53
+related_run: NONE
+decision: BT-03E-08 engineering implemented; development evaluation remains blocked until merge
+reason: P1 source and E06 Q2 remain frozen while only winner-conditioned direct P3 is retrained
+```
 
 ## v1.7 — 2026-09-02
 
@@ -2529,10 +2550,10 @@ BT-03E-07 reproducibility = VERIFIED
 BT-03E-07 performance = FAIL / REDESIGN_REQUIRED
 BT-03E-07 2026 access = 0
 BT-03E-06 vs BT-03E-07 diagnostic = COMPLETED
-BT-03E-08 = ENGINEERING
+BT-03E-08 = IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
 
 Next:
-BT-03E-08 engineering and review
+BT-03E-08 development evaluation after merge
 
 Do not:
 redo BT-02 discovery

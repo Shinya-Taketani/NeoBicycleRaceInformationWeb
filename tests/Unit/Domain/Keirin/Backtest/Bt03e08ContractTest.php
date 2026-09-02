@@ -26,6 +26,12 @@ final class Bt03e08ContractTest extends TestCase
         $this->assertSame(1e-10, Bt03e08Contract::OBJECTIVE_TOLERANCE);
         $this->assertSame(2000, Bt03e08Contract::BOOTSTRAP_ITERATIONS);
         $this->assertSame(20260812, Bt03e08Contract::BOOTSTRAP_SEED);
+        $this->assertSame(-0.0015, Bt03e08Contract::NON_INFERIORITY_CI_LOWER_THRESHOLD);
+        $this->assertSame(0.0, Bt03e08Contract::SUPERIORITY_CI_LOWER_THRESHOLD);
+        $this->assertSame(-0.003, Bt03e08Contract::TEMPORAL_STABILITY_DELTA_THRESHOLD);
+        $this->assertSame(0.001, Bt03e08Contract::TECHNICAL_TIE_RATE_MAX);
+        $this->assertSame(-0.002, Bt03e08Contract::SUPPORTING_MIN_ALLOWED_DELTA);
+        $this->assertSame(Bt03e08Contract::acceptanceGate(), $plan['acceptance_gate']);
         $this->assertSame('FORBIDDEN', $plan['2026_access']);
     }
 }

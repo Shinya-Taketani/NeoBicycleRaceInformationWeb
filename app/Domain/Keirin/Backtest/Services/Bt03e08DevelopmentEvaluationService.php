@@ -8,12 +8,12 @@ use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayout;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayoutBuilder;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e03ProbabilityScorer;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e06WinnerConditionedDecoder;
-use App\Domain\Keirin\Backtest\Calculators\Bt03e07AcceptanceGate;
-use App\Domain\Keirin\Backtest\Calculators\Bt03e07MetricEvaluator;
-use App\Domain\Keirin\Backtest\Calculators\Bt03e07PairedBootstrap;
+use App\Domain\Keirin\Backtest\Calculators\Bt03e08AcceptanceGate;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e08FistaOptimizer;
+use App\Domain\Keirin\Backtest\Calculators\Bt03e08MetricEvaluator;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e08OneSeSelector;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e08P1Q2FrozenDecoder;
+use App\Domain\Keirin\Backtest\Calculators\Bt03e08PairedBootstrap;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e08WinnerConditionedP3Objective;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e08WinnerConditionedP3Scorer;
 use App\Domain\Keirin\Backtest\DTO\Bt03e06ReconstructedModelDto;
@@ -58,13 +58,13 @@ final class Bt03e08DevelopmentEvaluationService
         private readonly Bt03e06WinnerConditionedDecoder $frozenDecoder,
         private readonly Bt03e06ModelReconstructor $models,
         private readonly Bt03e03ProbabilityScorer $sourceScorer,
-        private readonly Bt03e06ForwardReconstructionVerifier $forwardVerifier,
+        private readonly Bt03e08FrozenP1Q2SourceAssembler $frozenSourceAssembler,
         private readonly Bt03eRuleSourceRepository $sourceRepository,
         private readonly Bt03eOutcomeSnapshotProvider $snapshots,
         private readonly Bt03e08OutcomeEvaluationLoader $outcomes,
-        private readonly Bt03e07MetricEvaluator $metrics,
-        private readonly Bt03e07PairedBootstrap $bootstrap,
-        private readonly Bt03e07AcceptanceGate $acceptance,
+        private readonly Bt03e08MetricEvaluator $metrics,
+        private readonly Bt03e08PairedBootstrap $bootstrap,
+        private readonly Bt03e08AcceptanceGate $acceptance,
         private readonly Bt03e02SourceIntegrityGuard $integrity,
         private readonly Bt03e08OutcomeSnapshotEndVerifier $endSnapshotVerifier,
         private readonly Bt03e08ReproducibilityVerifier $reproducibility,
@@ -233,10 +233,10 @@ final class Bt03e08DevelopmentEvaluationService
             $sourceRace = $sourceIterator->current();
             $binnedRace = $binnedIterator->current();
             $reconstructed = $this->sourceScorer->predict($binnedRace, $sourceModel->fit);
-            $this->forwardVerifier->verifyRace($sourceRace, $reconstructed);
-            $frozen = $this->frozenDecoder->decode($reconstructed);
+            $authoritativeSource = $this->frozenSourceAssembler->assemble($sourceRace, $reconstructed);
+            $frozen = $this->frozenDecoder->decode($authoritativeSource);
             $p3 = $this->p3Scorer->predict($binnedRace, $refit['fit'], $frozen['primary_position_1_bike']);
-            $decision = $this->decoder->decode($reconstructed, $p3);
+            $decision = $this->decoder->decode($authoritativeSource, $p3);
             $manifest->append($decision);
             $predictions->append($decision);
             $sourceIterator->next();
