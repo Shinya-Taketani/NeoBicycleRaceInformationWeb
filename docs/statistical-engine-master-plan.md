@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.8
+- Version: 1.9
 - Created: 2026-08-23
-- Updated: 2026-09-03
+- Updated: 2026-09-13
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `376b291452e2d682ddc5b22d90a7e0fc286d1e06`
+- Remote `main` at last update: `d7975fb3b09f127cb9afb9c89aa1bb33d07c857c`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,10 +167,10 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: BT-03E-08_IMPLEMENTED_AWAITING_DEVELOPMENT_EVALUATION
-current_scoring_hypothesis_status: BT-03E-07_REJECTED_FOR_ADOPTION
-next_allowed_action: BT-03E-08_DEVELOPMENT_EVALUATION_AFTER_MERGE
-next_implementation_phase: NONE_BEFORE_BT-03E-08_EVALUATION
+current_engine_state: TACTICAL-PILOT-01_BLOCKED_INPUT_SEMANTICS
+current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
+next_allowed_action: TACTICAL-PILOT-01_INPUT_DEFINITION_CONFIRMATION
+next_implementation_phase: TACTICAL-PILOT-01_ONLY_AFTER_INPUT_SEMANTICS_FREEZE
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
 bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
@@ -210,7 +210,16 @@ bt03e07_reproducibility: VERIFIED
 bt03e07_performance: FAIL / REDESIGN_REQUIRED
 bt03e07_2026_access: 0
 bt03e06_vs_e07_diagnostic: COMPLETED
-bt03e08_status: IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
+bt03e08_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
+bt03e08_reproducibility: VERIFIED
+bt03e08_integrity: PASS
+bt03e08_performance: FAIL / REDESIGN_REQUIRED
+bt03e08_2026_access: 0
+bt03e08_same_condition_rerun: FORBIDDEN
+tactical_pilot_01_status: BLOCKED_INPUT_SEMANTICS
+tactical_pilot_01_scope: EXPERIMENT_ONLY_NOT_FORMAL_STAT_OR_LIVE
+tactical_pilot_01_eligible_inputs: NOT_FROZEN
+tactical_pilot_01_new_fits: 0
 2026_access: 0
 final_points: NOT_APPLICABLE_CONTINUOUS_SCORE
 final_thresholds: UNFROZEN
@@ -240,12 +249,14 @@ completed_phases:
   - BT-03E-07_DEVELOPMENT_EVALUATION
   - BT-03E-06_VS_E07_DIAGNOSTIC
   - BT-03E-08_ENGINEERING
+  - BT-03E-08_DEVELOPMENT_EVALUATION
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
   - BT-03E-01-COARSE-INTEGER-SCORING-RULE
 
 blocked_phases:
+  - TACTICAL-PILOT-01_TRAIN_COMPARE_UNTIL_INPUT_SEMANTICS_CONFIRMED
   - BT-04
   - BT-05-LIVE
 
@@ -341,7 +352,9 @@ holdout_status:
 - BT-03E-06は再現性 `VERIFIED`、integrity `PASS`で完了したが、P2・P3のNon-InferiorityがFAILし、performanceは `FAIL / REDESIGN_REQUIRED` となった。その他のGateはPASS、2026 accessは`0`だった。
 - BT-03E-07はformal development evaluationと再現性検証を完了し、performance `FAIL / REDESIGN_REQUIRED`のため採用を棄却した。
 - BT-03E-08はE03 source artifactのP1とE06 winner-conditioned Q2を固定し、actual rank2をcandidateに残したwinner-conditioned direct P3だけを再学習する設計で実装済みである。
-- 次に許可されるのはPR merge後の **BT-03E-08 development evaluation** である。
+- BT-03E-08のformal development evaluationは再現性 `VERIFIED`、integrity `PASS`、performance `FAIL / REDESIGN_REQUIRED`で完了した。同条件の再学習・再評価は次工程にしない。
+- ユーザーの2026-09-13の新規指示は **TACTICAL-PILOT-01** に限定する。これはE08成果物による承認ではなく、戦法7候補の意味・過去時点を確認してから行う独立実験であり、正式STAT追加・LIVE開始ではない。
+- 現在は7候補の集計基準日・対象レース自身の除外根拠が未確認で `BLOCKED_INPUT_SEMANTICS`。適格入力を学習前に確定できるまでfit・比較へ進まない。詳細はSection 15.24および `docs/tactical-pilot-01-input-definition-status.md`。
 - 2024・2025はdevelopment corpusとしてのみ利用し、final untouched holdoutとは扱わない。
 - 2026は最終モデル選択・fitted parameter・score仕様がfreezeされるまで評価禁止。
 
@@ -509,7 +522,8 @@ BT-03E-02以降で利用する場合は、
 | BT-03E-05 | winner-preserving lexicographic decoder | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
 | BT-03E-06 | winner-conditioned sequential decoder | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | FAIL / REDESIGN_REQUIRED |
 | BT-03E-07 | P1-frozen direct P2/P3 position model | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | CLOSED / REDESIGN_REQUIRED |
-| BT-03E-08 | P1/Q2-frozen winner-conditioned direct P3 model | IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION | EVALUATE AFTER MERGE |
+| BT-03E-08 | P1/Q2-frozen winner-conditioned direct P3 model | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | CLOSED / REDESIGN_REQUIRED |
+| TACTICAL-PILOT-01 | 戦法回数追加あり/なしの限定比較 | BLOCKED_INPUT_SEMANTICS | NOT_EVALUATED / NO_FIT |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -1913,7 +1927,47 @@ BT-03E-07ではE03 v2 artifactのP1をbit-exact固定し、P2/P3だけを全出�
 
 E06とE07の診断は完了した。P1は50,078 racesでexact matchし、E07の悪化はP2/P3に限定された。E07 full-field分布ではwinner massがD2平均約0.38、D3平均約0.34を消費していた。D2のwinner除外後正規化はE06 Q2へ大きく近づき、D3も改善したがshape差が残った。eligibility増加は主因ではなく、7車cohortで悪化が明確だった。
 
-BT-03E-08はE03 source artifactのP1とE06 winner-conditioned Q2を固定し、P3だけを学習時・推論時ともwinnerを分母から除くdirect softmaxとして実装した。rank2はP3 candidateに残し、2026は引き続きclosedとする。development evaluationはPR merge後に行う。
+BT-03E-08はE03 source artifactのP1とE06 winner-conditioned Q2を固定し、P3だけを学習時・推論時ともwinnerを分母から除くdirect softmaxとして実装した。rank2はP3 candidateに残す。development evaluationは再現可能な否定結果として完了し、2026は引き続きclosedとする。
+
+## 15.23 BT-03E-08正式結果の確定
+
+2026-09-13の成果物再利用・比較で確認済み。今回のTACTICAL-PILOT-01ではE08の再学習・再評価・163検証の再実行を行わない。
+
+```yaml
+engineering_status: COMPLETED
+development_evaluation_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
+first_run: bt03e08-20260902-221559-4d321fac724ff4664e9136a35b43e7d1
+verified_run: bt03e08-20260903-091134-1156938f229c4861ac1975b5e5477029
+reproducibility: VERIFIED
+reproducibility_sha256: 6a27d6407bec2b4780dfd377385db73cd1dffaffcd07ec0fa1fabcacd977f591
+integrity: PASS
+performance: FAIL / REDESIGN_REQUIRED
+adoption: REJECTED
+2026_access: 0
+```
+
+実パス:
+
+- 初回: `/tmp/tmp/bt03e08-development-20260903-042748-5d45f2a01ec0d7402f25012a1ed628a6`
+- 検証回: `/tmp/tmp/bt03e08-development-20260903-152323-bd009f89dc2e66e2e210451fd5d9ad6e`
+- 確認済み比較: `/tmp/neo-keirin-bt03e08-evaluation-20260913-01/performance-summary.md`
+
+年別等重みのE08-E06差はP1 `0`、P2 `-1.378547pp`、P3 `-0.594071pp`、Hit@3 `-0.658586pp`。E06も正式採用Gateを通過していない比較参照であり、本番採用モデルとは呼ばない。
+E08の整合性・再現性成功を精度向上とは解釈しない。過去のstdout/stderr・実終了コード・実行時コードSHAは前回比較でも未確認であり、今回補完しない。
+
+## 15.24 TACTICAL-PILOT-01の限定許可と入力停止条件
+
+以下はユーザーの新規指示による実験範囲であり、E08の凍結契約の変更ではない。
+
+- 入力候補はPJ0315の `nigeCnt / makuriCnt / sasiCnt / markCnt / backCnt / homeTori / stTori` の回数生値だけ。意味・集計期間・対象レース以前の内容である根拠を確認できた項目だけ、最初のfit前に適格と固定する。
+- C0はSTAT-01 anchor+既存12 STAT、E03 v2の逐次条件付きcategorical NLL、E06型decoder。C1は同じ学習・選択・評価規則で適格戦法回数だけを追加し、全3順位を学習する。E08 P3-onlyを持ち込まない。
+- 既存lambda grid、strong-to-weak、200 accepted updates、tolerance・正則化・bin・One-SE・decoderを変更しない。C0再利用には元のE03係数からE06予測までの同一性検証が必要。
+- Outer 2024は2022/2023で選択・refit、Outer 2025は2022/2023と2022-2023/2024のinnerで選択し2022-2024でrefit。各outer prediction seal後に当該年のoutcomeを開く。
+- C1-C0のHit@3 CI下限>0、全4主指標CI下限>-0.0015、各年Hit@3差>=0、各年全主指標差>=-0.0030、入力・時系列・再現性・cohort検査を要求する。年層別paired race bootstrapは2000回、seed20260812、Type7。対STAT-01の現行Gateも別に報告する。
+- 本番DBはREAD ONLY、Rawは対象レースを先に解決したallowlistだけを読む。実験snapshot・学習成果物はリポジトリ外。本番Migration・正式STAT番号追加・新規scraping・既存モデル更新はしない。
+- DATA-AUDIT-01を再実行せず、既存標本から各年先頭・末尾8レースだけを定義確認した。7列が「直近4ヶ月成績」配下にある構造は確認したが、期間の端点・各値の基準日・当該レース結果の除外は確認できなかった。
+- `lastUpdateTime`が対象日朝であることや `tyo4InfoSubData` に過去開催日があることを、7回数の時点証明として代用しない。現在 `BLOCKED_INPUT_SEMANTICS`、適格リスト未freeze、新規fit=0、精度差/Gateは未評価。
+- この停止は精度の否定結果ではない。必要な仕様資料を得て入力適格性を確認した後にだけ、許可済み限定実験を継続する。正式採用、BT-04/BT-05、2026解禁へ自動移行しない。
 
 ---
 
@@ -2276,7 +2330,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | DEVELOPMENT_EVALUATION_PENDING | BT-03E-07は再現可能なnegative result。BT-03E-08 P1/Q2-frozen winner-conditioned direct P3 modelは実装済み・merge後評価待ち |
+| Goal 3 score / parameter決定 | NOT_COMPLETED / EXPERIMENT_INPUT_BLOCKED | BT-03E-08も再現可能なnegative resultとして不採用。新規TACTICAL-PILOT-01は入力意味・時点の確認待ちで未学習 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -2315,6 +2369,21 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.9 — 2026-09-13
+
+```yaml
+document_version: 1.9
+updated_at: 2026-09-13
+remote_main_sha: d7975fb3b09f127cb9afb9c89aa1bb33d07c857c
+phase_changed: TACTICAL-PILOT-01_BLOCKED_INPUT_SEMANTICS
+related_pr: PR #53 merged; new experiment authorized by current user request
+related_run: bt03e08-20260903-091134-1156938f229c4861ac1975b5e5477029
+decision: Close E08 as a verified negative result; authorize only the new tactical-input pilot after semantic eligibility is confirmed
+reason: Existing E08 comparison is complete; PJ0315 aggregate field as-of dates and target-result exclusion remain unverified
+```
+
+過去の変更履歴は当時の記録として維持する。現在地のE08評価待ち記載を解消し、今回未学習であることと2026 / BT-04 / BT-05の制限を維持した。
 
 ## v1.8 — 2026-09-03
 
@@ -2550,16 +2619,23 @@ BT-03E-07 reproducibility = VERIFIED
 BT-03E-07 performance = FAIL / REDESIGN_REQUIRED
 BT-03E-07 2026 access = 0
 BT-03E-06 vs BT-03E-07 diagnostic = COMPLETED
-BT-03E-08 = IMPLEMENTED / AWAITING_DEVELOPMENT_EVALUATION
+BT-03E-08 = COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
+BT-03E-08 reproducibility = VERIFIED
+BT-03E-08 performance = FAIL / REDESIGN_REQUIRED
+BT-03E-08 same-condition rerun = FORBIDDEN
+TACTICAL-PILOT-01 = BLOCKED_INPUT_SEMANTICS / NO_FIT
 
 Next:
-BT-03E-08 development evaluation after merge
+Confirm PJ0315 tactical field as-of/period semantics before the authorized limited pilot
 
 Do not:
 redo BT-02 discovery
 restart old BT-03D
 rerun BT-03 run6
 rewrite the audited BT-03E-02 result
+rerun BT-03E-08 with the same hypothesis
+rerun DATA-AUDIT-01
+infer missing tactical input definitions or use unknown current-profile values as historical racecard inputs
 rerun BT-03E-01 with the same hypothesis
 adopt base_step=30 / STAT23=5 / STAT31=5 as final points
 open 2026
