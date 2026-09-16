@@ -153,6 +153,11 @@ final class Objective
     /** @param list<float> $values @return list<float> */
     public function groupProx(Layout $layout, array $values, float $step, float $lambda): array
     {
+        if (! is_finite($step) || $step <= 0.0 || ! is_finite($lambda) || $lambda < 0.0) {
+            throw new InvalidArgumentException('Tactical history proximal step was invalid.');
+        }
+        // The group norm is radial within w.beta=0, so project before shrinking.
+        $values = $layout->project($values);
         foreach ($layout->groups() as $indexes) {
             $squares = new Bt03e03CompensatedSum;
             foreach ($indexes as $index) {
@@ -162,7 +167,7 @@ final class Objective
             $threshold = $step * $lambda / (count($layout->groups()) * sqrt(count($indexes)));
             $factor = $norm > 0.0 ? max(0.0, 1.0 - $threshold / $norm) : 0.0;
             foreach ($indexes as $index) {
-                $values[$index] *= $factor;
+                $values[$index] = $factor === 0.0 ? 0.0 : $values[$index] * $factor;
             }
         }
 

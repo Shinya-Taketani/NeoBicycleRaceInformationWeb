@@ -100,7 +100,8 @@ final class Trainer
 
     private function model(Layout $layout, Bt03e03FitResultDto $fit): array
     {
-        return ['experiment' => HistoryAggregator::VERSION, 'frozen_optimizer_version' => Bt03e03Contract::OPTIMIZER_VERSION,
+        return ['experiment' => HistoryAggregator::VERSION, 'optimizer_version' => SolverContract::OPTIMIZER_VERSION,
+            'model_version' => SolverContract::MODEL_VERSION, 'objective_reference_version' => Bt03e03Contract::OPTIMIZER_VERSION,
             'lambda' => $fit->lambda, 'stat01_anchor_coefficient' => 1.0, 'layout' => $this->layoutAudit($layout),
             'position_coefficients' => $fit->coefficients, 'weighted_center_means' => array_map(fn ($c) => $layout->weightedMeans($c), $fit->coefficients),
             'objectives' => $fit->objectives, 'iterations' => $fit->iterations, 'eligible_races' => $fit->eligibleRaceCounts,

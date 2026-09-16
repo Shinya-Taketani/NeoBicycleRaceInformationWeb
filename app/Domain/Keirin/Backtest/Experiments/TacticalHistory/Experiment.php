@@ -11,9 +11,9 @@ use Throwable;
 
 final class Experiment
 {
-    public function __construct(private readonly Trainer $trainer, private readonly ControlReuse $control, private readonly Dataset $dataset, private readonly Bt03e03OneSeSelector $oneSe) {}
+    public function __construct(private readonly Trainer $trainer, private readonly Dataset $dataset, private readonly Bt03e03OneSeSelector $oneSe) {}
 
-    public function run(string $inputs, string $directory, array $oldE03, string $oldE06Csv, Bt02OutcomeContextSnapshot $snapshot): array
+    public function run(string $inputs, string $directory, Bt02OutcomeContextSnapshot $snapshot): array
     {
         if (file_exists($directory) || ! mkdir($directory, 0755)) {
             throw new RuntimeException('Experiment run directory must be new.');
@@ -35,59 +35,38 @@ final class Experiment
 
             return $path;
         };
-        $innerC1 = $innerC0 = $outerPaths = $reuses = [];
+        $inner = $outerPaths = [];
         try {
             $event('START', ['inputs' => $inputs]);
-            $training = [$inputs.'/inputs-2022.jsonl'];
-            $validation = [$inputs.'/inputs-2023.jsonl'];
-            $training[] = $validation[0];
+            $training = [$inputs.'/inputs-2022.jsonl', $inputs.'/inputs-2023.jsonl'];
             foreach ([2024, 2025] as $year) {
-                if ($year === 2025) {
-                    $event('C1_INNER_B_FIT_STARTED');
-                    $innerC1[2024] = $this->trainer->grid($training, [$directory.'/labels-2024.jsonl'], true, $mkdir($directory.'/C1-inner-B'));
-                    $event('C1_INNER_B_FIT_FINISHED');
-                    $training[] = $directory.'/labels-2024.jsonl';
-                }
-                $event('C0_RECONSTRUCTION_STARTED', ['year' => $year]);
-                $reuseDirectory = $mkdir($directory.'/C0-reuse-'.$year);
-                try {
-                    $reuses[$year] = $this->control->predict($year, $training, $inputs.'/inputs-'.$year.'.jsonl', $oldE03['outer_'.$year]['model'], $oldE06Csv, $reuseDirectory);
-                    $controlPath = $reuseDirectory.'/predictions.jsonl';
-                    $event('C0_REUSE_VERIFIED', ['year' => $year]);
-                } catch (ControlReuseException $exception) {
-                    JsonlArtifact::json($reuseDirectory.'/ineligible.json', ['status' => 'REUSE_INELIGIBLE', 'reason' => $exception->getMessage()]);
-                    $event('C0_REUSE_INELIGIBLE_FIT_REQUIRED', ['year' => $year, 'reason' => $exception->getMessage()]);
-                    if (! isset($innerC0[2023])) {
-                        $innerC0[2023] = $this->trainer->grid([$inputs.'/inputs-2022.jsonl'], [$inputs.'/inputs-2023.jsonl'], false, $mkdir($directory.'/C0-inner-A'));
-                    }
-                    if ($year === 2025) {
-                        $innerC0[2024] = $this->trainer->grid(array_slice($training, 0, 2), [$directory.'/labels-2024.jsonl'], false, $mkdir($directory.'/C0-inner-B'));
-                    }
-                    $selection = $this->oneSe->select(array_map(fn ($fold) => $fold['losses'], $innerC0));
-                    $fitDirectory = $mkdir($directory.'/C0-fit-'.$year);
+                $paths = [];
+                foreach (['C0' => false, 'C1' => true] as $candidate => $history) {
+                    $fold = $year === 2024 ? 'A' : 'B';
+                    $event($candidate.'_INNER_'.$fold.'_FIT_STARTED');
+                    $inner[$candidate][$year - 1] = $this->trainer->grid(
+                        $year === 2024 ? [$training[0]] : $training,
+                        $year === 2024 ? [$training[1]] : [$directory.'/labels-2024.jsonl'],
+                        $history,
+                        $mkdir($directory.'/'.$candidate.'-inner-'.$fold),
+                    );
+                    $event($candidate.'_INNER_'.$fold.'_FIT_FINISHED');
+                    $selection = $this->oneSe->select(array_map(fn ($fold) => $fold['losses'], $inner[$candidate]));
+                    $fitDirectory = $mkdir($directory.'/'.$candidate.'-fit-'.$year);
                     JsonlArtifact::json($fitDirectory.'/selection.json', $selection);
-                    $this->trainer->refit($training, $inputs.'/inputs-'.$year.'.jsonl', false, $selection['lambda'], $fitDirectory);
-                    $controlPath = $fitDirectory.'/predictions.jsonl';
+                    $event($candidate.'_OUTER_REFIT_STARTED', ['year' => $year, 'lambda' => $selection['lambda']]);
+                    $this->trainer->refit($year === 2024 ? $training : [...$training, $directory.'/labels-2024.jsonl'], $inputs.'/inputs-'.$year.'.jsonl', $history, $selection['lambda'], $fitDirectory);
+                    $paths[$candidate] = $fitDirectory.'/predictions.jsonl';
                 }
-                if ($year === 2024) {
-                    $event('C1_INNER_A_FIT_STARTED');
-                    $innerC1[2023] = $this->trainer->grid([$training[0]], $validation, true, $mkdir($directory.'/C1-inner-A'));
-                    $event('C1_INNER_A_FIT_FINISHED');
-                }
-                $selection = $this->oneSe->select(array_map(fn ($fold) => $fold['losses'], $innerC1));
-                $fitDirectory = $mkdir($directory.'/C1-fit-'.$year);
-                JsonlArtifact::json($fitDirectory.'/selection.json', $selection);
-                $event('C1_OUTER_REFIT_STARTED', ['year' => $year, 'lambda' => $selection['lambda']]);
-                $this->trainer->refit($training, $inputs.'/inputs-'.$year.'.jsonl', true, $selection['lambda'], $fitDirectory);
                 $event('BOTH_CANDIDATES_SEALED', ['year' => $year]);
-                $c1Path = $fitDirectory.'/predictions.jsonl';
                 $labels = $directory.'/labels-'.$year.'.jsonl';
-                $this->dataset->releaseLabels($year, $inputs.'/inputs-'.$year.'.jsonl', [$controlPath, $c1Path], $snapshot, $labels);
+                $this->dataset->releaseLabels($year, $inputs.'/inputs-'.$year.'.jsonl', array_values($paths), $snapshot, $labels);
                 $event('OUTER_LABELS_RELEASED_AFTER_SEAL', ['year' => $year]);
-                $outerPaths[$year] = ['C0' => $controlPath, 'C1' => $c1Path, 'labels' => $labels];
+                $outerPaths[$year] = [...$paths, 'labels' => $labels];
             }
             $progress['status'] = 'MODELS_AND_PREDICTIONS_COMPLETED_NOT_YET_EVALUATED';
-            $result = ['status' => $progress['status'], 'outer_paths' => $outerPaths, 'control_reuses' => $reuses];
+            $result = ['status' => $progress['status'], 'outer_paths' => $outerPaths, 'control_reuses' => [],
+                'optimizer_version' => SolverContract::OPTIMIZER_VERSION, 'model_version' => SolverContract::MODEL_VERSION];
             JsonlArtifact::json($directory.'/model-run.json', $result);
             $event('MODELS_AND_PREDICTIONS_FINISHED');
 

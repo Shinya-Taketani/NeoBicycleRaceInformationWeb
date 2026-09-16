@@ -85,6 +85,18 @@ class TacticalHistoryAggregatorTest extends TestCase
         (new HistoryAggregator)->aggregate($this->target(), [$this->row(), $this->row(['rank' => 2])]);
     }
 
+    public function test_cancelled_without_scheduled_time_does_not_poison_valid_history(): void
+    {
+        $cancelled = $this->row(['race_id' => 2, 'race_status' => 'CANCELLED', 'scheduled_start_at' => null, 'result_id' => null]);
+        $result = (new HistoryAggregator)->aggregate($this->target(), [$this->row(), $cancelled]);
+        self::assertSame('AVAILABLE', $result['status']);
+        self::assertSame([1, 0, 0, 0], $result['values']);
+        self::assertSame(1, $result['observed_count']);
+        self::assertCount(2, $result['history_references']);
+        $this->expectException(RuntimeException::class);
+        (new HistoryAggregator)->aggregate($this->target(), [$this->row(), array_replace($cancelled, ['result_entry_id' => 999])]);
+    }
+
     private function target(): array
     {
         return ['race_id' => 100, 'meeting_id' => 100, 'player_id' => 1, 'race_date' => '2024-06-10', 'meeting_start' => '2024-06-10', 'meeting_end' => '2024-06-12', 'input_as_of' => '2024-06-10T10:00:00+09:00'];

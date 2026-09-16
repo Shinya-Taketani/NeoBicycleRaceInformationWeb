@@ -6,7 +6,6 @@ namespace Tests\Unit\Domain\Keirin\Backtest;
 
 use App\Domain\Keirin\Backtest\Calculators\Bt03e02ParameterLayout;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e03ConditionalSoftmaxObjective;
-use App\Domain\Keirin\Backtest\Calculators\Bt03e03FistaOptimizer;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e03OneSeSelector;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e03ProbabilityScorer;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e06WinnerConditionedDecoder;
@@ -26,7 +25,7 @@ use RuntimeException;
 
 class TacticalHistoryModelTest extends TestCase
 {
-    public function test_c0_layout_loss_gradient_penalty_fit_and_prediction_match_frozen_e03_exactly(): void
+    public function test_c0_layout_loss_gradient_and_penalty_match_frozen_e03_but_solver_is_independent(): void
     {
         $builder = $this->bins();
         $raw = $this->races(false);
@@ -46,11 +45,15 @@ class TacticalHistoryModelTest extends TestCase
         foreach (Bt03e03Contract::POSITIONS as $position) {
             $this->assertSame((new Bt03e03ConditionalSoftmaxObjective)->lossAndGradient($source, $frozen, $coefficients, $position), (new Objective)->lossAndGradient($source, $layout, $coefficients, $position));
         }
-        $old = (new Bt03e03FistaOptimizer(new Bt03e03ConditionalSoftmaxObjective))->fit($source, $frozen, 1.0);
+        $objective = new Bt03e03ConditionalSoftmaxObjective;
+        $this->assertSame($objective->smoothPenalty($frozen, $coefficients, 1.0), (new Objective)->smoothPenalty($layout, $coefficients, 1.0));
+        $this->assertSame($objective->smoothPenaltyGradient($frozen, $coefficients, 1.0), (new Objective)->smoothPenaltyGradient($layout, $coefficients, 1.0));
+        $this->assertSame($objective->groupPenalty($frozen, $coefficients, 1.0), (new Objective)->groupPenalty($layout, $coefficients, 1.0));
         $new = (new Optimizer(new Objective))->fit($source, $layout, 1.0);
-        $this->assertSame((array) $old, (array) $new);
+        $repeat = (new Optimizer(new Objective))->fit($source, $layout, 1.0);
+        $this->assertSame((array) $repeat, (array) $new);
         $scorer = new Bt03e03ProbabilityScorer;
-        $this->assertSame($scorer->predict($races[0], $old), $scorer->predict($races[0], $new));
+        $this->assertSame($scorer->predict($races[0], $repeat), $scorer->predict($races[0], $new));
     }
 
     public function test_four_count_inputs_reach_all_position_gradients_coefficients_and_predictions(): void

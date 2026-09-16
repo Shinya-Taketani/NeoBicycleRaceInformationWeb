@@ -1,9 +1,9 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.10
+- Version: 1.11
 - Created: 2026-08-23
-- Updated: 2026-09-15
+- Updated: 2026-09-16
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -167,10 +167,10 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: TACTICAL-HISTORY-01_MODEL_FIT_FAILED
+current_engine_state: TACTICAL-HISTORY-01_V2_EVALUATED_AND_REPRODUCED
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_TACTICAL-HISTORY-01_NONCONVERGENCE_DIAGNOSTICS
-next_implementation_phase: NOT_AUTHORIZED_WITHOUT_NEW_USER_INSTRUCTION
+next_allowed_action: REVIEW_TACTICAL_HISTORY_V2_RESULTS_AND_WAIT_FOR_USER_INSTRUCTION
+next_implementation_phase: NOT_AUTHORIZED
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
 bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
@@ -220,11 +220,14 @@ tactical_pilot_01_status: BLOCKED_INPUT_SEMANTICS
 tactical_pilot_01_scope: EXPERIMENT_ONLY_NOT_FORMAL_STAT_OR_LIVE
 tactical_pilot_01_eligible_inputs: NOT_FROZEN
 tactical_pilot_01_new_fits: 0
-tactical_history_01_status: MODEL_FIT_FAILED_NOT_EVALUATED
+tactical_history_01_status: V2_EVALUATED_AND_REPRODUCED
 tactical_history_01_scope: HISTORICAL_EVENT_RECONSTRUCTION_BACKFILLED_FINAL_RESULT_DEVELOPMENT_ONLY
-tactical_history_01_c0_reused_outer_models: 1
-tactical_history_01_c1_attempted_lambda_candidates: 8
-tactical_history_01_c1_converged_candidates: 0
+tactical_history_01_v1_status: MODEL_FIT_FAILED_NOT_EVALUATED_PRESERVED
+tactical_history_01_v2_c0_reuse: FORBIDDEN_BOTH_CANDIDATES_USE_CORRECTED_SOLVER
+tactical_history_01_v2_incremental_gate: PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY
+tactical_history_01_v2_stat01_gate: PASS / GO_TO_FREEZE
+tactical_history_01_v2_reproducibility: VERIFIED_TWO_REAL_FITS_AND_EVALUATIONS
+tactical_history_01_v2_live_adoption: NOT_AUTHORIZED
 2026_access: 0
 final_points: NOT_APPLICABLE_CONTINUOUS_SCORE
 final_thresholds: UNFROZEN
@@ -359,7 +362,8 @@ holdout_status:
 - BT-03E-08はE03 source artifactのP1とE06 winner-conditioned Q2を固定し、actual rank2をcandidateに残したwinner-conditioned direct P3だけを再学習する設計で実装済みである。
 - BT-03E-08のformal development evaluationは再現性 `VERIFIED`、integrity `PASS`、performance `FAIL / REDESIGN_REQUIRED`で完了した。同条件の再学習・再評価は次工程にしない。
 - ユーザーの2026-09-13の新規指示は **TACTICAL-PILOT-01** に限定する。これはE08成果物による承認ではなく、戦法7候補の意味・過去時点を確認してから行う独立実験であり、正式STAT追加・LIVE開始ではない。
-- 現在は7候補の集計基準日・対象レース自身の除外根拠が未確認で `BLOCKED_INPUT_SEMANTICS`。適格入力を学習前に確定できるまでfit・比較へ進まない。詳細はSection 15.24および `docs/tactical-pilot-01-input-definition-status.md`。
+- 旧TACTICAL-PILOT-01は7候補の集計基準日・対象レース自身の除外根拠が未確認で `BLOCKED_INPUT_SEMANTICS`。この旧pilotは適格入力を確定できるまでfit・比較へ進まない。詳細はSection 15.24および `docs/tactical-pilot-01-input-definition-status.md`。
+- 別実験TACTICAL-HISTORY-01のPR #55修正版は、C0/C1の実学習・比較・再現性確認を完了。開発期間の追加効果Gateと対STAT-01 Gateは通過したが、LIVE採用・2026利用・次工程の自動開始は許可しない。詳細はSection 15.25。
 - 2024・2025はdevelopment corpusとしてのみ利用し、final untouched holdoutとは扱わない。
 - 2026は最終モデル選択・fitted parameter・score仕様がfreezeされるまで評価禁止。
 
@@ -529,6 +533,7 @@ BT-03E-02以降で利用する場合は、
 | BT-03E-07 | P1-frozen direct P2/P3 position model | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | CLOSED / REDESIGN_REQUIRED |
 | BT-03E-08 | P1/Q2-frozen winner-conditioned direct P3 model | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | CLOSED / REDESIGN_REQUIRED |
 | TACTICAL-PILOT-01 | 戦法回数追加あり/なしの限定比較 | BLOCKED_INPUT_SEMANTICS | NOT_EVALUATED / NO_FIT |
+| TACTICAL-HISTORY-01 v2 | 過去レース別決まり手4回数の追加比較 | EVALUATED_AND_REPRODUCED | PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -1999,6 +2004,20 @@ lambda=0.1はPOSITION_2、残る7候補はPOSITION_1が非収束。solver定数�
 C1 outer refit・予測・精度比較・実データ再現実行は未実施。C1-C0/C1-STAT-01の4指標・Gateは `NOT_EVALUATED` であり、差0や性能FAILではない。
 この数値的停止を旧PJ0315の入力意味未確定と混同せず、次の変更・再学習は新しいユーザー指示を待つ。
 
+2026-09-16 PR #55への追加指示により、上記v1停止の記録を保持して限定修正を許可した。
+v2はsupport中心化の直交射影とgroup縮小を統合した正しいユークリッド近接更新を使い、C0/C1とも新規学習する。
+200回上限・既存閾値・lambda grid・目的関数・Gateは緩和しない。旧E03/E06/E08は変更しない。
+中止履歴は識別検証を維持して予定時刻NULLによる全値欠損を防ぐ。既存221,559窓への該当は0件で、入力数値は変更しない。
+修正版の保存先は `/home/shinya/neo-keirin-artifacts/tactical-history-01-review-fix-20260916-01/`。
+学習前のREAD ONLY固定STAT・履歴検査は成功。Outer 2024はC0/C1ともlambda=0.1で再学習し、各25,212レースの予測を固定した。
+初回はOuter 2025もC0/C1ともlambda=0.1で再学習し、各24,866レースの予測を固定した。両年ともC0/C1予測固定後に当該年labelsを開放した。
+2回の独立した実学習でモデル・bin/support・選択・予測等100ファイルがバイト単位で一致。評価・paired bootstrapも完全一致した。
+終了時のREAD ONLY検査でも固定52 STAT・履歴221,559窓・対象706,051出走・717,709出走IDの不変性を確認した。
+2024/2025年等重みのC1-C0差は1着+2.066185、2着+0.238033、3着+0.979463、Hit@3+1.097709ポイント。
+Hit@3の95%CIは[+0.893535,+1.325206]ポイント。追加効果Gateは `PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY`、既存対STAT-01 Gateは `PASS / GO_TO_FREEZE`。
+ただしC1-C0の2着差CIは0を含む。全4指標のCI・各年の率・分母は `docs/tactical-history-01.md` と成果物 `comparisons.json` に記録した。
+これは実測したdevelopment比較であり、学習完了だけから精度向上を結論していない。過去公開時刻はUNKNOWNのままで、LIVE採用や次工程への許可を意味しない。旧pilotのBLOCKED_INPUT_SEMANTICSとは区別して保持する。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation
@@ -2400,6 +2419,11 @@ reason:
 
 # 25. 変更履歴
 
+## v1.11 - 2026-09-16
+
+PR #55限定修正: 制約付き近接更新・中止履歴の修正と、修正版solverによるC0/C1比較を許可。v1失敗履歴・旧pilot保留を保持し、2026・本番書込み・正式モデル更新は禁止のまま。
+修正版C0/C1の2024/2025学習・予測・paired比較・実データ再現性を完了。追加効果Gateおよび既存対STAT-01 Gateは通過。結果レビュー待ちで停止し、正式freeze/LIVE工程には自動移行しない。
+
 ## v1.10 - 2026-09-15
 
 TACTICAL-HISTORY-01をユーザー指示に基づく独立実験として開始。
@@ -2661,9 +2685,10 @@ BT-03E-08 reproducibility = VERIFIED
 BT-03E-08 performance = FAIL / REDESIGN_REQUIRED
 BT-03E-08 same-condition rerun = FORBIDDEN
 TACTICAL-PILOT-01 = BLOCKED_INPUT_SEMANTICS / NO_FIT
+TACTICAL-HISTORY-01 v2 = EVALUATED_AND_REPRODUCED / PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY
 
 Next:
-Review TACTICAL-HISTORY-01 fixed-grid non-convergence evidence; no further model changes or training without new user instruction; keep the PJ0315 pilot blocked
+Review the completed PR55 TacticalHistory v2 comparison and wait for user instruction; keep the PJ0315 pilot blocked and preserve the v1 failure evidence. Do not automatically freeze, deploy, or open 2026.
 
 Do not:
 redo BT-02 discovery

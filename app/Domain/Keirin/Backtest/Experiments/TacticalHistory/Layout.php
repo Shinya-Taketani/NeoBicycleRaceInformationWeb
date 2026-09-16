@@ -123,12 +123,14 @@ final class Layout
         $this->assertVector($coefficients);
         foreach ($this->groups as $indexes) {
             $mean = new Bt03e02CompensatedSum;
+            $weightSquares = new Bt03e02CompensatedSum;
             foreach ($indexes as $index) {
                 $mean->add($this->supportWeights[$index] * $coefficients[$index]);
+                $weightSquares->add($this->supportWeights[$index] ** 2);
             }
-            $shift = $mean->value();
+            $shift = $mean->value() / $weightSquares->value();
             foreach ($indexes as $index) {
-                $coefficients[$index] -= $shift;
+                $coefficients[$index] -= $this->supportWeights[$index] * $shift;
                 if ($coefficients[$index] === 0.0) {
                     $coefficients[$index] = 0.0;
                 }

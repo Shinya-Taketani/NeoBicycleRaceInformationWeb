@@ -18,7 +18,6 @@ use App\Domain\Keirin\Backtest\DTO\Bt02OutcomeContextRaceDto;
 use App\Domain\Keirin\Backtest\DTO\FoldDefinitionDto;
 use App\Domain\Keirin\Backtest\DTO\LabelResultDto;
 use App\Domain\Keirin\Backtest\DTO\RaceContextDto;
-use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\ControlReuse;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Dataset;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Evaluation;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Experiment;
@@ -27,9 +26,9 @@ use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\LayoutBuilder;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Objective;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Optimizer;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Predictor;
+use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\SolverContract;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Trainer;
 use App\Domain\Keirin\Backtest\Services\Bt03e03Contract;
-use App\Domain\Keirin\Backtest\Services\Bt03e06ModelReconstructor;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
@@ -37,7 +36,7 @@ use RuntimeException;
 
 class TacticalHistoryExperimentTest extends TestCase
 {
-    public function test_real_experiment_dependencies_reuse_control_fit_both_outers_and_release_labels_after_seals(): void
+    public function test_both_candidates_fit_corrected_solver_both_outers_and_release_labels_after_seals(): void
     {
         $directory = sys_get_temp_dir().'/history-experiment-test-'.bin2hex(random_bytes(8));
         mkdir($directory);
@@ -65,42 +64,6 @@ class TacticalHistoryExperimentTest extends TestCase
             $scorer = new Bt03e03ProbabilityScorer;
             $hasher = new CanonicalHasher;
             $predictor = new Predictor($scorer, new Bt03e06WinnerConditionedDecoder($scorer, $hasher));
-            $models = [];
-            $csv = fopen($directory.'/control.csv', 'xb');
-            fputcsv($csv, ControlReuse::CSV_COLUMNS, escape: '');
-            foreach ([2024, 2025] as $year) {
-                $source = function () use ($all, $year): \Generator {
-                    foreach (range(2022, $year - 1) as $trainingYear) {
-                        foreach ($this->labels($all[$trainingYear]) as $race) {
-                            foreach ($race['entries'] as &$entry) {
-                                unset($entry['history'], $entry['history_status']);
-                            }
-                            unset($entry);
-                            yield $race;
-                        }
-                    }
-                };
-                $layout = $layouts->build($source);
-                $binned = fn () => $dataset->binned($source, $layout, $bins);
-                $fit = $optimizer->fit($binned, $layout, 1.0);
-                $models['outer_'.$year]['model'] = ['optimizer_version' => Bt03e03Contract::OPTIMIZER_VERSION,
-                    'probability_version' => Bt03e03Contract::PROBABILITY_VERSION, 'tie_rule_version' => Bt03e03Contract::TIE_RULE_VERSION,
-                    'stat01_anchor_coefficient' => 1.0, 'lambda' => 1.0, 'bins' => $layout->canonicalBins(), 'position_coefficients' => $fit->coefficients,
-                    'weighted_center_means' => array_map(fn ($c) => $layout->weightedMeans($c), $fit->coefficients),
-                    'objectives' => $fit->objectives, 'iterations' => $fit->iterations, 'eligible_races' => $fit->eligibleRaceCounts,
-                    'excluded_races' => $fit->excludedRaceCounts, 'optimizer_diagnostics' => $fit->diagnostics];
-                $raw = fn () => $dataset->raw([$directory.'/inputs-'.$year.'.jsonl'], false, true);
-                foreach ($dataset->binned($raw, $layout, $bins) as $race) {
-                    $decision = $predictor->predict($race, $fit, true)['decision'];
-                    $row = [];
-                    foreach (ControlReuse::CSV_COLUMNS as $key) {
-                        $v = $decision[$key];
-                        $row[] = is_float($v) ? sprintf('%.17g', $v) : (is_array($v) ? implode('-', $v) : (is_bool($v) ? (int) $v : $v));
-                    }
-                    fputcsv($csv, $row, escape: '');
-                }
-            }
-            fclose($csv);
             $snapshot = new class($all, $directory) implements Bt02OutcomeContextSnapshot
             {
                 public array $reads = [];
@@ -110,7 +73,7 @@ class TacticalHistoryExperimentTest extends TestCase
                 public function chunks(FoldDefinitionDto $fold, int $chunkSize): \Generator
                 {
                     $year = (int) $fold->evaluationFrom->format('Y');
-                    foreach (['C0-reuse-', 'C1-fit-'] as $prefix) {
+                    foreach (['C0-fit-', 'C1-fit-'] as $prefix) {
                         if (! is_file($this->directory.'/run/'.$prefix.$year.'/predictions.jsonl.manifest.json')) {
                             throw new RuntimeException('Outer labels opened before both prediction seals.');
                         }
@@ -133,10 +96,9 @@ class TacticalHistoryExperimentTest extends TestCase
                 }
             };
             $trainer = new Trainer($layouts, $dataset, $bins, $optimizer, $objective, $predictor);
-            $control = new ControlReuse(new Bt03e06ModelReconstructor($hasher), $layouts, $dataset, $bins, $predictor);
-            $result = (new Experiment($trainer, $control, $dataset, new Bt03e03OneSeSelector))->run($directory, $directory.'/run', $models, $directory.'/control.csv', $snapshot);
+            $result = (new Experiment($trainer, $dataset, new Bt03e03OneSeSelector))->run($directory, $directory.'/run', $snapshot);
             $this->assertSame([2024, 2025], $snapshot->reads);
-            $this->assertCount(2, $result['control_reuses']);
+            $this->assertSame([], $result['control_reuses']);
             foreach ($result['outer_paths'] as $year => $paths) {
                 $predictions = iterator_to_array(JsonlArtifact::read($paths['C1']));
                 $this->assertCount(2, $predictions);
@@ -144,6 +106,11 @@ class TacticalHistoryExperimentTest extends TestCase
                 $model = json_decode(file_get_contents($directory.'/run/C1-fit-'.$year.'/model.json'), true, flags: JSON_THROW_ON_ERROR);
                 $this->assertSame(16, $model['layout']['feature_count']);
                 $this->assertSame(Bt03e03Contract::POSITIONS, array_keys($model['position_coefficients']));
+                $c0 = json_decode(file_get_contents($directory.'/run/C0-fit-'.$year.'/model.json'), true, flags: JSON_THROW_ON_ERROR);
+                $this->assertSame(12, $c0['layout']['feature_count']);
+                $this->assertSame(SolverContract::OPTIMIZER_VERSION, $c0['optimizer_version']);
+                $this->assertSame($c0['optimizer_version'], $model['optimizer_version']);
+                $this->assertSame(SolverContract::MODEL_VERSION, $model['model_version']);
             }
             mkdir($directory.'/comparison');
             $comparison = (new Evaluation(new Bt03e05MetricEvaluator, new Bt03e05PairedBootstrap(new Type7Quantile), new Bt03e05AcceptanceGate))->evaluate($result['outer_paths'], $directory.'/comparison', true);

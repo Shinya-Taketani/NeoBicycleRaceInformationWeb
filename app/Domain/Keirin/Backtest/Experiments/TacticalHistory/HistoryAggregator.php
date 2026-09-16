@@ -11,7 +11,7 @@ use RuntimeException;
 
 final class HistoryAggregator
 {
-    public const VERSION = 'TACTICAL-HISTORY-01-120D-PRE-MEETING-v1';
+    public const VERSION = 'TACTICAL-HISTORY-01-120D-PRE-MEETING-v2';
 
     public const FEATURES = [
         'HIST_OBSERVED_ESCAPE_TOP2_COUNT_120D_PRE_MEETING',
@@ -70,16 +70,9 @@ final class HistoryAggregator
                 || $historyDate < $start || $historyDate >= $cutoff) {
                 continue;
             }
-            if ($row['scheduled_start_at'] === null || $row['meeting_id'] === null) {
+            if ($row['meeting_id'] === null) {
                 $problems['PARTIAL_HISTORY'] = true;
 
-                continue;
-            }
-            $scheduled = new DateTimeImmutable($row['scheduled_start_at'], $zone);
-            if ($scheduled->setTimezone($zone)->format('Y-m-d') !== $row['race_date']) {
-                throw new RuntimeException('History scheduled date disagreed with race date.');
-            }
-            if ($scheduled < $start || $scheduled >= $cutoff) {
                 continue;
             }
             $key = $row['race_id'].':'.$row['bike'];
@@ -98,6 +91,18 @@ final class HistoryAggregator
             }
             $audit['history_references'][] = ['race_id' => $row['race_id'], 'entry_id' => $row['entry_id'], 'bike' => $row['bike'], 'sha256' => $identity];
             if ($row['race_status'] === 'CANCELLED') {
+                continue;
+            }
+            if ($row['scheduled_start_at'] === null) {
+                $problems['PARTIAL_HISTORY'] = true;
+
+                continue;
+            }
+            $scheduled = new DateTimeImmutable($row['scheduled_start_at'], $zone);
+            if ($scheduled->setTimezone($zone)->format('Y-m-d') !== $row['race_date']) {
+                throw new RuntimeException('History scheduled date disagreed with race date.');
+            }
+            if ($scheduled < $start || $scheduled >= $cutoff) {
                 continue;
             }
             if (! in_array($row['race_status'], ['CONFIRMED', 'CORRECTED'], true) || $row['result_id'] === null) {

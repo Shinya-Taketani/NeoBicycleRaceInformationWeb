@@ -182,6 +182,8 @@ final class Optimizer
         $lastPostRestartIterationStartStep = $step;
         $lastPostRestartAcceptedUpdateIteration = 0;
         $pendingRestartStep = null;
+        $maximumAcceptedObjectiveIncrease = 0.0;
+        $nonstationarySmallUpdates = 0;
         $initialEvaluation = $this->objective->lossAndGradient($raceSource, $layout, $current, $position);
         $previousObjective = $this->fullObjective($initialEvaluation['loss'], $layout, $current, $lambda);
         if (! is_finite($previousObjective)) {
@@ -245,7 +247,7 @@ final class Optimizer
                     foreach ($accelerated as $index => $value) {
                         $trial[$index] = $value - $trialStep * $gradient[$index];
                     }
-                    $trial = $layout->project($this->objective->groupProx($layout, $trial, $trialStep, $lambda));
+                    $trial = $this->objective->groupProx($layout, $trial, $trialStep, $lambda);
                     $trialLoss = $this->objective->loss($raceSource, $layout, $trial, $position);
                     $trialSmooth = $trialLoss + $this->objective->smoothPenalty($layout, $trial, $lambda);
                     $linear = new Bt03e03CompensatedSum;
@@ -256,7 +258,10 @@ final class Optimizer
                         $distance->add($delta * $delta);
                     }
                     $upper = $smoothAtAccelerated + $linear->value() + $distance->value() / (2.0 * $trialStep);
-                    if (is_finite($trialSmooth) && $trialSmooth <= $upper + 8.0 * PHP_FLOAT_EPSILON * max(1.0, abs($upper))) {
+                    $trialObjective = $trialSmooth + $this->objective->groupPenalty($layout, $trial, $lambda);
+                    $monotoneTolerance = 8.0 * PHP_FLOAT_EPSILON * max(1.0, abs($previousObjective));
+                    if (is_finite($trialSmooth) && $trialSmooth <= $upper + 8.0 * PHP_FLOAT_EPSILON * max(1.0, abs($upper))
+                        && ($momentum > 1.0 || $trialObjective <= $previousObjective + $monotoneTolerance)) {
                         $accepted = $trial;
                         $acceptedLoss = $trialLoss;
                         break;
@@ -274,7 +279,7 @@ final class Optimizer
                 if (! is_finite($acceptedObjective)) {
                     throw new RuntimeException("BT-03E-03 {$position} optimizer produced a non-finite objective.");
                 }
-                if ($momentum > 1.0 && $acceptedObjective > $previousObjective) {
+                if ($momentum > 1.0 && $acceptedObjective > $previousObjective + $monotoneTolerance) {
                     $monotoneRestartCount++;
                     $lastMonotoneRestartIteration = $iteration;
                     $lastMonotoneRestartStep = $trialStep;
@@ -290,6 +295,7 @@ final class Optimizer
                 }
                 $relativeObjective = abs($previousObjective - $acceptedObjective) / max(1.0, abs($previousObjective));
                 $before = $previousObjective;
+                $maximumAcceptedObjectiveIncrease = max($maximumAcceptedObjectiveIncrease, $acceptedObjective - $before);
                 $nextMomentum = (1.0 + sqrt(1.0 + 4.0 * $momentum * $momentum)) / 2.0;
                 $nextAccelerated = [];
                 foreach ($accepted as $index => $value) {
@@ -330,8 +336,20 @@ final class Optimizer
                     $lastPostRestartIterationStartStep,
                     $lastPostRestartAcceptedUpdateIteration,
                 );
-                if ($maximumChange <= Bt03e03Contract::CONVERGENCE_TOLERANCE
-                    && $relativeObjective <= Bt03e03Contract::OBJECTIVE_TOLERANCE) {
+                $smallChange = $maximumChange <= Bt03e03Contract::CONVERGENCE_TOLERANCE
+                    && $relativeObjective <= Bt03e03Contract::OBJECTIVE_TOLERANCE;
+                $lastDiagnostics['maximum_accepted_objective_increase'] = $maximumAcceptedObjectiveIncrease;
+                if ($smallChange || $iteration === Bt03e03Contract::MAX_ITERATIONS) {
+                    $lastDiagnostics['prox_gradient_mapping_max'] = $this->stationarity($raceSource, $layout, $current, $lambda, $position);
+                    $lastDiagnostics['stationarity_reference_step'] = Bt03e03Contract::INITIAL_STEP;
+                    $lastDiagnostics['centering_residual_max'] = max(array_map('abs', $layout->weightedMeans($current)));
+                    if ($smallChange && $lastDiagnostics['prox_gradient_mapping_max'] > Bt03e03Contract::CONVERGENCE_TOLERANCE) {
+                        $nonstationarySmallUpdates++;
+                    }
+                }
+                $lastDiagnostics['nonstationary_small_updates'] = $nonstationarySmallUpdates;
+                if ($smallChange && $lastDiagnostics['prox_gradient_mapping_max'] <= Bt03e03Contract::CONVERGENCE_TOLERANCE
+                    && $lastDiagnostics['centering_residual_max'] <= Bt03e03Contract::CONVERGENCE_TOLERANCE) {
                     $lastDiagnostics['status'] = Bt03e03CandidateStatus::Converged->value;
 
                     return [
@@ -349,6 +367,25 @@ final class Optimizer
         }
 
         throw new Bt03e03OptimizerNonConvergenceException($lastDiagnostics);
+    }
+
+    private function stationarity(callable $source, Layout $layout, array $coefficients, float $lambda, string $position): float
+    {
+        // A fixed reference step avoids a tiny backtracking step hiding nonstationarity.
+        $step = Bt03e03Contract::INITIAL_STEP;
+        $evaluation = $this->objective->lossAndGradient($source, $layout, $coefficients, $position);
+        $penalty = $this->objective->smoothPenaltyGradient($layout, $coefficients, $lambda);
+        $trial = [];
+        foreach ($coefficients as $index => $value) {
+            $trial[$index] = $value - $step * ($evaluation['gradient'][$index] + $penalty[$index]);
+        }
+        $prox = $this->objective->groupProx($layout, $trial, $step, $lambda);
+        $residual = 0.0;
+        foreach ($coefficients as $index => $value) {
+            $residual = max($residual, abs($value - $prox[$index]) / $step);
+        }
+
+        return $residual;
     }
 
     /** @param list<float> $coefficients @return array<string,int|float|string> */
@@ -383,6 +420,7 @@ final class Optimizer
             $maximumAbsolute = max($maximumAbsolute, abs($coefficient));
         }
         $diagnostics = [
+            'optimizer_version' => SolverContract::OPTIMIZER_VERSION,
             'status' => $status->value,
             'lambda' => $lambda,
             'position' => $position,
