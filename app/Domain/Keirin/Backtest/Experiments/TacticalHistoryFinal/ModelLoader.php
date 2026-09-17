@@ -15,6 +15,7 @@ use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Predictor;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\SolverContract;
 use App\Domain\Keirin\Backtest\Services\Bt03e03Contract;
 use Generator;
+use PDO;
 use RuntimeException;
 
 final class ModelLoader
@@ -114,7 +115,7 @@ final class ModelLoader
             if (max(array_map('abs', $means)) > Bt03e03Contract::CONVERGENCE_TOLERANCE
                 || ($diag['status'] ?? null) !== 'CONVERGED' || ($diag['optimizer_version'] ?? null) !== SolverContract::OPTIMIZER_VERSION
                 || ! $this->finite($model['objectives'][$position])
-                || ! is_int($model['iterations'][$position]) || $model['iterations'][$position] < 1 || $model['iterations'][$position] > 200
+                || ! is_int($model['iterations'][$position]) || $model['iterations'][$position] < 1 || $model['iterations'][$position] > Bt03e03Contract::MAX_ITERATIONS
                 || ! is_int($model['eligible_races'][$position]) || $model['eligible_races'][$position] < 1
                 || ! is_int($model['excluded_races'][$position]) || $model['excluded_races'][$position] < 0) {
                 throw new RuntimeException('Saved model centering/convergence was invalid.');
@@ -124,6 +125,7 @@ final class ModelLoader
                     throw new RuntimeException('Saved optimality residual was invalid.');
                 }
             }
+            $this->validateDiagnostics($model, $position, max(array_map('abs', $means)));
         }
 
         return new LoadedModel($layout, new Bt03e03FitResultDto($model['lambda'], $model['position_coefficients'], $model['objectives'],
@@ -135,15 +137,40 @@ final class ModelLoader
         $seal = Files::json($input.'.manifest.json');
         Files::verify($input, $seal);
         $raw = function () use ($input): Generator {
+            $this->validateInput($input);
+            yield from $this->dataset->raw([$input], true, true);
+        };
+        foreach ($this->dataset->binned($raw, $model->layout, $this->bins) as $race) {
+            yield $this->predictor->predict($race, $model->fit);
+        }
+        Files::verify($input, $seal);
+    }
+
+    private function validateInput(string $input): void
+    {
+        // An empty SQLite filename is a private, automatically removed disk database.
+        // Keep identity memory bounded without imposing any ordering on the input.
+        $identities = new PDO('sqlite:', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        $identities->exec('PRAGMA temp_store=FILE');
+        $identities->exec('PRAGMA cache_size=-1024');
+        $identities->exec('CREATE TABLE seen (id INTEGER PRIMARY KEY)');
+        $insert = $identities->prepare('INSERT OR IGNORE INTO seen (id) VALUES (?)');
+        $identities->beginTransaction();
+        try {
             foreach (JsonlArtifact::read($input) as $race) {
-                if (array_keys($race) !== ['year', 'race_id', 'entries'] || ! in_array($race['year'], [2022, 2023, 2024, 2025], true)
+                if (! $this->hasKeys($race, ['year', 'race_id', 'entries']) || ! in_array($race['year'], [2022, 2023, 2024, 2025], true)
                     || ! is_int($race['race_id']) || $race['race_id'] < 1 || ! is_array($race['entries'])
                     || ! array_is_list($race['entries']) || count($race['entries']) < 5 || count($race['entries']) > 9) {
                     throw new RuntimeException('Prediction race fields/year were invalid.');
                 }
-                $bikes = [];
+                $insert->execute([$race['race_id']]);
+                if ($insert->rowCount() !== 1) {
+                    throw new RuntimeException('Prediction input contained a duplicate race ID.');
+                }
+                $bikes = $entries = [];
                 foreach ($race['entries'] as $entry) {
-                    if (array_keys($entry) !== ['id', 'bike', 'raw', 'stat01_rank', 'anchor', 'anchor_status', 'signals', 'history', 'history_status']
+                    if (! $this->hasKeys($entry, ['id', 'bike', 'raw', 'stat01_rank', 'anchor', 'anchor_status', 'signals', 'history', 'history_status'])
+                        || ! is_int($entry['id']) || $entry['id'] < 1 || in_array($entry['id'], $entries, true)
                         || ! is_int($entry['bike']) || $entry['bike'] < 1 || $entry['bike'] > 9 || in_array($entry['bike'], $bikes, true)
                         || ! $this->finite($entry['anchor']) || ! $this->finite($entry['raw'])
                         || ! is_array($entry['signals']) || ! array_is_list($entry['signals']) || count($entry['signals']) !== 12
@@ -160,15 +187,80 @@ final class ModelLoader
                             throw new RuntimeException('Prediction history count was invalid.');
                         }
                     }
+                    $unavailable = ['MISSING_TARGET_METADATA', 'LEFT_TRUNCATED', 'INVALID_HISTORY',
+                        'PARTIAL_HISTORY', 'MISSING_METHOD_HISTORY', 'NO_HISTORY'];
+                    if ($entry['history_status'] === 'AVAILABLE') {
+                        $consistent = ! in_array(null, $entry['history'], true);
+                    } else {
+                        $consistent = in_array($entry['history_status'], $unavailable, true)
+                            && $entry['history'] === [null, null, null, null];
+                    }
+                    if (! $consistent) {
+                        throw new RuntimeException('Prediction history status/counts disagreed.');
+                    }
                     $bikes[] = $entry['bike'];
+                    $entries[] = $entry['id'];
                 }
+                $this->validateAnchors($race['entries']);
             }
-            yield from $this->dataset->raw([$input], true, true);
-        };
-        foreach ($this->dataset->binned($raw, $model->layout, $this->bins) as $race) {
-            yield $this->predictor->predict($race, $model->fit);
+        } finally {
+            $identities->rollBack();
         }
-        Files::verify($input, $seal);
+    }
+
+    private function validateAnchors(array $entries): void
+    {
+        // Reproduce InputBuilder's definition without modifying values or entrant order.
+        $raws = array_map(static fn (array $entry): float => (float) $entry['raw'], $entries);
+        $mean = array_sum($raws) / count($raws);
+        $sd = sqrt(array_sum(array_map(static fn (float $value): float => ($value - $mean) ** 2, $raws)) / count($raws));
+        if (! is_finite($mean) || ! is_finite($sd)) {
+            throw new RuntimeException('Prediction anchor statistics were non-finite.');
+        }
+        foreach ($entries as $entry) {
+            $status = $sd > 0.0 ? 'AVAILABLE' : 'ZERO_VARIANCE';
+            $anchor = $sd > 0.0 ? ((float) $entry['raw'] - $mean) / $sd : 0.0;
+            if ($entry['anchor_status'] !== $status || (float) $entry['anchor'] !== $anchor) {
+                throw new RuntimeException('Prediction anchor status/value disagreed with race scores.');
+            }
+        }
+    }
+
+    private function hasKeys(mixed $value, array $keys): bool
+    {
+        return is_array($value) && count($value) === count($keys) && array_diff($keys, array_keys($value)) === [];
+    }
+
+    private function validateDiagnostics(array $model, string $position, float $centeringResidual): void
+    {
+        $diag = $model['optimizer_diagnostics'][$position];
+        foreach (['lambda' => $model['lambda'], 'position' => $position,
+            'iteration' => $model['iterations'][$position], 'accepted_update_count' => $model['iterations'][$position],
+            'max_iterations' => Bt03e03Contract::MAX_ITERATIONS, 'eligible_race_count' => $model['eligible_races'][$position],
+            'excluded_race_count' => $model['excluded_races'][$position]] as $key => $expected) {
+            if (($diag[$key] ?? null) !== $expected) {
+                throw new RuntimeException('Saved diagnostics disagreed with model: '.$key);
+            }
+        }
+        foreach (['final_objective', 'previous_objective', 'relative_objective_change', 'maximum_coefficient_change',
+            'stationarity_reference_step', 'current_step'] as $key) {
+            if (! $this->finite($diag[$key] ?? null) || $diag[$key] < 0.0) {
+                throw new RuntimeException('Saved diagnostic value was invalid: '.$key);
+            }
+        }
+        $relative = abs($diag['previous_objective'] - $diag['final_objective']) / max(1.0, abs($diag['previous_objective']));
+        if ((float) $diag['final_objective'] !== (float) $model['objectives'][$position]
+            || (float) $diag['relative_objective_change'] !== $relative
+            || $relative > Bt03e03Contract::OBJECTIVE_TOLERANCE
+            || $diag['maximum_coefficient_change'] > Bt03e03Contract::CONVERGENCE_TOLERANCE
+            || (float) $diag['stationarity_reference_step'] !== Bt03e03Contract::INITIAL_STEP
+            || (float) $diag['centering_residual_max'] !== $centeringResidual
+            || $diag['current_step'] <= 0.0 || $diag['current_step'] > Bt03e03Contract::INITIAL_STEP
+            || ! is_int($diag['optimizer_attempt_count'] ?? null)
+            || $diag['optimizer_attempt_count'] < $model['iterations'][$position]
+            || $diag['optimizer_attempt_count'] > 2 * $model['iterations'][$position]) {
+            throw new RuntimeException('Saved diagnostics contradicted model/convergence conditions.');
+        }
     }
 
     private function finite(mixed $value): bool

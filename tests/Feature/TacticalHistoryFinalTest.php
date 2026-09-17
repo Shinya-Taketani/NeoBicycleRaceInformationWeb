@@ -204,6 +204,7 @@ class TacticalHistoryFinalTest extends TestCase
         }
         $bins['STAT-07'] = [new EffectBinDto(1, 'NUMERIC_RANGE', null, 2.0, null, 8), new EffectBinDto(2, 'NUMERIC_RANGE', 2.0, null, null, 2)];
         $bins[HistoryAggregator::FEATURES[0]] = [new EffectBinDto(1, 'NUMERIC_RANGE', null, 0.0, null, 10), new EffectBinDto(2, 'NUMERIC_RANGE', 0.0, null, null, 0)];
+        $bins[HistoryAggregator::FEATURES[3]] = [];
         $layout = new Layout($bins);
         $model['layout'] = ['feature_count' => $layout->featureCount(), 'active_parameter_count_M' => $layout->size(), 'active_group_count_G' => count($layout->groups()),
             'numeric_edge_count' => count($layout->smoothEdges()), 'groups' => $layout->groups(), 'support_weights' => $layout->supportWeights(),
@@ -315,7 +316,7 @@ class TacticalHistoryFinalTest extends TestCase
             foreach (range(1, 5) as $bike) {
                 $entry = ['id' => $year * 10000 + $id * 10 + $bike, 'bike' => $bike, 'raw' => 100.0, 'stat01_rank' => 1,
                     'anchor' => 0.0, 'anchor_status' => 'ZERO_VARIANCE', 'signals' => array_fill(0, 12, 0),
-                    'history' => [0, 0, 0, null], 'history_status' => 'AVAILABLE'];
+                    'history' => [0, 0, 0, 0], 'history_status' => 'AVAILABLE'];
                 if ($labels) {
                     $entry['rank'] = $bike;
                     $entry['status'] = 'FINISHED';
