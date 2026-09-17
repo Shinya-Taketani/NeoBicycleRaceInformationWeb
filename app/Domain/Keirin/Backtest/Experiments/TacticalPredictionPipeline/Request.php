@@ -37,8 +37,17 @@ final readonly class Request
 
     public function identity(array $artifactSeal, array $modelSeal): array
     {
-        return ['request_id' => $this->requestId, 'race_id' => $this->raceId, 'mode' => $this->mode,
+        return self::normalizeIdentity(['request_id' => $this->requestId, 'race_id' => $this->raceId, 'mode' => $this->mode,
             'pipeline_version' => Contract::VERSION, 'input_as_of' => $this->asOf->format('Y-m-d\TH:i:s.uP'),
-            'artifact' => $artifactSeal, 'model' => $modelSeal];
+            'artifact' => $artifactSeal, 'model' => $modelSeal]);
+    }
+
+    public static function normalizeIdentity(array $identity): array
+    {
+        // Normalize only the comparison value; never rewrite a previously locked request.
+        $identity['input_as_of'] = self::timestamp($identity['input_as_of'] ?? null)
+            ->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u\Z');
+
+        return $identity;
     }
 }

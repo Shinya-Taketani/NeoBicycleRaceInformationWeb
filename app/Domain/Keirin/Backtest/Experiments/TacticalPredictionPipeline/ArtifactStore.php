@@ -23,14 +23,19 @@ class ArtifactStore
                 throw new RuntimeException('Output root cannot be an original source directory.');
             }
         }
+
+        return $root;
+    }
+
+    public function prepareRoot(string $root): void
+    {
+        $root = $this->root($root);
         foreach (['requests', '.locks', '.staging', 'events'] as $name) {
             $path = $root.'/'.$name;
             if (is_link($path) || (! is_dir($path) && ! mkdir($path, 0755))) {
                 throw new RuntimeException('Unsafe artifact subdirectory.');
             }
         }
-
-        return $root;
     }
 
     public function locked(string $root, string $id, callable $work): array

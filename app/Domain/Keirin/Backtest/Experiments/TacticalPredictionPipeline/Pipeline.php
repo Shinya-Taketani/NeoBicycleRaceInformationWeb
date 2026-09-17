@@ -23,6 +23,7 @@ class Pipeline
         if ($sourceDirectory !== false && ($root === $sourceDirectory || str_starts_with($root, $sourceDirectory.'/'))) {
             throw new RuntimeException('Output root cannot be the model source directory.');
         }
+        $this->store->prepareRoot($root);
         try {
             return $this->store->locked($root, $request->requestId, function () use ($root, $request): array {
                 $seals = ['artifact.json' => Files::identity($request->artifact), 'model.json' => Files::identity(dirname($request->artifact).'/model.json')];
@@ -30,7 +31,7 @@ class Pipeline
                 $destination = $root.'/requests/'.$request->requestId;
                 if (file_exists($destination) || is_link($destination)) {
                     $manifest = $this->store->verify($destination);
-                    if (Files::canonical($manifest['request']) !== Files::canonical($identity)) {
+                    if (Files::canonical(Request::normalizeIdentity($manifest['request'])) !== Files::canonical(Request::normalizeIdentity($identity))) {
                         throw new RuntimeException('CONFLICT: request_id is bound to another request.');
                     }
                     $this->store->event($root, $request->requestId, ['status' => 'REUSED', 'input_generated' => false]);
@@ -106,6 +107,7 @@ class Pipeline
             throw new RuntimeException('Invalid request identity.');
         }
         $root = $this->store->root($root);
+        $this->store->prepareRoot($root);
 
         return $this->store->locked($root, $requestId, function () use ($root, $requestId): array {
             $path = $root.'/requests/'.$requestId;
@@ -115,10 +117,34 @@ class Pipeline
             $actual = $this->predictor->run($path.'/artifact.json', $path.'/input.jsonl', $stage.'/prediction.jsonl');
             Files::same($manifest['prediction_manifest'], $actual, 'fixed-input prediction reproduction');
             Files::same($manifest, $this->store->verify($path), 'locked request after reproduction');
-            $this->store->event($root, $requestId, ['status' => 'REPRODUCED', 'database_access' => 'NONE', 'manifest' => $actual]);
+            $this->store->event($root, $requestId, ['status' => 'REPRODUCED', 'database_access' => 'NONE', 'manifest' => $actual,
+                'reproduction_stage' => basename($stage)]);
+            $this->removeSuccessfulReproduction($stage, $actual);
 
             return ['status' => 'REPRODUCED', 'database_access' => 'NONE', 'manifest' => $actual];
         });
+    }
+
+    private function removeSuccessfulReproduction(string $stage, array $manifest): void
+    {
+        // Only this call's two verified outputs may be removed, never a recursive staging sweep.
+        $names = ['prediction.jsonl', 'prediction.jsonl.manifest.json'];
+        if (is_link($stage) || scandir($stage) !== ['.', '..', ...$names]) {
+            throw new RuntimeException('Unexpected reproduction stage contents; preserving evidence.');
+        }
+        foreach ($names as $name) {
+            Files::identity($stage.'/'.$name);
+        }
+        Files::verify($stage.'/prediction.jsonl', $manifest);
+        Files::same($manifest, Files::json($stage.'/prediction.jsonl.manifest.json'), 'reproduction stage manifest');
+        foreach ($names as $name) {
+            if (! unlink($stage.'/'.$name)) {
+                throw new RuntimeException('Cannot remove successful reproduction output.');
+            }
+        }
+        if (! rmdir($stage)) {
+            throw new RuntimeException('Cannot remove successful reproduction stage.');
+        }
     }
 
     private function codeIdentity(): array

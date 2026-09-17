@@ -215,7 +215,7 @@ class TacticalPredictionPipelineTest extends TestCase
     public function test_two_processes_cannot_publish_two_bundles_for_the_same_request(): void
     {
         $store = app(ArtifactStore::class);
-        $store->root($this->root);
+        $store->prepareRoot($this->root);
         $ready = $this->directory.'/worker-ready.json';
         $go = $this->directory.'/worker-go.json';
         $pid = pcntl_fork();
@@ -298,6 +298,196 @@ class TacticalPredictionPipelineTest extends TestCase
         app(Pipeline::class)->execute($this->request());
     }
 
+    public function test_request_identity_normalizes_the_instant_without_losing_microseconds(): void
+    {
+        foreach ([['2025-12-31 22:07:00+09', '2025-12-31T13:07:00Z'],
+            ['2025-12-31T22:07:00.123456+09:00', '2025-12-31T08:07:00.123456-05:00'],
+            ['2022-01-01T00:00:00+09:00', '2021-12-31T15:00:00Z']] as [$local, $other]) {
+            $this->assertSame($this->request(time: $local)->identity([], []), $this->request(time: $other)->identity([], []));
+        }
+        $this->assertNotSame($this->request(time: '2025-12-31T03:00:00.000001Z')->identity([], []),
+            $this->request(time: '2025-12-31T03:00:00Z')->identity([], []));
+    }
+
+    #[DataProvider('legacyTimes')]
+    public function test_legacy_timezone_request_is_reused_without_rewriting_the_locked_bundle(string $storedTime): void
+    {
+        $result = app(Pipeline::class)->execute($this->request());
+        $path = $result['path'];
+        // Prepare synthetic legacy evidence before asserting its immutability during reuse.
+        $request = Files::json($path.'/request.json');
+        $request['input_as_of'] = $storedTime;
+        file_put_contents($path.'/request.json', Files::canonical($request));
+        $manifest = $result['manifest'];
+        $manifest['request'] = $request;
+        $manifest['files']['request.json'] = Files::identity($path.'/request.json');
+        $this->resealSyntheticManifest($path, $manifest);
+        $before = $this->treeIdentity($path);
+        $this->app->instance(RaceInputSource::class, new class extends RaceInputSource
+        {
+            public function __construct() {}
+
+            public function capture(Request $request): array
+            {
+                throw new RuntimeException('Reuse must not generate inputs');
+            }
+        });
+        foreach (['2025-12-31T03:00:00Z', '2025-12-30T22:00:00-05:00'] as $time) {
+            $reuse = app(Pipeline::class)->execute($this->request(time: $time));
+            $this->assertSame('REUSED', $reuse['status']);
+            $this->assertSame($storedTime, $reuse['manifest']['request']['input_as_of']);
+            $this->assertSame($before, $this->treeIdentity($path));
+        }
+    }
+
+    public static function legacyTimes(): array
+    {
+        return [['2025-12-31T12:00:00.000000+09:00'], ['2025-12-31 12:00:00+09'], ['2025-12-31T03:00:00Z']];
+    }
+
+    #[DataProvider('conflictingIdentities')]
+    public function test_normalized_identity_still_rejects_different_instant_target_model_or_artifact(string $difference): void
+    {
+        $result = app(Pipeline::class)->execute($this->request());
+        $before = $this->treeIdentity($result['path']);
+        $artifact = $this->directory.'/source/artifact.json';
+        if (in_array($difference, ['model', 'artifact'], true)) {
+            $alternative = Files::directory($this->directory.'/alternative-source');
+            copy($artifact, $alternative.'/artifact.json');
+            copy(dirname($artifact).'/model.json', $alternative.'/model.json');
+            file_put_contents($alternative.'/'.$difference.'.json', "\n", FILE_APPEND);
+            $artifact = $alternative.'/artifact.json';
+        }
+        $request = new Request(Contract::MODE, $difference === 'race' ? 11 : 10,
+            $difference === 'instant' ? '2025-12-31T03:00:00.000001Z' : '2025-12-31T03:00:00Z',
+            $artifact, 'test-01', $this->root);
+        try {
+            app(Pipeline::class)->execute($request);
+            $this->fail('Conflicting request accepted');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('CONFLICT', $e->getMessage());
+        }
+        $this->assertSame($before, $this->treeIdentity($result['path']));
+    }
+
+    public static function conflictingIdentities(): array
+    {
+        return [['instant'], ['race'], ['model'], ['artifact']];
+    }
+
+    public function test_root_path_validation_has_no_filesystem_side_effects(): void
+    {
+        $before = $this->treeIdentity($this->directory);
+        $this->assertSame($this->root, app(ArtifactStore::class)->root($this->root));
+        $this->assertSame($before, $this->treeIdentity($this->directory));
+    }
+
+    #[DataProvider('overlappingRoots')]
+    public function test_model_source_overlap_is_rejected_before_any_directory_or_file_is_created(string $suffix): void
+    {
+        $root = $this->directory.'/source'.$suffix;
+        if (! is_dir($root)) {
+            mkdir($root, 0755, true);
+        }
+        $before = $this->treeIdentity($this->directory);
+        $request = new Request(Contract::MODE, 10, '2025-12-31T03:00:00Z', $this->directory.'/source/artifact.json', 'rejected', $root);
+        try {
+            app(Pipeline::class)->execute($request);
+            $this->fail('Model source overlap accepted');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('model source directory', $e->getMessage());
+        }
+        $this->assertSame($before, $this->treeIdentity($this->directory));
+    }
+
+    public static function overlappingRoots(): array
+    {
+        return [[''], ['/output'], ['/nested/output']];
+    }
+
+    public function test_successful_reproduction_keeps_event_and_hash_but_removes_only_its_own_stage(): void
+    {
+        $result = app(Pipeline::class)->execute($this->request());
+        app(Pipeline::class)->execute($this->request('other-request'));
+        foreach (['test-01-replay-old-failure', 'unrelated-stage'] as $name) {
+            $stage = Files::directory($this->root.'/.staging/'.$name);
+            JsonlArtifact::json($stage.'/failure.json', ['reason' => 'preserve']);
+        }
+        $fixed = $this->treeIdentity($this->root.'/requests');
+        $stages = $this->treeIdentity($this->root.'/.staging');
+        for ($i = 0; $i < 2; $i++) {
+            $replay = app(Pipeline::class)->reproduce($this->root, 'test-01');
+            $this->assertSame('REPRODUCED', $replay['status']);
+            $this->assertSame($result['manifest']['prediction_manifest'], $replay['manifest']);
+            $this->assertSame($fixed, $this->treeIdentity($this->root.'/requests'));
+            $this->assertSame($stages, $this->treeIdentity($this->root.'/.staging'));
+        }
+        $events = array_map(fn ($file) => Files::json($file), glob($this->root.'/events/test-01-*.json'));
+        $this->assertCount(2, $events);
+        foreach ($events as $event) {
+            $this->assertSame('REPRODUCED', $event['status']);
+            $this->assertSame($result['manifest']['prediction_manifest'], $event['manifest']);
+        }
+    }
+
+    #[DataProvider('reproductionFailures')]
+    public function test_failed_reproduction_preserves_its_stage_and_all_prior_evidence(string $failure): void
+    {
+        $result = app(Pipeline::class)->execute($this->request());
+        if ($failure === 'prediction-mismatch') {
+            $manifest = $result['manifest'];
+            $manifest['prediction_manifest']['sha256'] = str_repeat('a', 64);
+            $this->resealSyntheticManifest($result['path'], $manifest);
+        } else {
+            $this->app->instance(ArtifactStore::class, new class extends ArtifactStore
+            {
+                public function event(string $root, string $requestId, array $event): void
+                {
+                    throw new RuntimeException('Synthetic event persistence failure');
+                }
+            });
+        }
+        $other = Files::directory($this->root.'/.staging/old-failure');
+        JsonlArtifact::json($other.'/failure.json', ['reason' => 'preserve']);
+        $fixed = $this->treeIdentity($result['path']);
+        $prior = $this->treeIdentity($other);
+        try {
+            app(Pipeline::class)->reproduce($this->root, 'test-01');
+            $this->fail('Failed reproduction accepted');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString($failure === 'prediction-mismatch' ? 'fixed-input prediction reproduction' : 'event persistence', $e->getMessage());
+        }
+        $this->assertSame($fixed, $this->treeIdentity($result['path']));
+        $this->assertSame($prior, $this->treeIdentity($other));
+        $stages = glob($this->root.'/.staging/test-01-replay-*');
+        $this->assertCount(1, $stages);
+        $this->assertFileExists($stages[0].'/prediction.jsonl');
+        $this->assertFileExists($stages[0].'/prediction.jsonl.manifest.json');
+        $this->assertSame([], glob($this->root.'/events/*'));
+    }
+
+    public static function reproductionFailures(): array
+    {
+        return [['prediction-mismatch'], ['event-failure']];
+    }
+
+    private function resealSyntheticManifest(string $path, array $manifest): void
+    {
+        file_put_contents($path.'/manifest.json', Files::canonical($manifest));
+        file_put_contents($path.'/LOCKED.json', Files::canonical(Files::identity($path.'/manifest.json')));
+    }
+
+    private function treeIdentity(string $directory): array
+    {
+        $files = [];
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST) as $file) {
+            $files[substr($file->getPathname(), strlen($directory) + 1)] = $file->isDir() ? 'DIRECTORY' : Files::identity($file->getPathname());
+        }
+        ksort($files, SORT_STRING);
+
+        return $files;
+    }
+
     #[DataProvider('endDrifts')]
     public function test_end_integrity_failure_never_publishes_and_preserves_other_attempts(string $drift): void
     {
@@ -329,7 +519,7 @@ class TacticalPredictionPipelineTest extends TestCase
                 return $this->real->capture($request);
             }
         });
-        app(ArtifactStore::class)->root($root);
+        app(ArtifactStore::class)->prepareRoot($root);
         mkdir($root.'/.staging/another-attempt');
         JsonlArtifact::json($root.'/.staging/another-attempt/keep.json', ['keep' => true]);
         try {
