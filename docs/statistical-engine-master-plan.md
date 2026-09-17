@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.11
+- Version: 1.12
 - Created: 2026-08-23
-- Updated: 2026-09-16
+- Updated: 2026-09-17
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `d7975fb3b09f127cb9afb9c89aa1bb33d07c857c`
+- Remote `main` at last update: `5071339125a5423cc37327953512634c0910cf42`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: TACTICAL-HISTORY-01_V2_EVALUATED_AND_REPRODUCED
+current_engine_state: TACTICAL-HISTORY-FINAL-01_REPRODUCED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_TACTICAL_HISTORY_V2_RESULTS_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_FINAL_C1_ARTIFACT_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
@@ -534,6 +534,7 @@ BT-03E-02以降で利用する場合は、
 | BT-03E-08 | P1/Q2-frozen winner-conditioned direct P3 model | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | CLOSED / REDESIGN_REQUIRED |
 | TACTICAL-PILOT-01 | 戦法回数追加あり/なしの限定比較 | BLOCKED_INPUT_SEMANTICS | NOT_EVALUATED / NO_FIT |
 | TACTICAL-HISTORY-01 v2 | 過去レース別決まり手4回数の追加比較 | EVALUATED_AND_REPRODUCED | PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY |
+| TACTICAL-HISTORY-FINAL-01 | 評価済みC1の最終development fit・保存モデル読込 | FINAL_FIT_REPRODUCED_AWAITING_REVIEW | USER_REVIEW_REQUIRED / NO_NEW_ACCURACY_EVALUATION |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -1705,6 +1706,11 @@ OOF 3: Train 2022-2024 -> Validate 2025
 
 このOOFだけで同じpre-registered algorithmを使って最終lambda / alphaを決定し、2022～2025でfinal bin / basis、beta、channel scaleをrefitしてfreezeする。この工程でも2026参照は禁止する。
 
+2026-09-17のTACTICAL-HISTORY-FINAL-01では、この3組OOFをPR #55のC1順位別確率モデルへ接続する。
+OOF-1/2を検証して再利用し、OOF-3全pathと2022～2025最終refitのみを新規学習する。
+旧E02のalpha混合・RACE_CENTERED_RMS・channel scaleは適用せず、理由付きNOT_APPLICABLEとする。
+実学習前の数値契約は `docs/tactical-history-final-01.md`。旧実験とGateは保持し、2026・LIVEは引き続き禁止。
+
 ## 15.15 Decision 12 — Goal 3 Acceptance Gate
 
 採用方式は `Hierarchical Pre-Registered Acceptance Gate` とし、次の順で判定する。
@@ -2017,6 +2023,22 @@ v2はsupport中心化の直交射影とgroup縮小を統合した正しいユー
 Hit@3の95%CIは[+0.893535,+1.325206]ポイント。追加効果Gateは `PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY`、既存対STAT-01 Gateは `PASS / GO_TO_FREEZE`。
 ただしC1-C0の2着差CIは0を含む。全4指標のCI・各年の率・分母は `docs/tactical-history-01.md` と成果物 `comparisons.json` に記録した。
 これは実測したdevelopment比較であり、学習完了だけから精度向上を結論していない。過去公開時刻はUNKNOWNのままで、LIVE採用や次工程への許可を意味しない。旧pilotのBLOCKED_INPUT_SEMANTICSとは区別して保持する。
+
+---
+
+## 15.26 TACTICAL-HISTORY-FINAL-01
+
+PR #55 merge `5071339125a5423cc37327953512634c0910cf42` を起点に、C1だけのFinal Development Fitを2026-09-17に完了した。
+旧run-01のOOF-1/2をhash・bin/support・対象集合・検証損失順序まで照合して再利用し、再学習していない。
+2022-2024学習/2025検証のOOF-3全8候補を新規生成し、3組共通適格候補と既存One-SE（2000回、seed20260812、順位/年等重み）でlambda=0.1を選択した。
+2022-2025全99,669レース・706,051出走から最終bin/support/係数を新規生成。全3順位が113/78/100 accepted updatesで収束した。
+OOF-3と最終fitを独立に2回実行し、選択・model・bin/support・予測・診断等26ファイルがbyte単位で一致した。
+旧Outer 2024/2025 C1予測と保存前後の最終予測も一致。保存モデルをArtisanから読み込む経路も24,866件で一致した。
+開始/終了のREAD ONLY検査で固定52 STAT・履歴221,559窓・対象706,051出走・717,709出走IDを照合し、旧成果物と実行コードの不変性を確認した。
+保存先は `/home/shinya/neo-keirin-artifacts/tactical-history-final-01-20260917-01/`。最終model SHA-256は `e3cc1f7f10af60bb22f97a2172ca52ef2c09a3393222ee46c25619de752d43a1`。
+artifact contractは `TACTICAL-HISTORY-FINAL-01-v1`、solver/modelはPR #55のv2を変更しない。alpha/channel scale/追加判定閾値は理由付きNOT_APPLICABLE。
+状態は `FINAL_FIT_REPRODUCED_AWAITING_REVIEW`。数値モデル候補の固定であり、追加の精度改善・最終採用・LIVE開始・2026利用許可を意味しない。
+`BACKFILLED_FINAL_RESULT / DEVELOPMENT_ONLY`、過去公開時刻UNKNOWNを維持する。詳細・コマンド・検証結果は `docs/tactical-history-final-01.md`。
 
 ---
 
@@ -2379,7 +2401,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。正式freezeは未完了。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
+| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。FINAL-01で最終C1候補のfit・保存読込・再現性も完了したが、最終候補のレビューと正式freezeは未完了。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -2418,6 +2440,11 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.12 - 2026-09-17
+
+PR #55のC1 v2を維持したTACTICAL-HISTORY-FINAL-01を実施。OOF-1/2再利用、OOF-3追加、3組One-SE、2022-2025最終fit、保存モデル読込、独立2回の再現性を完了。
+最終lambda=0.1、状態はFINAL_FIT_REPRODUCED_AWAITING_REVIEW。新規精度評価・旧モデル再学習・2026参照は行わず、ユーザーによる最終候補レビュー待ちで停止する。
 
 ## v1.11 - 2026-09-16
 
@@ -2686,9 +2713,10 @@ BT-03E-08 performance = FAIL / REDESIGN_REQUIRED
 BT-03E-08 same-condition rerun = FORBIDDEN
 TACTICAL-PILOT-01 = BLOCKED_INPUT_SEMANTICS / NO_FIT
 TACTICAL-HISTORY-01 v2 = EVALUATED_AND_REPRODUCED / PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY
+TACTICAL-HISTORY-FINAL-01 = FINAL_FIT_REPRODUCED_AWAITING_REVIEW
 
 Next:
-Review the completed PR55 TacticalHistory v2 comparison and wait for user instruction; keep the PJ0315 pilot blocked and preserve the v1 failure evidence. Do not automatically freeze, deploy, or open 2026.
+Review the final C1 model candidate and wait for user instruction; keep the completed PR55 comparison, PJ0315 pilot block, and v1 failure evidence. Do not automatically adopt, deploy, or open 2026.
 
 Do not:
 redo BT-02 discovery
