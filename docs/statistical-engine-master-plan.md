@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.12
+- Version: 1.13
 - Created: 2026-08-23
-- Updated: 2026-09-17
+- Updated: 2026-09-18
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `5071339125a5423cc37327953512634c0910cf42`
+- Remote `main` at last update: `e559155d703bf8384c035a82e890c3abcf24ff38`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,10 +167,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: TACTICAL-HISTORY-FINAL-01_REPRODUCED_AWAITING_REVIEW
+current_engine_state: TACTICAL-PREDICTION-PIPELINE-01_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_FINAL_C1_ARTIFACT_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_DEVELOPMENT_REPLAY_PIPELINE_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
+tactical_history_final_01_review: COMPLETED_PR56_MERGED
+tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
 bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
@@ -534,7 +536,8 @@ BT-03E-02以降で利用する場合は、
 | BT-03E-08 | P1/Q2-frozen winner-conditioned direct P3 model | COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT | CLOSED / REDESIGN_REQUIRED |
 | TACTICAL-PILOT-01 | 戦法回数追加あり/なしの限定比較 | BLOCKED_INPUT_SEMANTICS | NOT_EVALUATED / NO_FIT |
 | TACTICAL-HISTORY-01 v2 | 過去レース別決まり手4回数の追加比較 | EVALUATED_AND_REPRODUCED | PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY |
-| TACTICAL-HISTORY-FINAL-01 | 評価済みC1の最終development fit・保存モデル読込 | FINAL_FIT_REPRODUCED_AWAITING_REVIEW | USER_REVIEW_REQUIRED / NO_NEW_ACCURACY_EVALUATION |
+| TACTICAL-HISTORY-FINAL-01 | 評価済みC1の最終development fit・保存モデル読込 | REVIEW_COMPLETED_PR56_MERGED | NO_NEW_ACCURACY_EVALUATION / NO_LIVE_AUTHORIZATION |
+| TACTICAL-PREDICTION-PIPELINE-01 | 対象レースから入力生成・保存C1予測・ファイル固定 | VERIFIED_AWAITING_REVIEW | DEVELOPMENT_REPLAY_ONLY / 63_RACES_MATCHED |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2037,8 +2040,20 @@ OOF-3と最終fitを独立に2回実行し、選択・model・bin/support・予�
 開始/終了のREAD ONLY検査で固定52 STAT・履歴221,559窓・対象706,051出走・717,709出走IDを照合し、旧成果物と実行コードの不変性を確認した。
 保存先は `/home/shinya/neo-keirin-artifacts/tactical-history-final-01-20260917-01/`。最終model SHA-256は `e3cc1f7f10af60bb22f97a2172ca52ef2c09a3393222ee46c25619de752d43a1`。
 artifact contractは `TACTICAL-HISTORY-FINAL-01-v1`、solver/modelはPR #55のv2を変更しない。alpha/channel scale/追加判定閾値は理由付きNOT_APPLICABLE。
-状態は `FINAL_FIT_REPRODUCED_AWAITING_REVIEW`。数値モデル候補の固定であり、追加の精度改善・最終採用・LIVE開始・2026利用許可を意味しない。
+実行時の記録は `FINAL_FIT_REPRODUCED_AWAITING_REVIEW` のまま保持する。2026-09-18時点では成果物・読込検証のレビューを完了し、PR #56はmainへマージ済み。追加の精度改善・最終LIVE採用・2026利用許可を意味しない。
 `BACKFILLED_FINAL_RESULT / DEVELOPMENT_ONLY`、過去公開時刻UNKNOWNを維持する。詳細・コマンド・検証結果は `docs/tactical-history-final-01.md`。
+
+## 15.27 TACTICAL-PREDICTION-PIPELINE-01の限定許可
+
+2026-09-18のユーザー指示に基づき、対象race_id・input_as_ofから固定STAT-01/12 STATと開催前120日履歴を読み、保存済み最終C1で予測してファイル固定する接続だけを実装・技術検証する。
+実行モードは `DEVELOPMENT_REPLAY_ONLY`。対象年はSQLでも2022-2025に限定し、対象自身の結果は照会しない。STATの時点が指定時刻を超える、欠損、出走集合不一致は停止する。発売締切優先・予定発走時刻fallbackを維持し、公開時点の証明とは扱わない。
+モデルSHA-256 `e3cc1f7f10af60bb22f97a2172ca52ef2c09a3393222ee46c25619de752d43a1`、数値契約・decoder・既存成果物は不変。学習InputBuilderによる全4年再生成・OOF・最終fit・bootstrap・精度評価・DATA-AUDIT・E08再実行は禁止。
+stagingで入力・監査・予測を作成し、対象範囲の固定STAT/履歴とモデルの終了照合後だけ `DEVELOPMENT_REPLAY_LOCKED` として公開する。request単位の排他・再利用・競合拒否・破損拒否と、DB不要の固定入力再現を検証する。
+保存先は既存合意root `/home/shinya/neo-keirin-artifacts/` 内の新規専用ディレクトリとし、既存FINAL-01/v2の原本ディレクトリへ出力しない。人工検証後、保存済み2025入力の対象メタデータから最終開催日を選び、先に対象一覧を固定して全対象の入力/予測を比較する。正誤での選別・的中率/Gate再計算はしない。
+本番DBはREAD ONLYのみ。2026・LIVE・scheduler・他エンジン統合・新規取得・Migrationは対象外。旧pilot保留・旧否定結果は維持し、完了後は接続機能レビュー待ちで停止する。
+
+接続検証結果: 保存済み2025入力の24,866レースからメタデータだけで最終日2025-12-31を確定し、63レース・432出走を検証。入力生成・保存済み入力照合・既存PredictionServiceとの予測照合・DB接続なしの再現は全63件一致、最終不一致/拒否0件。39件の既存固定束を検証して再利用し、24件を新requestで固定した。再利用は新規入力生成として数えない。
+初回の新規実装で存在しないdeleted_at参照、次の試行で既存NO_HISTORY等の状態受理不足を検出・修正し、旧試行ログ/stagingを保持した。今回のscopeは接続回帰であり、新しい精度/Gateを算出していない。READ ONLY on/on、最終modelと参照8ファイルは不変。出力は `/home/shinya/neo-keirin-artifacts/tactical-prediction-pipeline-01-20260918-01/`。詳細は `docs/tactical-prediction-pipeline-01.md`。
 
 ---
 
@@ -2401,7 +2416,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。FINAL-01で最終C1候補のfit・保存読込・再現性も完了したが、最終候補のレビューと正式freezeは未完了。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
+| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。FINAL-01の最終C1のfit・保存読込・再現性・レビューを完了しPR #56マージ済み。今回は開発再生の接続実装のみ許可され、正式LIVE採用・2026は未許可。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -2440,6 +2455,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.13 - 2026-09-18
+
+main `e559155d703bf8384c035a82e890c3abcf24ff38` でPR #56のレビュー修正・マージを確認。最終成果物レビュー待ちを解消し、ユーザー指示に基づくTACTICAL-PREDICTION-PIPELINE-01の接続実装と開発データ技術検証を許可。63対象の入力・予測一致、DBなし再現を完了し、接続機能レビュー待ちへ移行。既存モデル・実行記録・精度結果は更新しない。2026、LIVE、再学習は引き続き禁止。
 
 ## v1.12 - 2026-09-17
 
@@ -2713,10 +2732,11 @@ BT-03E-08 performance = FAIL / REDESIGN_REQUIRED
 BT-03E-08 same-condition rerun = FORBIDDEN
 TACTICAL-PILOT-01 = BLOCKED_INPUT_SEMANTICS / NO_FIT
 TACTICAL-HISTORY-01 v2 = EVALUATED_AND_REPRODUCED / PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY
-TACTICAL-HISTORY-FINAL-01 = FINAL_FIT_REPRODUCED_AWAITING_REVIEW
+TACTICAL-HISTORY-FINAL-01 = REVIEW_COMPLETED_PR56_MERGED
+TACTICAL-PREDICTION-PIPELINE-01 = VERIFIED_AWAITING_REVIEW / DEVELOPMENT_REPLAY_ONLY
 
 Next:
-Review the final C1 model candidate and wait for user instruction; keep the completed PR55 comparison, PJ0315 pilot block, and v1 failure evidence. Do not automatically adopt, deploy, or open 2026.
+Review the verified development replay pipeline and wait for user instruction; keep the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not retrain, evaluate accuracy, adopt LIVE, or open 2026.
 
 Do not:
 redo BT-02 discovery
