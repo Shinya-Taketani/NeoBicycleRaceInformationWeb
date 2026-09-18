@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.15
+- Version: 1.17
 - Created: 2026-08-23
 - Updated: 2026-09-18
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `aebabc3618706a8e9c1e7b2f2c4c88538e620b02`
+- Remote `main` at last update: `67d6795fde722cae96536b54d8894b761bd8fd16`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,15 +167,15 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: TACTICAL-PREDICTION-RESULT-01_VERIFIED_AWAITING_REVIEW
+current_engine_state: TACTICAL-MEETING-GRADE-ANALYSIS-01_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_SAVED_RESULT_MATCHING_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_MEETING_GRADE_BREAKDOWN_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
 tactical_prediction_pipeline_code_review: COMPLETED_PR57_MERGED
-tactical_prediction_pipeline_chatgpt_report_zip_review: NOT_COMPLETED
-tactical_prediction_result_pr58_fixes: VERIFIED_AWAITING_REVIEW
+tactical_prediction_pipeline_chatgpt_report_zip_review: COMPLETED_USER_CONFIRMED
+tactical_prediction_result_pr58_fixes: REVIEW_COMPLETED_PR58_MERGED
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
 bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
@@ -540,8 +540,10 @@ BT-03E-02以降で利用する場合は、
 | TACTICAL-PILOT-01 | 戦法回数追加あり/なしの限定比較 | BLOCKED_INPUT_SEMANTICS | NOT_EVALUATED / NO_FIT |
 | TACTICAL-HISTORY-01 v2 | 過去レース別決まり手4回数の追加比較 | EVALUATED_AND_REPRODUCED | PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY |
 | TACTICAL-HISTORY-FINAL-01 | 評価済みC1の最終development fit・保存モデル読込 | REVIEW_COMPLETED_PR56_MERGED | NO_NEW_ACCURACY_EVALUATION / NO_LIVE_AUTHORIZATION |
-| TACTICAL-PREDICTION-PIPELINE-01 | 対象レースから入力生成・保存C1予測・ファイル固定 | CODE_REVIEW_COMPLETED_PR57_MERGED | ChatGPTの63レース報告ZIP本体照合は未完了 |
-| TACTICAL-PREDICTION-RESULT-01 | 固定予測と保存済み結果の照合・集計・再現 | VERIFIED_AWAITING_REVIEW | IN_SAMPLE_REPLAY_TECHNICAL_CHECK / 63_RACES_MATCHED |
+| TACTICAL-PREDICTION-PIPELINE-01 | 対象レースから入力生成・保存C1予測・ファイル固定 | REVIEW_COMPLETED_PR57_MERGED | 報告ZIP本体照合もユーザー確認済み |
+| TACTICAL-PREDICTION-RESULT-01 | 固定予測と保存済み結果の照合・集計・再現 | REVIEW_COMPLETED_PR58_MERGED | IN_SAMPLE_REPLAY_TECHNICAL_CHECK / 63_RACES_MATCHED |
+| TACTICAL-GRADE-ANALYSIS-01 | 保存済みOuter C1予測の級班別着順分析 | VERIFIED_AWAITING_REVIEW | 50,078レース・356,209出走、元評価一致・DB不要再現 |
+| TACTICAL-MEETING-GRADE-ANALYSIS-01 | 保存済みOuter C1の開催グレード別分析（現在の主軸） | VERIFIED_AWAITING_REVIEW | 50,078レース・1,796開催、4指標の元評価一致・DB不要再現 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2073,6 +2075,48 @@ PR #58レビュー修正: 同着status/順位グループ整合性、baseline同
 
 ---
 
+## 15.29 TACTICAL-GRADE-ANALYSIS-01の限定許可
+
+2026-09-18の新規ユーザー指示により、PR #58のコード・成果物レビュー完了、
+main `67d6795fde722cae96536b54d8894b761bd8fd16` へのマージ、旧PR #57報告ZIP本体の照合完了を現在地へ反映する。
+Section 15.27/15.28および旧変更履歴にあるレビュー待ちは当時の記録として残す。
+今回許可するのは修正版run-01のOuter 2024/2025 C1予測50,078レースの事後内訳分析だけ。
+最終モデルや63件の接続確認を母集団へ代用せず、固定decisionと既存着順別Evaluatorを使う。
+当該race_entries.gradeの属性照会は対象ID/2024-2025日付限定のREAD ONLYとし、DB結果は再取得しない。
+UNKNOWNも分母へ保持し、年・車立て・級班・着順と件数加重合算、参考Wilson区間を保存する。
+集計前契約は `docs/tactical-grade-analysis-01.md`。新namespace/コマンドによる保存・DBなし再現を実装する。
+学習・推論・旧Gate/CIの再実行、級班重みや採用条件の変更、2026、LIVEは許可しない。
+
+実行結果: run-01のC1 Outer 2024/2025を全50,078レース・356,209出走で照合。
+当該出走級班の確認率100%、UNKNOWN/識別不一致0。各位置の予測級班へ割り当てた150,234明細を保存した。
+全級班合計は保存済み未丸め評価・レース別寄与と分子/分母とも一致。
+31原本（両Outerモデルを含む）とコード、対象DB属性のSTART/ENDは不変。DBなし再現で明細・集計JSON/CSVが一致。
+両年ともA3の1着/2着観測率は高めだが、年・車立て・予測選択条件による構成差を含み、因果効果や優越性を主張しない。
+保存先は `/home/shinya/neo-keirin-artifacts/tactical-grade-analysis-01-20260918-01/`。
+実行ピーク66.5MiB、再現60.5MiB。参考Wilson区間は相関未補正、過去公開時刻UNKNOWNを維持。
+詳細・件数・CIは `docs/tactical-grade-analysis-01.md` と成果物summary。採用Gate・モデル更新・次工程には進まずレビュー待ち。
+
+## 15.30 TACTICAL-MEETING-GRADE-ANALYSIS-01
+
+2026-09-18のユーザー更新指示で、主分析軸を「予測選手の級班」から「開催グレードGP/G1/G2/G3/F1/F2」へ変更。
+15.29の旧分析・未コミット実装・固定成果物は参考資料として保持し、開催分析の完了とは扱わない。
+同じrun-01 Outer C1 50,078レースの保存decision/寄与を再利用する。
+開催ID対応、月間日程由来meeting.gradeとJSJ001開催ヘッダー由来race.gradeを照合し、同一開催で分類を統一する。
+GP欠損補完は同一開催の全対象ヘッダーが一致する場合のみ。矛盾・認識不能はUNKNOWNとして残す。
+年×開催gradeを主表、車立て・race情報由来競走区分・段階を補助表とする。開催数はdistinct ID、合算は件数加重。
+Hit@3は公式1/2/3がすべて一意なraceの位置一致数/(3×適格race数)。CI未計算、P1/P2/P3のみ相関未補正Wilson。
+集計前契約は `docs/tactical-meeting-grade-analysis-01.md`。READ ONLY属性取得・START/END不変確認・DBなし再現までを許可。
+旧分析の単純なラベル置換、再学習・推論・結果DB再取得・新bootstrap/Gate・2026・LIVE・grade重み変更は禁止。
+
+実行結果: 全50,078レースを開催分類。50,016レースは双方一致、62レース（2開催）は開催grade=NULLを同一開催のJSJ001ヘッダーGPで補完。
+UNKNOWN・矛盾・開催内混在は0。GP分類は各年31レース（各1開催）の併催を含み、単発GP競走だけの指標ではない。
+P1/P2/P3/Hit@3の分子・分母が元保存寄与と一致。属性START/ENDは不変、DBを無効化した再現で分類・明細・集計が一致。
+全体のHit@3はF2が高めだが、同じA1/A2戦ではF1との差は小さく、1着率はF1が高い。開催構成の相関を含む観測であり一般的優位・採用Gate通過を意味しない。
+今回の保存先は `/home/shinya/neo-keirin-artifacts/tactical-meeting-grade-analysis-01-20260918-01/`。実行・再現ピーク38.5MiB。
+旧級班分析は参考として残す。文書・実装とも未コミットのレビュー待ちとし、次工程には自動移行しない。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2432,7 +2476,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。FINAL-01の最終C1のfit・保存読込・再現性・レビューを完了しPR #56マージ済み。今回は開発再生の接続・固定結果照合のみ許可され、正式LIVE採用・2026は未許可。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
+| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。FINAL-01の最終C1とPR #57/#58の接続・照合レビューは完了。今回は保存済みOuter予測の開催グレード別内訳分析を主軸とし、旧予測選手級班別分析は参考として保持。モデル変更・正式LIVE採用・2026は未許可。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -2471,6 +2515,16 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.17 - 2026-09-18
+
+ユーザー指定の開催グレード主軸へ移行し、旧級班分析を保持。50,078レースの開催対応・4指標集計・保存資料のみの再現を完了。
+GPヘッダー補完62レース、UNKNOWN/矛盾0。件数加重合算と構成差の補助表を記録し、未コミットのレビュー待ち。
+
+## v1.16 - 2026-09-18
+
+main `67d6795fde722cae96536b54d8894b761bd8fd16`、PR #58マージ・コード/成果物レビュー完了、旧PR #57 ZIP照合完了をユーザー確認に基づき反映。
+TACTICAL-GRADE-ANALYSIS-01だけを新規許可。旧レビュー待ち履歴・旧pilot保留・既存モデル・holdout制限は保持する。
 
 ## v1.15 - 2026-09-18
 
@@ -2757,11 +2811,13 @@ BT-03E-08 same-condition rerun = FORBIDDEN
 TACTICAL-PILOT-01 = BLOCKED_INPUT_SEMANTICS / NO_FIT
 TACTICAL-HISTORY-01 v2 = EVALUATED_AND_REPRODUCED / PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY
 TACTICAL-HISTORY-FINAL-01 = REVIEW_COMPLETED_PR56_MERGED
-TACTICAL-PREDICTION-PIPELINE-01 = CODE_REVIEW_COMPLETED_PR57_MERGED / CHATGPT_REPORT_ZIP_REVIEW_NOT_COMPLETED
-TACTICAL-PREDICTION-RESULT-01 = VERIFIED_AWAITING_REVIEW / IN_SAMPLE_REPLAY_TECHNICAL_CHECK
+TACTICAL-PREDICTION-PIPELINE-01 = REVIEW_COMPLETED_PR57_MERGED / REPORT_ZIP_REVIEW_COMPLETED_USER_CONFIRMED
+TACTICAL-PREDICTION-RESULT-01 = REVIEW_COMPLETED_PR58_MERGED / IN_SAMPLE_REPLAY_TECHNICAL_CHECK
+TACTICAL-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / SAVED_OUTER_C1_BREAKDOWN_ONLY
+TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_ANALYSIS_AXIS
 
 Next:
-Review saved-result matching for the fixed 63 development requests and wait for user instruction; keep the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not regenerate predictions, retrain, evaluate holdout performance, adopt LIVE, or open 2026.
+Review the completed meeting-grade breakdown and wait for user instruction. Keep the prior predicted-rider-grade analysis as reference, not as a meeting analysis. Preserve the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not regenerate predictions, retrain, rerun adoption Gate/bootstrap, change grade weights, adopt LIVE, or open 2026.
 
 Do not:
 redo BT-02 discovery
