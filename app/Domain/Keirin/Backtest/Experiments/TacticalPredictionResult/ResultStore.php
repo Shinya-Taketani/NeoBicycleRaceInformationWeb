@@ -7,6 +7,7 @@ namespace App\Domain\Keirin\Backtest\Experiments\TacticalPredictionResult;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ArtifactStore;
+use Generator;
 use RuntimeException;
 
 class ResultStore
@@ -51,29 +52,106 @@ class ResultStore
         if (($manifest['status'] ?? null) !== 'RESULT_LOCKED' || array_keys($manifest['files'] ?? []) !== self::INVENTORY) {
             throw new RuntimeException('Invalid result inventory/status.');
         }
-        foreach ($manifest['files'] as $name => $seal) {
-            Files::verify($path.'/'.$name, $seal);
-        }
+        $this->verifyGenerated($path, $manifest['files']);
         Files::same($manifest['request'], Files::json($path.'/request.json'), 'result request');
 
         return $manifest;
     }
 
-    public function publish(string $stage, string $destination, array $request): array
+    public function publish(string $stage, string $destination, array $request, array $expected, array $summary): array
     {
-        $files = [];
-        foreach (self::INVENTORY as $name) {
-            $files[$name] = Files::identity($stage.'/'.$name);
+        if (array_keys($expected) !== self::INVENTORY) {
+            throw new RuntimeException('Incomplete write-time artifact inventory.');
         }
-        JsonlArtifact::json($stage.'/manifest.json', ['status' => 'RESULT_LOCKED', 'locked_at' => gmdate(DATE_ATOM),
-            'contract' => Contract::plan(), 'request' => $request, 'files' => $files]);
-        JsonlArtifact::json($stage.'/LOCKED.json', Files::identity($stage.'/manifest.json'));
+        foreach ($expected as $name => $seal) {
+            if (str_ends_with($name, '.jsonl') && ! is_int($seal['rows'] ?? null)) {
+                throw new RuntimeException('Missing write-time JSONL row count.');
+            }
+        }
+        $this->verifyGenerated($stage, $expected, $summary);
+        $manifestSeal = $this->writeJson($stage, 'manifest.json', ['status' => 'RESULT_LOCKED', 'locked_at' => gmdate(DATE_ATOM),
+            'contract' => Contract::plan(), 'request' => $request, 'files' => $expected,
+            'generation_verification' => ['policy' => 'WRITE_TIME_SEALS_AND_SUMMARY_STRICT_EQUALITY-v1',
+                'checked_at' => gmdate(DATE_ATOM), 'files' => count($expected), 'jsonl_streams' => 4]]);
+        $lockSeal = $this->writeJson($stage, 'LOCKED.json', $manifestSeal['manifest.json']);
         $manifest = $this->verify($stage);
+        $this->verifyGenerated($stage, $manifestSeal + $lockSeal);
         if (file_exists($destination) || is_link($destination) || ! rename($stage, $destination)) {
             throw new RuntimeException('Cannot publish results without overwrite.');
         }
 
         return $manifest;
+    }
+
+    public function writeJson(string $directory, string $name, array $data): array
+    {
+        $seal = $this->jsonSeal($data);
+        JsonlArtifact::json($directory.'/'.$name, $data);
+        Files::verify($directory.'/'.$name, $seal);
+
+        return [$name => $seal];
+    }
+
+    public function writeJsonl(string $directory, string $name, iterable $rows): array
+    {
+        $count = $bytes = 0;
+        $hash = hash_init('sha256');
+        // Hash the emitted bytes, not a later read of a possibly modified stage file.
+        $stream = (function () use ($rows, &$count, &$bytes, $hash): Generator {
+            foreach ($rows as $row) {
+                $line = Files::canonical($row)."\n";
+                $count++;
+                $bytes += strlen($line);
+                hash_update($hash, $line);
+                yield $row;
+            }
+        })();
+        $written = JsonlArtifact::write($directory.'/'.$name, $stream);
+        $seal = ['rows' => $count, 'bytes' => $bytes, 'sha256' => hash_final($hash)];
+        Files::same($seal, $written, 'JSONL write-time receipt');
+        $expected = [$name => $seal, $name.'.manifest.json' => $this->jsonSeal($seal)];
+        $this->verifyGenerated($directory, $expected);
+
+        return $expected;
+    }
+
+    public function verifyGenerated(string $directory, array $expected, ?array $summary = null): void
+    {
+        foreach ($expected as $name => $seal) {
+            Files::verify($directory.'/'.$name, $seal);
+        }
+        foreach ($expected as $name => $seal) {
+            if (! str_ends_with($name, '.jsonl')) {
+                continue;
+            }
+            if (! isset($expected[$name.'.manifest.json'])) {
+                throw new RuntimeException('Missing JSONL sidecar seal.');
+            }
+            $sidecar = Files::json($directory.'/'.$name.'.manifest.json');
+            // Legacy bundles have no row count in files[]. Their already-sealed sidecar supplies it.
+            $rows = $seal['rows'] ?? $sidecar['rows'] ?? null;
+            if (! is_int($rows) || $rows < 0) {
+                throw new RuntimeException('Invalid JSONL row count.');
+            }
+            Files::same(['rows' => $rows, 'bytes' => $seal['bytes'], 'sha256' => $seal['sha256']], $sidecar, 'JSONL body/sidecar');
+            foreach (JsonlArtifact::read($directory.'/'.$name) as $_) {
+                // Fully drain the bounded reader to verify rows, bytes, hash, and JSON syntax.
+            }
+        }
+        if ($summary !== null) {
+            Files::same($summary, Files::json($directory.'/summary.json'), 'generated summary');
+        }
+        foreach ($expected as $name => $seal) {
+            Files::verify($directory.'/'.$name, $seal);
+        }
+    }
+
+    private function jsonSeal(array $data): array
+    {
+        // Match JsonlArtifact::json's byte encoding without changing the shared writer.
+        $text = json_encode($data, JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
+
+        return ['bytes' => strlen($text), 'sha256' => hash('sha256', $text)];
     }
 
     public function event(string $root, string $id, array $event): void

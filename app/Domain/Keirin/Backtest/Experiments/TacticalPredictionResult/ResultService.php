@@ -9,6 +9,7 @@ use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ArtifactStore;
 use App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ModelIdentity;
+use App\Domain\Keirin\Backtest\Services\Bt03e02Contract;
 use App\Domain\Keirin\Scraping\Enums\RaceEntryResultStatus;
 use Generator;
 use RuntimeException;
@@ -46,22 +47,23 @@ final class ResultService
                 return ['status' => 'REUSED', 'path' => $destination, 'summary' => Files::json($destination.'/summary.json')];
             }
             $stage = Files::directory($root.'/.staging/'.$id.'-'.bin2hex(random_bytes(8)));
+            $expected = [];
             try {
-                JsonlArtifact::json($stage.'/request.json', $request);
-                JsonlArtifact::json($stage.'/sources.json', ['frozen_at' => gmdate(DATE_ATOM)] + $source);
-                JsonlArtifact::json($stage.'/code.json', $code);
-                JsonlArtifact::write($stage.'/fixed.jsonl', $this->fixedRows($source['selection']['targets']));
-                JsonlArtifact::write($stage.'/results.jsonl', $this->sources->extract($source));
-                $summary = $this->calculate($stage, $stage.'/fixed.jsonl', $stage.'/results.jsonl');
+                $expected += $this->store->writeJson($stage, 'request.json', $request);
+                $expected += $this->store->writeJson($stage, 'sources.json', ['frozen_at' => gmdate(DATE_ATOM)] + $source);
+                $expected += $this->store->writeJson($stage, 'code.json', $code);
+                $expected += $this->store->writeJsonl($stage, 'fixed.jsonl', $this->fixedRows($source['selection']['targets']));
+                $expected += $this->store->writeJsonl($stage, 'results.jsonl', $this->sources->extract($source));
+                $summary = $this->calculate($stage, $stage.'/fixed.jsonl', $stage.'/results.jsonl', $expected);
                 $this->sources->verify($source['seals']);
                 Files::same($code, $this->code(), 'end code integrity');
-                JsonlArtifact::json($stage.'/source-end.json', ['checked_at' => gmdate(DATE_ATOM), 'status' => 'UNCHANGED', 'seals' => $source['seals']]);
-                $manifest = $this->store->publish($stage, $destination, $request);
+                $expected += $this->store->writeJson($stage, 'source-end.json', ['checked_at' => gmdate(DATE_ATOM), 'status' => 'UNCHANGED', 'seals' => $source['seals']]);
+                $manifest = $this->store->publish($stage, $destination, $request, $expected, $summary);
 
                 return ['status' => 'RESULT_LOCKED', 'path' => $destination, 'manifest' => $manifest, 'summary' => $summary];
             } catch (Throwable $e) {
                 JsonlArtifact::json($stage.'/failure.json', ['status' => 'FAILED_NOT_PUBLISHED', 'at' => gmdate(DATE_ATOM),
-                    'type' => $e::class, 'message' => $e->getMessage(), 'all_targets_successful' => false]);
+                    'type' => $e::class, 'message' => $e->getMessage(), 'all_targets_successful' => false, 'expected_files' => $expected]);
                 throw $e;
             }
         });
@@ -78,25 +80,27 @@ final class ResultService
             $manifest = $this->store->verify($path);
             Files::same(Files::json($path.'/code.json'), $this->code(), 'reproduction code identity');
             $stage = Files::directory($root.'/.staging/'.$id.'-reproduce-'.bin2hex(random_bytes(8)));
+            $expected = [];
             try {
-                $summary = $this->calculate($stage, $path.'/fixed.jsonl', $path.'/results.jsonl');
+                $summary = $this->calculate($stage, $path.'/fixed.jsonl', $path.'/results.jsonl', $expected);
+                $this->store->verifyGenerated($stage, $expected, $summary);
                 foreach (['joined.jsonl', 'contributions.jsonl', 'summary.json'] as $file) {
                     Files::verify($stage.'/'.$file, $manifest['files'][$file]);
                 }
                 Files::same($manifest, $this->store->verify($path), 'reproduction end integrity');
                 Files::same(Files::json($path.'/code.json'), $this->code(), 'reproduction end code integrity');
                 $this->store->event($root, $id, ['status' => 'REPRODUCED', 'stage' => basename($stage),
-                    'summary' => Files::identity($stage.'/summary.json'), 'database' => 'NONE', 'inference' => 'NONE']);
+                    'summary' => $expected['summary.json'], 'database' => 'NONE', 'inference' => 'NONE']);
 
                 return ['status' => 'REPRODUCED', 'path' => $stage, 'summary' => $summary, 'database' => 'NONE', 'inference' => 'NONE'];
             } catch (Throwable $e) {
-                JsonlArtifact::json($stage.'/failure.json', ['status' => 'FAILED_REPRODUCTION', 'message' => $e->getMessage()]);
+                JsonlArtifact::json($stage.'/failure.json', ['status' => 'FAILED_REPRODUCTION', 'message' => $e->getMessage(), 'expected_files' => $expected]);
                 throw $e;
             }
         });
     }
 
-    private function calculate(string $stage, string $fixed, string $results): array
+    private function calculate(string $stage, string $fixed, string $results, array &$expected): array
     {
         // Only offsets/IDs stay in memory; neither annual labels nor selected race payloads accumulate.
         $offsets = [];
@@ -110,10 +114,10 @@ final class ResultService
             $offsets[$key] = $offset;
             $offset += strlen(Files::canonical($row)."\n");
         }
-        JsonlArtifact::write($stage.'/joined.jsonl', $this->joined($fixed, $results, $offsets));
+        $expected += $this->store->writeJsonl($stage, 'joined.jsonl', $this->joined($fixed, $results, $offsets));
         $summary = $this->metrics->emptySummary();
         $excluded = array_fill_keys(Bt03e05MetricEvaluator::METRIC_CODES, 0);
-        JsonlArtifact::write($stage.'/contributions.jsonl', (function () use ($stage, &$summary, &$excluded): Generator {
+        $expected += $this->store->writeJsonl($stage, 'contributions.jsonl', (function () use ($stage, &$summary, &$excluded): Generator {
             foreach (JsonlArtifact::read($stage.'/joined.jsonl') as $joined) {
                 $row = $this->matcher->comparison($joined);
                 $this->metrics->add($summary, $row['comparison']);
@@ -138,7 +142,7 @@ final class ResultService
             'exact_ordered_top3_semantics' => 'SUPPORTING_MAP; primary exact order is separately in decoder_diagnostics',
             'hit_at_3_semantics' => 'POSITION_HITS / (3 * UNIQUE_ORDERED_TOP3_RACES)',
             'gate_ci_bootstrap' => 'NOT_RUN'];
-        JsonlArtifact::json($stage.'/summary.json', $result);
+        $expected += $this->store->writeJson($stage, 'summary.json', $result);
 
         return $result;
     }
@@ -175,7 +179,7 @@ final class ResultService
     {
         $files = glob(__DIR__.'/*.php');
         $files[] = app_path('Console/Commands/Keirin/TacticalPredictionResultCommand.php');
-        foreach ([Bt03e05MetricEvaluator::class, JsonlArtifact::class, Files::class,
+        foreach ([Bt03e05MetricEvaluator::class, Bt03e02Contract::class, JsonlArtifact::class, Files::class,
             ArtifactStore::class,
             ModelIdentity::class,
             \App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\Contract::class,

@@ -37,6 +37,7 @@ final class Matcher
     {
         $entries = $this->entries($row);
         $clean = [];
+        $rankGroups = [];
         foreach ($entries as $entry) {
             $status = $entry['status'] ?? null;
             $rank = $entry['rank'] ?? null;
@@ -48,6 +49,16 @@ final class Matcher
                 throw new RuntimeException('Invalid result rank/status.');
             }
             $clean[] = ['id' => $entry['id'], 'bike' => $entry['bike'], 'rank' => $rank, 'status' => $status];
+            if ($rank !== null) {
+                $rankGroups[$rank][$entry['id']] = $status;
+            }
+        }
+        foreach ($rankGroups as $rank => $statuses) {
+            $expected = count($statuses) > 1 ? 'TIED' : 'FINISHED';
+            if (array_filter($statuses, static fn (string $status): bool => $status !== $expected) !== []) {
+                throw new RuntimeException(sprintf('Inconsistent rank group: year=%d race_id=%d rank=%d expected=%s entries=%s',
+                    $row['year'], $row['race_id'], $rank, $expected, json_encode($statuses, JSON_THROW_ON_ERROR)));
+            }
         }
 
         return ['year' => $row['year'], 'race_id' => $row['race_id'], 'entries' => $clean];

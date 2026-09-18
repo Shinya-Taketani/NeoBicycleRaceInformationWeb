@@ -1,7 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.14
+- Version: 1.15
 - Created: 2026-08-23
 - Updated: 2026-09-18
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
@@ -175,6 +175,7 @@ tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
 tactical_prediction_pipeline_code_review: COMPLETED_PR57_MERGED
 tactical_prediction_pipeline_chatgpt_report_zip_review: NOT_COMPLETED
+tactical_prediction_result_pr58_fixes: VERIFIED_AWAITING_REVIEW
 2025_next_evaluation: DEVELOPMENT_CORPUS_ONLY_NOT_FINAL_HOLDOUT
 2026_holdout: FROZEN_FOR_MODEL_SELECTION
 bt03e02_status: COMPLETED_WITH_REPRODUCIBLE_NEGATIVE_RESULT
@@ -2068,6 +2069,8 @@ PR #57はmain `aebabc3618706a8e9c1e7b2f2c4c88538e620b02` へマージ済み。�
 
 Codex実行結果: 63レース・432出走を照合し不足/不一致0。1着26/63、2着18/63、3着10/63、Hit@3=54/189。既存Evaluatorを固定入力・保存labelsへ直接接続した参照結果とレース別寄与・全11指標の集計が完全一致し、DB不要再現/再利用も成功。原本765ファイルと最終モデルhashは不変。詳細は `docs/tactical-prediction-result-01.md`、出力は `/home/shinya/neo-keirin-artifacts/tactical-prediction-result-01-20260918-01/`。学習期間内の照合技術検証だけを完了し、レビュー待ちで停止する。ChatGPTの旧ZIP照合を完了扱いにしない。
 
+PR #58レビュー修正: 同着status/順位グループ整合性、baseline同点規則の依存コードseal、生成時期待sealと公開前の全13成果物照合を追加。新ID `development-2025-12-31-fixed63-pr58-review-01` で同じ63レース・432出走の保存・再利用・再現を確認。全11指標とレース別寄与は旧評価と完全一致、保護対象854ファイルとモデルhashは不変。旧IDはコード不一致で拒否し旧記録は保持。追加26テストと全体回帰を確認し、`pr58-review-01/` に証拠を保存。未知データ精度・Gate通過ではなく、修正のレビュー待ち。TACTICAL-GRADE-ANALYSIS-01・級班別集計は未着手で、次工程への自動移行はしない。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation
@@ -2468,6 +2471,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.15 - 2026-09-18
+
+PR #58のHEAD `d2d8df6bf701774b6ef3e9b4c6b5289f64991379` 上で結果照合のレビュー3件を修正。同じ固定63件を別evaluation_idで照合・保存・再現し、旧値・旧原本不変を確認。旧実行記録を維持し、修正確認のレビュー待ちで停止。main SHA、モデル数値、Gate、holdout/LIVE制限は変更しない。
 
 ## v1.14 - 2026-09-18
 

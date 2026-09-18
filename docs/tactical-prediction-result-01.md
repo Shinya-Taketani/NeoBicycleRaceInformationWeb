@@ -80,3 +80,28 @@ EXACT_ORDERED_TOP3_RATEは既存定義のSupporting MAP、Primary完全順序一
 既存接続48件/926 assertionsも成功。`php artisan test` および直接PHPUnit 128MBはともに1,214件中1,205成功・PostgreSQL専用9skip、8,989 assertions。
 変更PHPのPint・7ファイルのphp -l・git diff --check成功。全体Pintは未変更 `Bt03e08BoundedMemoryTest.php` の既存statement_indentation指摘1件で失敗。範囲外なので変更しない。
 Migration・DB変更なし。2026・LIVE・新規取得・OOF・fit・予測再生成・Gate・CI・bootstrap未実施。レビュー待ちで停止する。
+
+## PR #58レビュー修正
+
+レビュー対象 `d2d8df6bf701774b6ef3e9b4c6b5289f64991379`、開始時は同一ブランチ・clean。旧実行記録は上記のまま保持する。
+
+1. Matcherに順位グループ検査を追加。同順位が複数なら全員TIED、単独ならFINISHEDを要求する。RaceResultParser/RaceLiveResultParserの分類と一致させ、順位の補正はしない。拒否証拠にはyear/race_id/rank/期待status/出走ID別statusを残す。
+2. `Bt03e02Contract.php` をコードsealへ追加。Evaluatorのbaselineが直接参照するTIE_RULE_VERSIONの定義を捕捉する。数値算出を行うEvaluator、結果解釈を行うMatcherと結果status Enum、JSON/JSONLの読書きクラスは既にseal対象であることを確認した。定数値・計算式・Parser・モデル・Sourcesは変更しない。
+3. JSONは書込み予定の正確なbyte列、JSONLは出力行を逐次エンコードしたbyte列から期待sealを保持。全13必須ファイルと4JSONLのsidecarを公開前に照合し、JSONLの行数/bytes/SHA-256と本体/sidecar一致も検証する。manifestは期待sealから作成し、現在のstageを採取し直して正解とはしない。summaryは計算時配列と型・精度を維持して厳密比較する。原本とコードの終了検査も維持する。
+
+新しいmanifestの `files` は書込み時seal（JSONLはrowsも含む）、`generation_verification` は公開前照合の記録。失敗時は `failure.json.expected_files` にその時点までの期待sealを残し、旧評価・他stageを削除しない。再現stageにも生成時seal検査を適用する。
+旧manifestにrowsがないJSONLは、既存sealで固定されたsidecarの行数で整合性を検証するだけで、原本は書き換えない。新規公開には書込み時rowsを必須とする。**現コードで上記の旧evaluation_idをexecuteするとCONFLICT、reproduceするとコードidentity不一致で拒否される。旧成果物は旧コードの監査記録として保持する。**
+
+### 追加回帰と既存データ確認
+
+- 不正な同着9ケース（各1/2/3着の重複FINISHED・単独TIED・混在）を拒否。正常な同着・異常結果の既存テストも維持。
+- 全13生成物それぞれの改変、およびcontributions本体とsidecarの同時改変を拒否。summaryのmatched=1→9とnumerator=1.0→0.0の同サイズ変更を含む。旧評価・原本・他stageの不変も検証。
+- 一時ディレクトリへコードをコピーし、別PHPプロセスで同点規則の定義だけを変更。Evaluator本体のsealは同じでもcode identityが変わり、旧IDの再利用・再現を拒否。正本コードは変更しない。
+- 期待seal全13件、JSONL row count、保存summaryと戻り値の一致、float 1.0とint 1の不一致拒否を確認。
+- 追加26件/193 assertions、結果照合76件/428 assertions成功。PHPUnit本体に128MBを指定した全体は1,240件中1,231成功・9skip、9,182 assertions。Artisan全体も同結果。Pipeline/Evaluator/Parserの関連回帰も成功。
+- 変更PHPのPint・構文検査・git diff --check成功。全体Pintの未変更E08テストの既存指摘1件は残る。
+
+今回の保存先は同じ合意済みroot内の `pr58-review-01/` と、新ID `development-2025-12-31-fixed63-pr58-review-01` の評価束。コマンドは上記と同じ保存済みrequests/labelsを指定し、evaluation-idだけをこの新IDへ変更して実行した。
+DBを無効にしてRESULT_LOCKED / REUSED / REPRODUCEDを確認。63レース・432出走、不足/不一致0。fixed/results/joined/contributions/summaryは旧評価とbyte単位で一致し、全11指標のcandidate/baseline分子・分母・集計値も不変。1着26/63、2着18/63、3着10/63、Hit@3=54/189は参照値との一致確認であり、性能改善の主張ではない。
+保護対象854ファイル（旧評価・既存ZIPを含む）、labels、最終モデルhashは不変。`pr58-review-01/verification-01/result.json` に新旧比較、生成時seal、公開前検証記録を保存する。
+旧報告ZIPは未改変で修正確認ZIPへ同梱する。ChatGPTの報告ZIP本体確認は未確認のまま。級班別集計、TACTICAL-GRADE-ANALYSIS-01、学習・推論・Gate・2026へ進まず、未コミットのレビュー待ちで停止する。

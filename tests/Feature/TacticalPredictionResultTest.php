@@ -120,6 +120,214 @@ class TacticalPredictionResultTest extends TestCase
         return array_map(fn ($s) => [$s], ['tie1', 'tie2', 'tie3', 'DISQUALIFIED', 'DID_NOT_FINISH', 'DID_NOT_START', 'WITHDRAWN', 'CRASHED']);
     }
 
+    #[DataProvider('inconsistentTies')]
+    public function test_inconsistent_tie_groups_are_rejected_with_race_and_rank_evidence(int $rank, string $kind): void
+    {
+        $fixed = $this->fixture();
+        $label = $this->labels($fixed);
+        $this->saveInputs([$label]);
+        $old = $this->execute();
+        $oldSeal = Files::identity($old['path'].'/manifest.json');
+        if ($kind === 'single') {
+            $label['entries'][$rank - 1]['status'] = 'TIED';
+        } else {
+            $label['entries'][$rank]['rank'] = $rank;
+            if ($kind === 'mixed') {
+                $label['entries'][$rank]['status'] = 'TIED';
+            }
+        }
+        JsonlArtifact::write($this->directory.'/source/inconsistent.jsonl', [$label]);
+        $before = $this->sourceSeals();
+        $this->mustFail(fn () => $this->execute('invalid-tie', 'inconsistent.jsonl'), 'rank='.$rank);
+        $this->assertDirectoryDoesNotExist($this->root.'/evaluations/invalid-tie');
+        $failure = Files::json(glob($this->root.'/.staging/invalid-tie-*/failure.json')[0]);
+        $this->assertStringContainsString('race_id=90', $failure['message']);
+        $this->assertStringContainsString('year=2025', $failure['message']);
+        $this->assertStringContainsString('entries=', $failure['message']);
+        $this->assertSame($before, $this->sourceSeals());
+        Files::verify($old['path'].'/manifest.json', $oldSeal);
+    }
+
+    public static function inconsistentTies(): array
+    {
+        $cases = [];
+        foreach ([1, 2, 3] as $rank) {
+            foreach (['finished', 'mixed', 'single'] as $kind) {
+                $cases[] = [$rank, $kind];
+            }
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('stageChanges')]
+    public function test_write_time_seals_reject_stage_changes_without_modifying_old_evidence(string $file, bool $reseal): void
+    {
+        $fixed = $this->fixture();
+        $this->saveInputs([$this->labels($fixed)]);
+        $old = $this->execute();
+        $oldManifest = Files::identity($old['path'].'/manifest.json');
+        $other = Files::directory($this->root.'/.staging/unrelated-failure');
+        JsonlArtifact::json($other.'/failure.json', ['previous' => true]);
+        $otherSeal = Files::identity($other.'/failure.json');
+        $sources = $this->sourceSeals();
+        $store = \Mockery::mock(ResultStore::class, [app(ArtifactStore::class)])->makePartial();
+        $store->shouldReceive('publish')->once()->andReturnUsing(function (string $stage, string $destination, array $request, ...$arguments) use ($file, $reseal): array {
+            $path = $stage.'/'.$file;
+            $text = file_get_contents($path);
+            if ($file === 'summary.json') {
+                $changed = str_replace('"matched": 1', '"matched": 9', $text);
+            } elseif ($file === 'contributions.jsonl') {
+                $changed = preg_replace('/"numerator":1\.0/', '"numerator":0.0', $text, 1);
+            } else {
+                $changed = substr_replace($text, ' ', 0, 1);
+            }
+            $this->assertNotSame($text, $changed);
+            $this->assertSame(strlen($text), strlen($changed));
+            file_put_contents($path, $changed);
+            if ($reseal) {
+                $sidecar = Files::json($path.'.manifest.json');
+                $sidecar['sha256'] = hash('sha256', $changed);
+                file_put_contents($path.'.manifest.json', json_encode($sidecar, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+            }
+
+            return (new ResultStore(app(ArtifactStore::class)))->publish($stage, $destination, $request, ...$arguments);
+        });
+        $this->app->instance(ResultStore::class, $store);
+        $this->mustFail(fn () => $this->execute('stage-drift'));
+        $this->assertDirectoryDoesNotExist($this->root.'/evaluations/stage-drift');
+        $failed = glob($this->root.'/.staging/stage-drift-*/failure.json');
+        $this->assertCount(1, $failed);
+        $failure = Files::json($failed[0]);
+        $this->assertArrayHasKey($file, $failure['expected_files']);
+        $this->assertSame($sources, $this->sourceSeals());
+        Files::verify($old['path'].'/manifest.json', $oldManifest);
+        Files::verify($other.'/failure.json', $otherSeal);
+    }
+
+    public static function stageChanges(): array
+    {
+        $files = ['request.json', 'sources.json', 'code.json', 'fixed.jsonl', 'fixed.jsonl.manifest.json',
+            'results.jsonl', 'results.jsonl.manifest.json', 'joined.jsonl', 'joined.jsonl.manifest.json',
+            'contributions.jsonl', 'contributions.jsonl.manifest.json', 'summary.json', 'source-end.json'];
+
+        return [...array_map(fn ($file) => [$file, false], $files), ['contributions.jsonl', true]];
+    }
+
+    public function test_baseline_rule_dependency_is_in_code_identity(): void
+    {
+        $code = (new \ReflectionMethod(ResultService::class, 'code'))->invoke(app(ResultService::class));
+        $path = 'app/Domain/Keirin/Backtest/Services/Bt03e02Contract.php';
+        $this->assertArrayHasKey($path, $code['files']);
+        $this->assertSame(Files::identity(base_path($path)), $code['files'][$path]);
+    }
+
+    public function test_isolated_rule_only_change_conflicts_and_blocks_reproduction(): void
+    {
+        $fixed = $this->fixture();
+        $this->saveInputs([$this->labels($fixed)]);
+        $run = $this->execute();
+        $manifest = Files::identity($run['path'].'/manifest.json');
+        $code = Files::json($run['path'].'/code.json');
+        $sandbox = Files::directory($this->directory.'/isolated-code');
+        foreach ($code['files'] as $relative => $seal) {
+            $destination = $sandbox.'/'.$relative;
+            if (! is_dir(dirname($destination))) {
+                mkdir(dirname($destination), 0755, true);
+            }
+            copy(base_path($relative), $destination);
+            Files::verify($destination, $seal);
+        }
+        $original = $this->isolatedCodeCheck($sandbox);
+        $this->assertSame($code, $original['code']);
+        $this->assertSame('REUSED', $original['reuse']);
+        $this->assertSame('REPRODUCED', $original['reproduce']);
+        $rule = 'app/Domain/Keirin/Backtest/Services/Bt03e02Contract.php';
+        $text = file_get_contents($sandbox.'/'.$rule);
+        $changed = str_replace("TIE_RULE_VERSION = 'BT03E02-TIE-v1'", "TIE_RULE_VERSION = 'BT03E02-TIE-v2'", $text);
+        $this->assertNotSame($text, $changed);
+        file_put_contents($sandbox.'/'.$rule, $changed);
+        $updated = $this->isolatedCodeCheck($sandbox);
+        $this->assertNotSame($code['files'][$rule], $updated['code']['files'][$rule]);
+        $this->assertSame(array_diff_key($code['files'], [$rule => true]), array_diff_key($updated['code']['files'], [$rule => true]));
+        $this->assertNotSame(hash('sha256', Files::canonical($code)), hash('sha256', Files::canonical($updated['code'])));
+        $this->assertStringContainsString('CONFLICT', $updated['reuse']);
+        $this->assertStringContainsString('reproduction code identity', $updated['reproduce']);
+        Files::verify(base_path($rule), $code['files'][$rule]);
+        Files::verify($run['path'].'/manifest.json', $manifest);
+    }
+
+    public function test_generated_seals_cover_all_files_rows_and_strict_summary_types(): void
+    {
+        $fixed = $this->fixture();
+        $this->saveInputs([$this->labels($fixed)]);
+        $run = $this->execute();
+        $manifest = $run['manifest'];
+        $this->assertCount(13, $manifest['files']);
+        $this->assertSame('WRITE_TIME_SEALS_AND_SUMMARY_STRICT_EQUALITY-v1', $manifest['generation_verification']['policy']);
+        $this->assertSame($run['summary'], Files::json($run['path'].'/summary.json'));
+        foreach (['fixed', 'results', 'joined', 'contributions'] as $name) {
+            $this->assertSame(1, $manifest['files'][$name.'.jsonl']['rows']);
+            $this->assertSame($manifest['files'][$name.'.jsonl'], Files::json($run['path'].'/'.$name.'.jsonl.manifest.json'));
+        }
+        $stage = Files::directory($this->root.'/.staging/strict-summary');
+        $store = app(ResultStore::class);
+        $seal = $store->writeJson($stage, 'summary.json', ['metric' => 1.0]);
+        $store->verifyGenerated($stage, $seal, ['metric' => 1.0]);
+        $this->mustFail(fn () => $store->verifyGenerated($stage, $seal, ['metric' => 1]), 'generated summary');
+    }
+
+    private function isolatedCodeCheck(string $sandbox): array
+    {
+        $program = <<<'PHP'
+        $loader = require $argv[1].'/vendor/autoload.php';
+        $paths = [];
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($argv[2].'/app', FilesystemIterator::SKIP_DOTS)) as $file) {
+            $relative = substr($file->getPathname(), strlen($argv[2].'/app/'), -4);
+            $paths['App\\'.str_replace('/', '\\', $relative)] = $file->getPathname();
+        }
+        $loader->addClassMap($paths);
+        $app = require $argv[1].'/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $app->setBasePath($argv[2]);
+        $app->useAppPath($argv[2].'/app');
+        config(['database.default' => 'disabled-result-test', 'tactical_prediction_pipeline.artifact_base' => $argv[3]]);
+        $app->instance(App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ModelIdentity::class,
+            new class extends App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ModelIdentity {
+                public function __construct() {}
+                public function validate(string $artifact): void {
+                    if (App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files::json(dirname($artifact).'/model.json') !== ['synthetic' => 'frozen']) {
+                        throw new RuntimeException('Synthetic model mismatch');
+                    }
+                }
+            });
+        $service = app(App\Domain\Keirin\Backtest\Experiments\TacticalPredictionResult\ResultService::class);
+        $result['code'] = (new ReflectionMethod($service, 'code'))->invoke($service);
+        foreach (['reuse', 'reproduce'] as $operation) {
+            try {
+                $value = $operation === 'reuse'
+                    ? $service->execute('DEVELOPMENT_REPLAY_ONLY', 'test-01', $argv[3].'/output', $argv[3].'/source/selection.json', $argv[3].'/source/labels.jsonl', $argv[3].'/source/labels.jsonl.manifest.json')
+                    : $service->reproduce('DEVELOPMENT_REPLAY_ONLY', $argv[3].'/output', 'test-01');
+                $result[$operation] = $value['status'];
+            } catch (RuntimeException $e) {
+                $result[$operation] = $e->getMessage();
+            }
+        }
+        echo json_encode($result, JSON_THROW_ON_ERROR);
+        PHP;
+        $process = proc_open([PHP_BINARY, '-d', 'memory_limit=128M', '-r', $program, base_path(), $sandbox, $this->directory],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($process);
+        fclose($pipes[0]);
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $this->assertSame(0, proc_close($process), $stderr);
+
+        return json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+    }
+
     public function test_zero_denominators_and_primary_supporting_exact_order_are_distinct(): void
     {
         $fixed = $this->fixture();
@@ -455,10 +663,12 @@ class TacticalPredictionResultTest extends TestCase
     {
         try {
             $work();
-            $this->fail('Invalid operation accepted.');
         } catch (RuntimeException $e) {
             $this->assertStringContainsString($message, $e->getMessage());
+
+            return;
         }
+        $this->fail('Invalid operation accepted.');
     }
 
     private function drift(string $path): void
