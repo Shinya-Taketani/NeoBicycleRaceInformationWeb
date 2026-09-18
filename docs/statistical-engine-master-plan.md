@@ -1,9 +1,9 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.18
+- Version: 1.19
 - Created: 2026-08-23
-- Updated: 2026-09-18
+- Updated: 2026-09-19
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: GROWTH-POINT-ANALYSIS-01_VERIFIED_AWAITING_REVIEW
+current_engine_state: GROWTH-POINT-ANALYSIS-01_V2_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_GROWTH_DIAGNOSTICS_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_V1_V2_GROWTH_DIAGNOSTICS_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -545,6 +545,7 @@ BT-03E-02以降で利用する場合は、
 | TACTICAL-GRADE-ANALYSIS-01 | 保存済みOuter C1予測の級班別着順分析 | VERIFIED_AWAITING_REVIEW | 50,078レース・356,209出走、元評価一致・DB不要再現 |
 | TACTICAL-MEETING-GRADE-ANALYSIS-01 | 保存済みOuter C1の開催グレード別分析（現在の主軸） | VERIFIED_AWAITING_REVIEW | 50,078レース・1,796開催、4指標の元評価一致・DB不要再現 |
 | GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | VERIFIED_AWAITING_REVIEW | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
+| GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | VERIFIED_AWAITING_REVIEW | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2142,6 +2143,24 @@ DBを無効化した再現は閾値/入力/明細/全診断と集計hash一致�
 
 ---
 
+## 15.32 GROWTH-POINT-ANALYSIS-01-v2
+
+2026-09-19 PR #60レビュー指示。v1はQUANTILE_BASED_POINT契約どおりの完了済み診断であり、計算バグとは扱わない。
+zero massによりA raw=0がv1では-2点になるため、成長/悪化/変化なしという意味付けを分離したv2を追加検証した。
+v1 PHP・文書・固定bundle・旧ZIPはbyte-for-byte不変。Section 15.31の歴史記録は維持する。
+結果閲覧前契約は `docs/growth-point-analysis-01-v2.md`。新namespace/command、SIGN_PRESERVING_POINT。
+負/正の過去年分布を分離したType7 P33/P67、0は常に0、各側n<3はNULL/INSUFFICIENT_SIGN_TRAINING。
+既存v1 snapshotだけから全50,078レース・356,209出走を再計算し、入力/raw/status/prev1/prev2/同一開催を全件一致で検証。
+A raw=0の119,668/118,519件がv2では0点。同一開催Aの118,820/117,729件もraw/pointとも全件0。符号違反0。
+全層raw Spearmanは未丸め値でv1と完全一致。年別v2 point rhoはA +0.016604/+0.016912、B -0.069889/-0.067532、C -0.056421/-0.053351。
+既存診断基準は不変、両年A/B/CともNON_MONOTONIC。符号の意味は保持したが、予測精度改善・因果効果・STAT採用は結論しない。
+DB無効・128MBでv2 execute/reproduce、v1 reproduce成功。v2ピーク約48MiB、v1再現42MiB。
+保存先は `/home/shinya/neo-keirin-artifacts/growth-point-analysis-01-v2-20260919-01/`。
+年/開催grade/競走区分/同一開催、C1取り逃し、v1→v2遷移・欠損・原本不変の証跡を保存。
+E08不採用、旧pilot保留、2026閉鎖、モデル/STAT/DB/正式成果物の保護を維持。未コミットでレビュー待ち、次工程への自動移行なし。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2541,6 +2560,12 @@ reason:
 
 # 25. 変更履歴
 
+## v1.19 - 2026-09-19
+
+- PR #60でv1のzero massによるpoint意味付けを確認。v1の正当な計算・固定成果物は保持。
+- v2 SIGN_PRESERVING_POINTを独立追加し、raw全件一致・符号保持・全層診断・v1/v2再現を確認。
+- v1とv2を区別してレビュー待ちとし、モデル改善・正式採用の結論は出さない。
+
 ## v1.18 - 2026-09-18
 
 - GROWTH-POINT-ANALYSIS-01の結果閲覧前契約、全出走診断、再現確認とレビュー待ち状態を記録。
@@ -2847,9 +2872,10 @@ TACTICAL-PREDICTION-RESULT-01 = REVIEW_COMPLETED_PR58_MERGED / IN_SAMPLE_REPLAY_
 TACTICAL-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / SAVED_OUTER_C1_BREAKDOWN_ONLY
 TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_ANALYSIS_AXIS
 GROWTH-POINT-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / DEVELOPMENT_DIAGNOSTIC_ONLY
+GROWTH-POINT-ANALYSIS-01-v2 = VERIFIED_AWAITING_REVIEW / SIGN_PRESERVING_POINT / V1_UNCHANGED
 
 Next:
-Review the completed growth diagnostics and wait for user instruction. Keep the prior meeting-grade and predicted-rider-grade analyses with their distinct meanings. Preserve the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not adopt growth as a STAT, change C1 weights, regenerate predictions, retrain, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026.
+Review the completed v1/v2 growth comparison and wait for user instruction. Keep v1 QUANTILE_BASED_POINT unchanged and v2 SIGN_PRESERVING_POINT separate. Keep the prior meeting-grade and predicted-rider-grade analyses with their distinct meanings. Preserve the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not adopt growth as a STAT, change C1 weights, regenerate predictions, retrain, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026.
 
 Do not:
 redo BT-02 discovery
