@@ -1,7 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.17
+- Version: 1.18
 - Created: 2026-08-23
 - Updated: 2026-09-18
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: TACTICAL-MEETING-GRADE-ANALYSIS-01_VERIFIED_AWAITING_REVIEW
+current_engine_state: GROWTH-POINT-ANALYSIS-01_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_MEETING_GRADE_BREAKDOWN_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_GROWTH_DIAGNOSTICS_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -544,6 +544,7 @@ BT-03E-02以降で利用する場合は、
 | TACTICAL-PREDICTION-RESULT-01 | 固定予測と保存済み結果の照合・集計・再現 | REVIEW_COMPLETED_PR58_MERGED | IN_SAMPLE_REPLAY_TECHNICAL_CHECK / 63_RACES_MATCHED |
 | TACTICAL-GRADE-ANALYSIS-01 | 保存済みOuter C1予測の級班別着順分析 | VERIFIED_AWAITING_REVIEW | 50,078レース・356,209出走、元評価一致・DB不要再現 |
 | TACTICAL-MEETING-GRADE-ANALYSIS-01 | 保存済みOuter C1の開催グレード別分析（現在の主軸） | VERIFIED_AWAITING_REVIEW | 50,078レース・1,796開催、4指標の元評価一致・DB不要再現 |
+| GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | VERIFIED_AWAITING_REVIEW | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2117,6 +2118,30 @@ P1/P2/P3/Hit@3の分子・分母が元保存寄与と一致。属性START/ENDは
 
 ---
 
+## 15.31 GROWTH-POINT-ANALYSIS-01
+
+2026-09-18ユーザー指示により、開始main `056e339a8d7ef56aacb3537fe413ca6d72a8813b` から専用experimentブランチを作成。
+旧級班・開催grade分析と固定C1を保持し、同じ50,078レースの全356,209出走を分析単位とする。
+今回の対象は成長指標そのものの診断であり、C1モデル変更やSTAT正式採用ではない。
+結果閲覧前に `docs/growth-point-analysis-01.md` へ以下を固定した。
+Aは歴史的race_entriesのtarget競走得点-prev1競走得点、Bは既存Batch02正式残差のprev1-prev2。
+実発走前走は日付・予定時刻順で選び、欠場/取消/中止を除外、異常完走は履歴へ残すが正常残差へ変換しない。
+2024閾値は2022-2023、2025閾値は2022-2024だけのType7分位点。A/Bを-3～+3、両方利用可能な場合だけC=A点+B点。
+開催分類は前工程の固定資料を検証して再利用。相関・単調性・欠損を年/grade/競走区分/同一開催別に報告。
+
+実行結果: Aの年別raw Spearmanは+0.016586/+0.016975、Bは-0.072251/-0.070199、C点は-0.050279/-0.048289。
+全体の事前分類はA/B/Cとも両年NON_MONOTONIC。Aの観測point別率は上昇するが相関基準未満、Bは主に逆方向でも3着内率に隣接逆転がある。
+同一開催のAは全件raw=0。Bの逆方向は同一開催で約-0.105、開催間ではほぼ0であり、長期成長とは混同しない。
+F2全体の弱い正方向にはA_CHALLENGE構成の影響があり、F1/F2のA1_A2比較では年次の強弱が一定しない。
+単純な「成長点が高いほど次走が良い」、C1改善、因果効果、正式採用を結論しない。E08不採用・旧pilot保留・2026閉鎖を維持。
+READ ONLY履歴101,317レース・717,661出走、旧原本62ファイルと直接コードのSTART/ENDは不変。
+DBを無効化した再現は閾値/入力/明細/全診断と集計hash一致。実行48MiB、再現42MiB。
+保存先は `/home/shinya/neo-keirin-artifacts/growth-point-analysis-01-20260918-01/`。
+取得時点はBACKFILLED_FINAL_RESULT / DEVELOPMENT_ONLY / publication_time_verified=UNKNOWN。
+未コミットのレビュー待ちで停止し、再学習・推論・Gate/bootstrap・LIVE・新規取得・本番書込みは行わない。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2516,6 +2541,12 @@ reason:
 
 # 25. 変更履歴
 
+## v1.18 - 2026-09-18
+
+- GROWTH-POINT-ANALYSIS-01の結果閲覧前契約、全出走診断、再現確認とレビュー待ち状態を記録。
+- 旧C1/開催grade分析を保持し、成長指標の弱い正方向/逆方向/非単調性をモデル採用と区別。
+- 2026、LIVE、正式STAT/モデル変更の禁止を維持。
+
 ## v1.17 - 2026-09-18
 
 ユーザー指定の開催グレード主軸へ移行し、旧級班分析を保持。50,078レースの開催対応・4指標集計・保存資料のみの再現を完了。
@@ -2815,9 +2846,10 @@ TACTICAL-PREDICTION-PIPELINE-01 = REVIEW_COMPLETED_PR57_MERGED / REPORT_ZIP_REVI
 TACTICAL-PREDICTION-RESULT-01 = REVIEW_COMPLETED_PR58_MERGED / IN_SAMPLE_REPLAY_TECHNICAL_CHECK
 TACTICAL-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / SAVED_OUTER_C1_BREAKDOWN_ONLY
 TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_ANALYSIS_AXIS
+GROWTH-POINT-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / DEVELOPMENT_DIAGNOSTIC_ONLY
 
 Next:
-Review the completed meeting-grade breakdown and wait for user instruction. Keep the prior predicted-rider-grade analysis as reference, not as a meeting analysis. Preserve the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not regenerate predictions, retrain, rerun adoption Gate/bootstrap, change grade weights, adopt LIVE, or open 2026.
+Review the completed growth diagnostics and wait for user instruction. Keep the prior meeting-grade and predicted-rider-grade analyses with their distinct meanings. Preserve the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not adopt growth as a STAT, change C1 weights, regenerate predictions, retrain, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026.
 
 Do not:
 redo BT-02 discovery
