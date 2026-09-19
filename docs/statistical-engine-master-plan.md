@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.20
+- Version: 1.21
 - Created: 2026-08-23
 - Updated: 2026-09-19
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `62abf52c612038cfd32e1ccbfd069a319981e629`
+- Remote `main` at last update: `eef27c9e80d80a733a4c0c3c82e18151259e8f87`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: GROWTH-ADJUSTMENT-CALIBRATION-01_REVIEW_FIX_VERIFIED_NOT_REPLICATED_AWAITING_REVIEW
+current_engine_state: GROWTH-TREND-ANALYSIS-01_DEVELOPMENT_SELECTED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_PR61_TEMPORAL_FIX_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_GROWTH_TREND_DIAGNOSTICS_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -546,7 +546,8 @@ BT-03E-02以降で利用する場合は、
 | TACTICAL-MEETING-GRADE-ANALYSIS-01 | 保存済みOuter C1の開催グレード別分析（現在の主軸） | VERIFIED_AWAITING_REVIEW | 50,078レース・1,796開催、4指標の元評価一致・DB不要再現 |
 | GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | PR60_MERGED | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
 | GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | PR60_MERGED | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
-| GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | REVIEW_FIX_VERIFIED_AWAITING_REVIEW / NOT_REPLICATED | 2025 outcomeをseal後へ隔離、旧数値一致、全30生成物の再現一致、正式採用なし |
+| GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED | 正式weight未採用、旧数値・時系列修正の記録を維持 |
+| GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | DEVELOPMENT_SELECTED_AWAITING_REVIEW | MEETING_DELTA_LAG_1、31生成物byte-exact再現、正式STAT未採用 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2193,6 +2194,29 @@ DB=NONE、2026 access=0。C1・数値規則は不変、正式growth weightは未
 
 ---
 
+## 15.34 GROWTH-TREND-ANALYSIS-01
+
+PR #61はmain `eef27c9e80d80a733a4c0c3c82e18151259e8f87` へマージ済み。
+旧w=+0.03は `COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED / FORMAL_WEIGHT_NOT_ADOPTED`。
+Section 15.33のレビュー待ちは当時の履歴として保持する。
+
+前回は実発走判定とseal前の結果参照禁止が両立せず停止した。ユーザーの改訂契約に従い、
+実発走ではなくOUTCOME-FREE SCORE OBSERVATION SNAPSHOTを新規固定する。
+captureのみ4テーブルの許可列へREAD ONLY接続。結果・順位・2026を参照せず、得点の公開時点はUNKNOWN。
+以後DB無効、全356,209出走の41候補・入力・直接コードをsealしてから2024/2025結果を読む。
+両年をdevelopment selectionとし、旧H1/H2案を使わない。詳細は `docs/growth-trend-analysis-01.md`。
+READ ONLY captureは50,078レース・356,209出走・2,285選手を照合し、704,202観測を固定した。
+選択はMEETING_DELTA_LAG_1（S0と直前の別開催代表得点の差）、適格9候補、ROBUST_RHO=0.009639846634467018。
+overall rhoは2024=0.016814352、2025=0.017429850。C1条件付きrhoは0.009639847 /0.012011709。
+旧race growthよりzero massは約66.9%から約1.4%へ減ったが、相関増加は小さく予測精度改善の確認ではない。
+初回はwinner gapのSQL計画による巨大直積のため停止し、旧stage・コード・ログを保存した。
+結合順のみ修正したexecute-02と初回のtrend・両年候補値は同一。式・grid・選択規則は不変。
+DB無効・128MBで実集計と31生成物のbyte-exact再現が成功し、PHP peakは双方32MiB。
+seal前outcome access=0、2026実データaccess=0。状態はDEVELOPMENT_SELECTED_AWAITING_REVIEW。
+正式STAT採用、C1変更、次工程は許可しない。2026はFROZENを維持。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2592,6 +2616,12 @@ reason:
 
 # 25. 変更履歴
 
+## v1.21 / 2026-09-19
+
+PR #61 mergedを反映。GROWTH-TREND-ANALYSIS-01を改訂契約で実装・実集計・再現し、開発選択済みレビュー待ちへ更新。
+実発走履歴を廃止し、結果非依存の得点観測・全trend seal・両年development選択へ変更。
+旧不採用・保留・失敗証拠は維持し、2026と次工程は開放しない。
+
 ## v1.20 - 2026-09-19
 
 - PR #60 merge main `62abf52c612038cfd32e1ccbfd069a319981e629` からGROWTH-ADJUSTMENT-CALIBRATION-01を開始。
@@ -2915,10 +2945,11 @@ TACTICAL-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / SAVED_OUTER_C1_BREAKDOWN
 TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_ANALYSIS_AXIS
 GROWTH-POINT-ANALYSIS-01 = PR60_MERGED / DEVELOPMENT_DIAGNOSTIC_ONLY
 GROWTH-POINT-ANALYSIS-01-v2 = PR60_MERGED / SIGN_PRESERVING_POINT / V1_UNCHANGED
-GROWTH-ADJUSTMENT-CALIBRATION-01 = REVIEW_FIX_VERIFIED_AWAITING_REVIEW / NOT_REPLICATED / DEVELOPMENT_ONLY
+GROWTH-ADJUSTMENT-CALIBRATION-01 = PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED / FORMAL_WEIGHT_NOT_ADOPTED
+GROWTH-TREND-ANALYSIS-01 = DEVELOPMENT_SELECTED_AWAITING_REVIEW / MEETING_DELTA_LAG_1 / BYTE_EXACT_31_ARTIFACTS / DEVELOPMENT_ONLY
 
 Next:
-Review PR #61 temporal fix: 2025 outcome access is gated after the selection seal, old numerical results are unchanged, and all 30 review-fix artifacts reproduce exactly. The 2024-selected w=+0.03 did not improve fixed 2025 Hit@3 (NOT_REPLICATED). Wait for user instruction. Preserve the initial temporal-read-order issue evidence, prior analyses, PR55 comparison, PJ0315 pilot block and failure evidence. Do not reselect using 2025, adopt growth as a STAT, refit C1, use B/C growth, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026. Stop uncommitted for review.
+Review GROWTH-TREND-ANALYSIS-01 diagnostics and wait for user instruction. MEETING_DELTA_LAG_1 was selected using both development years, not unseen holdout validation or proof of predictive improvement. All 31 artifacts reproduced exactly with DB disabled. Preserve the old w=+0.03 negative result, SQL-plan interruption evidence, prior analyses, PR55 comparison and PJ0315 pilot block. Do not refit C1, calibrate weights, adopt a STAT, rerun Gate/bootstrap, start LIVE or open 2026. Stop uncommitted for review.
 
 Do not:
 redo BT-02 discovery
