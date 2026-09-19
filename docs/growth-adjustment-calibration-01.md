@@ -20,10 +20,11 @@ anchorが不変でも他出走者の補正により確率/相対的なPrimary順
 全出走者のanchorが不変のレースだけは、w=0で照合済みの保存予測を厳密に再利用できる。
 順位変更診断はPrimaryの1/2/3/OUTSIDE_TOP3。完全な4着以降の予測順序とは呼ばない。
 
-w=0は全50,078レースの確率/decisionをcanonical全一致させ、保存済みPrimary4指標の未丸め分子分母と照合する。
-2025について先に許可するのはw=0の既存成績再現確認だけ。非ゼロ候補の2025結果はselection seal後にのみ評価する。
+w=0は全50,078レースの確率/decisionをcanonical全一致させる。結果指標の照合は別APIで実施する。
+2025についてselection前に許可するのはoutcome-freeな予測の完全一致だけであり、w=0を含む指標・labels/contributionsの読込みはseal後に限る。
 2024のみで4指標のdelta（P1/P2/P3 >= -0.003、Hit@3 >=0）を満たす候補からHit@3最大、abs(k)最小、k昇順で選択。
-selection.jsonに2024指標・全source hashes・grid・選択規則を保存し、selection-seal.jsonを確定してから2025候補へ進む。
+selection.jsonに2024指標・2024直接source hashes・outcome-free growth projection hash・code・grid・選択規則を保存する。
+2025 outcome-bearing source identityや指標はselectionへ混入させず、selection-seal.jsonを検証してから2025 baseline、selected-w validation、診断gridの順で進む。
 2025 outcomeは選択関数へ渡さず、full grid/pooledはDIAGNOSTIC_ONLY_NOT_FOR_WEIGHT_SELECTION。
 境界選択はBOUNDARY_SELECTED、範囲拡張なし。odds倍率exp(w)/exp(3w)/exp(-3w)はutility差の参考で、確率の倍率ではない。
 
@@ -59,6 +60,10 @@ DB_CONNECTION=disabled php -d memory_limit=128M artisan keirin:backtest:growth-a
 実行時コード、コマンド、ログ、終了コードは同root内に保存。
 
 ## 初回実行結果
+
+状態: `NUMERIC_RESULT_AVAILABLE_BUT_TEMPORAL_READ_ORDER_REVIEW_ISSUE`。
+以下は旧実行の記録であり、2025 w=0指標preflightでselection seal前にlabels/contributionsを読んだ契約違反がある。
+旧analysis、manifest、LOCKED、ZIP、ログは削除・上書きしない。修正版の証拠とは区別する。
 
 2024だけで選択した係数はk=3、w=+0.03（INTERIOR_SELECTED）。exp(w)=1.030454533953517、
 exp(3w)=1.0941742837052104、exp(-3w)=0.9139311852712282。
@@ -104,3 +109,53 @@ DB無効の完全再現は成功し、全26生成物のhashが一致。再現時
 全体Pintは未変更の`Bt03e08BoundedMemoryTest.php`に既存の整形違反1件があり失敗。
 本番DB接続・2026実データ参照・再学習・正式Gate/bootstrap・commit/push/PR/mergeなし。
 正式加点値の妥当性は未確認として、未コミットのレビュー待ちで停止する。
+
+## PR #61 review fix
+
+初回の選択計算そのものが2025 outcomeを使った証拠はないが、読込み順はtemporal isolation契約に違反していた。
+`predictionInputs()` はinput/predictionだけを受け取り、結果検証は `verifyBaseline()` へ分離する。
+2025 labels/contributionsはsourceのファイルhash検査もseal後へ遅延し、`OutcomeReader` がopen前に `TemporalAccess` を検査する。
+selection本体とsealファイルの両方を生成時hashで固定し、改変・未sealを拒否する。
+2024 curve/selection、2025 baseline、selected-w validation、2025診断curve、pooled/明細の順序を保つ。
+`temporal-access-audit.json` は連番でphase/openを記録し、first_2025_outcome_access_sequence > selection_sealed_sequenceを要求する。
+この監査をinventoryへ含め、reproduceでも完全一致させる。2025の正解を変えてもsealまでの全成果物hashは不変。
+数値規則・growth定義・grid・C1・solver・decoder・MetricEvaluator・採用条件は変更しない。
+
+修正版analysis-id: `outer-c1-score-growth-calibration-2024-2025-review-fix-01`。
+保存rootは初回と同じ。修正版実行・旧数値照合・完全再現はすべて成功。
+全30生成物（temporal-access-auditを含む）がbyte-exactに再現し、execute/reproduceのPHPピークはともに31,457,280 bytes（30MiB）。
+`NUMERICALLY_UNCHANGED_AFTER_TEMPORAL_FIX`。selected k=3/w=+0.03、validationは `NOT_REPLICATED`。
+2024/2025/pooled全曲線、selected明細、prediction-input、growth projectionは旧実行とbyte一致。
+baselineの分子/分母・未丸めrateと確率/decisionのcanonical hashも一致する。
+
+| 年 | 指標 | 修正版 分子/分母 | 修正版 % | C1との差 pp |
+|---|---|---:|---:|---:|
+| 2024 | 1着 | 10438/25158 | 41.489785 | +0.055648 |
+| 2024 | 2着 | 6085/25106 | 24.237234 | +0.175257 |
+| 2024 | 3着 | 4733/25094 | 18.861082 | +0.127521 |
+| 2024 | Hit@3 | 21181/75120 | 28.196219 | +0.119808 |
+| 2025 | 1着 | 9888/24789 | 39.888660 | +0.008068 |
+| 2025 | 2着 | 5735/24727 | 23.193271 | -0.032353 |
+| 2025 | 3着 | 4672/24739 | 18.885161 | -0.020211 |
+| 2025 | Hit@3 | 20230/73989 | 27.341902 | -0.014867 |
+
+seal SHA-256: `f287d72a574c0ae6124cebfe8c159515031de96f34274afada46e33cc8794e45`。
+temporal-access-audit: seal=6、first 2025 outcome access=7、baseline=8、labels open=9、contributions open=10、validation=11、diagnostic curve=13。
+seal前の2025 outcome accessは0。source identity検査を含め、初回の違反順を修正した。
+
+review fixによりtemporal isolationを修正し、数値結果は初回実行と一致した。
+2024で選択したw=+0.03は2025でHit@3改善を再現せず、正式growth adjustmentとして採用しない。
+
+128MBの実績はexecute/reproduce、関連テスト、file-by-fileと、単一プロセス全件を区別する。
+初回の単一PHPUnit全件128MBはOOMであり、通常artisan全件の成功やfile-by-file成功で読み替えない。
+今回の関連検証: focused 135 tests/965 assertions、関連83 tests/426 assertionsが128MBで成功。
+通常 `php artisan test` は1560成功・9skip/11823 assertions。
+全181ファイルを独立128MBプロセスで確認し、1560成功・9skip/11819 assertions、failure/errorなし。
+今回、単一PHPUnit全件128MBは再試行していない。関連テスト初回の環境継承による2失敗はログを保持し、
+APP_ENV=testing/SQLiteメモリDBを明示した再確認で解消した。製品コードのDB接続は無効。
+変更PHPのPintは成功。全体Pintは未変更 `Bt03e08BoundedMemoryTest.php` の既存statement_indentationのみ失敗。
+
+実行コマンドは上記execute/reproduceのanalysis-idだけを `outer-c1-score-growth-calibration-2024-2025-review-fix-01` に変更する。
+`review-fix-pr61/logs/` にcommand配列・終了コード・実行ログを保存し、旧ログと区別する。
+旧analysis/ZIP/ログを含む536ファイルのSTART/END bytes/SHA-256を検証し、変更PHPの構文とgit diff --checkも確認する。
+未コミットでPR #61レビュー待ち。正式採用・次工程への自動移行は行わない。

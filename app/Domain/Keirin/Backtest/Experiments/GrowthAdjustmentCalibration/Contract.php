@@ -8,7 +8,7 @@ use RuntimeException;
 
 final class Contract
 {
-    public const VERSION = 'GROWTH-ADJUSTMENT-CALIBRATION-01-v1';
+    public const VERSION = 'GROWTH-ADJUSTMENT-CALIBRATION-01-v2-TEMPORAL-ISOLATION';
 
     public const YEARS = [2024, 2025];
 
@@ -37,7 +37,8 @@ final class Contract
             'grid' => self::grid(), 'missing' => 'GROWTH_MISSING_NO_ADJUSTMENT',
             'selection_year' => 2024, 'eligibility' => ['position_delta_gte' => -0.003, 'hit3_delta_gte' => 0.0],
             'selection_order' => ['MAX_HIT3', 'MIN_ABS_K', 'MIN_K'], 'validation_year' => 2025,
-            'baseline_2025_preflight' => 'W0_REPRODUCTION_ONLY_BEFORE_GRID',
+            'prediction_2025_preflight' => 'OUTCOME_FREE_W0_PREDICTION_ONLY_BEFORE_SELECTION',
+            'baseline_2025_preflight' => 'OUTCOME_METRICS_AFTER_SELECTION_SEAL_ONLY',
             'candidate_2025_access' => 'AFTER_SELECTION_SEAL_ONLY',
             'pooled' => 'COUNT_WEIGHTED_DIAGNOSTIC_ONLY', 'metrics' => self::METRICS,
             'zero_invariance' => 'ANCHOR_ONLY; relative predictions may change when opponents change',

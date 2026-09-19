@@ -12,10 +12,13 @@ use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Code;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Contract;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Engine;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Metrics;
+use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\OutcomeReader;
+use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Preflight;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Projection;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Service;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Sources;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Store;
+use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\TemporalAccess;
 use App\Domain\Keirin\Backtest\Experiments\GrowthAdjustmentCalibration\Workspace;
 use App\Domain\Keirin\Backtest\Experiments\GrowthPointAnalysisV2\Store as GrowthStore;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\HistoryAggregator;
@@ -211,19 +214,136 @@ class GrowthAdjustmentCalibrationTest extends TestCase
 
     public function test_2025_outcome_change_cannot_change_2024_selection_or_prediction_hashes(): void
     {
-        $selections = $curves = [];
+        $selections = $curves = $preseal = $validation = [];
+        $source = $this->fixture('sources');
         foreach ([false, true] as $changed) {
-            $source = $this->fixture('sources-'.(int) $changed, $changed);
+            if ($changed) {
+                $replacement = $this->fixture('changed', true);
+                foreach (['labels', 'contributions'] as $kind) {
+                    $path = $source['years'][2025][$kind];
+                    foreach (['', '.manifest.json'] as $suffix) {
+                        copy($replacement['years'][2025][$kind].$suffix, $path.$suffix);
+                        $source['files'][$path.$suffix] = Files::identity($path.$suffix);
+                    }
+                }
+            }
             $this->bindSources($source);
             $root = $this->root('output-'.(int) $changed);
             app(Service::class)->execute($root, 'test', '', '');
             $selections[] = Files::json($root.'/evaluations/test/selection.json');
             $curves[] = Files::json($root.'/evaluations/test/coefficient-curve-2025.json');
+            $validation[] = Files::json($root.'/evaluations/test/validation-2025.json');
+            $files = app(Store::class)->verify($root.'/evaluations/test')['files'];
+            $preseal[] = array_slice($files, 0, array_search('selection-seal.json', array_keys($files), true) + 1, true);
         }
+        $this->assertSame($preseal[0], $preseal[1], 'Every pre-seal artifact including full 2024 curve is outcome-independent.');
+        $this->assertSame($selections[0], $selections[1]);
+        $this->assertNotSame($validation[0]['selected']['metrics'], $validation[1]['selected']['metrics']);
         $this->assertSame($selections[0]['selected'], $selections[1]['selected']);
         $this->assertSame($selections[0]['curve_2024'], $selections[1]['curve_2024']);
         $this->assertSame(array_column($curves[0]['candidates'], 'primary_semantic_sha256'), array_column($curves[1]['candidates'], 'primary_semantic_sha256'));
         $this->assertNotSame(array_column($curves[0]['candidates'], 'metrics'), array_column($curves[1]['candidates'], 'metrics'));
+    }
+
+    #[DataProvider('outcomeKinds')]
+    public function test_2025_outcome_file_is_not_opened_until_selection_is_sealed(string $kind): void
+    {
+        $source = $this->fixture('source');
+        $this->bindSources($source);
+        $path = $source['years'][2025][$kind];
+        foreach (['', '.manifest.json'] as $suffix) {
+            rename($path.$suffix, $path.$suffix.'.withheld');
+        }
+        $writer = new class(app(ArtifactStore::class), $path) extends ResultStore
+        {
+            public function __construct(ArtifactStore $store, private string $withheld)
+            {
+                parent::__construct($store);
+            }
+
+            public function writeJson(string $directory, string $name, array $data): array
+            {
+                $seal = parent::writeJson($directory, $name, $data);
+                if ($name === 'selection-seal.json') {
+                    Files::verify($directory.'/selection.json', $data);
+                    foreach (['', '.manifest.json'] as $suffix) {
+                        rename($this->withheld.$suffix.'.withheld', $this->withheld.$suffix);
+                    }
+                }
+
+                return $seal;
+            }
+        };
+        app()->instance(ResultStore::class, $writer);
+        $reader = new class extends OutcomeReader
+        {
+            public array $opened = [];
+
+            public function read(int $year, string $kind, string $path, TemporalAccess $access): \Generator
+            {
+                if ($year === 2025) {
+                    $access->requireSelection();
+                }
+                $this->opened[] = [$year, $kind];
+                yield from parent::read($year, $kind, $path, $access);
+            }
+        };
+        app()->instance(OutcomeReader::class, $reader);
+        $root = $this->root('output');
+        $receipt = app(Service::class)->execute($root, 'test', '', '');
+        $this->assertSame('CALIBRATION_LOCKED', $receipt['status']);
+        $this->assertContains([2025, $kind], $reader->opened);
+        $audit = Files::json($root.'/evaluations/test/temporal-access-audit.json');
+        $this->assertGreaterThan($audit['selection_sealed_sequence'], $audit['first_2025_outcome_access_sequence']);
+        $this->assertSame(0, $audit['preseal_2025_outcome_accesses']);
+        $phases = array_column($audit['events'], 'phase');
+        $this->assertLessThan(array_search('2025_OUTCOME_BASELINE', $phases), array_search('SELECTION_SEALED', $phases));
+        $this->assertLessThan(array_search('2025_CURVE', $phases), array_search('2025_VALIDATION', $phases));
+    }
+
+    public static function outcomeKinds(): array
+    {
+        return [['labels'], ['contributions']];
+    }
+
+    #[DataProvider('outcomeKinds')]
+    public function test_outcome_reader_rejects_2025_before_opening_any_file(string $kind): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Selection must be sealed');
+        iterator_to_array(app(OutcomeReader::class)->read(2025, $kind, '/absent', new TemporalAccess));
+    }
+
+    public function test_2025_baseline_verifier_requires_a_seal_before_reading_inputs(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Selection must be sealed');
+        app(Preflight::class)->verifyBaseline(2025, '/absent', [], new TemporalAccess);
+    }
+
+    #[DataProvider('tamperedSelectionFiles')]
+    public function test_sealed_selection_tamper_refuses_2025_baseline_and_curve(string $name, string $operation): void
+    {
+        $stage = $this->root('sealed');
+        $writer = app(ResultStore::class);
+        $selection = $writer->writeJson($stage, 'selection.json', Contract::select($this->curve()))['selection.json'];
+        $seal = $writer->writeJson($stage, 'selection-seal.json', $selection)['selection-seal.json'];
+        $access = new TemporalAccess;
+        $access->seal($stage, $selection, $seal);
+        file_put_contents($stage.'/'.$name, ' ', FILE_APPEND);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('hash/size mismatch');
+        if ($operation === 'baseline') {
+            app(Preflight::class)->verifyBaseline(2025, '/absent', [], $access);
+        } else {
+            app(Engine::class)->curve(2025, '/absent', [], app(ModelLoader::class)->restore($this->model()), [], $access);
+        }
+    }
+
+    public static function tamperedSelectionFiles(): array
+    {
+        return [['selection.json', 'baseline'], ['selection-seal.json', 'baseline'],
+            ['selection.json', 'curve'], ['selection-seal.json', 'curve']];
     }
 
     #[DataProvider('driftKinds')]
@@ -321,10 +441,11 @@ class GrowthAdjustmentCalibrationTest extends TestCase
         $this->assertLessThan(4 * 1024 * 1024, memory_get_usage(true) - $before);
     }
 
-    public function test_bad_baseline_stops_before_any_curve_or_selection(): void
+    #[DataProvider('predictionYears')]
+    public function test_bad_baseline_stops_before_any_curve_or_selection(int $year): void
     {
         $source = $this->fixture('source');
-        $path = $source['years'][2024]['prediction'];
+        $path = $source['years'][$year]['prediction'];
         $rows = iterator_to_array(JsonlArtifact::read($path));
         $rows[0]['decision']['primary_position_1_bike'] = 99;
         unlink($path);
@@ -344,6 +465,11 @@ class GrowthAdjustmentCalibrationTest extends TestCase
             $this->assertSame([], glob($root.'/.staging/*/selection.json'));
             $this->assertDirectoryDoesNotExist($root.'/evaluations/test');
         }
+    }
+
+    public static function predictionYears(): array
+    {
+        return [[2024], [2025]];
     }
 
     public function test_frozen_tie_denominators_and_pooled_counts_are_not_averaged(): void

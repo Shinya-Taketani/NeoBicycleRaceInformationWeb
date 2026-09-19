@@ -10,15 +10,15 @@ use RuntimeException;
 
 class Store
 {
-    public const INVENTORY = ['contract.json', 'candidate-grid.json', 'sources.json', 'code.json',
+    public const INVENTORY = ['contract.json', 'candidate-grid.json', 'code.json',
         'growth-signal-input.jsonl', 'growth-signal-input.jsonl.manifest.json',
         'prediction-input-2024.jsonl', 'prediction-input-2024.jsonl.manifest.json',
         'prediction-input-2025.jsonl', 'prediction-input-2025.jsonl.manifest.json',
-        'preflight.json', 'baseline-reproduction.json', 'coefficient-curve-2024.json', 'coefficient-curve-2024.csv',
-        'selection.json', 'selection-seal.json', 'coefficient-curve-2025.json', 'coefficient-curve-2025.csv',
-        'validation-2025.json', 'coefficient-curve-pooled.json', 'coefficient-curve-pooled.csv',
+        'preflight.json', 'prediction-reproduction.json', 'baseline-2024.json', 'coefficient-curve-2024.json', 'coefficient-curve-2024.csv',
+        'selection.json', 'selection-seal.json', 'baseline-2025.json', 'baseline-reproduction.json', 'validation-2025.json',
+        'coefficient-curve-2025.json', 'coefficient-curve-2025.csv', 'coefficient-curve-pooled.json', 'coefficient-curve-pooled.csv',
         'selected-weight-details.jsonl', 'selected-weight-details.jsonl.manifest.json',
-        'diagnostics.json', 'grade-class-diagnostics.json', 'source-end.json'];
+        'diagnostics.json', 'grade-class-diagnostics.json', 'sources.json', 'temporal-access-audit.json', 'source-end.json'];
 
     public function __construct(private readonly ResultStore $writer) {}
 

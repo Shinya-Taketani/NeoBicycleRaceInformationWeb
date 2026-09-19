@@ -23,13 +23,15 @@ class Sources
             throw new RuntimeException('Expected reviewed Outer run-01 registry.');
         }
         $registry = Files::json($registryPath);
-        $add = function (string $relative) use ($outerRoot, $registry, &$files): string {
+        $add = function (string $relative, bool $deferred = false) use ($outerRoot, $registry, &$files): string {
             $path = $outerRoot.'/'.$relative;
             $seal = $registry['included'][$relative] ?? $registry['omitted'][$relative] ?? null;
             if (! is_array($seal) || realpath($path) !== $path) {
                 throw new RuntimeException('Unregistered Outer source.');
             }
-            Files::verify($path, $seal);
+            if (! $deferred) {
+                Files::verify($path, $seal);
+            }
             $files[$path] = ['bytes' => $seal['bytes'], 'sha256' => $seal['sha256']];
 
             return $path;
@@ -43,8 +45,9 @@ class Sources
             $paths = [];
             foreach (['input' => "inputs-v2/inputs-$year.jsonl", 'prediction' => "run-01/C1-fit-$year/predictions.jsonl",
                 'labels' => "run-01/labels-$year.jsonl", 'contributions' => "comparison-run-01/contributions-$year.jsonl"] as $kind => $relative) {
-                $paths[$kind] = $add($relative);
-                $add($relative.'.manifest.json');
+                $deferred = $year === 2025 && in_array($kind, ['labels', 'contributions'], true);
+                $paths[$kind] = $add($relative, $deferred);
+                $add($relative.'.manifest.json', $deferred);
             }
             if ($paths['prediction'] !== $run['outer_paths'][$year]['C1'] || $paths['labels'] !== $run['outer_paths'][$year]['labels']) {
                 throw new RuntimeException('Not the registered Outer C1.');
@@ -80,8 +83,30 @@ class Sources
 
     public function verify(array $source): void
     {
+        $deferred = self::validationFiles($source);
         foreach ($source['files'] as $path => $seal) {
-            Files::verify($path, $seal);
+            if (! in_array($path, $deferred, true)) {
+                Files::verify($path, $seal);
+            }
         }
+    }
+
+    public function verifyValidation(array $source, TemporalAccess $access): void
+    {
+        $access->phase(2025, '2025_OUTCOME_SOURCE_INTEGRITY');
+        foreach (self::validationFiles($source) as $path) {
+            Files::verify($path, $source['files'][$path]);
+        }
+    }
+
+    private static function validationFiles(array $source): array
+    {
+        $paths = [];
+        foreach (['labels', 'contributions'] as $kind) {
+            $path = $source['years'][2025][$kind];
+            array_push($paths, $path, $path.'.manifest.json');
+        }
+
+        return $paths;
     }
 }

@@ -46,9 +46,9 @@ final class Service
             $expected = [];
             try {
                 $code = $this->code->capture();
+                $access = new TemporalAccess;
                 $expected += $this->writer->writeJson($stage, 'contract.json', Contract::plan());
                 $expected += $this->writer->writeJson($stage, 'candidate-grid.json', Contract::grid());
-                $expected += $this->writer->writeJson($stage, 'sources.json', $sources);
                 $expected += $this->writer->writeJson($stage, 'code.json', $code);
                 $expected += $this->writer->writeJsonl($stage, 'growth-signal-input.jsonl', $this->projection->growth(JsonlArtifact::read($sources['growth'])));
                 $workspace = new Workspace($stage.'/workspace.sqlite');
@@ -62,35 +62,49 @@ final class Service
                     $models[$year] = $this->models->load($paths['model'], $sources['files'][$paths['model']]);
                     $audit = [];
                     $name = 'prediction-input-'.$year.'.jsonl';
-                    $expected += $this->writer->writeJsonl($stage, $name, $this->preflight->inputs($paths, $year, $models[$year], $workspace, $audit));
+                    $expected += $this->writer->writeJsonl($stage, $name, $this->preflight->predictionInputs($paths['input'], $paths['prediction'], $year, $models[$year], $workspace, $audit));
                     if ($audit['races'] !== $sources['counts'][$year] || $audit['entries'] !== $sources['entries'][$year]) {
                         throw new RuntimeException('Preflight cohort size mismatch.');
                     }
                     $inputs[$year] = $stage.'/'.$name;
                     $baseline[$year] = $audit;
-                    echo json_encode(['phase' => 'BASELINE_VERIFIED', 'year' => $year, 'races' => $audit['races']])."\n";
+                    echo json_encode(['phase' => 'OUTCOME_FREE_PREDICTIONS_VERIFIED', 'year' => $year, 'races' => $audit['races']])."\n";
                 }
                 $workspace->complete();
                 unset($workspace);
                 unlink($stage.'/workspace.sqlite');
                 $expected += $this->writer->writeJson($stage, 'preflight.json', ['status' => 'PASS', 'counts' => $counts, 'database' => 'NONE']);
-                $expected += $this->writer->writeJson($stage, 'baseline-reproduction.json', $baseline);
-                $curve24 = $this->engine->curve(2024, $inputs[2024], $sources['years'][2024], $models[2024], $baseline[2024]['metrics']);
+                $expected += $this->writer->writeJson($stage, 'prediction-reproduction.json', $baseline);
+                $baseline[2024] += $this->preflight->verifyBaseline(2024, $inputs[2024], $sources['years'][2024], $access);
+                $expected += $this->writer->writeJson($stage, 'baseline-2024.json', $baseline[2024]);
+                $curve24 = $this->engine->curve(2024, $inputs[2024], $sources['years'][2024], $models[2024], $baseline[2024]['metrics'], $access);
                 $expected += $this->store->curve($stage, 'coefficient-curve-2024', $curve24);
-                $selection = Contract::select($curve24) + ['candidate_grid' => $expected['candidate-grid.json'], 'sources' => $sources['files'],
+                // Do not bind selection (or any pre-seal artifact) to validation outcomes or their hashes.
+                $selectionSources = [];
+                foreach ($sources['years'][2024] as $path) {
+                    $selectionSources[$path] = $sources['files'][$path];
+                }
+                $selection = Contract::select($curve24) + ['candidate_grid' => $expected['candidate-grid.json'], 'sources_2024' => $selectionSources,
+                    'code' => $expected['code.json'], 'growth_projection' => $expected['growth-signal-input.jsonl'],
                     'baseline_2024' => $baseline[2024]['metrics'], 'curve_2024' => $expected['coefficient-curve-2024.json']];
                 $expected += $this->writer->writeJson($stage, 'selection.json', $selection);
                 $selectionSeal = $expected['selection.json'];
                 $expected += $this->writer->writeJson($stage, 'selection-seal.json', $selectionSeal);
+                $access->seal($stage, $selectionSeal, $expected['selection-seal.json']);
                 echo json_encode(['phase' => 'SELECTION_SEALED', 'k' => $selection['selected']['k'], 'seal' => $selectionSeal])."\n";
-                $curve25 = $this->engine->curve(2025, $inputs[2025], $sources['years'][2025], $models[2025], $baseline[2025]['metrics'], $stage.'/selection.json', $selectionSeal);
-                $expected += $this->store->curve($stage, 'coefficient-curve-2025', $curve25);
-                $selected25 = $curve25['candidates'][$selection['selected']['k'] + 50];
+                $this->sources->verifyValidation($sources, $access);
+                $baseline[2025] += $this->preflight->verifyBaseline(2025, $inputs[2025], $sources['years'][2025], $access);
+                $expected += $this->writer->writeJson($stage, 'baseline-2025.json', $baseline[2025]);
+                $expected += $this->writer->writeJson($stage, 'baseline-reproduction.json', $baseline);
+                $selected25 = $this->engine->validation($inputs[2025], $sources['years'][2025], $models[2025], $baseline[2025]['metrics'], $selection['selected']['k'], $access);
                 $validation = ['selected' => $selected25, 'status' => Contract::validation($selected25), 'selection_seal' => $selectionSeal];
                 $expected += $this->writer->writeJson($stage, 'validation-2025.json', $validation);
+                $curve25 = $this->engine->curve(2025, $inputs[2025], $sources['years'][2025], $models[2025], $baseline[2025]['metrics'], $access);
+                Files::same($selected25, $curve25['candidates'][$selected25['k'] + 50], 'fixed validation versus diagnostic curve');
+                $expected += $this->store->curve($stage, 'coefficient-curve-2025', $curve25);
                 $expected += $this->store->curve($stage, 'coefficient-curve-pooled', Engine::pooled($curve24, $curve25));
                 $diagnostics = [];
-                $expected += $this->writer->writeJsonl($stage, 'selected-weight-details.jsonl', $this->engine->selected($inputs, $sources['years'], $models, $selected25['k'], $diagnostics));
+                $expected += $this->writer->writeJsonl($stage, 'selected-weight-details.jsonl', $this->engine->selected($inputs, $sources['years'], $models, $selected25['k'], $diagnostics, $access));
                 foreach (Contract::YEARS as $year) {
                     $d = $diagnostics['years'][$year];
                     Files::same($baseline[$year]['metrics'], $d['baseline'], 'selected baseline totals');
@@ -110,8 +124,11 @@ final class Service
                 $expected += $this->writer->writeJson($stage, 'diagnostics.json', $diagnostics);
                 $expected += $this->writer->writeJson($stage, 'grade-class-diagnostics.json', array_values($strata));
                 $this->sources->verify($sources);
+                $this->sources->verifyValidation($sources, $access);
                 Files::same($code, $this->code->capture(), 'end code integrity');
                 Files::verify($stage.'/selection.json', $selectionSeal);
+                $expected += $this->writer->writeJson($stage, 'sources.json', $sources);
+                $expected += $this->writer->writeJson($stage, 'temporal-access-audit.json', $access->artifact());
                 $expected += $this->writer->writeJson($stage, 'source-end.json', ['status' => 'UNCHANGED', 'files' => $sources['files'], 'database' => 'NONE', '2026_access' => 0]);
                 $this->writer->verifyGenerated($stage, $expected);
                 if ($original !== null) {

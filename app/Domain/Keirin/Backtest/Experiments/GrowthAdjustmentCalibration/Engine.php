@@ -12,31 +12,43 @@ use RuntimeException;
 
 final class Engine
 {
-    public function __construct(private readonly Adjustment $adjustment, private readonly Metrics $metrics) {}
+    public function __construct(private readonly Adjustment $adjustment, private readonly Metrics $metrics, private readonly OutcomeReader $outcomes) {}
 
-    public function curve(int $year, string $input, array $paths, LoadedModel $model, array $baseline, ?string $selectionPath = null, ?array $seal = null): array
+    public function curve(int $year, string $input, array $paths, LoadedModel $model, array $baseline, ?TemporalAccess $access = null): array
     {
-        if (! in_array($year, Contract::YEARS, true)) {
-            throw new RuntimeException('Forbidden curve year.');
+        $access ??= new TemporalAccess;
+        $access->phase($year, $year.'_CURVE');
+
+        return $this->candidates($year, $input, $paths, $model, $baseline, Contract::grid(), $access);
+    }
+
+    public function validation(string $input, array $paths, LoadedModel $model, array $baseline, int $k, TemporalAccess $access): array
+    {
+        $access->phase(2025, '2025_VALIDATION');
+        $grid = array_values(array_filter(Contract::grid(), fn ($candidate) => $candidate['k'] === $k));
+        if (count($grid) !== 1) {
+            throw new RuntimeException('Invalid selected candidate.');
         }
-        if ($year === 2025) {
-            if ($selectionPath === null || $seal === null) {
-                throw new RuntimeException('Selection must be sealed before candidate validation.');
-            }
-            Files::verify($selectionPath, $seal);
-        }
+
+        return $this->candidates(2025, $input, $paths, $model, $baseline, $grid, $access)['candidates'][0];
+    }
+
+    private function candidates(int $year, string $input, array $paths, LoadedModel $model, array $baseline, array $grid, TemporalAccess $access): array
+    {
         $totals = $changed = $hashes = [];
-        foreach (range(-50, 50) as $k) {
+        $baseTotals = Metrics::empty();
+        foreach (array_column($grid, 'k') as $k) {
             $totals[$k] = Metrics::empty();
             $changed[$k] = ['position_1' => 0, 'position_2' => 0, 'position_3' => 0, 'any_primary' => 0, 'exact_same_primary' => 0];
             $hashes[$k] = hash_init('sha256');
         }
         $n = 0;
-        foreach ($this->rows($input, $paths) as [$row, $base, $context]) {
+        foreach ($this->rows($year, $input, $paths, $access) as [$row, $base, $context]) {
             $primary = Adjustment::primary($base);
             $unchanged = count(array_filter($row['growth'], fn ($g) => $g['score_point'] !== null && $g['score_point'] !== 0)) === 0;
             $baseValues = $this->metrics->contribution($context, $base);
-            foreach (range(-50, 50) as $k) {
+            Metrics::add($baseTotals, $baseValues);
+            foreach (array_column($grid, 'k') as $k) {
                 // This shortcut is exact only when every anchor is byte-for-byte unchanged.
                 $prediction = $k === 0 || $unchanged ? $base : $this->adjustment->predict($row['race'], $row['growth'], $k, $model->fit);
                 $p = Adjustment::primary($prediction);
@@ -54,28 +66,29 @@ final class Engine
                 echo json_encode(['phase' => 'CURVE', 'year' => $year, 'races' => $n])."\n";
             }
         }
-        Files::same($baseline, $totals[0], 'curve baseline reproduction');
+        Files::same($baseline, $baseTotals, 'curve baseline reproduction');
         $candidates = [];
-        foreach (Contract::grid() as $candidate) {
+        foreach ($grid as $candidate) {
             $k = $candidate['k'];
             $candidates[] = $candidate + ['metrics' => Metrics::finish($totals[$k], $baseline), 'changes' => $changed[$k],
                 'primary_semantic_sha256' => hash_final($hashes[$k])];
         }
         if ($year === 2025) {
-            Files::verify($selectionPath, $seal);
+            $access->requireSelection();
         }
 
         return ['year' => $year, 'purpose' => $year === 2024 ? 'CALIBRATION' : 'DIAGNOSTIC_ONLY_NOT_FOR_WEIGHT_SELECTION', 'races' => $n, 'candidates' => $candidates];
     }
 
-    public function selected(array $inputs, array $paths, array $models, int $k, array &$diagnostics): Generator
+    public function selected(array $inputs, array $paths, array $models, int $k, array &$diagnostics, TemporalAccess $access): Generator
     {
         $diagnostics = ['years' => [], 'strata' => [], 'movement_semantics' => 'PRIMARY_POSITION_1_2_3_OR_OUTSIDE_TOP3'];
         foreach (Contract::YEARS as $year) {
+            $access->phase($year, $year.'_SELECTED_DETAIL');
             $d = ['races' => 0, 'entries' => 0, 'zero' => 0, 'missing' => 0, 'same_zero' => 0, 'anchor_violations' => 0,
                 'movement_by_point' => [], 'changed' => ['any_primary' => 0, 'position_1' => 0, 'position_2' => 0, 'position_3' => 0],
                 'gain_loss' => [], 'baseline' => Metrics::empty(), 'adjusted' => Metrics::empty()];
-            foreach ($this->rows($inputs[$year], $paths[$year]) as [$row, $base, $context]) {
+            foreach ($this->rows($year, $inputs[$year], $paths[$year], $access) as [$row, $base, $context]) {
                 $adjusted = $this->adjustment->apply($row['race'], $row['growth'], $k);
                 $prediction = $adjusted === $row['race'] ? $base : $this->adjustment->predict($row['race'], $row['growth'], $k, $models[$year]->fit);
                 $b = Adjustment::primary($base);
@@ -164,10 +177,10 @@ final class Engine
         return ['year' => '2024-2025', 'purpose' => 'COUNT_WEIGHTED_DIAGNOSTIC_ONLY_NOT_FOR_SELECTION', 'races' => $a['races'] + $b['races'], 'candidates' => $rows];
     }
 
-    private function rows(string $input, array $paths): Generator
+    private function rows(int $year, string $input, array $paths, TemporalAccess $access): Generator
     {
         $predictions = JsonlArtifact::read($paths['prediction']);
-        $labels = JsonlArtifact::read($paths['labels']);
+        $labels = $this->outcomes->read($year, 'labels', $paths['labels'], $access);
         $predictions->rewind();
         $labels->rewind();
         foreach (JsonlArtifact::read($input) as $row) {

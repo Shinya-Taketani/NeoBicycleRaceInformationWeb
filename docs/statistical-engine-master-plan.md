@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.19
+- Version: 1.20
 - Created: 2026-08-23
 - Updated: 2026-09-19
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `67d6795fde722cae96536b54d8894b761bd8fd16`
+- Remote `main` at last update: `62abf52c612038cfd32e1ccbfd069a319981e629`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: GROWTH-ADJUSTMENT-CALIBRATION-01_VERIFIED_NOT_REPLICATED_AWAITING_REVIEW
+current_engine_state: GROWTH-ADJUSTMENT-CALIBRATION-01_REVIEW_FIX_VERIFIED_NOT_REPLICATED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_FROZEN_CALIBRATION_RESULT_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_PR61_TEMPORAL_FIX_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -546,7 +546,7 @@ BT-03E-02以降で利用する場合は、
 | TACTICAL-MEETING-GRADE-ANALYSIS-01 | 保存済みOuter C1の開催グレード別分析（現在の主軸） | VERIFIED_AWAITING_REVIEW | 50,078レース・1,796開催、4指標の元評価一致・DB不要再現 |
 | GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | PR60_MERGED | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
 | GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | PR60_MERGED | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
-| GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | VERIFIED_AWAITING_REVIEW / NOT_REPLICATED | 2024選択w=+0.03、全26生成物の再現一致、正式採用なし |
+| GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | REVIEW_FIX_VERIFIED_AWAITING_REVIEW / NOT_REPLICATED | 2025 outcomeをseal後へ隔離、旧数値一致、全30生成物の再現一致、正式採用なし |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2170,18 +2170,25 @@ PR #60 merged、開始mainは `62abf52c612038cfd32e1ccbfd069a319981e629`。
 修正版run-01 Outer C1の2024/2025全50,078レースを固定し、A SCORE_POINT_V2だけをanchorへ加算する。
 `adjusted_anchor = original_anchor + (k/100) * point`、k=-50..50の101候補。B/Cは使用しない。
 C1のモデル、lambda=0.1、bin/support/係数、scorer/decoder/評価定義は不変。再学習なし。
-w=0の保存済み確率・decision・未丸め指標を完全照合してから2024だけで係数を選択し、selectionをsealする。
-2025非ゼロ候補はseal後に限り評価。2025全gridと件数加重pooledは診断専用で再選択しない。
+w=0の保存済み確率・decisionを結果なしで照合し、2024指標・curveだけで係数を選択してselectionをsealする。
+2025 labels/contributionsとw=0指標はseal後に初めて読む。selected-w validation後に2025全gridと件数加重pooledを診断専用で評価し、再選択しない。
 0・欠損・同一開催0のanchorは不変。相手のutilityが変わるため、その選手の確率・相対順位不変とは主張しない。
 DB接続なし、128MB、2026アクセスなし。新しい正式STAT採用、C1改変、正式Gate、LIVEではない。
 保存先: `/home/shinya/neo-keirin-artifacts/growth-adjustment-calibration-01-20260919-01/`。
-初回実行完了。w=0は両年50,078レースの確率・decision・指標分子分母が完全一致。
+初回実行は `NUMERIC_RESULT_AVAILABLE_BUT_TEMPORAL_READ_ORDER_REVIEW_ISSUE` として保持。
+w=0は両年50,078レースで一致したが、2025指標をseal前に読んでいたためPR #61で順序を修正した。
 2024でw=+0.03を選択・seal。2024の差は1着+0.055648、2着+0.175257、3着+0.127521、Hit@3 +0.119808pp。
 固定2025では+0.008068、-0.032353、-0.020211、-0.014867ppとなり **NOT_REPLICATED**。
 2024の改善は2025へ継続せず、正式採用・C1変更は行わない。全101候補の曲線とselected明細を保存した。
 DB無効の完全再現で、全26生成物のhashが初回と一致。実行・再現のPHPピークはともに30MiB。
 実入力50,078レースの全101係数で0点・欠損・同一開催0点のanchor不変も検証した。
 数値再現性は確認できたが、年をまたぐ改善の継続は未確認。両者を混同しない。
+PR #61 review-fixの実行は成功し、旧実行とselected k・未丸め指標・全曲線・予測明細が一致。
+`NUMERICALLY_UNCHANGED_AFTER_TEMPORAL_FIX`、2025 `NOT_REPLICATED` を維持。全30生成物のbyte-exact再現も成功。
+修正版execute/reproduceはともに128MB制限で完走し、PHPピーク30MiB。
+監査連番はselection seal=6、first 2025 outcome access=7、2025 baseline=8、labels/contributions open=9/10。
+DB=NONE、2026 access=0。C1・数値規則は不変、正式growth weightは未採用。
+128MB関連テストとfile-by-file全件は成功。通常artisan全件成功と、旧単一128MB全件OOMは区別する。
 未コミットでレビュー待ち。係数の再選択、正式採用、次工程への自動移行は行わない。
 
 ---
@@ -2585,6 +2592,16 @@ reason:
 
 # 25. 変更履歴
 
+## v1.20 - 2026-09-19
+
+- PR #60 merge main `62abf52c612038cfd32e1ccbfd069a319981e629` からGROWTH-ADJUSTMENT-CALIBRATION-01を開始。
+- 初回2024選択w=+0.03、2025 validationはNOT_REPLICATED。正式growth weight未採用、C1未変更。
+- reviewで2025 w=0 preflightがselection seal前にlabels/contributionsを読んでいたことを検出。
+- 選択計算そのものが2025を使用した証拠はないが、temporal isolation契約違反として修正。
+- review-fixでは2025 outcome-bearing accessをseal後に移動し、専用監査artifactと拒否テストを追加。
+- 修正版数値は未丸め値・全曲線まで旧実行と一致（NUMERICALLY_UNCHANGED_AFTER_TEMPORAL_FIX）。全30生成物の完全再現も成功。
+- 旧analysis/ZIP/ログを保持し、2026 access=0、正式growth weight未採用、C1未変更を維持する。PR #61は未マージでレビュー待ち。
+
 ## v1.19 - 2026-09-19
 
 - PR #60でv1のzero massによるpoint意味付けを確認。v1の正当な計算・固定成果物は保持。
@@ -2898,10 +2915,10 @@ TACTICAL-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / SAVED_OUTER_C1_BREAKDOWN
 TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_ANALYSIS_AXIS
 GROWTH-POINT-ANALYSIS-01 = PR60_MERGED / DEVELOPMENT_DIAGNOSTIC_ONLY
 GROWTH-POINT-ANALYSIS-01-v2 = PR60_MERGED / SIGN_PRESERVING_POINT / V1_UNCHANGED
-GROWTH-ADJUSTMENT-CALIBRATION-01 = VERIFIED_AWAITING_REVIEW / NOT_REPLICATED / DEVELOPMENT_ONLY
+GROWTH-ADJUSTMENT-CALIBRATION-01 = REVIEW_FIX_VERIFIED_AWAITING_REVIEW / NOT_REPLICATED / DEVELOPMENT_ONLY
 
 Next:
-Review the completed GROWTH-ADJUSTMENT-CALIBRATION-01: numerical reproduction verified, 2024-selected w=+0.03 did not improve fixed 2025 Hit@3 (NOT_REPLICATED). Wait for user instruction. Preserve the prior analyses, PR55 comparison, PJ0315 pilot block and failure evidence. Do not reselect using 2025, adopt growth as a STAT, refit C1, use B/C growth, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026. Stop uncommitted for review.
+Review PR #61 temporal fix: 2025 outcome access is gated after the selection seal, old numerical results are unchanged, and all 30 review-fix artifacts reproduce exactly. The 2024-selected w=+0.03 did not improve fixed 2025 Hit@3 (NOT_REPLICATED). Wait for user instruction. Preserve the initial temporal-read-order issue evidence, prior analyses, PR55 comparison, PJ0315 pilot block and failure evidence. Do not reselect using 2025, adopt growth as a STAT, refit C1, use B/C growth, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026. Stop uncommitted for review.
 
 Do not:
 redo BT-02 discovery
