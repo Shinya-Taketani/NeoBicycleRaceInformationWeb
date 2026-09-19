@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: GROWTH-POINT-ANALYSIS-01_V2_VERIFIED_AWAITING_REVIEW
+current_engine_state: GROWTH-ADJUSTMENT-CALIBRATION-01_VERIFIED_NOT_REPLICATED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_V1_V2_GROWTH_DIAGNOSTICS_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_FROZEN_CALIBRATION_RESULT_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -544,8 +544,9 @@ BT-03E-02以降で利用する場合は、
 | TACTICAL-PREDICTION-RESULT-01 | 固定予測と保存済み結果の照合・集計・再現 | REVIEW_COMPLETED_PR58_MERGED | IN_SAMPLE_REPLAY_TECHNICAL_CHECK / 63_RACES_MATCHED |
 | TACTICAL-GRADE-ANALYSIS-01 | 保存済みOuter C1予測の級班別着順分析 | VERIFIED_AWAITING_REVIEW | 50,078レース・356,209出走、元評価一致・DB不要再現 |
 | TACTICAL-MEETING-GRADE-ANALYSIS-01 | 保存済みOuter C1の開催グレード別分析（現在の主軸） | VERIFIED_AWAITING_REVIEW | 50,078レース・1,796開催、4指標の元評価一致・DB不要再現 |
-| GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | VERIFIED_AWAITING_REVIEW | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
-| GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | VERIFIED_AWAITING_REVIEW | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
+| GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | PR60_MERGED | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
+| GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | PR60_MERGED | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
+| GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | VERIFIED_AWAITING_REVIEW / NOT_REPLICATED | 2024選択w=+0.03、全26生成物の再現一致、正式採用なし |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2161,6 +2162,30 @@ E08不採用、旧pilot保留、2026閉鎖、モデル/STAT/DB/正式成果物�
 
 ---
 
+## 15.33 GROWTH-ADJUSTMENT-CALIBRATION-01
+
+PR #60 merged、開始mainは `62abf52c612038cfd32e1ccbfd069a319981e629`。
+ユーザー承認の独立development backtest。v1/v2のPHP・文書・固定成果物・ZIPは変更しない。
+結果閲覧前契約は `docs/growth-adjustment-calibration-01.md`。
+修正版run-01 Outer C1の2024/2025全50,078レースを固定し、A SCORE_POINT_V2だけをanchorへ加算する。
+`adjusted_anchor = original_anchor + (k/100) * point`、k=-50..50の101候補。B/Cは使用しない。
+C1のモデル、lambda=0.1、bin/support/係数、scorer/decoder/評価定義は不変。再学習なし。
+w=0の保存済み確率・decision・未丸め指標を完全照合してから2024だけで係数を選択し、selectionをsealする。
+2025非ゼロ候補はseal後に限り評価。2025全gridと件数加重pooledは診断専用で再選択しない。
+0・欠損・同一開催0のanchorは不変。相手のutilityが変わるため、その選手の確率・相対順位不変とは主張しない。
+DB接続なし、128MB、2026アクセスなし。新しい正式STAT採用、C1改変、正式Gate、LIVEではない。
+保存先: `/home/shinya/neo-keirin-artifacts/growth-adjustment-calibration-01-20260919-01/`。
+初回実行完了。w=0は両年50,078レースの確率・decision・指標分子分母が完全一致。
+2024でw=+0.03を選択・seal。2024の差は1着+0.055648、2着+0.175257、3着+0.127521、Hit@3 +0.119808pp。
+固定2025では+0.008068、-0.032353、-0.020211、-0.014867ppとなり **NOT_REPLICATED**。
+2024の改善は2025へ継続せず、正式採用・C1変更は行わない。全101候補の曲線とselected明細を保存した。
+DB無効の完全再現で、全26生成物のhashが初回と一致。実行・再現のPHPピークはともに30MiB。
+実入力50,078レースの全101係数で0点・欠損・同一開催0点のanchor不変も検証した。
+数値再現性は確認できたが、年をまたぐ改善の継続は未確認。両者を混同しない。
+未コミットでレビュー待ち。係数の再選択、正式採用、次工程への自動移行は行わない。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2871,11 +2896,12 @@ TACTICAL-PREDICTION-PIPELINE-01 = REVIEW_COMPLETED_PR57_MERGED / REPORT_ZIP_REVI
 TACTICAL-PREDICTION-RESULT-01 = REVIEW_COMPLETED_PR58_MERGED / IN_SAMPLE_REPLAY_TECHNICAL_CHECK
 TACTICAL-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / SAVED_OUTER_C1_BREAKDOWN_ONLY
 TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_ANALYSIS_AXIS
-GROWTH-POINT-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / DEVELOPMENT_DIAGNOSTIC_ONLY
-GROWTH-POINT-ANALYSIS-01-v2 = VERIFIED_AWAITING_REVIEW / SIGN_PRESERVING_POINT / V1_UNCHANGED
+GROWTH-POINT-ANALYSIS-01 = PR60_MERGED / DEVELOPMENT_DIAGNOSTIC_ONLY
+GROWTH-POINT-ANALYSIS-01-v2 = PR60_MERGED / SIGN_PRESERVING_POINT / V1_UNCHANGED
+GROWTH-ADJUSTMENT-CALIBRATION-01 = VERIFIED_AWAITING_REVIEW / NOT_REPLICATED / DEVELOPMENT_ONLY
 
 Next:
-Review the completed v1/v2 growth comparison and wait for user instruction. Keep v1 QUANTILE_BASED_POINT unchanged and v2 SIGN_PRESERVING_POINT separate. Keep the prior meeting-grade and predicted-rider-grade analyses with their distinct meanings. Preserve the completed PR55 comparison, PJ0315 pilot block, and all failure evidence. Do not adopt growth as a STAT, change C1 weights, regenerate predictions, retrain, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026.
+Review the completed GROWTH-ADJUSTMENT-CALIBRATION-01: numerical reproduction verified, 2024-selected w=+0.03 did not improve fixed 2025 Hit@3 (NOT_REPLICATED). Wait for user instruction. Preserve the prior analyses, PR55 comparison, PJ0315 pilot block and failure evidence. Do not reselect using 2025, adopt growth as a STAT, refit C1, use B/C growth, rerun adoption Gate/bootstrap, adopt LIVE, or open 2026. Stop uncommitted for review.
 
 Do not:
 redo BT-02 discovery
