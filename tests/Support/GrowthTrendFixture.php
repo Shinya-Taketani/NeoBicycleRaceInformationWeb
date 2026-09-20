@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource;
+use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\Bundle;
+use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\Sources;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use Illuminate\Database\Schema\Blueprint;
@@ -17,6 +19,8 @@ trait GrowthTrendFixture
     private string $root;
 
     private array $outer;
+
+    private array $labels = [];
 
     private function fixture(): void
     {
@@ -41,7 +45,7 @@ trait GrowthTrendFixture
         });
         Schema::create('race_meetings', function (Blueprint $t): void {
             $t->integer('id')->primary();
-            $t->date('starts_on');
+            $t->date('starts_on')->nullable();
             $t->date('ends_on');
             $t->string('grade');
         });
@@ -53,7 +57,7 @@ trait GrowthTrendFixture
             $t->string('race_score')->nullable();
             $t->string('fetched_at');
         });
-        $metadata = $meetings = [];
+        $metadata = $meetings = $seals = $projection = [];
         foreach ([2024, 2025] as $year) {
             $race = $year;
             $date = $year.'-06-15';
@@ -72,18 +76,25 @@ trait GrowthTrendFixture
                 'prediction' => ['probabilities' => ['year' => $year, 'race_id' => $race, 'entries' => $predicted],
                     'decision' => ['year' => $year, 'race_id' => $race, 'primary_position_1_bike' => 7]],
                 'labels' => ['year' => $year, 'race_id' => $race, 'entries' => $labels]] as $kind => $value) {
-                $path = $this->root.'/outer/'.$year.'-'.$kind.'.jsonl';
+                $relative = match ($kind) {
+                    'input' => 'inputs-v2/inputs-'.$year.'.jsonl',
+                    'prediction' => 'run-01/C1-fit-'.$year.'/predictions.jsonl',
+                    'labels' => 'run-01/labels-'.$year.'.jsonl',
+                };
+                $path = $this->root.'/outer/'.$relative;
+                if (! is_dir(dirname($path))) {
+                    mkdir(dirname($path), 0755, true);
+                }
                 JsonlArtifact::write($path, [$value]);
                 $paths[$kind] = $path;
-            }
-            $this->outer['years'][$year] = $paths;
-            $this->outer['counts'][$year] = 1;
-            $this->outer['entries'][$year] = 7;
-            foreach ($paths as $kind => $path) {
-                foreach ([$path, $path.'.manifest.json'] as $p) {
-                    $this->outer[$kind === 'labels' ? 'deferred' : 'files'][$p] = Files::identity($p);
+                foreach ([$relative, $relative.'.manifest.json'] as $name) {
+                    $seals[$name] = Files::identity($this->root.'/outer/'.$name);
+                    if ($kind !== 'labels') {
+                        $projection[$name] = $seals[$name];
+                    }
                 }
             }
+            $this->labels[$year] = $paths['labels'];
             $metadata[] = ['year' => $year, 'race_id' => $race, 'race_date' => $date, 'entrant_count' => 7, 'meeting_id' => $race, 'race_type_raw' => 'A級予選'];
             $meetings[$race] = ['grade' => 'F2'];
             for ($i = 1; $i <= 12; $i++) {
@@ -94,13 +105,43 @@ trait GrowthTrendFixture
         }
         JsonlArtifact::write($this->root.'/meeting/metadata.jsonl', $metadata);
         JsonlArtifact::json($this->root.'/meeting/meetings.json', $meetings);
-        $this->app->instance(OuterSource::class, new class($this->outer) extends OuterSource
+        JsonlArtifact::json($this->root.'/outer/report-export-manifest.json', ['included' => $seals]);
+        $hash = hash('sha256', Files::canonical(['run' => 'run-01', 'files' => $projection]));
+        $this->app->instance(OuterSource::class, new class($hash) extends OuterSource
         {
-            public function __construct(private readonly array $fixture) {}
+            public function __construct(private readonly string $hash) {}
 
-            public function open(string $root): array
+            protected function projectionHash(): string
             {
-                return $this->fixture;
+                return $this->hash;
+            }
+
+            public function openOutcomeFree(string $root): array
+            {
+                $source = parent::openOutcomeFree($root);
+                $source['counts'] = [2024 => 1, 2025 => 1];
+                $source['entries'] = [2024 => 7, 2025 => 7];
+
+                return $source;
+            }
+        });
+        $this->outer = app(OuterSource::class)->openOutcomeFree($this->root.'/outer');
+        $files = [];
+        foreach (['metadata.jsonl', 'metadata.jsonl.manifest.json', 'meetings.json'] as $name) {
+            $files[$name] = Files::identity($this->root.'/meeting/'.$name);
+        }
+        JsonlArtifact::json($this->root.'/meeting/manifest.json', ['files' => $files]);
+        $hash = hash('sha256', Files::canonical($files));
+        $this->app->instance(Sources::class, new class(app(OuterSource::class), app(Bundle::class), $hash) extends Sources
+        {
+            public function __construct(OuterSource $outer, Bundle $bundle, private readonly string $hash)
+            {
+                parent::__construct($outer, $bundle);
+            }
+
+            protected function meetingProjectionHash(): string
+            {
+                return $this->hash;
             }
         });
     }

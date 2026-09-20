@@ -232,34 +232,18 @@ final class GrowthTrendAnalysisTest extends TestCase
     {
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Trend must be sealed');
-        iterator_to_array((new TemporalAccess)->outcomes(2024, '/nonexistent', []));
+        iterator_to_array((new TemporalAccess)->outcomes(2024, '/nonexistent', app(OuterSource::class)));
     }
 
     private function sources(): array
     {
         $score = app(ScoreService::class)->capture($this->root.'/score', 'fixture', $this->root.'/outer');
-        $files = $this->outer['files'];
-        foreach (['metadata.jsonl', 'metadata.jsonl.manifest.json', 'meetings.json'] as $name) {
-            $files[$this->root.'/meeting/'.$name] = Files::identity($this->root.'/meeting/'.$name);
-        }
-        foreach (Files::json($score['bundle'].'/manifest.json')['files'] as $name => $seal) {
-            $files[$score['bundle'].'/'.$name] = $seal;
-        }
-
-        return ['outer' => $this->outer, 'files' => $files, 'score' => $score['bundle'], 'meeting' => $this->root.'/meeting'];
+        return app(Sources::class)->open($score['bundle'], $this->root.'/outer', $this->root.'/meeting');
     }
 
     private function service(array $sources): Service
     {
-        $reader = new class($sources) extends Sources
-        {
-            public function __construct(private readonly array $fixture) {}
-
-            public function open(string $scorePath, string $outerRoot, string $meetingPath): array
-            {
-                return $this->fixture;
-            }
-        };
+        $reader = app(Sources::class);
 
         return new class($reader, app(OuterSource::class), app(Bundle::class), app(Code::class), new Trend) extends Service
         {
@@ -269,6 +253,13 @@ final class GrowthTrendAnalysisTest extends TestCase
 
                 return ['synthetic_reference' => true];
             }
+
+            protected function comparison(array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
+            {
+                $access->authorize();
+
+                return (new \App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\ReviewComparison)->compare($years, $years, $selection, $selection);
+            }
         };
     }
 
@@ -277,17 +268,21 @@ final class GrowthTrendAnalysisTest extends TestCase
         $sources = $this->sources();
         $service = $this->service($sources);
         config(['database.default' => 'growth_disabled']);
-        $result = $service->execute($this->root.'/analysis', 'fixture', '', '', '');
+        $result = $service->execute($this->root.'/analysis', 'fixture', $sources['score'], $this->root.'/outer', $this->root.'/meeting');
         $this->assertSame('NO_STABLE_GROWTH_GRANULARITY_SELECTED', $result['status']);
         $reproduced = $service->reproduce($this->root.'/analysis', 'fixture');
         $this->assertSame('BYTE_EXACT', $reproduced['status']);
-        foreach ($sources['outer']['deferred'] as $path => $seal) {
+        $outcomeFiles = [];
+        foreach ($this->labels as $path) {
+            array_push($outcomeFiles, $path, $path.'.manifest.json');
+        }
+        foreach ($outcomeFiles as $path) {
             rename($path, $path.'.withheld');
         }
         $stage = Files::directory($this->root.'/withholding');
-        $result2 = $service->generate($stage, $sources, function ($stage) use ($sources): void {
+        $result2 = $service->generate($stage, $sources, function ($stage) use ($outcomeFiles): void {
             $this->assertFileExists($stage.'/trend-input-seal.json');
-            foreach ($sources['outer']['deferred'] as $path => $seal) {
+            foreach ($outcomeFiles as $path) {
                 $this->assertFileDoesNotExist($path);
                 rename($path.'.withheld', $path);
             }
@@ -299,6 +294,11 @@ final class GrowthTrendAnalysisTest extends TestCase
         $this->assertGreaterThan(array_search('TREND_INPUT_SEALED', $events), array_search('2024_OUTCOME_OPEN', $events));
         $this->assertGreaterThan(array_search('TREND_INPUT_SEALED', $events), array_search('2025_OUTCOME_OPEN', $events));
         $this->assertSame(0, $audit['preseal_outcome_access']);
+        $this->assertSame(0, $audit['preseal_label_hash_access']);
+        foreach ([2024, 2025] as $year) {
+            $this->assertGreaterThan(array_search('TREND_INPUT_SEALED', $events), array_search($year.'_OUTCOME_SOURCE_RESOLVED', $events));
+            $this->assertLessThan(array_search($year.'_OUTCOME_OPEN', $events), array_search($year.'_OUTCOME_SOURCE_RESOLVED', $events));
+        }
         foreach (JsonlArtifact::read($stage.'/trend-input.jsonl') as $row) {
             foreach (['rank', 'result_status', 'winner', 'normal', 'hit', 'finish_percentile'] as $key) {
                 $this->assertArrayNotHasKey($key, $row);
@@ -314,7 +314,7 @@ final class GrowthTrendAnalysisTest extends TestCase
         $service = $this->service($sources);
         $a = Files::directory($this->root.'/a');
         $service->generate($a, $sources);
-        $path = $sources['outer']['years'][$year]['labels'];
+        $path = $this->labels[$year];
         $rows = iterator_to_array(JsonlArtifact::read($path));
         foreach ($rows[0]['entries'] as &$entry) {
             $entry['rank'] = 8 - $entry['rank'];
@@ -323,12 +323,25 @@ final class GrowthTrendAnalysisTest extends TestCase
         unlink($path);
         unlink($path.'.manifest.json');
         JsonlArtifact::write($path, $rows);
+        $registry = Files::json($this->root.'/outer/report-export-manifest.json');
         foreach ([$path, $path.'.manifest.json'] as $file) {
-            $sources['outer']['deferred'][$file] = Files::identity($file);
+            $registry['included'][substr($file, strlen($this->root.'/outer/'))] = Files::identity($file);
+        }
+        unlink($this->root.'/outer/report-export-manifest.json');
+        JsonlArtifact::json($this->root.'/outer/report-export-manifest.json', $registry);
+        $fresh = app(Sources::class)->open($sources['score'], $this->root.'/outer', $this->root.'/meeting');
+        $this->assertSame($sources, $fresh);
+        $recaptured = app(ScoreService::class)->capture($this->root.'/score', 'changed-outcome', $this->root.'/outer');
+        foreach (['target-universe.json', 'manifest.json', 'score-observations.jsonl'] as $name) {
+            $this->assertSame(Files::identity($sources['score'].'/'.$name), Files::identity($recaptured['bundle'].'/'.$name));
         }
         $b = Files::directory($this->root.'/b');
-        $service->generate($b, $sources);
-        $this->assertSame(Files::identity($a.'/trend-input.jsonl'), Files::identity($b.'/trend-input.jsonl'));
+        $service->generate($b, $fresh);
+        foreach (['sources.json', 'contract.json', 'candidate-grid.json', 'code.json', 'score-source-verification.json',
+            'ability-bins.json', 'trend-input.jsonl', 'trend-input.jsonl.manifest.json', 'trend-input-seal.json'] as $name) {
+            $this->assertSame(Files::identity($a.'/'.$name), Files::identity($b.'/'.$name), $name);
+        }
+        $this->assertNotSame(Files::identity($a.'/outcome-sources.json'), Files::identity($b.'/outcome-sources.json'));
         $this->assertNotSame(Files::identity($a.'/candidate-results-'.$year.'.json'), Files::identity($b.'/candidate-results-'.$year.'.json'));
     }
 
@@ -341,7 +354,7 @@ final class GrowthTrendAnalysisTest extends TestCase
     {
         $sources = $this->sources();
         $service = $this->service($sources);
-        $r = $service->execute($this->root.'/analysis', 'tamper', '', '', '');
+        $r = $service->execute($this->root.'/analysis', 'tamper', $sources['score'], $this->root.'/outer', $this->root.'/meeting');
         file_put_contents($r['bundle'].'/candidate-grid.json', '{}');
         $this->expectException(RuntimeException::class);
         $service->reproduce($this->root.'/analysis', 'tamper');
@@ -374,7 +387,7 @@ final class GrowthTrendAnalysisTest extends TestCase
         });
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('analysis code END');
-        $this->service($sources)->execute($this->root.'/analysis', 'code-drift', '', '', '');
+        $this->service($sources)->execute($this->root.'/analysis', 'code-drift', $sources['score'], $this->root.'/outer', $this->root.'/meeting');
     }
 
     public function test_equal_values_are_not_split_and_bins_are_deterministic(): void
@@ -442,5 +455,173 @@ final class GrowthTrendAnalysisTest extends TestCase
             $this->assertSame(0, $result['c1-confidence-diagnostics.json'][$year][1]['c1_candidate_win']['wins']);
         }
         $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+    }
+
+    #[DataProvider('dayFamilies')]
+    public function test_missing_past_starts_are_excluded_only_from_day_candidates(string $family): void
+    {
+        $trend = new Trend;
+        $history = array_slice($this->history(), 0, 10);
+        $before = $trend->calculate($this->target(), $history);
+        $history[0]['start'] = null;
+        $after = $trend->calculate($this->target(), $history);
+        $this->assertSame('VALID', $after['candidates'][$family.'_30']['status']);
+        $this->assertEqualsWithDelta(0.1, $after['candidates'][$family.'_30']['raw'], 1e-12);
+        $this->assertSame(1, $after['day_exclusions'][$family.'_30']);
+        foreach (Contract::grid() as $c) {
+            if (str_starts_with($c['family'], 'MEETING_')) {
+                $this->assertSame($before['candidates'][$c['id']], $after['candidates'][$c['id']]);
+            }
+        }
+        $short = $trend->calculate($this->target(), array_slice($history, 0, 2));
+        $this->assertSame('INSUFFICIENT_POINTS_IN_DAY_WINDOW', $short['candidates'][$family.'_30']['status']);
+        $history = $this->history();
+        $history[11]['start'] = null;
+        $outside = $trend->calculate($this->target(), $history);
+        $this->assertSame($before['candidates'][$family.'_30'], $outside['candidates'][$family.'_30']);
+        $target = $this->target();
+        $target['start'] = null;
+        $this->assertSame('MISSING_MEETING_START', $trend->calculate($target, $history)['candidates'][$family.'_30']['status']);
+    }
+
+    public static function dayFamilies(): array
+    {
+        return [['DAY_OLS_SLOPE'], ['DAY_THEIL_SEN_SLOPE']];
+    }
+
+    public function test_day_exclusions_are_auditable_per_year_and_candidate(): void
+    {
+        \Illuminate\Support\Facades\DB::table('race_meetings')->where('id', 202401)->update(['starts_on' => null]);
+        $sources = $this->sources();
+        $stage = Files::directory($this->root.'/null-start');
+        $this->service($sources)->generate($stage, $sources);
+        $audit = Files::json($stage.'/day-start-exclusions.json');
+        $this->assertSame(7, $audit['source_observations_missing_start']);
+        $this->assertSame(1, $audit['source_meetings_missing_start']);
+        $this->assertCount(28, $audit['candidates']);
+        foreach ($audit['candidates'] as $row) {
+            $this->assertSame(7, $row['excluded_missing_start_meetings']);
+            $this->assertSame(7, $row['targets_with_excluded_missing_start']);
+        }
+    }
+
+    public function test_confidence_win_rate_has_normal_denominator_and_null_when_empty(): void
+    {
+        $w = new Workspace($this->root.'/win-denominator.sqlite');
+        $q = $w->db->prepare('INSERT INTO entries(entry_id,race_id,year,predicted,margin_bin,normal,rank,grade,class) VALUES(?,?,2024,1,?,?,?,\'F2\',\'A1_A2\')');
+        foreach ([[1, 1, 1, 1], [2, 1, 1, 2], [3, 1, 0, null], [4, 2, 0, null]] as [$id, $bin, $normal, $rank]) {
+            $q->execute([$id, $id, $bin, $normal, $rank]);
+        }
+        $selection = ['selected' => ['id' => 'MEETING_DELTA_LAG_1', 'family' => 'MEETING_DELTA', 'grain' => 1]];
+        $r = (new Diagnostics)->run(new Statistics($w->db), $selection, $this->metricsFixture(), ['distributions' => []]);
+        $this->assertSame(['all_predicted_entries' => 3, 'normal_predicted_entries' => 2, 'wins' => 1,
+            'normal_win_rate' => 0.5, 'all_prediction_denominator_rate' => 1 / 3], $r['c1-confidence-diagnostics.json'][2024][1]['c1_candidate_win']);
+        $this->assertSame(0, $r['c1-confidence-diagnostics.json'][2024][2]['c1_candidate_win']['normal_predicted_entries']);
+        $this->assertNull($r['c1-confidence-diagnostics.json'][2024][2]['c1_candidate_win']['normal_win_rate']);
+    }
+
+    public function test_meeting_outcome_only_manifest_change_does_not_change_preseal_identity(): void
+    {
+        $sources = $this->sources();
+        $service = $this->service($sources);
+        $a = Files::directory($this->root.'/meeting-a');
+        $service->generate($a, $sources);
+        $manifest = Files::json($sources['meeting'].'/manifest.json');
+        $manifest['files']['outcome-only.json'] = ['bytes' => 99, 'sha256' => str_repeat('a', 64)];
+        unlink($sources['meeting'].'/manifest.json');
+        JsonlArtifact::json($sources['meeting'].'/manifest.json', $manifest);
+        JsonlArtifact::json($sources['meeting'].'/LOCKED.json', Files::identity($sources['meeting'].'/manifest.json'));
+        $fresh = app(Sources::class)->open($sources['score'], $sources['outer']['root'], $sources['meeting']);
+        $this->assertSame($sources, $fresh);
+        $b = Files::directory($this->root.'/meeting-b');
+        $service->generate($b, $fresh);
+        foreach (['sources.json', 'trend-input.jsonl', 'trend-input-seal.json'] as $name) {
+            $this->assertSame(Files::identity($a.'/'.$name), Files::identity($b.'/'.$name));
+        }
+    }
+
+    #[DataProvider('projectedInputs')]
+    public function test_projected_input_one_byte_drift_fails_before_seal(string $kind): void
+    {
+        $sources = $this->sources();
+        $path = match ($kind) {
+            'input' => $sources['outer']['years'][2024]['input'],
+            'prediction' => $sources['outer']['years'][2025]['prediction'],
+            'score' => $sources['score'].'/score-observations.jsonl',
+            default => $sources['meeting'].'/'.$kind,
+        };
+        $h = fopen($path, 'r+b');
+        fwrite($h, '[');
+        fclose($h);
+        try {
+            $this->service($sources)->execute($this->root.'/analysis', 'drift', $sources['score'], $sources['outer']['root'], $sources['meeting']);
+            $this->fail('Drift accepted.');
+        } catch (RuntimeException) {
+            $this->assertDirectoryDoesNotExist($this->root.'/analysis/evaluations/drift');
+            $this->assertSame([], glob($this->root.'/analysis/.staging/*/trend-input-seal.json'));
+        }
+    }
+
+    public static function projectedInputs(): array
+    {
+        return [['input'], ['prediction'], ['metadata.jsonl'], ['meetings.json'], ['score']];
+    }
+
+    public function test_unsealed_outcome_identity_resolution_is_rejected(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Trend must be sealed');
+        app(OuterSource::class)->openOutcomeSource('/does-not-exist', 2024, new TemporalAccess);
+    }
+
+    public function test_preseal_source_needs_no_label_files_or_registered_label_identity(): void
+    {
+        $registryPath = $this->root.'/outer/report-export-manifest.json';
+        $registry = Files::json($registryPath);
+        $without = $registry;
+        foreach ($this->labels as $path) {
+            foreach ([$path, $path.'.manifest.json'] as $file) {
+                rename($file, $file.'.withheld');
+                unset($without['included'][substr($file, strlen($this->root.'/outer/'))]);
+            }
+        }
+        unlink($registryPath);
+        JsonlArtifact::json($registryPath, $without);
+        $sources = $this->sources();
+        $stage = Files::directory($this->root.'/no-label-identity');
+        $this->service($sources)->generate($stage, $sources, function ($stage) use ($registry, $registryPath): void {
+            $this->assertFileExists($stage.'/trend-input-seal.json');
+            foreach (['sources.json', 'trend-input-seal.json'] as $name) {
+                $text = file_get_contents($stage.'/'.$name);
+                $this->assertStringNotContainsString('labels-', $text);
+                $this->assertStringNotContainsString('report-export-manifest', $text);
+                foreach ($this->labels as $path) {
+                    $this->assertFileDoesNotExist($path);
+                    $this->assertStringNotContainsString(hash_file('sha256', $path.'.withheld'), $text);
+                }
+            }
+            foreach ($this->labels as $path) {
+                foreach ([$path, $path.'.manifest.json'] as $file) {
+                    rename($file.'.withheld', $file);
+                }
+            }
+            unlink($registryPath);
+            JsonlArtifact::json($registryPath, $registry);
+        });
+        $this->assertFileExists($stage.'/outcome-sources.json');
+    }
+
+    public function test_resealed_projected_input_cannot_replace_the_frozen_projection(): void
+    {
+        $path = $this->outer['years'][2024]['input'];
+        file_put_contents($path, ' ' . file_get_contents($path));
+        $registryPath = $this->root.'/outer/report-export-manifest.json';
+        $registry = Files::json($registryPath);
+        $registry['included']['inputs-v2/inputs-2024.jsonl'] = Files::identity($path);
+        unlink($registryPath);
+        JsonlArtifact::json($registryPath, $registry);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('projection mismatch');
+        app(OuterSource::class)->openOutcomeFree($this->root.'/outer');
     }
 }

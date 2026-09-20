@@ -18,6 +18,8 @@ final class TemporalAccess
 
     private array $sealed = [];
 
+    private array $sources = [];
+
     public function record(string $event): void
     {
         $this->events[] = ['sequence' => count($this->events) + 1, 'event' => $event];
@@ -48,21 +50,27 @@ final class TemporalAccess
         Files::same($this->sealed, Files::json($this->stage.'/trend-input-seal.json'), 'immutable trend seal');
     }
 
-    public function outcomes(int $year, string $path, array $files): Generator
+    public function outcomes(int $year, string $root, \App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource $reader): Generator
     {
         SourceContract::year($year, true);
         $this->authorize();
         $this->record('OUTCOME_ACCESS_AUTHORIZED');
+        $source = $reader->openOutcomeSource($root, $year, $this);
+        $this->sources[$year] = $source;
         $this->record($year.'_OUTCOME_OPEN');
-        foreach ([$path, $path.'.manifest.json'] as $file) {
-            Files::verify($file, $files[$file] ?? []);
-        }
-        yield from JsonlArtifact::read($path);
+        yield from JsonlArtifact::read($source['path']);
+    }
+
+    public function sources(): array
+    {
+        $this->authorize();
+
+        return $this->sources;
     }
 
     public function artifact(): array
     {
-        return ['events' => $this->events, 'preseal_outcome_access' => 0,
+        return ['events' => $this->events, 'preseal_outcome_access' => 0, 'preseal_label_hash_access' => 0,
             'evaluation' => '2024_AND_2025_DEVELOPMENT_SELECTION_NOT_HOLDOUT', '2026_access' => 0];
     }
 }

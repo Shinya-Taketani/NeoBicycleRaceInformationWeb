@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource;
 
+use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\TemporalAccess;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use Generator;
@@ -11,49 +12,68 @@ use RuntimeException;
 
 class OuterSource
 {
-    public function open(string $root): array
+    protected function projectionHash(): string
     {
-        $registry = $root.'/report-export-manifest.json';
-        if (realpath($root) !== $root || Files::identity($registry)['sha256'] !== '4268b801b74b77cfb3a94b64832ff483e9eb5e3221ee8e75ceb467e5a5cf92e6') {
-            throw new RuntimeException('Expected reviewed run-01 Outer registry.');
-        }
-        $index = Files::json($registry);
-        $files = [$registry => Files::identity($registry)];
-        $deferred = [];
-        $add = function (string $relative, bool $outcome = false) use ($root, $index, &$files, &$deferred): string {
-            $path = $root.'/'.$relative;
-            $seal = $index['included'][$relative] ?? $index['omitted'][$relative] ?? null;
-            if (! is_array($seal)) {
-                throw new RuntimeException('Unregistered Outer source.');
-            }
-            $seal = ['bytes' => $seal['bytes'], 'sha256' => $seal['sha256']];
-            if ($outcome) {
-                $deferred[$path] = $seal;
-            } else {
-                Files::verify($path, $seal);
-                $files[$path] = $seal;
-            }
+        return '0e8d516e0ad0349954276e911f4273932ef2c6198136cac6f432a979d9d94074';
+    }
 
-            return $path;
-        };
-        $run = Files::json($add('run-01/model-run.json'));
-        $completion = Files::json($add('run-01-completion.json'));
-        Files::same($run['outer_paths'], $completion['outer_paths'], 'Outer run identity');
-        $inputs = Files::json($add('inputs-v2/manifest.json'));
-        $years = [];
+    public function openOutcomeFree(string $root): array
+    {
+        if (realpath($root) !== $root) {
+            throw new RuntimeException('Canonical Outer root required.');
+        }
+        $index = Files::json($root.'/report-export-manifest.json');
+        $files = $relativeFiles = $years = [];
         foreach (Contract::COUNTS as $year => $n) {
-            foreach (['input' => "inputs-v2/inputs-$year.jsonl", 'prediction' => "run-01/C1-fit-$year/predictions.jsonl",
-                'labels' => "run-01/labels-$year.jsonl"] as $kind => $relative) {
-                $years[$year][$kind] = $add($relative, $kind === 'labels');
-                $add($relative.'.manifest.json', $kind === 'labels');
+            foreach (['input' => "inputs-v2/inputs-$year.jsonl", 'prediction' => "run-01/C1-fit-$year/predictions.jsonl"] as $kind => $relative) {
+                $years[$year][$kind] = $root.'/'.$relative;
+                foreach ([$relative, $relative.'.manifest.json'] as $name) {
+                    $relativeFiles[$name] = $files[$root.'/'.$name] = $this->registered($index, $name);
+                }
             }
-            if ($years[$year]['prediction'] !== $run['outer_paths'][$year]['C1'] || $years[$year]['labels'] !== $run['outer_paths'][$year]['labels']) {
-                throw new RuntimeException('Outer prediction identity mismatch.');
-            }
-            Files::same($inputs['manifests'][$year]['inputs'], Files::json($years[$year]['input'].'.manifest.json'), 'Outer input manifest');
+        }
+        // Only the eight directly consumed input/prediction files anchor this identity.
+        // The enclosing input/run/export manifests can also identify outcome-bearing files.
+        $projection = ['run' => 'run-01', 'files' => $relativeFiles];
+        $hash = hash('sha256', Files::canonical($projection));
+        if (! hash_equals($this->projectionHash(), $hash)) {
+            throw new RuntimeException('Outer outcome-free projection mismatch.');
+        }
+        self::verify($files);
+
+        return ['kind' => 'OUTCOME_FREE_SOURCE_PROJECTION', 'root' => $root, 'projection' => $projection,
+            'outcome_free_projection_sha256' => $hash, 'files' => $files, 'years' => $years,
+            'counts' => Contract::COUNTS, 'entries' => Contract::ENTRIES];
+    }
+
+    public function openOutcomeSource(string $root, int $year, TemporalAccess $access): array
+    {
+        Contract::year($year, true);
+        $access->authorize();
+        $registry = $root.'/report-export-manifest.json';
+        $registrySeal = Files::identity($registry);
+        $index = Files::json($registry);
+        $path = $root.'/run-01/labels-'.$year.'.jsonl';
+        $files = [];
+        foreach (['run-01/labels-'.$year.'.jsonl', 'run-01/labels-'.$year.'.jsonl.manifest.json'] as $relative) {
+            $files[$root.'/'.$relative] = $this->registered($index, $relative);
+        }
+        self::verify($files);
+        Files::verify($registry, $registrySeal);
+        $access->record($year.'_OUTCOME_SOURCE_RESOLVED');
+
+        return ['path' => $path, 'files' => $files, 'registry' => [$registry => $registrySeal]];
+    }
+
+    private function registered(array $index, string $relative): array
+    {
+        $seal = $index['included'][$relative] ?? $index['omitted'][$relative] ?? null;
+        if (! is_array($seal) || ! is_int($seal['bytes'] ?? null) || $seal['bytes'] < 0
+            || ! is_string($seal['sha256'] ?? null) || ! preg_match('/\A[a-f0-9]{64}\z/D', $seal['sha256'])) {
+            throw new RuntimeException('Unregistered Outer source.');
         }
 
-        return ['files' => $files, 'deferred' => $deferred, 'years' => $years, 'counts' => Contract::COUNTS, 'entries' => Contract::ENTRIES];
+        return ['bytes' => $seal['bytes'], 'sha256' => $seal['sha256']];
     }
 
     public static function verify(array $files): void

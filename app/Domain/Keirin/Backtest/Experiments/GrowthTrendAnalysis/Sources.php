@@ -14,9 +14,14 @@ class Sources
 {
     public function __construct(private readonly OuterSource $outer, private readonly Bundle $bundle) {}
 
+    protected function meetingProjectionHash(): string
+    {
+        return '4b7cf990540583e98d4ff3431023f43b9048a92ee0642b36265a66233b463707';
+    }
+
     public function open(string $scorePath, string $outerRoot, string $meetingPath): array
     {
-        $outer = $this->outer->open($outerRoot);
+        $outer = $this->outer->openOutcomeFree($outerRoot);
         $score = $this->bundle->verify($scorePath, ScoreContract::plan());
         $files = $outer['files'];
         foreach ($score['files'] as $name => $seal) {
@@ -26,20 +31,19 @@ class Sources
             $files[$scorePath.'/'.$name] = Files::identity($scorePath.'/'.$name);
         }
         $universe = Files::json($scorePath.'/target-universe.json');
-        Files::same($outer, $universe['source'], 'captured Outer identity');
-        Files::verify($meetingPath.'/manifest.json', Files::json($meetingPath.'/LOCKED.json'));
-        if (Files::identity($meetingPath.'/manifest.json')['sha256'] !== '61d1718f29f1683a34698a40f25d89273a52f976c4d475641b6bfc4fd14e05fc') {
-            throw new RuntimeException('Expected fixed meeting metadata.');
-        }
+        Files::same($outer, $universe['source_projection'], 'captured Outer identity');
         $meeting = Files::json($meetingPath.'/manifest.json');
+        $projection = [];
         foreach (['metadata.jsonl', 'metadata.jsonl.manifest.json', 'meetings.json'] as $name) {
-            $files[$meetingPath.'/'.$name] = $meeting['files'][$name];
+            $projection[$name] = $files[$meetingPath.'/'.$name] = $meeting['files'][$name];
         }
-        foreach (['manifest.json', 'LOCKED.json'] as $name) {
-            $files[$meetingPath.'/'.$name] = Files::identity($meetingPath.'/'.$name);
+        $hash = hash('sha256', Files::canonical($projection));
+        if (! hash_equals($this->meetingProjectionHash(), $hash)) {
+            throw new RuntimeException('Meeting metadata projection mismatch.');
         }
         OuterSource::verify($files);
 
-        return ['outer' => $outer, 'files' => $files, 'score' => $scorePath, 'meeting' => $meetingPath];
+        return ['kind' => 'PRESEAL_OUTCOME_FREE_SOURCES', 'outer' => $outer, 'files' => $files, 'score' => $scorePath,
+            'meeting' => $meetingPath, 'meeting_metadata_projection' => $projection, 'meeting_metadata_projection_sha256' => $hash];
     }
 }

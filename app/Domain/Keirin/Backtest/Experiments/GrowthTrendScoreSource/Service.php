@@ -19,7 +19,7 @@ class Service
 
     public function capture(string $root, string $id, string $outerRoot): array
     {
-        $source = $this->outer->open($outerRoot);
+        $source = $this->outer->openOutcomeFree($outerRoot);
         $code = $this->code->capture(false);
         $this->bundle->prepare($root, $id, $source['files']);
 
@@ -69,12 +69,13 @@ class Service
                 }
             })();
             $expected += $this->bundle->writer->writeJsonl($stage, 'targets.jsonl', $rows);
-            foreach (['contract.json' => Contract::plan(), 'target-universe.json' => ['counts' => $targets, 'source' => $source, 'identity' => $expected['targets.jsonl']],
+            foreach (['contract.json' => Contract::plan(), 'target-universe.json' => ['counts' => $targets, 'source_projection' => $source, 'identity' => $expected['targets.jsonl']],
                 'source-settings.json' => $settings, 'coverage.json' => $coverage, 'source-query-audit.json' => $audit,
                 'code.json' => $code, 'source-end.json' => ['status' => 'UNCHANGED', 'start' => $digest, 'end' => $end, 'settings' => $endSettings]] as $name => $data) {
                 $expected += $this->bundle->writer->writeJson($stage, $name, $data);
             }
             OuterSource::verify($source['files']);
+            Files::same($source, $this->outer->openOutcomeFree($source['root']), 'Outer projection END');
             Files::same($code, $this->code->capture(false), 'source code END');
             unset($w);
             unlink($stage.'/spool.sqlite');

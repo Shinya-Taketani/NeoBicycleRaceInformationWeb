@@ -36,8 +36,11 @@ final class Diagnostics
                 foreach ($s->query('SELECT DISTINCT margin_bin FROM entries WHERE year=? ORDER BY margin_bin', [$year]) as $bin) {
                     $q = $bin['margin_bin'];
                     $confidence[$year][$q] = $s->metrics($id, $year, 'e.margin_bin=?', [$q], false);
-                    $pred = $s->query('SELECT count(*) AS n,sum(normal=1 AND rank=1) AS wins FROM entries WHERE year=? AND margin_bin=? AND predicted=1', [$year, $q])->fetch();
-                    $confidence[$year][$q]['c1_candidate_win'] = $pred + ['rate' => $pred['n'] ? $pred['wins'] / $pred['n'] : null];
+                    $pred = $s->query('SELECT count(*) AS all_predicted_entries,coalesce(sum(normal=1),0) AS normal_predicted_entries,
+                        coalesce(sum(normal=1 AND rank=1),0) AS wins FROM entries WHERE year=? AND margin_bin=? AND predicted=1', [$year, $q])->fetch();
+                    $confidence[$year][$q]['c1_candidate_win'] = $pred + [
+                        'normal_win_rate' => $pred['normal_predicted_entries'] ? $pred['wins'] / $pred['normal_predicted_entries'] : null,
+                        'all_prediction_denominator_rate' => $pred['all_predicted_entries'] ? $pred['wins'] / $pred['all_predicted_entries'] : null];
                 }
                 // Keep the race lookup before the second signal lookup; SQLite otherwise scans every candidate pair.
                 $from = '(SELECT a.raw-p.raw AS gap FROM signals a JOIN entries ae ON ae.entry_id=a.entry_id

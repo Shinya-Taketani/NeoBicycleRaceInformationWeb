@@ -163,12 +163,19 @@ final class Trend
         $state = $target['player_id'] === null ? 'MISSING_PLAYER' : ($target['meeting_id'] === null ? 'MISSING_MEETING_ID'
             : ($target['score'] === null ? 'MISSING_TARGET_SCORE' : null));
         $candidates = [];
+        $dayExclusions = [];
+        $missingStarts = count(array_filter($prior, fn ($m) => $m['start'] === null));
         foreach (Contract::grid() as $c) {
             $status = $state;
             $raw = null;
             $day = str_starts_with($c['family'], 'DAY_');
             $need = $c['family'] === 'MEETING_DELTA' ? $c['grain'] : $c['grain'] - 1;
-            $points = $day ? array_values(array_filter($prior, fn ($m) => $m['start'] === null || self::day($anchor) - self::day($m['start']) <= $c['grain'])) : array_slice($prior, 0, $need);
+            $points = $day ? array_values(array_filter($prior, fn ($m) => $m['start'] !== null
+                && self::day($anchor) - self::day($m['start']) > 0
+                && self::day($anchor) - self::day($m['start']) <= $c['grain'])) : array_slice($prior, 0, $need);
+            if ($day) {
+                $dayExclusions[$c['id']] = $missingStarts;
+            }
             if ($status === null && $day && $target['start'] === null) {
                 $status = 'MISSING_MEETING_START';
             }
@@ -178,7 +185,7 @@ final class Trend
             }
             foreach ($points as $m) {
                 $status ??= $m['status'] === 'PARTIAL_TIME_ORDER' ? 'PARTIAL_TIME_ORDER'
-                    : ($m['score'] === null ? 'MISSING_PREVIOUS_SCORE' : ($day && $m['start'] === null ? 'MISSING_MEETING_START' : null));
+                    : ($m['score'] === null ? 'MISSING_PREVIOUS_SCORE' : null);
             }
             if ($status === null) {
                 if ($c['family'] === 'MEETING_DELTA') {
@@ -195,7 +202,7 @@ final class Trend
             $candidates[$c['id']] = ['raw' => $raw === 0.0 ? 0.0 : $raw, 'status' => $status];
         }
 
-        return ['candidates' => $candidates, 'previous' => $prior, 'events' => $this->events($target, $prior, $state)];
+        return ['candidates' => $candidates, 'previous' => $prior, 'events' => $this->events($target, $prior, $state), 'day_exclusions' => $dayExclusions];
     }
 
     private function events(array $target, array $prior, ?string $state): array

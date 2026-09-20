@@ -19,7 +19,7 @@ final class Contract
 
     public static function plan(): array
     {
-        return ['version' => 'GROWTH-TREND-SCORE-SOURCE-01-v1', 'mode' => 'DEVELOPMENT_BACKFILLED_SCORE_OBSERVATION',
+        return ['version' => 'GROWTH-TREND-SCORE-SOURCE-01-v2-OUTCOME-IDENTITY-ISOLATION', 'mode' => 'DEVELOPMENT_BACKFILLED_SCORE_OBSERVATION',
             'years' => [2022, 2023, 2024, 2025], 'targets' => self::COUNTS, 'entries' => self::ENTRIES,
             'tables' => ['race_entries', 'races', 'race_days', 'race_meetings'], 'columns' => self::COLUMNS,
             'capture' => 'READ_ONLY', 'verify' => 'DB_NONE', 'publication_timing' => 'UNKNOWN',

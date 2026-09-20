@@ -59,6 +59,7 @@ class Service
         OuterSource::verify($sources['files']);
         $access = new TemporalAccess;
         $access->record('SCORE_SOURCE_VERIFIED');
+        $access->record('OUTCOME_FREE_SOURCE_PROJECTED');
         $w = new Workspace($stage.'/spool.sqlite');
         $w->targets($this->outer->targets($sources['outer']));
         $w->observations(JsonlArtifact::read($sources['score'].'/score-observations.jsonl'));
@@ -82,13 +83,24 @@ class Service
         $expected += $writer->writeJsonl($stage, 'trend-input.jsonl', $w->inputs($sources['outer'], $this->trend));
         $bins = $s->bins();
         $expected += $writer->writeJson($stage, 'ability-bins.json', $bins);
+        $expected += $writer->writeJson($stage, 'day-start-exclusions.json', [
+            'source_observations_missing_start' => (int) $w->db->query('SELECT count(*) FROM observations WHERE start IS NULL')->fetchColumn(),
+            'source_meetings_missing_start' => (int) $w->db->query('SELECT count(DISTINCT meeting_id) FROM observations WHERE start IS NULL')->fetchColumn(),
+            'unit' => 'EXCLUDED_TARGET_PRIOR_MEETING_PAIRS; UNKNOWN_START_CANNOT_BE_ASSIGNED_TO_A_WINDOW',
+            'candidates' => $w->db->query('SELECT * FROM day_exclusions ORDER BY year,candidate')->fetchAll()]);
         $sealed = array_intersect_key($expected, array_flip(['contract.json', 'sources.json', 'code.json', 'candidate-grid.json', 'score-source-verification.json', 'trend-input.jsonl', 'trend-input.jsonl.manifest.json', 'ability-bins.json']));
         $expected += $writer->writeJson($stage, 'trend-input-seal.json', $sealed);
         $access->seal($stage, $sealed);
         if ($afterSeal !== null) {
             $afterSeal($stage);
         }
-        $w->outcomes($sources['outer'], $access);
+        $expected += $writer->writeJson($stage, 'outcome-isolation-audit.json', [
+            'preseal_artifacts' => array_keys($sealed), 'outcome_hashes_present_preseal' => false,
+            'meeting_bundle_whole_manifest_identity_present_preseal' => false, 'outer_whole_export_manifest_identity_present_preseal' => false,
+            'outer_outcome_free_projection_sha256' => $sources['outer']['outcome_free_projection_sha256'],
+            'meeting_metadata_projection_sha256' => $sources['meeting_metadata_projection_sha256']]);
+        $w->outcomes($sources['outer'], $access, $this->outer);
+        $expected += $writer->writeJson($stage, 'outcome-sources.json', $access->sources());
         $years = $first = $conditional = [];
         foreach ([2024, 2025] as $year) {
             foreach (Contract::grid() as $c) {
@@ -115,14 +127,19 @@ class Service
             'temporal-access-audit.json' => $access->artifact()];
         $outputs += (new Diagnostics)->run($s, $selection, $years, $audit);
         $outputs['old-race-growth-comparison.json'] = $this->old($w, $s, $access, $years, $selection);
+        $outputs['review-fix-comparison.json'] = $this->comparison($sources, $years, $selection, $outputs, $expected, $access);
         foreach ($outputs as $name => $data) {
             $expected += $writer->writeJson($stage, $name, $data);
         }
         $expected += $this->csv($stage, 'selected-summary.csv', $summary['years']);
         OuterSource::verify($sources['files']);
-        OuterSource::verify($sources['outer']['deferred']);
+        foreach ($access->sources() as $outcome) {
+            OuterSource::verify($outcome['files']);
+            OuterSource::verify($outcome['registry']);
+        }
+        Files::same($sources, $this->sources->open($sources['score'], $sources['outer']['root'], $sources['meeting']), 'source projections END');
         Files::same($code, $this->code->capture(), 'analysis code END');
-        $expected += $writer->writeJson($stage, 'source-end.json', ['status' => 'UNCHANGED', 'files' => $sources['files'], 'outcomes' => $sources['outer']['deferred'], 'code' => $code]);
+        $expected += $writer->writeJson($stage, 'source-end.json', ['status' => 'UNCHANGED', 'files' => $sources['files'], 'outcomes' => $access->sources(), 'code' => $code]);
         unset($s, $w);
         unlink($stage.'/spool.sqlite');
 
@@ -172,6 +189,11 @@ class Service
         }
 
         return $out;
+    }
+
+    protected function comparison(array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
+    {
+        return (new ReviewComparison)->report($sources, $years, $selection, $outputs, $expected, $access);
     }
 
     private function csv(string $stage, string $name, array $rows): array

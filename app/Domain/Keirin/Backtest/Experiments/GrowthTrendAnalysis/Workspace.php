@@ -24,6 +24,7 @@ final class Workspace extends ScoreWorkspace
             CREATE INDEX entries_race ON entries(race_id);
             CREATE INDEX entries_year ON entries(year);
             CREATE TABLE audit_values(kind TEXT,value REAL);
+            CREATE TABLE day_exclusions(year INTEGER,candidate TEXT,excluded_missing_start_meetings INTEGER,targets_with_excluded_missing_start INTEGER,PRIMARY KEY(year,candidate));
             CREATE INDEX audit_dist ON audit_values(kind,value)');
     }
 
@@ -78,6 +79,9 @@ final class Workspace extends ScoreWorkspace
         $same = $this->db->prepare('SELECT * FROM observations WHERE player_id=? AND meeting_id=?');
         $insert = $this->db->prepare('INSERT INTO entries(entry_id,race_id,year,player_id,bike,score,p1,margin,predicted,first_obs,grade,class,n) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $signal = $this->db->prepare('INSERT INTO signals VALUES(?,?,?,?)');
+        $exclusions = $this->db->prepare('INSERT INTO day_exclusions VALUES(?,?,?,?) ON CONFLICT(year,candidate) DO UPDATE SET
+            excluded_missing_start_meetings=excluded_missing_start_meetings+excluded.excluded_missing_start_meetings,
+            targets_with_excluded_missing_start=targets_with_excluded_missing_start+excluded.targets_with_excluded_missing_start');
         $n = 0;
         $this->db->beginTransaction();
         foreach ($outer['years'] as $year => $paths) {
@@ -120,6 +124,9 @@ final class Workspace extends ScoreWorkspace
                         $meetings[] = json_decode($m['body'], true, flags: JSON_THROW_ON_ERROR);
                     }
                     $growth = $trend->calculate($target, $meetings);
+                    foreach ($growth['day_exclusions'] as $id => $excluded) {
+                        $exclusions->execute([$year, $id, $excluded, (int) ($excluded > 0)]);
+                    }
                     $same->execute([$t['player_id'], $t['meeting_id']]);
                     $first = $t['player_id'] === null || $t['meeting_id'] === null ? null : $trend->firstObservation($target, $same->fetchAll());
                     $p1 = (float) $entry['position_1_probability'];
@@ -151,14 +158,14 @@ final class Workspace extends ScoreWorkspace
         $this->db->commit();
     }
 
-    public function outcomes(array $outer, TemporalAccess $access): void
+    public function outcomes(array $outer, TemporalAccess $access, \App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource $reader): void
     {
         $get = $this->db->prepare('SELECT * FROM entries WHERE race_id=? ORDER BY entry_id');
         $q = $this->db->prepare('UPDATE entries SET normal=?,rank=?,fp=?,unique_winner=? WHERE entry_id=?');
         foreach ($outer['years'] as $year => $paths) {
             $n = $count = 0;
             $this->db->beginTransaction();
-            foreach ($access->outcomes($year, $paths['labels'], $outer['deferred']) as $race) {
+            foreach ($access->outcomes($year, $outer['root'], $reader) as $race) {
                 if ($race['year'] !== $year) {
                     throw new RuntimeException('Outcome year mismatch.');
                 }
