@@ -9,7 +9,7 @@ use RuntimeException;
 
 final class Contract
 {
-    public const VERSION = 'GROWTH-TREND-ADJUSTMENT-CALIBRATION-01-v1';
+    public const VERSION = 'GROWTH-TREND-ADJUSTMENT-CALIBRATION-01-v2-PR63-OUTCOME-SEAL-FIX';
 
     public const SIGNAL = 'MEETING_DELTA_LAG_1';
 

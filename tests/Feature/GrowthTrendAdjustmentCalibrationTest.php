@@ -34,6 +34,8 @@ class GrowthTrendAdjustmentCalibrationTest extends TestCase
 
     private string $directory;
 
+    private array $outcomeSeals = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -218,21 +220,140 @@ class GrowthTrendAdjustmentCalibrationTest extends TestCase
         $this->assertSame(1, $state[2024]['MISSING']['entries']);
         $this->assertSame(1, $state[2024]['ZERO']['entries']);
         $this->assertFileDoesNotExist($s['outer_root'].'/report-export-manifest.json');
+        $this->assertSame($this->outcomeSeals, Files::json($bundle.'/fixed-outcome-seals.json'));
+        $trust = Files::json($bundle.'/outcome-source-trust-audit.json');
+        $this->assertSame(Sources::OUTCOME_TRUST_ANCHOR, $trust['trust_anchor_type']);
+        $this->assertFalse($trust['report_export_manifest_used']);
+        $this->assertTrue($trust['2024_verified_after_scaling_seal']);
+        $this->assertTrue($trust['2025_verified_after_selection_seal']);
+        $this->assertSame($this->outcomeSeals, Files::json($bundle.'/source-end.json')['fixed_outcome_seals']);
+        $events = Files::json($bundle.'/temporal-access-audit.json')['events'];
+        $sequence = [];
+        foreach ($events as $event) {
+            $sequence[$event['year'].':'.$event['event']] ??= $event['sequence'];
+        }
+        $this->assertLessThan($sequence['2024:OUTCOME_IDENTITY_RESOLVE'], $sequence[':SCALING_SEALED']);
+        $this->assertLessThan($sequence['2025:OUTCOME_IDENTITY_RESOLVE'], $sequence[':SELECTION_SEALED']);
     }
 
-    public function test_2025_outcome_mutation_keeps_all_preselection_bytes_identical(): void
+    #[DataProvider('outcomeKinds')]
+    public function test_2025_outcome_mutation_keeps_all_preselection_bytes_identical(string $kind): void
     {
         $s = $this->fixture();
         $this->bind($s);
         $root = Files::directory($this->directory.'/output');
         $one = app(Service::class)->execute($root, 'one', '', '')['path'];
-        $this->writeOutcomes($s['outer_root'], 2025, true);
-        $two = app(Service::class)->execute($root, 'two', '', '')['path'];
-        foreach (['sources.json', 'signal-scaling.json', 'signal-scaling-seal.json', 'prediction-input-2024.jsonl', 'prediction-input-2025.jsonl',
+        $path = $s['outer_root'].'/'.$this->outcomeSeals[2025][$kind]['relative'];
+        $rows = $this->alternateOutcomeRows(2025, $kind);
+        unlink($path);
+        unlink($path.'.manifest.json');
+        JsonlArtifact::write($path, $rows);
+        Files::verify($path, Files::json($path.'.manifest.json'));
+        try {
+            app(Service::class)->execute($root, 'two', '', '');
+            $this->fail('Self-signed 2025 outcomes published.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Artifact hash/size mismatch', $e->getMessage());
+        }
+        $this->assertDirectoryDoesNotExist($root.'/evaluations/two');
+        $two = dirname(glob($root.'/.staging/two-*/failure.json')[0]);
+        $this->assertFileDoesNotExist($two.'/baseline-2025.json');
+        foreach (['sources.json', 'signal-projection.jsonl', 'signal-scaling.json', 'signal-scaling-seal.json',
+            'prediction-input-2024.jsonl', 'prediction-input-2025.jsonl', 'baseline-2024.json',
             'coefficient-curve-2024.json', 'coefficient-curve-2024.csv', 'selection.json', 'selection-seal.json'] as $name) {
             $this->assertSame(Files::identity($one.'/'.$name), Files::identity($two.'/'.$name), $name);
         }
-        $this->assertNotSame(Files::identity($one.'/transfer-2025.json'), Files::identity($two.'/transfer-2025.json'));
+    }
+
+    public static function outcomeKinds(): array
+    {
+        return [['labels'], ['contributions']];
+    }
+
+    #[DataProvider('outcomeMutations')]
+    public function test_fixed_outcome_tampering_fails_at_year_boundary_without_publication(int $year, string $kind, string $mutation): void
+    {
+        $s = $this->fixture();
+        $path = $s['outer_root'].'/'.$this->outcomeSeals[$year][$kind]['relative'];
+        $before = Files::identity($path);
+        if ($mutation === 'body_and_sidecar' || $mutation === 'rows') {
+            $rows = iterator_to_array(JsonlArtifact::read($path));
+            if ($mutation === 'rows') {
+                $rows[] = $rows[0];
+            } else {
+                $rows = $this->alternateOutcomeRows($year, $kind);
+            }
+            unlink($path);
+            unlink($path.'.manifest.json');
+            JsonlArtifact::write($path, $rows);
+            Files::verify($path, Files::json($path.'.manifest.json'));
+            $this->assertNotSame($before, Files::identity($path));
+        } else {
+            $target = $mutation === 'body_only' ? $path : $path.'.manifest.json';
+            $body = file_get_contents($target);
+            $body[0] = $body[0] === '{' ? '[' : '{';
+            file_put_contents($target, $body);
+            $this->assertSame(strlen($body), Files::identity($target)['bytes']);
+        }
+        $this->bind($s);
+        $root = Files::directory($this->directory.'/output');
+        try {
+            app(Service::class)->execute($root, 'tampered', '', '');
+            $this->fail('Unreviewed outcome accepted.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Artifact hash/size mismatch: '.$path.($mutation === 'body_only' ? '' : '.manifest.json'), $e->getMessage());
+        }
+        $this->assertDirectoryDoesNotExist($root.'/evaluations/tampered');
+        $stages = glob($root.'/.staging/tampered-*/failure.json');
+        $this->assertCount(1, $stages);
+        $stage = dirname($stages[0]);
+        $this->assertFileExists($stage.'/signal-scaling-seal.json');
+        if ($year === 2024) {
+            $this->assertFileDoesNotExist($stage.'/coefficient-curve-2024.json');
+            $this->assertFileDoesNotExist($stage.'/selection.json');
+        } else {
+            $this->assertFileExists($stage.'/baseline-2024.json');
+            $this->assertFileExists($stage.'/coefficient-curve-2024.json');
+            $this->assertFileExists($stage.'/selection-seal.json');
+            $this->assertFileDoesNotExist($stage.'/baseline-2025.json');
+        }
+    }
+
+    public static function outcomeMutations(): array
+    {
+        $cases = [];
+        foreach ([2024, 2025] as $year) {
+            foreach (['labels', 'contributions'] as $kind) {
+                foreach (['body_and_sidecar', 'body_only', 'sidecar_only', 'rows'] as $mutation) {
+                    $cases[$year.'-'.$kind.'-'.$mutation] = [$year, $kind, $mutation];
+                }
+            }
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('sidecarFields')]
+    public function test_verified_sidecar_still_must_match_every_fixed_body_field(string $field): void
+    {
+        $s = $this->fixture();
+        $path = $s['outer_root'].'/'.$this->outcomeSeals[2024]['labels']['relative'].'.manifest.json';
+        $sidecar = Files::json($path);
+        $sidecar[$field] = $field === 'sha256' ? str_repeat('0', 64) : $sidecar[$field] + 1;
+        file_put_contents($path, Files::canonical($sidecar)."\n");
+        // Pin this synthetic sidecar independently, leaving the reviewed body seal unchanged.
+        $this->outcomeSeals[2024]['labels']['sidecar'] = Files::identity($path);
+        $this->bind($s);
+        $a = new TemporalAccess;
+        $this->seal($a, 'signal-scaling');
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Semantic mismatch: reviewed outcome sidecar');
+        app(Sources::class)->outcome($s['outer_root'], 2024, $a);
+    }
+
+    public static function sidecarFields(): array
+    {
+        return [['rows'], ['bytes'], ['sha256']];
     }
 
     #[DataProvider('tamperKinds')]
@@ -501,11 +622,16 @@ class GrowthTrendAdjustmentCalibrationTest extends TestCase
 
     private function bind(array $source, ?\Closure $beforeOutcome = null): void
     {
-        app()->instance(Sources::class, new class(app(OuterSource::class), $source, $beforeOutcome) extends Sources
+        app()->instance(Sources::class, new class(app(OuterSource::class), $source, $beforeOutcome, $this->outcomeSeals) extends Sources
         {
-            public function __construct(OuterSource $outer, private array $fixture, private ?\Closure $hook)
+            public function __construct(OuterSource $outer, private array $fixture, private ?\Closure $hook, private array $seals)
             {
                 parent::__construct($outer);
+            }
+
+            protected function outcomeFiles(): array
+            {
+                return $this->seals;
             }
 
             public function open(string $outerRoot, string $trend): array
@@ -556,6 +682,12 @@ class GrowthTrendAdjustmentCalibrationTest extends TestCase
             JsonlArtifact::json($path, $model->artifact);
             $s['files'][$path] = Files::identity($path);
             $this->writeOutcomes($root, $year, false);
+            foreach (['labels' => 'run-01/labels-', 'contributions' => 'comparison-run-01/contributions-'] as $kind => $prefix) {
+                $relative = $prefix.$year.'.jsonl';
+                $this->outcomeSeals[$year][$kind] = ['relative' => $relative,
+                    'body' => Files::json($root.'/'.$relative.'.manifest.json'),
+                    'sidecar' => Files::identity($root.'/'.$relative.'.manifest.json')];
+            }
             array_push($trend, ...$this->trend($year));
             $metadata[] = ['year' => $year, 'race_id' => $year, 'race_date' => $year.'-06-01', 'entrant_count' => 5, 'meeting_id' => $year, 'race_type_raw' => 'A級予選'];
             $meetings[$year] = ['grade' => 'F2'];
@@ -574,6 +706,24 @@ class GrowthTrendAdjustmentCalibrationTest extends TestCase
     {
         return [$root.'/run-01/labels-'.$year.'.jsonl', $root.'/run-01/labels-'.$year.'.jsonl.manifest.json',
             $root.'/comparison-run-01/contributions-'.$year.'.jsonl', $root.'/comparison-run-01/contributions-'.$year.'.jsonl.manifest.json'];
+    }
+
+    private function alternateOutcomeRows(int $year, string $kind): array
+    {
+        $labels = $this->raw($year);
+        foreach ($labels['entries'] as $i => &$entry) {
+            $entry['rank'] = 5 - $i;
+            $entry['status'] = 'FINISHED';
+        }
+        unset($entry);
+        if ($kind === 'labels') {
+            return [$labels];
+        }
+        [$row, $model] = $this->prepared($year);
+        $prediction = app(Predictor::class)->predict($row['race'], $model->fit);
+        $comparison = app(Bt03e05MetricEvaluator::class)->raceComparison(Metrics::context($labels, $row['race']), $prediction['decision']);
+
+        return [['year' => $year, 'race_id' => $year, 'C1-STAT01' => $comparison]];
     }
 
     private function writeOutcomes(string $root, int $year, bool $reverse): void

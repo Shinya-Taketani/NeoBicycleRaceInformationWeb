@@ -111,6 +111,16 @@ final class Service
                 $outcomes[2025] = $this->sources->outcome($sources['outer_root'], 2025, $access);
                 $paths[2025] += $outcomes[2025]['paths'];
                 $expected += $this->writer->writeJson($stage, 'outcome-sources.json', $outcomes);
+                $fixedSeals = array_map(fn (array $o) => $o['fixed_seals'], $outcomes);
+                $expected += $this->writer->writeJson($stage, 'fixed-outcome-seals.json', $fixedSeals);
+                $expected += $this->writer->writeJson($stage, 'outcome-source-trust-audit.json', [
+                    'trust_anchor_type' => Sources::OUTCOME_TRUST_ANCHOR, 'report_export_manifest_used' => false,
+                    'years' => array_map(fn (array $o) => ['labels_sidecar_fixed' => true, 'labels_body_fixed' => true,
+                        'contributions_sidecar_fixed' => true, 'contributions_body_fixed' => true,
+                        'sidecar_content_matches_fixed_body_seal' => true, 'fixed_seals' => $o['fixed_seals']], $outcomes),
+                    '2024_verified_after_scaling_seal' => true, '2025_verified_after_selection_seal' => true,
+                    'body_and_sidecar_consistent_mutation_policy' => 'REJECT',
+                ]);
                 $baseline25 = $this->engine->baseline(2025, $inputs[2025], $paths[2025], $access);
                 $expected += $this->writer->writeJson($stage, 'baseline-2025.json', $baseline25);
                 $k = $selection['selected']['k'];
@@ -142,7 +152,9 @@ final class Service
                 OuterSource::verify($comparison['files']);
                 Files::same($code, $this->code->capture(), 'end code integrity');
                 $expected += $this->writer->writeJson($stage, 'temporal-access-audit.json', $access->artifact());
-                $expected += $this->writer->writeJson($stage, 'source-end.json', ['status' => 'UNCHANGED', 'files' => $allFiles, 'database' => 'NONE', '2026_access' => 0]);
+                $expected += $this->writer->writeJson($stage, 'source-end.json', ['status' => 'UNCHANGED', 'files' => $allFiles,
+                    'outcome_trust_anchor_type' => Sources::OUTCOME_TRUST_ANCHOR, 'fixed_outcome_seals' => $fixedSeals,
+                    'database' => 'NONE', '2026_access' => 0]);
                 $this->writer->verifyGenerated($stage, $expected);
                 if ($original !== null) {
                     Files::same($original['files'], $expected, 'all reproduced files');

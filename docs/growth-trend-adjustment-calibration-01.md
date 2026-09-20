@@ -147,3 +147,57 @@ DB_CONNECTION=growth_disabled DB_URL= php -d memory_limit=128M artisan keirin:ba
 
 `--execute`は新規bundleのみ、`--reproduce`は別stageへ生成して固定bundleを上書きしない。
 今回の完了は実装・実集計・再現・報告の完了であり、予測精度の一般的向上や正式採用を意味しない。
+
+## PR #63 Review Fix
+
+開始HEADは `65a4cee3d987717e774b95b9381f26b6dd110eaa`、同じexperiment branch、clean。
+PR #63はOPEN。旧v1実行・ZIPは当時の記録として保持し、新契約として読み替えない。
+問題は `OUTCOME_SOURCE_SELF_SIGNED_SIDECAR_TRUST`。本文とsidecarを整合的に同時改変すると、
+現在のsidecar自身を信頼元として受理できた。数値計算ではなく固定原本のprovenance不備である。
+
+修正版は `GROWTH-TREND-ADJUSTMENT-CALIBRATION-01-v2-PR63-OUTCOME-SEAL-FIX`。
+信頼元は `LITERAL_REVIEWED_PER_YEAR_SEALS`。実装前に下記8ファイルのrealpath/bytes/SHAと本文rowsをREAD ONLY照合し、全件一致。
+基準rootは `/home/shinya/neo-keirin-artifacts/tactical-history-01-review-fix-20260916-01`。
+
+|年・原本（rootからの相対パス）|rows|bytes|SHA-256|
+|---|---:|---:|---|
+|run-01/labels-2024.jsonl|25212|72960991|b297c567bb26aa4cbf5263f488ebc55efdd37634c99e60a9cd29a5842a1ccd29|
+|run-01/labels-2024.jsonl.manifest.json|N/A|127|a0f1aae588edaabf64f3921f348f6e7936bccfbbae16f24b56ca83fc282923d4|
+|comparison-run-01/contributions-2024.jsonl|25212|174358551|a481bfe1f3acaed22bae09244e0473183f513127cef56db4e43a9fa364313350|
+|comparison-run-01/contributions-2024.jsonl.manifest.json|N/A|128|5b794154cc4dde3e1829c816d804b10896bcad012a2167dc8d9b53c42558c911|
+|run-01/labels-2025.jsonl|24866|72086838|509cf6e4c823c07f73f11cbae31a6844a376ced6b48b4e09d3f750ea4058beca|
+|run-01/labels-2025.jsonl.manifest.json|N/A|127|42cc7619b78344166c80c9ecc1ac0f84b39bb7a018de9b69b9a2914ea4da31ce|
+|comparison-run-01/contributions-2025.jsonl|24866|171962784|71af1a23fed0defa8fee0506680d329ad84926666f74a7794fa711a0efbcc635|
+|comparison-run-01/contributions-2025.jsonl.manifest.json|N/A|128|c957e329fafb93278db4ed248a093d0242969c6089305a90f0c325593a9f3829|
+
+実行時はTemporalAccess承認、当年の固定seal取得、sidecar bytes/SHA検証、JSON解析、
+固定本文rows/bytes/SHAとの完全一致、固定本文sealによる本文検証の順。
+2024はscaling seal後、2025はselection seal後だけ実ファイルへアクセスする。
+mixed-year `report-export-manifest.json` は使用しない。
+固定seal契約と検証監査を独立artifactへ保存し、source-endも固定sealを正本として再検証する。
+
+人工テストは両年・labels/contributionsごとのBODY+SIDECAR同時改変、same-length 1byte本文/sidecar改変、
+rows変更を拒否。sidecar自体が検証を通ってもrows/bytes/SHAそれぞれの本文契約不一致を拒否する。
+2025のlabelsまたはcontributionsを改変した実service実行は、11個のpreselection artifactが正常実行とbyte-identicalのまま、
+selection seal後のoutcome解決で停止し、最終bundleを公開しない。物理退避・正常実行・完全再現の既存テストも維持。
+
+review-fix ID: `outer-c1-meeting-delta-lag1-adjustment-2024-2025-pr63-review-fix-01`。
+rootは旧実行と同じ。旧bundle/ZIPを上書きせず、DB無効・128MBで修正版の実集計を完了した。
+SCALE_P99=3.03、k=34/w=+0.34、eligible 73個・順序、INTERIOR_SELECTEDは全て旧runと完全一致。
+両年・pooledの各101候補、全6診断、selected明細、decision変更数を含む29成果物がbyte-exact。
+selectionはcode sealだけ、transferはselection sealだけを除き完全一致。数値・選択規則は変更していない。
+状態は `NUMERICALLY_UNCHANGED_AFTER_OUTCOME_SOURCE_TRUST_FIX`、2025は `NOT_TRANSFERRED_POST_SELECTION_DEVELOPMENT_REPLAY`。
+固定reviewed outcome内容は不変だったため、source provenanceを修正しても数値は変化しなかった。正式採用しない。
+実集計は21分09秒、PHP peak 33,554,432 bytes、最大RSS 76,284 KiB、終了コード0。
+focused 70 tests / 788 assertions、関連401 tests / 3607 assertions（focusedを含む）、全体1711 passed /9 skipped /13548 assertions。
+skipはPostgreSQL専用検証。変更PHP5ファイルのPint・構文検査は成功。旧bundle39ファイルと旧ZIPは開始時から不変。
+新しい固定seal契約・trust auditを含む41生成物（manifest/LOCKED含む）のbyte-exact再現と外部照合が成功。
+再現は21分07秒、PHP peak 33,554,432 bytes、最大RSS 76,444 KiB、終了コード0。
+監査順序はscaling seal=5、2024 identity resolve=6/file open=8、selection seal=13、2025 resolve=14/file open=16。
+旧bundle39ファイルと旧ZIPのSTART/END不変を確認。旧ZIP SHA-256は
+`951097420488612aaabcec8452a031214a3c2a7c5e20577cc015c72b86399b0c` のまま。
+証拠はroot内 `pr63-review-fix-01/` と `evidence/pr63-*`。旧実行のファイルは削除・上書きしていない。
+新規共有ZIP名は `GROWTH-TREND-ADJUSTMENT-CALIBRATION-01-PR63-review-fix-report.zip`。
+版ごとの数値比較・固定seal・temporal監査・テスト・全member SHA/CRC検証を記録し、大容量原本は絶対パス/bytes/SHAで参照する。
+状態は `PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW`。未コミットで停止し、次工程はNOT_AUTHORIZED。
+2026アクセス0、正式採用・重み再選択・C1変更・次工程は許可しない。

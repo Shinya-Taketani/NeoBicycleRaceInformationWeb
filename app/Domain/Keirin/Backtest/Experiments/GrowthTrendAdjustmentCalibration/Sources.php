@@ -10,7 +10,39 @@ use RuntimeException;
 
 class Sources
 {
+    public const OUTCOME_TRUST_ANCHOR = 'LITERAL_REVIEWED_PER_YEAR_SEALS';
+
     public function __construct(private readonly OuterSource $outer) {}
+
+    protected function outcomeFiles(): array
+    {
+        return [
+            2024 => [
+                'labels' => [
+                    'relative' => 'run-01/labels-2024.jsonl',
+                    'body' => ['rows' => 25212, 'bytes' => 72960991, 'sha256' => 'b297c567bb26aa4cbf5263f488ebc55efdd37634c99e60a9cd29a5842a1ccd29'],
+                    'sidecar' => ['bytes' => 127, 'sha256' => 'a0f1aae588edaabf64f3921f348f6e7936bccfbbae16f24b56ca83fc282923d4'],
+                ],
+                'contributions' => [
+                    'relative' => 'comparison-run-01/contributions-2024.jsonl',
+                    'body' => ['rows' => 25212, 'bytes' => 174358551, 'sha256' => 'a481bfe1f3acaed22bae09244e0473183f513127cef56db4e43a9fa364313350'],
+                    'sidecar' => ['bytes' => 128, 'sha256' => '5b794154cc4dde3e1829c816d804b10896bcad012a2167dc8d9b53c42558c911'],
+                ],
+            ],
+            2025 => [
+                'labels' => [
+                    'relative' => 'run-01/labels-2025.jsonl',
+                    'body' => ['rows' => 24866, 'bytes' => 72086838, 'sha256' => '509cf6e4c823c07f73f11cbae31a6844a376ced6b48b4e09d3f750ea4058beca'],
+                    'sidecar' => ['bytes' => 127, 'sha256' => '42cc7619b78344166c80c9ecc1ac0f84b39bb7a018de9b69b9a2914ea4da31ce'],
+                ],
+                'contributions' => [
+                    'relative' => 'comparison-run-01/contributions-2025.jsonl',
+                    'body' => ['rows' => 24866, 'bytes' => 171962784, 'sha256' => '71af1a23fed0defa8fee0506680d329ad84926666f74a7794fa711a0efbcc635'],
+                    'sidecar' => ['bytes' => 128, 'sha256' => 'c957e329fafb93278db4ed248a093d0242969c6089305a90f0c325593a9f3829'],
+                ],
+            ],
+        ];
+    }
 
     protected function modelFiles(): array
     {
@@ -77,17 +109,22 @@ class Sources
 
     public function outcome(string $root, int $year, TemporalAccess $access): array
     {
-        // Resolve only this year's sidecars. Never open the mixed-year export registry.
+        // Authorization precedes all runtime outcome access, including sidecar identity.
         $access->authorize($year, 'OUTCOME_IDENTITY_RESOLVE');
+        $seals = $this->outcomeFiles()[$year];
         Contract::path($root);
         $files = $paths = [];
-        foreach (['labels' => 'run-01/labels-', 'contributions' => 'comparison-run-01/contributions-'] as $kind => $prefix) {
-            $path = $paths[$kind] = $root.'/'.$prefix.$year.'.jsonl';
-            $files[$path.'.manifest.json'] = Files::identity($path.'.manifest.json');
-            $files[$path] = Files::json($path.'.manifest.json');
+        foreach ($seals as $kind => $seal) {
+            $path = $paths[$kind] = $root.'/'.$seal['relative'];
+            $sidecar = $path.'.manifest.json';
+            Files::verify($sidecar, $seal['sidecar']);
+            Files::same($seal['body'], Files::json($sidecar), 'reviewed outcome sidecar');
+            Files::verify($path, $seal['body']);
+            $files[$sidecar] = $seal['sidecar'];
+            $files[$path] = $seal['body'];
         }
-        OuterSource::verify($files);
 
-        return ['paths' => $paths, 'files' => $files];
+        return ['paths' => $paths, 'files' => $files, 'trust_anchor_type' => self::OUTCOME_TRUST_ANCHOR,
+            'fixed_seals' => $seals];
     }
 }
