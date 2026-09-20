@@ -124,3 +124,110 @@ score-change-event、C1 confidence、開催grade/競走区分の詳細は固定b
 DB_CONNECTION=growth_disabled DB_URL= php -d memory_limit=128M artisan keirin:backtest:growth-trend-score-source --verify --output-root=/home/shinya/neo-keirin-artifacts/growth-trend-score-source-01-20260919-01 --source-id=outer-c1-score-observations-2022-2025-01
 DB_CONNECTION=growth_disabled DB_URL= php -d memory_limit=128M artisan keirin:backtest:growth-trend-analysis --reproduce --output-root=/home/shinya/neo-keirin-artifacts/growth-trend-analysis-01-20260919-01 --analysis-id=outer-c1-growth-trend-2024-2025-01
 ```
+
+## PR #62 Review Fix
+
+2026-09-20、branch `experiment/growth-trend-analysis-01`、開始HEAD
+`c3d5145a3d0e565c8576992deb8e65321ee0975e`（clean、remote一致）。PRはOPEN、修正は未コミットレビュー待ち。
+上記の初回結果・検証数・再現コマンドは当時の履歴として保持する。v3から旧bundleを新契約として読み直さない。
+
+### 修正した5事項
+
+1. **preseal provenance outcome identity**: labelのidentity解決はtrend seal後だけ。入力・固定C1予測の8ファイルとmeeting metadataの3ファイルだけをpreseal provenanceに含める。
+2. **DAY missing start**: 過去start=NULLはDAY点から除外し、target start=NULLはMISSING_MEETING_STARTのまま。監査名は `prior_meetings_with_unknown_start` とし、対象より前のstart不明開催数であってwindow内除外数ではないと明記する。
+3. **C1 normal denominator**: 正式診断率は `wins / normal_predicted_entries`。`all_predicted_entries` 分母の参考率も別欄に残す。
+4. **same-date distinct meeting ambiguity**: SQLで同日別開催を保持し、全41候補を `raw=NULL / PARTIAL_TIME_ORDER` とする。`target_boundary_partial_time_order`、`ambiguous_meeting_ids/count` を保存。翌日以後は取得しない。同開催は除外し、古い開催へのfallbackやIDによる時間順推測をしない。
+5. **preseal export registry whole-file access**: 実原本と照合したfixed bytes/SHA literalsを使用し、presealのcapture/analysisでは `report-export-manifest.json` とmeeting bundle全体manifestを開かない。seal後だけoutcome registryを開く。
+
+新契約は `GROWTH-TREND-ANALYSIS-01-v3-PR62-REVIEW-FIX` と
+`GROWTH-TREND-SCORE-SOURCE-01-v3-STRICT-OUTCOME-ISOLATION`。
+Outer projection SHAは `0e8d516e0ad0349954276e911f4273932ef2c6198136cac6f432a979d9d94074`、
+meeting projection SHAは `4b7cf990540583e98d4ff3431023f43b9048a92ee0642b36265a66233b463707`。
+
+### 実行ID・保護・途中停止
+
+- Source: `outer-c1-score-observations-2022-2025-pr62-review-fix-02`
+- Analysis: `outer-c1-growth-trend-2024-2025-pr62-review-fix-02`
+- rootは上記既存2rootのまま。ログ・比較・差分・小型報告はanalysis rootの `pr62-review-fix/` へ保存。
+- 最初のexecuteはmeeting projectionのrowsキー欠落でstage作成前に停止。実bytes/SHAは一致し、既存projectionが含むrows=50078を維持するliteralへ修正した。
+- 次のexecuteは旧source sealのrows付き配列とbytes/SHAだけの配列を比較したため停止。原本のbyte比較でDB driftでないことを確認し、bytes/SHAを比較するよう修正した。実比較経路の正常受入と1 byte改変拒否をテストした。
+- review-fix-01の固定source・失敗stage・ログは保持し、両IDを02に変えて全工程を再実行。条件・grid・選択閾値を緩めた再試行ではない。
+- 旧manifested成果物・manifest・LOCKED・ZIP計48ファイル、review-fix-01固定source/失敗stage計33ファイルはSTART/ENDでbytes/SHA不変。
+
+### READ ONLY Source
+
+50,078レース（2024=25,212、2025=24,866）、356,209出走、2,285選手、704,202得点観測。
+許可4テーブルのみ、SELECT 2,836回、session/transaction read_only=on、statement_timeout=120000ms。
+source START/END一致、本番write=0、結果table参照=0、2026実データaccess=0。
+初回sourceと `score-observations.jsonl` / `targets.jsonl` はstreaming byte比較で完全一致した。
+観測SHAは `7fcca14b68890aa5eaf1438c1b65c1536971cdb530a2f44b2746984d0392b73b`（242,130,373 bytes）。
+targets SHAは `495e443a2c9c3fcb1d4612e82f61fa90adef237b8acc8e2427108bff7a693dd1`（26,167,993 bytes）。
+
+### 同日・DAY影響と選択
+
+| 年 | 対象出走 | 同日曖昧出走 | 別開催数 | 各候補の旧VALIDからPARTIAL_TIME_ORDERへの遷移 |
+|---|---:|---:|---:|---:|
+| 2024 | 179,089 | 8 | 4 | 8 |
+| 2025 | 177,120 | 12 | 5 | 12 |
+
+同日別開催IDは2024 `[1770,1781,2177,2185]`、2025 `[991,1000,1236,1282,1285]`。
+全41候補で各年8/12件のraw/statusが変わり、計820の候補状態が変化した。対象出走は母集団から削除せず状態を残す。
+全27 MEETING候補×2年=54、全14 DAY候補×2年=28の数値比較で差を検出。
+source start=NULL観測0、distinct開催0、影響target0、DAY全28候補年の不明start監査数0。
+`PRODUCTION_DAY_NULL_FIX_NUMERICALLY_INERT`。今回の数値差は同日境界修正によるもので、DAY NULLやDB driftとはしない。
+入力hash差には境界監査項目の追加も含むため、provenance差と数値差を区別する。
+
+selectedは旧/新とも **MEETING_DELTA_LAG_1**。
+適格9候補も同一（DELTA lag1/2/3、OLS K2/3/4、Theil-Sen K3/4/5）。
+`SELECTED_GRANULARITY_UNCHANGED_AFTER_PR62_REVIEW_FIX`。
+ROBUST_RHOは `0.009639846634467018` から `0.00964758593957939`。
+
+| 選択指標 | 2024 OLD | 2024 NEW | 2025 OLD | 2025 NEW |
+|---|---:|---:|---:|---:|
+| valid entries | 178649 | 178641 | 176712 | 176700 |
+| normal entries | 176159 | 176151 | 174438 | 174426 |
+| coverage | 0.9975431210180413 | 0.9974984504910966 | 0.9976964769647696 | 0.9976287262872628 |
+| zero rate | 0.014654434113820957 | 0.014655090376789203 | 0.013994522160351306 | 0.013995472552348613 |
+| overall rho | 0.01681435172089681 | 0.016818914942483613 | 0.017429850171727938 | 0.017423489109502702 |
+| target-score conditional rho | 0.009957655433025169 | 0.009958391640029917 | 0.010034743641521814 | 0.01003207060685667 |
+| C1 conditional rho | 0.009639846634467018 | 0.00964758593957939 | 0.012011709446469397 | 0.012002193068641713 |
+| first observation rho | 0.022167226051511543 | 0.02215766110581462 | 0.025118128893760267 | 0.02509529728567305 |
+| FP positive-minus-negative | 0.01537411969702851 | 0.015375363870042291 | 0.014376947416745112 | 0.014372323631059003 |
+| first FP positive-minus-negative | 0.01950745070873955 | 0.019505596227860134 | 0.020243913249272993 | 0.02022805527224414 |
+
+全41候補の未丸めold/new、eligible、数値差、原因は `review-fix-comparison.json` と報告書に保存。
+C1正常予測分母の診断勝率は2024が10,456/24,884=0.42018968011573704、
+2025が9,934/24,557=0.40452824042024677。全予測分母の参考率はそれぞれ0.4147231477074409、0.3995013271133274。
+margin bin別にも両分母を保存している。C1の予測やモデルは変更していない。
+
+### Isolation・再現・テスト
+
+保護した実アクセス経路のpreseal counterはexport manifest open / label identity resolve / label file openが全て0。
+postsealは各2。これはguarded resolution/iteration pathの呼出し数でありOS syscall全体の回数ではない。
+registry・labels・sidecars・meeting全体manifestが物理的にない状態でもsealまで成功し、復帰後の結果評価も成功。
+2024/2025 label・sidecar・registryの変更でもpreseal9成果物がbyte-identical。
+入力・予測・得点観測・metadata・meetingsの改変は拒否する。
+temporal sequenceはsource verified=1、projection=2、trend started=3、sealed=4、
+2024 source resolved=6/open=7、2025 resolved=9/open=10、selection=11。
+
+capture/verify/focused/execute/reproduceは `memory_limit=128M` 指定で成功。
+capture peak34MiB、execute/reproduce peak36MiB。analysis/reproduceは `DB_CONNECTION=growth_disabled`、本番DB NONE。
+ローカルSQLite spoolは使用する。全36生成物がBYTE_EXACT、再現所要1,368.006秒。
+旧C1/Growth/scorer/decoder/evaluator、grid41候補・採用条件は不変。学習・再推論・正式Gate・bootstrapなし。
+
+- focused: 81 tests /937 assertions。
+- 関連回帰128M: 263 tests /1467 assertions。
+- `php artisan test`: 1,641 passed /9 skipped /12,760 assertions（全体を128MB単一process成功とは扱わない）。
+- 変更PHPのPint・php -l、git diff --checkは成功。
+- 全体Pintは既存 `Bt03e08BoundedMemoryTest.php` のstatement_indentationのみ失敗、対象外で未変更。
+
+現在の再検証対象は以下。実際のcapture/execute/verify/reproduceの全引数・終了コード・ログSHAは `pr62-review-fix/*.execution.json` に保存。
+
+```bash
+DB_CONNECTION=growth_disabled DB_URL= php -d memory_limit=128M artisan keirin:backtest:growth-trend-score-source --verify --output-root=/home/shinya/neo-keirin-artifacts/growth-trend-score-source-01-20260919-01 --source-id=outer-c1-score-observations-2022-2025-pr62-review-fix-02
+DB_CONNECTION=growth_disabled DB_URL= php -d memory_limit=128M artisan keirin:backtest:growth-trend-analysis --reproduce --output-root=/home/shinya/neo-keirin-artifacts/growth-trend-analysis-01-20260919-01 --analysis-id=outer-c1-growth-trend-2024-2025-pr62-review-fix-02
+```
+
+2024/2025 development corpusで現在得点・C1 P1 probability条件付きでも弱い正方向関連を維持した、という範囲の結論。
+予測精度改善済み・正式growth feature/STAT・因果効果・holdout成功・LIVE readyとはしない。
+MASTER PLAN v1.22、次工程 `NOT_AUTHORIZED`。2026 FROZEN、未コミットレビュー待ちで停止する。

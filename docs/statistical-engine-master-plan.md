@@ -1,9 +1,9 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.21
+- Version: 1.22
 - Created: 2026-08-23
-- Updated: 2026-09-19
+- Updated: 2026-09-20
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: GROWTH-TREND-ANALYSIS-01_DEVELOPMENT_SELECTED_AWAITING_REVIEW
+current_engine_state: GROWTH-TREND-ANALYSIS-01_PR62_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_GROWTH_TREND_DIAGNOSTICS_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_PR62_REVIEW_FIX_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -547,7 +547,7 @@ BT-03E-02以降で利用する場合は、
 | GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | PR60_MERGED | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
 | GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | PR60_MERGED | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
 | GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED | 正式weight未採用、旧数値・時系列修正の記録を維持 |
-| GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | DEVELOPMENT_SELECTED_AWAITING_REVIEW | MEETING_DELTA_LAG_1、31生成物byte-exact再現、正式STAT未採用 |
+| GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | PR62_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | MEETING_DELTA_LAG_1維持、修正版36生成物byte-exact再現、正式STAT未採用 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2215,6 +2215,43 @@ DB無効・128MBで実集計と31生成物のbyte-exact再現が成功し、PHP 
 seal前outcome access=0、2026実データaccess=0。状態はDEVELOPMENT_SELECTED_AWAITING_REVIEW。
 正式STAT採用、C1変更、次工程は許可しない。2026はFROZENを維持。
 
+### PR #62 Review Fix / 2026-09-20
+
+上記の初回開発選択・31生成物は旧runの履歴として保持する。
+PR #62は `OPEN / REVIEW_FIX_COMPLETED_AWAITING_REVIEW`。開始HEADは
+`c3d5145a3d0e565c8576992deb8e65321ee0975e`、同じPR branch上の未コミット修正である。
+
+- preseal provenanceへのoutcome identity混入、過去開催start=NULLのDAY処理、C1正常予測分母の先行修正を維持。
+- 同日別開催が履歴SQLで消える問題を修正。対象境界と同日の別開催を保持し、全41候補を `raw=NULL / PARTIAL_TIME_ORDER` とする。古い開催へのfallback・IDによる時系列推測はしない。
+- presealでexport registry全体を読む問題を解消。Outerの入力・予測とsidecarの8ファイル、meeting metadataの3ファイルを実物確認済みliteral sealで固定し、全体manifestを参照しない。
+- 版は `GROWTH-TREND-ANALYSIS-01-v3-PR62-REVIEW-FIX` と `GROWTH-TREND-SCORE-SOURCE-01-v3-STRICT-OUTCOME-ISOLATION`。旧bundleを新契約として解釈しない。
+
+正式なreview-fix source IDは `outer-c1-score-observations-2022-2025-pr62-review-fix-02`、
+analysis IDは `outer-c1-growth-trend-2024-2025-pr62-review-fix-02`。
+最初のprojectionのrowsキー欠落と、旧source sealのrows付き配列比較による停止を修正・回帰検証した。
+実ファイルのbyte比較でDB driftでないことを確認し、review-fix-01の固定source・未完成stage・失敗ログは保持、新IDで全工程を実行した。
+
+READ ONLY recaptureは50,078レース・356,209出走・2,285選手・704,202得点観測。
+4許可テーブルのみ、source START/END一致、初回score-observationsとtargetsはbyte-identical。
+同日曖昧は2024年8出走・4別開催、2025年12出走・5別開催。各41候補で旧VALIDからPARTIAL_TIME_ORDERへ8/12件ずつ遷移。
+全27 MEETING候補と全14 DAY候補の両年指標が変化した。
+sourceのstart=NULL観測・開催とDAY影響数は0で `PRODUCTION_DAY_NULL_FIX_NUMERICALLY_INERT`。
+今回の数値差は同日境界修正によるもので、DAY NULL処理やDB変化とは区別する。
+
+selectedは初回・修正版とも `MEETING_DELTA_LAG_1`、適格9候補も不変。
+ROBUST_RHOは `0.009639846634467018` から `0.00964758593957939`。
+41候補全ての未丸めold/newと同日別開催監査を保存した。C1の正常分母診断も維持し、C1自体は変更していない。
+presealのregistry open / label identity resolve / label file openは、保護した実行経路の監査で全て0。
+物理的にregistry・labelsを置かないテストと両年outcome変更テストも成功。
+trend sealの連番4より後に2024/2025 labelを解決（6/9）し、結果を開いた（7/10）。
+
+DB無効・128MBのexecute/reproduceは成功、全36生成物がBYTE_EXACT、PHP peakは双方36MiB（capture34MiB）。
+旧成果物48ファイルとreview-fix-01証拠33ファイルのbytes/SHAはSTART/END不変。
+focused 81 tests /937 assertions、全体1,641 passed /9 skipped /12,760 assertions。
+結果は両年development corpusにおける弱い正方向の条件付き関連に限る。予測精度改善・正式STAT採用の根拠とはしない。
+2026実データaccess=0、C1 refit/変更=0、旧Growth・旧負の結果・旧pilot保留を維持する。
+次工程は `NOT_AUTHORIZED`、レビューと新しいユーザー指示を待つ。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation
@@ -2616,6 +2653,15 @@ reason:
 
 # 25. 変更履歴
 
+## v1.22 / 2026-09-20
+
+PR #62 `OPEN / REVIEW_FIX_COMPLETED_AWAITING_REVIEW`。remote mainは `eef27c9e80d80a733a4c0c3c82e18151259e8f87`。
+preseal provenance、DAY NULL start、C1正常分母の修正を維持し、同日別開催のfail-closedとstrict export registry isolationを追加。
+review-fix-02 source/analysisのREAD ONLY recapture・DB無効実集計・36成果物BYTE_EXACT再現を完了。
+初回選択MEETING_DELTA_LAG_1と適格9候補は維持、同日曖昧20出走による数値差を旧runと分離して記録。
+ROBUST_RHOは0.009639846634467018から0.00964758593957939。正式STAT未採用、C1未変更、2026 access=0。
+旧v1.21・旧成果物・失敗証拠は保持し、次工程を開放せず未コミットレビュー待ちとする。
+
 ## v1.21 / 2026-09-19
 
 PR #61 mergedを反映。GROWTH-TREND-ANALYSIS-01を改訂契約で実装・実集計・再現し、開発選択済みレビュー待ちへ更新。
@@ -2946,10 +2992,10 @@ TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_
 GROWTH-POINT-ANALYSIS-01 = PR60_MERGED / DEVELOPMENT_DIAGNOSTIC_ONLY
 GROWTH-POINT-ANALYSIS-01-v2 = PR60_MERGED / SIGN_PRESERVING_POINT / V1_UNCHANGED
 GROWTH-ADJUSTMENT-CALIBRATION-01 = PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED / FORMAL_WEIGHT_NOT_ADOPTED
-GROWTH-TREND-ANALYSIS-01 = DEVELOPMENT_SELECTED_AWAITING_REVIEW / MEETING_DELTA_LAG_1 / BYTE_EXACT_31_ARTIFACTS / DEVELOPMENT_ONLY
+GROWTH-TREND-ANALYSIS-01 = PR62_REVIEW_FIX_VERIFIED_AWAITING_REVIEW / MEETING_DELTA_LAG_1 / BYTE_EXACT_36_ARTIFACTS / DEVELOPMENT_ONLY
 
 Next:
-Review GROWTH-TREND-ANALYSIS-01 diagnostics and wait for user instruction. MEETING_DELTA_LAG_1 was selected using both development years, not unseen holdout validation or proof of predictive improvement. All 31 artifacts reproduced exactly with DB disabled. Preserve the old w=+0.03 negative result, SQL-plan interruption evidence, prior analyses, PR55 comparison and PJ0315 pilot block. Do not refit C1, calibrate weights, adopt a STAT, rerun Gate/bootstrap, start LIVE or open 2026. Stop uncommitted for review.
+Review PR #62 review-fix results and wait for user instruction. MEETING_DELTA_LAG_1 and the nine eligible candidates are unchanged; same-date ambiguity exclusions changed the metrics. All 36 review-fix artifacts reproduced exactly with DB disabled. Both years remain development data, not unseen holdout validation or proof of predictive improvement. Preserve the initial 31-artifact run, review-fix-01 evidence, old w=+0.03 negative result, SQL-plan interruption evidence, prior analyses, PR55 comparison and PJ0315 pilot block. Do not refit C1, calibrate weights, adopt a STAT, rerun Gate/bootstrap, start LIVE or open 2026. Stop uncommitted for review.
 
 Do not:
 redo BT-02 discovery

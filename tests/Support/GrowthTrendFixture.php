@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource;
-use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\Bundle;
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\Sources;
+use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\Bundle;
+use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use Illuminate\Database\Schema\Blueprint;
@@ -107,9 +107,14 @@ trait GrowthTrendFixture
         JsonlArtifact::json($this->root.'/meeting/meetings.json', $meetings);
         JsonlArtifact::json($this->root.'/outer/report-export-manifest.json', ['included' => $seals]);
         $hash = hash('sha256', Files::canonical(['run' => 'run-01', 'files' => $projection]));
-        $this->app->instance(OuterSource::class, new class($hash) extends OuterSource
+        $this->app->instance(OuterSource::class, new class($hash, $projection) extends OuterSource
         {
-            public function __construct(private readonly string $hash) {}
+            public function __construct(private readonly string $hash, private readonly array $files) {}
+
+            protected function fixedFiles(): array
+            {
+                return $this->files;
+            }
 
             protected function projectionHash(): string
             {
@@ -132,9 +137,9 @@ trait GrowthTrendFixture
         }
         JsonlArtifact::json($this->root.'/meeting/manifest.json', ['files' => $files]);
         $hash = hash('sha256', Files::canonical($files));
-        $this->app->instance(Sources::class, new class(app(OuterSource::class), app(Bundle::class), $hash) extends Sources
+        $this->app->instance(Sources::class, new class(app(OuterSource::class), app(Bundle::class), $hash, $files) extends Sources
         {
-            public function __construct(OuterSource $outer, Bundle $bundle, private readonly string $hash)
+            public function __construct(OuterSource $outer, Bundle $bundle, private readonly string $hash, private readonly array $files)
             {
                 parent::__construct($outer, $bundle);
             }
@@ -142,6 +147,11 @@ trait GrowthTrendFixture
             protected function meetingProjectionHash(): string
             {
                 return $this->hash;
+            }
+
+            protected function meetingFiles(): array
+            {
+                return $this->files;
             }
         });
     }

@@ -4,17 +4,28 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis;
 
+use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use RuntimeException;
 
-final class ReviewComparison
+class ReviewComparison
 {
-    public function report(array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
+    protected function referencePath(): string
+    {
+        return '/home/shinya/neo-keirin-artifacts/growth-trend-analysis-01-20260919-01/evaluations/outer-c1-growth-trend-2024-2025-01';
+    }
+
+    protected function referenceHash(): string
+    {
+        return 'df83f8b88b1112f06bc98244ba356f01295d9a593e6157ce6719a1bff23e3ce4';
+    }
+
+    public function report(string $stage, array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
     {
         $access->authorize();
-        $path = '/home/shinya/neo-keirin-artifacts/growth-trend-analysis-01-20260919-01/evaluations/outer-c1-growth-trend-2024-2025-01';
+        $path = $this->referencePath();
         $seal = Files::identity($path.'/manifest.json');
-        if ($seal['sha256'] !== 'df83f8b88b1112f06bc98244ba356f01295d9a593e6157ce6719a1bff23e3ce4') {
+        if ($seal['sha256'] !== $this->referenceHash()) {
             throw new RuntimeException('Initial analysis identity mismatch.');
         }
         $manifest = Files::json($path.'/manifest.json');
@@ -25,7 +36,8 @@ final class ReviewComparison
         };
         $oldSources = $read('sources.json');
         $scorePath = $oldSources['score'].'/score-observations.jsonl';
-        $sameScore = $oldSources['files'][$scorePath] === Files::identity($sources['score'].'/score-observations.jsonl');
+        $oldScore = $oldSources['files'][$scorePath];
+        $sameScore = ['bytes' => $oldScore['bytes'], 'sha256' => $oldScore['sha256']] === Files::identity($sources['score'].'/score-observations.jsonl');
         if (! $sameScore) {
             throw new RuntimeException('Score observations changed from initial run; STOP.');
         }
@@ -38,6 +50,8 @@ final class ReviewComparison
         $report += ['source_observation_identity_same' => $sameScore,
             'trend_input_identity_same' => $manifest['files']['trend-input.jsonl'] === $expected['trend-input.jsonl'],
             'candidate_grid_same' => $read('candidate-grid.json') === Contract::grid(), 'diagnostics_diff' => []];
+        Files::verify($path.'/trend-input.jsonl', $manifest['files']['trend-input.jsonl']);
+        $report['same_date_audit'] = $this->trendChanges($path.'/trend-input.jsonl', $stage.'/trend-input.jsonl');
         foreach (['local-stability.json', 'c1-confidence-diagnostics.json', 'missed-winner-diagnostics.json',
             'grade-class-diagnostics.json', 'score-change-event-diagnostics.json'] as $name) {
             $old = $read($name);
@@ -71,14 +85,57 @@ final class ReviewComparison
             }
         }
         $sameSelection = ($oldSelection['selected']['id'] ?? null) === ($newSelection['selected']['id'] ?? null);
-        $report['status'] = ! $sameSelection ? 'SELECTION_CHANGED_AFTER_DAY_SEMANTICS_FIX'
-            : ($report['day_changed'] === [] && $report['meeting_changed'] === [] && $oldSelection === $newSelection
-                ? 'NUMERICALLY_UNCHANGED_AFTER_PR62_REVIEW_FIX' : 'DAY_SEMANTICS_CORRECTED_SELECTED_GRANULARITY_UNCHANGED');
-        if ($report['meeting_changed'] !== []) {
-            throw new RuntimeException('Unexpected MEETING candidate numerical drift.');
-        }
+        $report['status'] = $sameSelection ? 'SELECTED_GRANULARITY_UNCHANGED_AFTER_PR62_REVIEW_FIX' : 'SELECTION_CHANGED_AFTER_TIME_ORDER_FIX';
+        $report['all_candidate_metrics_same'] = $old === $new;
 
         return $report;
+    }
+
+    public function trendChanges(string $oldPath, string $newPath): array
+    {
+        $old = JsonlArtifact::read($oldPath);
+        $report = $meetings = [];
+        foreach ([2024, 2025] as $year) {
+            $report[$year] = ['targets' => 0, 'affected_targets' => 0, 'ambiguous_meeting_pairs' => 0,
+                'candidate_state_changes' => [], 'candidate_raw_changes' => [], 'old_valid_to_partial_time_order' => []];
+            $meetings[$year] = [];
+        }
+        foreach (JsonlArtifact::read($newPath) as $row) {
+            $before = $old->valid() ? $old->current() : null;
+            if ($before === null || array_intersect_key($before, array_flip(['year', 'race_id', 'entry_id'])) !== array_intersect_key($row, array_flip(['year', 'race_id', 'entry_id']))) {
+                throw new RuntimeException('Old/new trend target identity mismatch.');
+            }
+            $year = $row['year'];
+            \App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\Contract::year($year, true);
+            $report[$year]['targets']++;
+            if ($row['target_boundary_partial_time_order'] ?? false) {
+                $report[$year]['affected_targets']++;
+                foreach ($row['ambiguous_meeting_ids'] as $id) {
+                    $meetings[$year][$id] = true;
+                    $report[$year]['ambiguous_meeting_pairs']++;
+                }
+            }
+            foreach (Contract::grid() as $c) {
+                $id = $c['id'];
+                $a = $before['candidates'][$id];
+                $b = $row['candidates'][$id];
+                foreach (['candidate_state_changes' => $a['status'] !== $b['status'], 'candidate_raw_changes' => $a['raw'] !== $b['raw'],
+                    'old_valid_to_partial_time_order' => $a['status'] === 'VALID' && $b['status'] === 'PARTIAL_TIME_ORDER'] as $kind => $changed) {
+                    $report[$year][$kind][$id] = ($report[$year][$kind][$id] ?? 0) + (int) $changed;
+                }
+            }
+            $old->next();
+        }
+        if ($old->valid()) {
+            throw new RuntimeException('Extra old trend targets.');
+        }
+        foreach ([2024, 2025] as $year) {
+            $report[$year]['ambiguous_meeting_ids'] = array_keys($meetings[$year]);
+            sort($report[$year]['ambiguous_meeting_ids'], SORT_NUMERIC);
+            $report[$year]['ambiguous_meeting_count'] = count($meetings[$year]);
+        }
+
+        return ['reason' => 'TARGET_BOUNDARY_PARTIAL_TIME_ORDER', 'years' => $report];
     }
 
     private function metrics(array $m): array

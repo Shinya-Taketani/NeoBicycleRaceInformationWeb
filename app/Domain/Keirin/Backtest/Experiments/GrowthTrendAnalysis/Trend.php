@@ -138,6 +138,7 @@ final class Trend
         }
         $anchor = $target['start'] ?? $target['date'];
         $prior = [];
+        $ambiguous = [];
         foreach ($meetings as $m) {
             if ((int) substr($m['order_date'], 0, 4) > 2025) {
                 throw new RuntimeException('Future meeting start.');
@@ -145,6 +146,12 @@ final class Trend
             SourceContract::year((int) substr($m['last_date'], 0, 4));
             if ($m['player_id'] !== $target['player_id']) {
                 throw new RuntimeException('History player mismatch.');
+            }
+            if ($m['meeting_id'] !== null && $m['meeting_id'] !== $target['meeting_id']
+                && ($m['order_date'] === $anchor || $m['start'] === $anchor)) {
+                $ambiguous[$m['meeting_id']] = true;
+
+                continue;
             }
             if ($m['meeting_id'] !== null && $m['meeting_id'] !== $target['meeting_id'] && $m['order_date'] < $anchor && $m['last_date'] < $anchor) {
                 if (isset($prior[$m['meeting_id']])) {
@@ -162,6 +169,9 @@ final class Trend
         }
         $state = $target['player_id'] === null ? 'MISSING_PLAYER' : ($target['meeting_id'] === null ? 'MISSING_MEETING_ID'
             : ($target['score'] === null ? 'MISSING_TARGET_SCORE' : null));
+        if ($ambiguous !== []) {
+            $state = 'PARTIAL_TIME_ORDER';
+        }
         $candidates = [];
         $dayExclusions = [];
         $missingStarts = count(array_filter($prior, fn ($m) => $m['start'] === null));
@@ -202,7 +212,12 @@ final class Trend
             $candidates[$c['id']] = ['raw' => $raw === 0.0 ? 0.0 : $raw, 'status' => $status];
         }
 
-        return ['candidates' => $candidates, 'previous' => $prior, 'events' => $this->events($target, $prior, $state), 'day_exclusions' => $dayExclusions];
+        $ambiguousIds = array_keys($ambiguous);
+        sort($ambiguousIds, SORT_NUMERIC);
+
+        return ['candidates' => $candidates, 'previous' => $prior, 'events' => $this->events($target, $prior, $state), 'day_exclusions' => $dayExclusions,
+            'target_boundary_partial_time_order' => $ambiguousIds !== [], 'ambiguous_meeting_ids' => $ambiguousIds,
+            'ambiguous_meeting_count' => count($ambiguousIds)];
     }
 
     private function events(array $target, array $prior, ?string $state): array

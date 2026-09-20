@@ -86,7 +86,7 @@ class Service
         $expected += $writer->writeJson($stage, 'day-start-exclusions.json', [
             'source_observations_missing_start' => (int) $w->db->query('SELECT count(*) FROM observations WHERE start IS NULL')->fetchColumn(),
             'source_meetings_missing_start' => (int) $w->db->query('SELECT count(DISTINCT meeting_id) FROM observations WHERE start IS NULL')->fetchColumn(),
-            'unit' => 'EXCLUDED_TARGET_PRIOR_MEETING_PAIRS; UNKNOWN_START_CANNOT_BE_ASSIGNED_TO_A_WINDOW',
+            'unit' => 'TARGET_PRIOR_MEETING_PAIRS_WITH_UNKNOWN_WINDOW_MEMBERSHIP; NOT_WINDOW_SPECIFIC_EXCLUSIONS',
             'candidates' => $w->db->query('SELECT * FROM day_exclusions ORDER BY year,candidate')->fetchAll()]);
         $sealed = array_intersect_key($expected, array_flip(['contract.json', 'sources.json', 'code.json', 'candidate-grid.json', 'score-source-verification.json', 'trend-input.jsonl', 'trend-input.jsonl.manifest.json', 'ability-bins.json']));
         $expected += $writer->writeJson($stage, 'trend-input-seal.json', $sealed);
@@ -94,13 +94,14 @@ class Service
         if ($afterSeal !== null) {
             $afterSeal($stage);
         }
-        $expected += $writer->writeJson($stage, 'outcome-isolation-audit.json', [
+        $isolation = [
             'preseal_artifacts' => array_keys($sealed), 'outcome_hashes_present_preseal' => false,
             'meeting_bundle_whole_manifest_identity_present_preseal' => false, 'outer_whole_export_manifest_identity_present_preseal' => false,
             'outer_outcome_free_projection_sha256' => $sources['outer']['outcome_free_projection_sha256'],
-            'meeting_metadata_projection_sha256' => $sources['meeting_metadata_projection_sha256']]);
+            'meeting_metadata_projection_sha256' => $sources['meeting_metadata_projection_sha256']];
         $w->outcomes($sources['outer'], $access, $this->outer);
         $expected += $writer->writeJson($stage, 'outcome-sources.json', $access->sources());
+        $expected += $writer->writeJson($stage, 'outcome-isolation-audit.json', $isolation + $access->counts());
         $years = $first = $conditional = [];
         foreach ([2024, 2025] as $year) {
             foreach (Contract::grid() as $c) {
@@ -127,7 +128,8 @@ class Service
             'temporal-access-audit.json' => $access->artifact()];
         $outputs += (new Diagnostics)->run($s, $selection, $years, $audit);
         $outputs['old-race-growth-comparison.json'] = $this->old($w, $s, $access, $years, $selection);
-        $outputs['review-fix-comparison.json'] = $this->comparison($sources, $years, $selection, $outputs, $expected, $access);
+        $outputs['review-fix-comparison.json'] = $this->comparison($stage, $sources, $years, $selection, $outputs, $expected, $access);
+        $outputs['same-date-meeting-ambiguity-audit.json'] = $outputs['review-fix-comparison.json']['same_date_audit'];
         foreach ($outputs as $name => $data) {
             $expected += $writer->writeJson($stage, $name, $data);
         }
@@ -191,9 +193,9 @@ class Service
         return $out;
     }
 
-    protected function comparison(array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
+    protected function comparison(string $stage, array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
     {
-        return (new ReviewComparison)->report($sources, $years, $selection, $outputs, $expected, $access);
+        return (new ReviewComparison)->report($stage, $sources, $years, $selection, $outputs, $expected, $access);
     }
 
     private function csv(string $stage, string $name, array $rows): array

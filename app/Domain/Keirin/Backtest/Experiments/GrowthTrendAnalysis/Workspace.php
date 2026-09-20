@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis;
 
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\Contract;
+use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource;
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\Workspace as ScoreWorkspace;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
@@ -24,7 +25,7 @@ final class Workspace extends ScoreWorkspace
             CREATE INDEX entries_race ON entries(race_id);
             CREATE INDEX entries_year ON entries(year);
             CREATE TABLE audit_values(kind TEXT,value REAL);
-            CREATE TABLE day_exclusions(year INTEGER,candidate TEXT,excluded_missing_start_meetings INTEGER,targets_with_excluded_missing_start INTEGER,PRIMARY KEY(year,candidate));
+            CREATE TABLE day_exclusions(year INTEGER,candidate TEXT,prior_meetings_with_unknown_start INTEGER,targets_with_unknown_start_prior INTEGER,PRIMARY KEY(year,candidate));
             CREATE INDEX audit_dist ON audit_values(kind,value)');
     }
 
@@ -75,13 +76,13 @@ final class Workspace extends ScoreWorkspace
     public function inputs(array $outer, Trend $trend): Generator
     {
         $get = $this->db->prepare('SELECT o.*,t.year,m.grade,m.class,m.body AS metadata FROM targets t JOIN observations o ON o.entry_id=t.entry_id JOIN metadata m ON m.race_id=t.race_id WHERE t.entry_id=?');
-        $history = $this->db->prepare('SELECT body FROM meetings WHERE player_id=? AND order_date<? AND last_date<? AND meeting_id<>? ORDER BY order_date DESC,meeting_id');
+        $history = $this->db->prepare('SELECT body FROM meetings WHERE player_id=? AND ((order_date<? AND last_date<?) OR order_date=?) AND meeting_id<>? ORDER BY order_date DESC,meeting_id');
         $same = $this->db->prepare('SELECT * FROM observations WHERE player_id=? AND meeting_id=?');
         $insert = $this->db->prepare('INSERT INTO entries(entry_id,race_id,year,player_id,bike,score,p1,margin,predicted,first_obs,grade,class,n) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $signal = $this->db->prepare('INSERT INTO signals VALUES(?,?,?,?)');
         $exclusions = $this->db->prepare('INSERT INTO day_exclusions VALUES(?,?,?,?) ON CONFLICT(year,candidate) DO UPDATE SET
-            excluded_missing_start_meetings=excluded_missing_start_meetings+excluded.excluded_missing_start_meetings,
-            targets_with_excluded_missing_start=targets_with_excluded_missing_start+excluded.targets_with_excluded_missing_start');
+            prior_meetings_with_unknown_start=prior_meetings_with_unknown_start+excluded.prior_meetings_with_unknown_start,
+            targets_with_unknown_start_prior=targets_with_unknown_start_prior+excluded.targets_with_unknown_start_prior');
         $n = 0;
         $this->db->beginTransaction();
         foreach ($outer['years'] as $year => $paths) {
@@ -118,7 +119,7 @@ final class Workspace extends ScoreWorkspace
                     }
                     $target = array_intersect_key($t, array_flip(['entry_id', 'race_id', 'player_id', 'bike', 'date', 'ts', 'meeting_id', 'start', 'score']));
                     $anchor = $t['start'] ?? $t['date'];
-                    $history->execute([$t['player_id'], $anchor, $anchor, $t['meeting_id']]);
+                    $history->execute([$t['player_id'], $anchor, $anchor, $anchor, $t['meeting_id']]);
                     $meetings = [];
                     foreach ($history as $m) {
                         $meetings[] = json_decode($m['body'], true, flags: JSON_THROW_ON_ERROR);
@@ -143,6 +144,8 @@ final class Workspace extends ScoreWorkspace
                     yield ['year' => $year, 'race_id' => $t['race_id'], 'entry_id' => $t['entry_id'], 'player_id' => $t['player_id'], 'bike' => $t['bike'],
                         'target_date' => $t['date'], 'target_meeting_id' => $t['meeting_id'], 'target_score_hundredths' => $t['score'],
                         'first_score_observation_in_target_meeting' => $first,
+                        'target_boundary_partial_time_order' => $growth['target_boundary_partial_time_order'],
+                        'ambiguous_meeting_ids' => $growth['ambiguous_meeting_ids'], 'ambiguous_meeting_count' => $growth['ambiguous_meeting_count'],
                         'previous_meeting_representatives' => array_map(fn ($m) => array_intersect_key($m, array_flip(['meeting_id', 'start', 'representative_entry_ids', 'score', 'status'])), $growth['previous']),
                         'candidates' => $growth['candidates'], 'score_change_diagnostics' => $growth['events'], 'c1_p1_probability' => $p1, 'c1_p1_margin' => $margin];
                     if (++$n % 1000 === 0) {
@@ -158,7 +161,7 @@ final class Workspace extends ScoreWorkspace
         $this->db->commit();
     }
 
-    public function outcomes(array $outer, TemporalAccess $access, \App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource $reader): void
+    public function outcomes(array $outer, TemporalAccess $access, OuterSource $reader): void
     {
         $get = $this->db->prepare('SELECT * FROM entries WHERE race_id=? ORDER BY entry_id');
         $q = $this->db->prepare('UPDATE entries SET normal=?,rank=?,fp=?,unique_winner=? WHERE entry_id=?');

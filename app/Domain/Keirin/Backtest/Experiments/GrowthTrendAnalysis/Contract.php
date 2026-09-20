@@ -21,7 +21,7 @@ final class Contract
 
     public static function plan(): array
     {
-        return ['version' => 'GROWTH-TREND-ANALYSIS-01-v2-PR62-REVIEW-FIX', 'grid' => self::grid(),
+        return ['version' => 'GROWTH-TREND-ANALYSIS-01-v3-PR62-REVIEW-FIX', 'grid' => self::grid(),
             'mode' => 'DEVELOPMENT_BACKFILLED_SCORE_OBSERVATION', 'years' => [2024, 2025], 'history_from' => '2022-01-01',
             'selection' => 'MULTI_YEAR_DEVELOPMENT_STABILITY_SELECTION', 'coverage_fraction' => 0.8, 'minimum_normal' => 10000,
             'minimum_conditional_bin' => 100, 'quantiles' => 'TYPE7_NATURAL_TIES', 'rho' => 'SPEARMAN_AVERAGE_TIES',

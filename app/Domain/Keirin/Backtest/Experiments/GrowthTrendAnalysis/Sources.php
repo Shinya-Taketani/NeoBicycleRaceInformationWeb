@@ -14,6 +14,15 @@ class Sources
 {
     public function __construct(private readonly OuterSource $outer, private readonly Bundle $bundle) {}
 
+    protected function meetingFiles(): array
+    {
+        return [
+            'metadata.jsonl' => ['rows' => 50078, 'bytes' => 18138704, 'sha256' => '949e86a4fdd5c509ce890289de96633b48d5c4c589acc184f305e55cdd161b3c'],
+            'metadata.jsonl.manifest.json' => ['bytes' => 127, 'sha256' => '7ba87058c083358f7fd5e82d7d8687e682649a1261d1460024413c86475d4374'],
+            'meetings.json' => ['bytes' => 767205, 'sha256' => 'e698b563b562ac1a4a8dab039bb5bbdfc05c115199450c4f8f25427924635503'],
+        ];
+    }
+
     protected function meetingProjectionHash(): string
     {
         return '4b7cf990540583e98d4ff3431023f43b9048a92ee0642b36265a66233b463707';
@@ -32,10 +41,10 @@ class Sources
         }
         $universe = Files::json($scorePath.'/target-universe.json');
         Files::same($outer, $universe['source_projection'], 'captured Outer identity');
-        $meeting = Files::json($meetingPath.'/manifest.json');
+        $fixed = $this->meetingFiles();
         $projection = [];
         foreach (['metadata.jsonl', 'metadata.jsonl.manifest.json', 'meetings.json'] as $name) {
-            $projection[$name] = $files[$meetingPath.'/'.$name] = $meeting['files'][$name];
+            $projection[$name] = $files[$meetingPath.'/'.$name] = $fixed[$name];
         }
         $hash = hash('sha256', Files::canonical($projection));
         if (! hash_equals($this->meetingProjectionHash(), $hash)) {

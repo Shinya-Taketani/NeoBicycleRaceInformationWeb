@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\Contract;
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\Diagnostics;
+use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\ReviewComparison;
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\Selection;
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\Service;
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\Sources;
@@ -19,6 +20,7 @@ use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\OuterSource;
 use App\Domain\Keirin\Backtest\Experiments\GrowthTrendScoreSource\Service as ScoreService;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\GrowthTrendFixture;
@@ -70,6 +72,83 @@ final class GrowthTrendAnalysisTest extends TestCase
         $this->assertSame(2.0, $r['candidates']['MEETING_DELTA_LAG_1']['raw']);
         $this->expectException(RuntimeException::class);
         (new Trend)->calculate($this->target(), [...$history, $history[1]]);
+    }
+
+    #[DataProvider('boundaryMeetings')]
+    public function test_target_boundary_never_falls_back_past_an_ambiguous_meeting(array $extra, array $ambiguous, float $expectedRaw): void
+    {
+        $trend = new Trend;
+        $target = $this->observation(1000, '2025-05-31', 1000, 11000, 100);
+        $history = [$trend->representative([$this->observation(1, '2025-05-20', 1, 10000, 1)])];
+        foreach ($extra as [$id, $date]) {
+            $history[] = $trend->representative([$this->observation($id, $date, 2, 10900, $id)]);
+        }
+        $result = $trend->calculate($target, $history);
+        $this->assertSame($ambiguous, $result['ambiguous_meeting_ids']);
+        $this->assertSame(count($ambiguous), $result['ambiguous_meeting_count']);
+        $this->assertSame($ambiguous !== [], $result['target_boundary_partial_time_order']);
+        if ($ambiguous !== []) {
+            $this->assertCount(41, $result['candidates']);
+            foreach ($result['candidates'] as $candidate) {
+                $this->assertSame(['raw' => null, 'status' => 'PARTIAL_TIME_ORDER'], $candidate);
+            }
+            $this->assertNull($result['events']['LAST_SCORE_CHANGE_DELTA']);
+        } else {
+            $this->assertSame(['raw' => $expectedRaw, 'status' => 'VALID'], $result['candidates']['MEETING_DELTA_LAG_1']);
+        }
+    }
+
+    public static function boundaryMeetings(): array
+    {
+        return [
+            'same date different meeting with older fallback available' => [[[99, '2025-05-31']], [99], 0.0],
+            'multiple same date meetings' => [[[99, '2025-05-31'], [98, '2025-05-31']], [98, 99], 0.0],
+            'same target meeting excluded' => [[[100, '2025-05-31']], [], 10.0],
+            'previous day usable' => [[[99, '2025-05-30']], [], 1.0],
+            'next day excluded' => [[[99, '2025-06-01']], [], 10.0],
+        ];
+    }
+
+    public function test_history_sql_preserves_same_date_distinct_meeting_but_not_future(): void
+    {
+        $this->dbRace(900001, '2024-06-15', 900001, 105.0);
+        $this->dbRace(900002, '2024-06-16', 900002, 106.0);
+        $sources = $this->sources();
+        $stage = Files::directory($this->root.'/boundary-sql');
+        $this->service($sources)->generate($stage, $sources);
+        $count = 0;
+        foreach (JsonlArtifact::read($stage.'/trend-input.jsonl') as $row) {
+            if ($row['year'] !== 2024) {
+                continue;
+            }
+            $count++;
+            $this->assertTrue($row['target_boundary_partial_time_order']);
+            $this->assertSame([900001], $row['ambiguous_meeting_ids']);
+            $this->assertSame(1, $row['ambiguous_meeting_count']);
+            foreach ($row['candidates'] as $candidate) {
+                $this->assertSame(['raw' => null, 'status' => 'PARTIAL_TIME_ORDER'], $candidate);
+            }
+        }
+        $this->assertSame(7, $count);
+    }
+
+    public function test_old_new_comparison_counts_all_candidate_state_changes_without_loading_all_targets(): void
+    {
+        $trend = new Trend;
+        $target = $this->target();
+        $old = ['year' => 2025, 'race_id' => 1000, 'entry_id' => 1000] + $trend->calculate($target, $this->history());
+        $sameDate = $trend->representative([$this->observation(99, $target['date'], 1, 12000, 99)]);
+        $new = ['year' => 2025, 'race_id' => 1000, 'entry_id' => 1000] + $trend->calculate($target, [...$this->history(), $sameDate]);
+        JsonlArtifact::write($this->root.'/old.jsonl', [$old]);
+        JsonlArtifact::write($this->root.'/new.jsonl', [$new]);
+        $report = (new ReviewComparison)->trendChanges($this->root.'/old.jsonl', $this->root.'/new.jsonl');
+        $year = $report['years'][2025];
+        $this->assertSame(1, $year['affected_targets']);
+        $this->assertSame([99], $year['ambiguous_meeting_ids']);
+        foreach (['candidate_state_changes', 'candidate_raw_changes', 'old_valid_to_partial_time_order'] as $kind) {
+            $this->assertCount(41, $year[$kind]);
+            $this->assertSame([1], array_values(array_unique($year[$kind])));
+        }
     }
 
     #[DataProvider('representatives')]
@@ -238,6 +317,7 @@ final class GrowthTrendAnalysisTest extends TestCase
     private function sources(): array
     {
         $score = app(ScoreService::class)->capture($this->root.'/score', 'fixture', $this->root.'/outer');
+
         return app(Sources::class)->open($score['bundle'], $this->root.'/outer', $this->root.'/meeting');
     }
 
@@ -254,13 +334,60 @@ final class GrowthTrendAnalysisTest extends TestCase
                 return ['synthetic_reference' => true];
             }
 
-            protected function comparison(array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
+            protected function comparison(string $stage, array $sources, array $years, array $selection, array $outputs, array $expected, TemporalAccess $access): array
             {
                 $access->authorize();
 
-                return (new \App\Domain\Keirin\Backtest\Experiments\GrowthTrendAnalysis\ReviewComparison)->compare($years, $years, $selection, $selection);
+                $compare = new ReviewComparison;
+
+                return $compare->compare($years, $years, $selection, $selection)
+                    + ['same_date_audit' => $compare->trendChanges($stage.'/trend-input.jsonl', $stage.'/trend-input.jsonl')];
             }
         };
+    }
+
+    public function test_review_comparison_accepts_manifest_row_count_and_still_rejects_real_source_drift(): void
+    {
+        $sources = $this->sources();
+        $result = $this->service($sources)->execute($this->root.'/analysis', 'reference', $sources['score'], $this->root.'/outer', $this->root.'/meeting');
+        $path = $result['bundle'];
+        $manifest = Files::json($path.'/manifest.json');
+        $reference = new class($path, Files::identity($path.'/manifest.json')['sha256']) extends ReviewComparison
+        {
+            public function __construct(private readonly string $path, private readonly string $hash) {}
+
+            protected function referencePath(): string
+            {
+                return $this->path;
+            }
+
+            protected function referenceHash(): string
+            {
+                return $this->hash;
+            }
+        };
+        $years = [];
+        foreach ([2024, 2025] as $year) {
+            $years[$year] = Files::json($path.'/candidate-results-'.$year.'.json');
+        }
+        $selection = Files::json($path.'/granularity-selection.json');
+        $outputs = [];
+        foreach (['local-stability.json', 'c1-confidence-diagnostics.json', 'missed-winner-diagnostics.json',
+            'grade-class-diagnostics.json', 'score-change-event-diagnostics.json'] as $name) {
+            $outputs[$name] = Files::json($path.'/'.$name);
+        }
+        $access = new TemporalAccess;
+        $access->seal($path, Files::json($path.'/trend-input-seal.json'));
+        $this->assertArrayHasKey('rows', $sources['files'][$sources['score'].'/score-observations.jsonl']);
+        $report = $reference->report($path, $sources, $years, $selection, $outputs, $manifest['files'], $access);
+        $this->assertTrue($report['source_observation_identity_same']);
+        $this->assertTrue($report['all_candidate_metrics_same']);
+        $h = fopen($sources['score'].'/score-observations.jsonl', 'r+b');
+        fwrite($h, '[');
+        fclose($h);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Score observations changed from initial run; STOP.');
+        $reference->report($path, $sources, $years, $selection, $outputs, $manifest['files'], $access);
     }
 
     public function test_db_disabled_execute_reproduce_byte_exact_and_labels_can_be_withheld_until_seal(): void
@@ -491,7 +618,7 @@ final class GrowthTrendAnalysisTest extends TestCase
 
     public function test_day_exclusions_are_auditable_per_year_and_candidate(): void
     {
-        \Illuminate\Support\Facades\DB::table('race_meetings')->where('id', 202401)->update(['starts_on' => null]);
+        DB::table('race_meetings')->where('id', 202401)->update(['starts_on' => null]);
         $sources = $this->sources();
         $stage = Files::directory($this->root.'/null-start');
         $this->service($sources)->generate($stage, $sources);
@@ -500,8 +627,8 @@ final class GrowthTrendAnalysisTest extends TestCase
         $this->assertSame(1, $audit['source_meetings_missing_start']);
         $this->assertCount(28, $audit['candidates']);
         foreach ($audit['candidates'] as $row) {
-            $this->assertSame(7, $row['excluded_missing_start_meetings']);
-            $this->assertSame(7, $row['targets_with_excluded_missing_start']);
+            $this->assertSame(7, $row['prior_meetings_with_unknown_start']);
+            $this->assertSame(7, $row['targets_with_unknown_start_prior']);
         }
     }
 
@@ -574,23 +701,50 @@ final class GrowthTrendAnalysisTest extends TestCase
         app(OuterSource::class)->openOutcomeSource('/does-not-exist', 2024, new TemporalAccess);
     }
 
+    public function test_access_counters_record_and_reject_a_preseal_access_attempt(): void
+    {
+        foreach (['export_manifest_open', 'label_identity_resolve', 'label_file_open'] as $kind) {
+            $access = new TemporalAccess;
+            try {
+                $access->observe($kind);
+                $this->fail('Preseal access accepted.');
+            } catch (RuntimeException $e) {
+                $this->assertSame('Outcome access path reached before trend seal.', $e->getMessage());
+                $this->assertSame(1, $access->counts()['preseal_'.$kind.'_count']);
+                $this->assertSame(0, $access->counts()['postseal_'.$kind.'_count']);
+            }
+        }
+    }
+
+    public function test_reviewed_fixed_projection_literals_match_their_immutable_contract_hashes(): void
+    {
+        foreach ([[Sources::class, 'meetingFiles', 'meetingProjectionHash'], [OuterSource::class, 'fixedFiles', 'projectionHash']] as [$class, $files, $hash]) {
+            $reflection = new \ReflectionClass($class);
+            $object = $reflection->newInstanceWithoutConstructor();
+            $projection = $reflection->getMethod($files)->invoke($object);
+            if ($class === OuterSource::class) {
+                $projection = ['run' => 'run-01', 'files' => $projection];
+            }
+            $this->assertSame($reflection->getMethod($hash)->invoke($object), hash('sha256', Files::canonical($projection)));
+        }
+    }
+
     public function test_preseal_source_needs_no_label_files_or_registered_label_identity(): void
     {
         $registryPath = $this->root.'/outer/report-export-manifest.json';
-        $registry = Files::json($registryPath);
-        $without = $registry;
         foreach ($this->labels as $path) {
             foreach ([$path, $path.'.manifest.json'] as $file) {
                 rename($file, $file.'.withheld');
-                unset($without['included'][substr($file, strlen($this->root.'/outer/'))]);
             }
         }
-        unlink($registryPath);
-        JsonlArtifact::json($registryPath, $without);
+        rename($registryPath, $registryPath.'.withheld');
+        rename($this->root.'/meeting/manifest.json', $this->root.'/meeting/manifest.json.withheld');
         $sources = $this->sources();
         $stage = Files::directory($this->root.'/no-label-identity');
-        $this->service($sources)->generate($stage, $sources, function ($stage) use ($registry, $registryPath): void {
+        $this->service($sources)->generate($stage, $sources, function ($stage) use ($registryPath): void {
             $this->assertFileExists($stage.'/trend-input-seal.json');
+            $this->assertFileDoesNotExist($registryPath);
+            $this->assertFileDoesNotExist($this->root.'/meeting/manifest.json');
             foreach (['sources.json', 'trend-input-seal.json'] as $name) {
                 $text = file_get_contents($stage.'/'.$name);
                 $this->assertStringNotContainsString('labels-', $text);
@@ -605,23 +759,28 @@ final class GrowthTrendAnalysisTest extends TestCase
                     rename($file.'.withheld', $file);
                 }
             }
-            unlink($registryPath);
-            JsonlArtifact::json($registryPath, $registry);
+            rename($registryPath.'.withheld', $registryPath);
+            rename($this->root.'/meeting/manifest.json.withheld', $this->root.'/meeting/manifest.json');
         });
         $this->assertFileExists($stage.'/outcome-sources.json');
+        $audit = Files::json($stage.'/outcome-isolation-audit.json');
+        foreach (['export_manifest_open', 'label_identity_resolve', 'label_file_open'] as $kind) {
+            $this->assertSame(0, $audit['preseal_'.$kind.'_count']);
+            $this->assertSame(2, $audit['postseal_'.$kind.'_count']);
+        }
     }
 
     public function test_resealed_projected_input_cannot_replace_the_frozen_projection(): void
     {
         $path = $this->outer['years'][2024]['input'];
-        file_put_contents($path, ' ' . file_get_contents($path));
+        file_put_contents($path, ' '.file_get_contents($path));
         $registryPath = $this->root.'/outer/report-export-manifest.json';
         $registry = Files::json($registryPath);
         $registry['included']['inputs-v2/inputs-2024.jsonl'] = Files::identity($path);
         unlink($registryPath);
         JsonlArtifact::json($registryPath, $registry);
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('projection mismatch');
+        $this->expectExceptionMessage('Artifact hash/size mismatch');
         app(OuterSource::class)->openOutcomeFree($this->root.'/outer');
     }
 }
