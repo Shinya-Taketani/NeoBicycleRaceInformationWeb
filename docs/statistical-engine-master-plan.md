@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.22
+- Version: 1.24
 - Created: 2026-08-23
 - Updated: 2026-09-20
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `eef27c9e80d80a733a4c0c3c82e18151259e8f87`
+- Remote `main` at last update: `17cc492e077034a4ebab46594cb2a6e1d3c3642f`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: GROWTH-TREND-ANALYSIS-01_PR62_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
+current_engine_state: GROWTH-TREND-ADJUSTMENT-CALIBRATION-01_PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_PR62_REVIEW_FIX_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_PR63_OUTCOME_SEAL_FIX_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -547,7 +547,8 @@ BT-03E-02以降で利用する場合は、
 | GROWTH-POINT-ANALYSIS-01 | 前走比較の成長指標と次走成績の探索診断 | PR60_MERGED | 50,078レース・356,209出走、DB不要再現、モデル変更・正式採用なし |
 | GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | PR60_MERGED | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
 | GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED | 正式weight未採用、旧数値・時系列修正の記録を維持 |
-| GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | PR62_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | MEETING_DELTA_LAG_1維持、修正版36生成物byte-exact再現、正式STAT未採用 |
+| GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | PR62_MERGED / DEVELOPMENT_SELECTED_GRANULARITY | MEETING_DELTA_LAG_1維持、修正版36生成物byte-exact再現、正式STAT未採用 |
+| GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 | 固定MEETING_DELTA_LAG_1のC1 utility補正 | PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 年別固定outcome sealへ修正、数値不変、P99=3.03、w=+0.34、2025 NOT_TRANSFERRED、41成果物完全再現、正式採用なし |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2254,6 +2255,47 @@ focused 81 tests /937 assertions、全体1,641 passed /9 skipped /12,760 asserti
 
 ---
 
+## 15.35 GROWTH-TREND-ADJUSTMENT-CALIBRATION-01
+
+2026-09-20のユーザー指示とPR #62 MERGED（main `17cc492e077034a4ebab46594cb2a6e1d3c3642f`）を確認し、独立実験を許可。
+Section 15.34のレビュー待ちは当時の履歴として保持する。固定signalはreview-fix-02のMEETING_DELTA_LAG_1のみ。
+2024のoutcome-free VALID abs(raw) Type7 P99でscaleを固定し、[-1,1]へclipした値をanchorへ(k/100)倍加算する。
+旧C1を再学習せず、全101係数で2024を評価・選択・sealしてから2025結果を解決する。
+2025はsignal粒度選択に使用済みのためPOST_SELECTION_DEVELOPMENT_TRANSFER_DIAGNOSTICでありholdout/replicationではない。
+詳細の結果閲覧前契約は `docs/growth-trend-adjustment-calibration-01.md`。
+実装・人工テスト・DB不要実集計・再現が今回の許可範囲。旧各Growth・C1・旧成果物は変更しない。
+実集計と39成果物のbyte-exact再現を完了。2024 VALID n=178,641、SCALE_P99=3.03、k=34/w=+0.34、INTERIOR_SELECTED。
+2024のP1/P2/P3/Hit@3差は+0.254392/+0.458058/+0.314816/+0.348775pp。
+2025の固定transfer差は-0.076647/-0.214341/+0.226363/-0.020273ppで、NOT_TRANSFERRED_POST_SELECTION_DEVELOPMENT_REPLAY。
+状態はPOST_SELECTION_TRANSFER_NOT_CONSISTENT_AWAITING_REVIEW。2024選択年の改善を独立評価での向上とは扱わない。
+w=0は両年の全確率・decision・保存済み評価寄与に完全一致。sequenceはscaling seal=5、2024 outcome解決=6、selection seal=13、2025 outcome解決=14。
+2025 full gridは診断のみで再選択なし。DB NONE、2026参照0。128MBで実集計・再現ともPHP peak 32MiB、元source/model/codeは不変。
+成果物は `/home/shinya/neo-keirin-artifacts/growth-trend-adjustment-calibration-01-20260920-01/` に保存。
+focused 50 tests / 608 assertions、関連331 tests / 2819 assertions成功。全体1691成功・9skip / 13368 assertions。
+変更PHP構文・Pint検査成功。未コミットレビュー待ちで停止し、2026・正式STAT・LIVE・次の実装はNOT_AUTHORIZEDを維持。
+
+### PR #63 Review Fix / 2026-09-20
+
+PR #63はOPEN / REVIEW_FIX。上記v1実行・旧ZIP・旧判定は履歴として維持する。
+開始HEAD `65a4cee3d987717e774b95b9381f26b6dd110eaa`、同じexperiment branch、開始時clean。
+問題は `OUTCOME_SOURCE_SELF_SIGNED_SIDECAR_TRUST`。現在のbodyとsidecarを整合的に改変すると受理できた。
+`FIXED_REVIEWED_PER_YEAR_OUTCOME_SEALS` へ変更し、実物照合した8原本のbytes/rows/SHAを年別literalで固定。
+sidecar自体のhash、JSON内の固定本文seal一致、本文hashを検証する。mixed-year registryは使わない。
+2024はscaling seal後、2025はselection seal後のみにruntime検証・参照を許可する。
+版は `GROWTH-TREND-ADJUSTMENT-CALIBRATION-01-v2-PR63-OUTCOME-SEAL-FIX`。
+新ID `outer-c1-meeting-delta-lag1-adjustment-2024-2025-pr63-review-fix-01` を旧runと同じrootへ別保存。
+全101候補（両年/pooled）・全診断・selected明細・変更件数、scale/選択結果は旧runと完全一致。
+`NUMERICALLY_UNCHANGED_AFTER_OUTCOME_SOURCE_TRUST_FIX`、P99=3.03、k=34/w=+0.34、eligible 73個を維持。
+2025は `NOT_TRANSFERRED_POST_SELECTION_DEVELOPMENT_REPLAY` のまま。正式採用・C1変更は行わない。
+DB無効・128MBでexecute/reproduce成功、両方PHP peak 32MiB。全41成果物を外部照合でもBYTE_EXACT確認。
+旧bundle39ファイルと旧ZIPはSTART/END不変。body+sidecar、片側1byte、rows改変の拒否とpreselection不変性を検証。
+focused 70 tests /788 assertions、関連401 tests /3607 assertions、全体1711 passed /9 skipped /13548 assertions。
+変更PHP5ファイルの構文・Pint検査成功。2026 access=0、次実装NOT_AUTHORIZED。
+状態は `GROWTH-TREND-ADJUSTMENT-CALIBRATION-01_PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW`。
+次は `REVIEW_PR63_OUTCOME_SEAL_FIX_AND_WAIT_FOR_USER_INSTRUCTION`。同じPR branch上の未コミット状態でレビューを待つ。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2653,6 +2695,23 @@ reason:
 
 # 25. 変更履歴
 
+## v1.24 / 2026-09-20
+
+PR #63 `OPEN / REVIEW_FIX`、開始HEAD `65a4cee3d987717e774b95b9381f26b6dd110eaa`。
+remote mainは `17cc492e077034a4ebab46594cb2a6e1d3c3642f`、PR #62はMERGED。
+`OUTCOME_SOURCE_SELF_SIGNED_SIDECAR_TRUST` を `FIXED_REVIEWED_PER_YEAR_OUTCOME_SEALS` で修正する。
+固定8原本を実物照合し、mixed-year registryなし・既存temporal境界のまま年別sealを検証する。
+旧成果物・旧ZIPを保持した新IDで実集計・41生成物byte-exact再現を完了。旧新の数値・診断は完全一致。
+k=34/w=+0.34、2025 NOT_TRANSFERREDを維持し、PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEWへ更新。
+次はREVIEW_PR63_OUTCOME_SEAL_FIX_AND_WAIT_FOR_USER_INSTRUCTION、次実装NOT_AUTHORIZED。2026 FROZENは変更しない。
+
+## v1.23 / 2026-09-20
+
+PR #62 MERGED、main `17cc492e077034a4ebab46594cb2a6e1d3c3642f`からユーザー許可の独立trend adjustment実験を開始。
+MEETING_DELTA_LAG_1と2024 P99規格化、固定101 grid、旧選択規則を固定。2025はpost-selection development診断のみ。
+旧v1.22記録・旧不採用・保留を維持する。実集計・39成果物完全再現を完了し、w=+0.34の2025転送条件不達成としてレビュー待ち。
+正式採用・2026・次工程は開放しない。
+
 ## v1.22 / 2026-09-20
 
 PR #62 `OPEN / REVIEW_FIX_COMPLETED_AWAITING_REVIEW`。remote mainは `eef27c9e80d80a733a4c0c3c82e18151259e8f87`。
@@ -2992,10 +3051,11 @@ TACTICAL-MEETING-GRADE-ANALYSIS-01 = VERIFIED_AWAITING_REVIEW / CURRENT_PRIMARY_
 GROWTH-POINT-ANALYSIS-01 = PR60_MERGED / DEVELOPMENT_DIAGNOSTIC_ONLY
 GROWTH-POINT-ANALYSIS-01-v2 = PR60_MERGED / SIGN_PRESERVING_POINT / V1_UNCHANGED
 GROWTH-ADJUSTMENT-CALIBRATION-01 = PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED / FORMAL_WEIGHT_NOT_ADOPTED
-GROWTH-TREND-ANALYSIS-01 = PR62_REVIEW_FIX_VERIFIED_AWAITING_REVIEW / MEETING_DELTA_LAG_1 / BYTE_EXACT_36_ARTIFACTS / DEVELOPMENT_ONLY
+GROWTH-TREND-ANALYSIS-01 = PR62_MERGED / MEETING_DELTA_LAG_1 / BYTE_EXACT_36_ARTIFACTS / DEVELOPMENT_ONLY
+GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 = PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW / FIXED_REVIEWED_PER_YEAR_OUTCOME_SEALS / k=34 / w=+0.34 / SCALE_P99=3.03 / BYTE_EXACT_41_ARTIFACTS
 
 Next:
-Review PR #62 review-fix results and wait for user instruction. MEETING_DELTA_LAG_1 and the nine eligible candidates are unchanged; same-date ambiguity exclusions changed the metrics. All 36 review-fix artifacts reproduced exactly with DB disabled. Both years remain development data, not unseen holdout validation or proof of predictive improvement. Preserve the initial 31-artifact run, review-fix-01 evidence, old w=+0.03 negative result, SQL-plan interruption evidence, prior analyses, PR55 comparison and PJ0315 pilot block. Do not refit C1, calibrate weights, adopt a STAT, rerun Gate/bootstrap, start LIVE or open 2026. Stop uncommitted for review.
+Review PR63 outcome seal fix and wait for explicit user instruction. Fixed per-year reviewed outcome seals replace self-signed sidecar trust; all numerical results are unchanged. Execution and all 41 artifacts reproduced exactly with DB disabled and 128MB. The selected w=+0.34 improved selection-year 2024 but failed the fixed 2025 post-selection transfer condition (Hit@3 delta -0.020273pp). Do not substitute a 2025-best or subgroup weight. Preserve old bundles/ZIPs, PR62 artifacts, old SCORE_POINT_V2 negative result and C1. No formal adoption, refit, Gate/bootstrap, LIVE or 2026. Stop uncommitted for review; next implementation NOT_AUTHORIZED.
 
 Do not:
 redo BT-02 discovery
