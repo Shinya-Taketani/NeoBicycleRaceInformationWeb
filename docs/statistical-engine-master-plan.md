@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.28
+- Version: 1.29
 - Created: 2026-08-23
-- Updated: 2026-09-21
+- Updated: 2026-09-22
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `cefd6b4e777315f08cc10980369d5734196d01f7`
+- Remote `main` at last update: `adb847c5b0a2b0778ecb02a57c37bffbecf2d926`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,13 +167,22 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_STORAGE_BACKFILL_01_PR65_REVIEW_FIX_AWAITING_REVIEW
+current_engine_state: STAT35_PRODUCTION_PREFLIGHT_01_COMPLETED_AWAITING_APPLICATION_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_PR65_REVIEW_FIX
+next_allowed_action: REVIEW_STAT35_PRODUCTION_APPLICATION_PROCEDURE
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-STORAGE-BACKFILL-01
-remote_main: cefd6b4e777315f08cc10980369d5734196d01f7
+current_phase: STAT-35-PRODUCTION-PREFLIGHT-01
+remote_main: adb847c5b0a2b0778ecb02a57c37bffbecf2d926
 pr64_status: MERGED
+pr65_status: MERGED
+stat35_storage_backfill_01: IMPLEMENTATION_REVIEW_MERGE_COMPLETED
+stat35_production_preflight_01: COMPLETED_AWAITING_APPLICATION_PROCEDURE_REVIEW
+stat35_production_schema: TARGET_MIGRATION_NOT_APPLIED_METADATA_VERIFIED
+stat35_other_pending_migrations: 0
+stat35_production_write_authorization: NOT_AUTHORIZED
+stat35_migration_dry_run_backfill_this_phase: NOT_EXECUTED
+bounded_memory_test_limit: INDEPENDENT_PROCESS_128M
+production_memory_example: 512M_ADJUST_BY_MEASUREMENT
 stat35_data_readiness_audit_01: COMPLETED_PR64_MERGED
 stat35_readiness: BLOCKED_INSUFFICIENT_RAW_HISTORY
 stat35_identity_safe: true
@@ -273,6 +282,8 @@ completed_phases:
   - BT-03E-06_VS_E07_DIAGNOSTIC
   - BT-03E-08_ENGINEERING
   - BT-03E-08_DEVELOPMENT_EVALUATION
+  - STAT-35-STORAGE-BACKFILL-01_IMPLEMENTATION_REVIEW_MERGE
+  - STAT-35-PRODUCTION-PREFLIGHT-01
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -560,7 +571,8 @@ BT-03E-02以降で利用する場合は、
 | GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | PR62_MERGED / DEVELOPMENT_SELECTED_GRANULARITY | MEETING_DELTA_LAG_1維持、修正版36生成物byte-exact再現、正式STAT未採用 |
 | GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 | 固定MEETING_DELTA_LAG_1のC1 utility補正 | PR63_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER | GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED、P99=3.03、k=34/w=+0.34、2025 NOT_TRANSFERREDを維持 |
 | STAT-35-DATA-READINESS-AUDIT-01 | 保存済み上がりRawの抽出・識別・取得時点監査 | COMPLETED_PR64_MERGED | identity blocker 0、BLOCKED_INSUFFICIENT_RAW_HISTORY、DATA_QUALITY_ONLY |
-| STAT-35-STORAGE-BACKFILL-01 | current上がり・import別観測保存とRaw backfill基盤 | PR65_REVIEW_FIX_AWAITING_REVIEW | 男子gap分離・Manual中止非空行拒否、人工テストのみ、本番適用未許可 |
+| STAT-35-STORAGE-BACKFILL-01 | current上がり・import別観測保存とRaw backfill基盤 | IMPLEMENTATION_REVIEW_MERGE_COMPLETED_PR65 | 本番schema未適用、実装完了と適用完了を区別 |
+| STAT-35-PRODUCTION-PREFLIGHT-01 | READ ONLY構造確認・plan・適用手順作成 | COMPLETED_AWAITING_APPLICATION_PROCEDURE_REVIEW | 本番書込みNOT_AUTHORIZED、Migration/dry-run/backfill未実施 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -1429,7 +1441,7 @@ alpha_WIN + alpha_TOP2 + alpha_TOP3 = 1
 
 non-negative convex combinationとし、alphaを手作業で決めない。deterministic simplex candidate searchで決定する。Primary hit metricsをgradientで直接最適化せず、Stage 1はsmooth surrogate loss、Stage 2はinner OOF上の実際のPrimary Metricsでcandidateを選択する。Outer resultはalpha選択に使用しない。
 
-Production相当処理は `php -d memory_limit=128M` で完走可能なbounded-memory / streamingを必須とする。pair全件を巨大arrayへmaterializeせず、raceを読み、当該raceのpairでloss / gradientを更新し、race payloadを破棄する。bootstrapもrace payloadを不要に全複製しない。
+bounded-memory / streaming構造を必須とし、独立PHP processのbounded-memoryテストは `memory_limit=128M` を維持する。2026-09-22の最新方針では実データ処理の基本例を `php -d memory_limit=512M` とし、実測で調整する。本番を一律128Mへ限定しない。pair全件を巨大arrayへmaterializeせず、raceを読み、当該raceのpairでloss / gradientを更新し、race payloadを破棄する。bootstrapもrace payloadを不要に全複製しない。
 
 ## 15.10 Decision 09 — Overfitting
 
@@ -2376,9 +2388,27 @@ readinessはBLOCKED_INSUFFICIENT_RAW_HISTORY、identity_safe=true、secondary=RA
 
 PR #65 review fixでは、NO_IMPORTを既存RaceCategoryPolicyによるMen限定とし、Girls/UnknownはNO_IMPORT_UNSUPPORTEDへ分離。
 Manual CANCELLEDは部分行semantic未監査のため非空データ行をfail closedとし、PJ0326の監査済みblank partial契約は維持する。
-初回検証結果は履歴として保持し、今回の人工テスト結果は同仕様書のPR #65 Review Fixへ追記する。
-次は `REVIEW_PR65_REVIEW_FIX`。追加実装と本番適用は `NOT_AUTHORIZED`。
+初回検証結果は履歴として保持し、人工テスト結果は同仕様書のPR #65 Review Fixへ記録した。
+マージ前の `REVIEW_PR65_REVIEW_FIX` は当時の記録。2026-09-22にPR #65のマージを確認し、実装・レビュー・マージ完了へ更新する。
+現在の許可範囲は次節の本番適用前確認のみ。本番適用・追加実装は `NOT_AUTHORIZED`。
 旧モデル・旧成果物・Growth不採用・旧pilot保留・2026 FROZENを維持する。
+
+## 15.38 STAT-35-PRODUCTION-PREFLIGHT-01
+
+ユーザー明示許可により、cleanなmain/origin `adb847c5b0a2b0778ecb02a57c37bffbecf2d926` から
+`ops/stat35-production-preflight-01` を作成。PR #65 mergeを確認し、本番適用前確認と手順作成だけを実施した。
+接続開始時からREAD ONLYを強制し、default/transactionともonを確認後、Migration管理表とschema metadataだけを照会した。
+対象 `2026_09_21_000013_add_agari_storage` は未適用。他の未適用Migrationは0。
+race_resultsのagari3列、観測tableと関連制約/trigger/functionは未作成で、履歴とschemaは整合している。
+通常結果保存は新観測tableを必ず参照するため、現コードを未適用schemaで実行すると失敗する。同期停止・起動は行っていない。
+可視の起動定義には本repoの定期結果同期を確認できず、他ユーザー/手動起動/ロード済みコードの網羅確認は運用側の未充足条件。
+512MのDB/Raw非参照planを1回実行しexit 0。Migration、backfill dry-run、backfillは未実施、本番write=0、実2026レース参照=0。
+証跡は `/home/shinya/neo-keirin-artifacts/stat35-production-preflight-01/run-20260922-Jtc8st/` に保存し、既存成果物を上書きしない。
+手順は [stat35-production-application-01.md](stat35-production-application-01.md)。未適用schemaは想定内であり確認作業を中断していない。
+現在地は本番適用手順レビュー待ち。実行担当/排他窓、backup/復旧試験、DB/WAL容量、限定1日の選定、別途書込み承認が必要。
+本番Migration/backfillとSTAT-35予測利用は `NOT_AUTHORIZED`、historical_as_of_available=falseを維持する。
+実データは512Mを基本例として実測調整。独立bounded-memoryテスト128Mと過去の128M成功実績は変更しない。
+機能変更がないため全テスト・過去監査は再実行せず、文書差分とdiff-checkだけを確認する。
 
 ---
 
@@ -2520,13 +2550,16 @@ prediction vs actual評価
 
 ## 18.5 Memory
 
-Production系は原則:
+bounded-memory / streaming構造を維持する。独立PHP processで実施するbounded-memoryテストは128M制約を維持し、
+full suite共有processの過去peakに依存させない。過去に128Mで成功した実績は当時の記録として残す。
+実データ処理の基本例は次とし、対象範囲・chunk・実測peak・空き容量に基づき調整する。
 
 ```text
-php -d memory_limit=128M
+php -d memory_limit=512M
 ```
 
-で完走可能なbounded / streaming構造を維持する。
+Productionを一律128Mに限定する旧方針は解除する。メモリ上限の増量だけで非boundedな実装を許容するものではない。
+この方針変更は本番実行や新しい分析・学習を許可しない。
 
 ## 18.6 DB Safety
 
@@ -2671,6 +2704,7 @@ run 6は正式完了済み。
 | #42 | docs:bt03e02 design freeze | MERGED |
 | #43 | feature:bt03e02 scoring engine | MERGED |
 | #44 | fix:bt03e02 fista nonconvergence | MERGED |
+| #65 | feature:stat35 storage backfill 01 | MERGED |
 
 Current remote `main` at the v1.2 update:
 
@@ -2780,6 +2814,24 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.29 / 2026-09-22
+
+```yaml
+document_version: 1.29
+updated_at: 2026-09-22
+remote_main_sha: adb847c5b0a2b0778ecb02a57c37bffbecf2d926
+phase_changed: STAT35_PRODUCTION_PREFLIGHT_01_COMPLETED_AWAITING_APPLICATION_REVIEW
+related_pr: PR65_MERGED
+related_run: stat35-production-preflight-01/run-20260922-Jtc8st
+decision: Sync merged implementation; complete read-only metadata preflight and plan; await application procedure review
+reason: Target migration is pending and result synchronization requires the new schema; production writes remain unauthorized
+```
+
+冒頭metadata・現在地・工程一覧・説明・引継ぎを同期。旧レビュー待ちと過去変更履歴は当時の記録として残す。
+対象schema未適用、他の未適用0、READ ONLY on/on、512M plan成功を確認。Migration/dry-run/backfill未実施。
+独立bounded-memoryテスト128Mを維持し、本番の一律128M制限を解除。実データ512M基本例・実測調整へ同期する。
+本番書込みNOT_AUTHORIZED、2026 FROZEN、historical_as_of_available=false、Growth不採用・既存C1・Goal 4/5を維持する。
 
 ## v1.28 / 2026-09-21
 
@@ -3174,10 +3226,14 @@ GROWTH-ADJUSTMENT-CALIBRATION-01 = PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_
 GROWTH-TREND-ANALYSIS-01 = PR62_MERGED / MEETING_DELTA_LAG_1 / BYTE_EXACT_36_ARTIFACTS / DEVELOPMENT_ONLY
 GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 = PR63_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER / GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED / k=34 / w=+0.34 / SCALE_P99=3.03
 STAT-35-DATA-READINESS-AUDIT-01 = COMPLETED_PR64_MERGED / BLOCKED_INSUFFICIENT_RAW_HISTORY / IDENTITY_SAFE / NO_AS_OF_HISTORY / TWO_REPRODUCTIONS_BYTE_EXACT_27_ARTIFACTS
-STAT-35-STORAGE-BACKFILL-01 = PR65_REVIEW_FIX_AWAITING_REVIEW / SYNTHETIC_TESTS_ONLY / PRODUCTION_MIGRATION_BACKFILL_NOT_AUTHORIZED
+PR #65 = MERGED / main adb847c5b0a2b0778ecb02a57c37bffbecf2d926
+STAT-35-STORAGE-BACKFILL-01 = IMPLEMENTATION_REVIEW_MERGE_COMPLETED / PRODUCTION_SCHEMA_NOT_APPLIED
+STAT-35-PRODUCTION-PREFLIGHT-01 = COMPLETED_AWAITING_APPLICATION_PROCEDURE_REVIEW / READ_ONLY_METADATA_AND_PLAN_ONLY
+Production write / migration / backfill = NOT_AUTHORIZED
+Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review PR #65 review fix (REVIEW_PR65_REVIEW_FIX). NO_IMPORT now counts Men only; unsupported gaps are separate. Manual cancelled nonempty result rows fail closed; audited PJ0326 blank partial rows remain cancellation diagnostics. The earlier audit found 40 cancelled races (48 imports, 53 blank rows) and 29 no-import races; this review fix does not re-audit or hard-code those counts. Identity is safe; as-of availability remains zero. The primary blocker is INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY. Structural storage does not restore historical availability or imply predictive improvement. Preserve Growth k=34/w=+0.34 and its negative 2025 transfer, old artifacts, C1, and 2026 FROZEN_FOR_MODEL_SELECTION. No model fitting, predictive evaluation, production writes, scraping, LIVE or 2026 race access. Next implementation and production migration/backfill NOT_AUTHORIZED.
+Review the STAT-35 production application procedure (REVIEW_STAT35_PRODUCTION_APPLICATION_PROCEDURE). PR #65 is merged; the target migration is pending and agari columns/observation table are absent. Normal result storage needs this schema. READ ONLY metadata preflight and the DB/Raw-free 512M plan completed; migration, dry-run and backfill were not executed. Resolve operational ownership/exclusion, backup/restore verification, DB/WAL capacity and the first approved date before separately authorizing any writes. NO_IMPORT remains Men-only and unsupported gaps separate; Manual nonempty cancelled rows fail closed, audited PJ0326 blank partial semantics are unchanged. Old audit counts are historical, not production expectations. historical_as_of_available=false, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY. Preserve Growth k=34/w=+0.34 and its negative 2025 transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. No model fitting, evaluation, scraping, LIVE or 2026 race access. Next implementation and production migration/backfill NOT_AUTHORIZED.
 
 Do not:
 redo BT-02 discovery
