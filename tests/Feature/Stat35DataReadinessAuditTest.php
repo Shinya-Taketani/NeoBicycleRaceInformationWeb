@@ -12,6 +12,7 @@ use App\Domain\Keirin\Audit\Stat35DataReadiness\RawReader;
 use App\Domain\Keirin\Audit\Stat35DataReadiness\Service;
 use App\Domain\Keirin\Audit\Stat35DataReadiness\Source;
 use App\Domain\Keirin\Audit\Stat35DataReadiness\Targets;
+use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ArtifactStore;
 use App\Domain\Keirin\Backtest\Experiments\TacticalPredictionResult\ResultStore;
@@ -204,9 +205,9 @@ class Stat35DataReadinessAuditTest extends TestCase
         (new History)->candidate($h, $this->fixture()['race'] + ['player_id' => 1]);
     }
 
-    private function raw(array $f): array
+    private function raw(array $f, string $name = 'raw'): array
     {
-        $path = $this->root.'/raw.html';
+        $path = $this->root.'/'.$name.'.html';
         file_put_contents($path, $f['html']);
 
         return ['absolute_path' => $path, 'race_date' => $f['race']['race_date'], 'source_hash' => hash('sha256', $f['html']),
@@ -275,18 +276,39 @@ class Stat35DataReadinessAuditTest extends TestCase
         (new Source)->session(fn () => DB::insert('INSERT INTO stat35_test VALUES (1)'));
     }
 
-    private function service(array $f, bool $duplicate = false, bool $endDrift = false): Service
+    private function service(array $f, bool $duplicate = false, bool $endDrift = false, bool $withPrior = false): Service
     {
         $raw = $this->raw($f);
         $import = $raw + ['import_id' => 1, 'race_id' => 1, 'scraping_fetch_log_id' => 1, 'source_url' => 'https://example.invalid/result',
             'raw_file_path' => 'raw.html', 'parser_version' => 'synthetic', 'parsed_page_status' => $f['parsed_page_status'] ?? 'RESULTS_AVAILABLE',
             'import_status' => 'SUCCEEDED', 'fetched_at' => '2024-02-01T13:00:00+09:00', 'imported_at' => '2024-02-01T13:00:01+09:00'];
         $sourceRow = ['race' => $f['race'], 'entries' => $f['entries'], 'results' => $f['results'], 'imports' => $duplicate ? [$import, $import] : [$import]];
-        $source = new class($sourceRow, $endDrift) extends Source
+        $sourceRows = [$sourceRow];
+        if ($withPrior) {
+            $prior = $this->fixture();
+            $prior['race'] = array_replace($prior['race'], ['race_id' => 2, 'race_date' => '2023-12-01',
+                'scheduled_start_at' => '2023-12-01T12:00:00+09:00', 'meeting_id' => 2, 'meeting_start' => '2023-12-01']);
+            $prior['html'] = str_replace('20240201', '20231201', $prior['html']);
+            foreach ($prior['entries'] as &$entry) {
+                $entry['id'] += 10;
+                $entry['race_id'] = 2;
+            }
+            unset($entry);
+            foreach ($prior['results'] as &$result) {
+                $result['race_entry_id'] += 10;
+                $result['race_id'] = 2;
+                $result['race_result_import_id'] = 2;
+            }
+            unset($result);
+            $prior['imports'] = [array_replace($import, $this->raw($prior, 'prior'), ['import_id' => 2, 'race_id' => 2,
+                'parsed_page_status' => 'RESULTS_AVAILABLE', 'fetched_at' => '2023-12-01T13:00:00+09:00'])];
+            $sourceRows[] = array_intersect_key($prior, array_flip(['race', 'entries', 'results', 'imports']));
+        }
+        $source = new class($sourceRows, $endDrift) extends Source
         {
             private int $calls = 0;
 
-            public function __construct(private array $row, private bool $endDrift) {}
+            public function __construct(private array $rows, private bool $endDrift) {}
 
             public function session(callable $work): mixed
             {
@@ -295,8 +317,8 @@ class Stat35DataReadinessAuditTest extends TestCase
 
             public function rows(array &$digest): Generator
             {
-                yield $this->row;
-                $digest = ['sha256' => hash('sha256', Files::canonical($this->row))];
+                yield from $this->rows;
+                $digest = ['sha256' => hash('sha256', Files::canonical($this->rows))];
                 if (++$this->calls > 1 && $this->endDrift) {
                     $digest['sha256'] = str_repeat('a', 64);
                 }
@@ -330,6 +352,10 @@ class Stat35DataReadinessAuditTest extends TestCase
         $repeat = $service->reproduce($this->root.'/audit', 'synthetic-01');
         $this->assertSame('BYTE_EXACT', $repeat['status']);
         $this->assertSame('NONE', $repeat['db']);
+        $repeat2 = $service->reproduce($this->root.'/audit', 'synthetic-01');
+        $this->assertSame('BYTE_EXACT', $repeat2['status']);
+        $this->assertNotSame($repeat['attempt_path'], $repeat2['attempt_path']);
+        $this->assertSame(Files::identity($repeat['attempt_path'].'/identity-mapping-audit.json'), Files::identity($repeat2['attempt_path'].'/identity-mapping-audit.json'));
         $this->assertLessThan(128 * 1024 * 1024, $repeat['peak_memory_bytes']);
         $audit = Files::json($this->root.'/audit/synthetic-01/data_quality_access_audit.json');
         $this->assertSame(0, $audit['target_rank_semantic_reads']);
@@ -381,8 +407,159 @@ class Stat35DataReadinessAuditTest extends TestCase
         $s->execute($this->root.'/audit', 'drift-01', $this->root.'/source');
         $body = file_get_contents($this->root.'/raw.html');
         file_put_contents($this->root.'/raw.html', str_replace('11.4', '11.5', $body));
+        try {
+            $s->reproduce($this->root.'/audit', 'drift-01');
+            $this->fail('Raw drift accepted');
+        } catch (RuntimeException $error) {
+            $this->assertNotSame('', $error->getMessage());
+        }
+        $failed = glob($this->root.'/audit/.reproduce-drift-01-*/failure.json');
+        $this->assertCount(1, $failed);
+        $failureSeal = Files::identity($failed[0]);
+        file_put_contents($this->root.'/raw.html', $body);
+        $this->assertSame('BYTE_EXACT', $s->reproduce($this->root.'/audit', 'drift-01')['status']);
+        $this->assertSame($failureSeal, Files::identity($failed[0]));
+    }
+
+    public static function cancellations(): array
+    {
+        return [
+            'empty' => [[], false, 'EXPLICIT_CANCELLED_NO_RESULT_ROWS', 0],
+            'one blank' => [[''], false, 'EXPLICIT_CANCELLED_PARTIAL_ROWS_NO_AGARI', 0],
+            'multiple blank' => [['', null, " \t　 "], false, 'EXPLICIT_CANCELLED_PARTIAL_ROWS_NO_AGARI', 0],
+            'agari present' => [['', '11.4'], false, 'CANCELLED_WITH_AGARI_DATA_REQUIRES_REVIEW', 1],
+            'malformed agari' => [[false], false, 'CANCELLED_WITH_AGARI_DATA_REQUIRES_REVIEW', 1],
+            'db rows' => [[''], true, 'CANCELLED_WITH_DB_RESULTS_CONFLICT', 1],
+            'db rows and agari' => [['11.4'], true, 'CANCELLED_WITH_DB_RESULTS_CONFLICT', 2],
+        ];
+    }
+
+    #[DataProvider('cancellations')]
+    public function test_cancelled_audit_path_never_creates_history(array $values, bool $dbRows, string $status, int $blockers): void
+    {
+        $rows = array_slice($this->fixture()['rows'], 0, count($values));
+        foreach ($values as $i => $value) {
+            $rows[$i]['agari'] = $value;
+        }
+        $f = $this->fixture(rows: $rows);
+        if (! $dbRows) {
+            $f['results'] = [];
+        }
+        $f['parsed_page_status'] = 'CANCELLED';
+        $result = $this->service($f)->execute($this->root.'/audit', 'cancelled-review', $this->root.'/source');
+        $path = $result['path'];
+        $this->assertSame(0, $result['counts']['extraction']);
+        $this->assertSame(0, $result['readiness']['historical_as_of_target_count']);
+        $this->assertSame($blockers === 0 ? 'BLOCKED_INSUFFICIENT_RAW_HISTORY' : 'BLOCKED_IDENTITY_MAPPING', $result['readiness']['status']);
+        $identity = Files::json($path.'/identity-mapping-audit.json');
+        $this->assertSame($blockers, $identity['identity_blocker_total']);
+        $this->assertSame($blockers === 0, $identity['identity_safe']);
+        $this->assertSame(0, $identity['normal_entry_result_mismatch']);
+        $raw = iterator_to_array(JsonlArtifact::read($path.'/raw-source-inventory.jsonl'))[0];
+        $this->assertSame($status, $raw['extraction_status']);
+        $this->assertSame(count($values), $raw['cancelled_audit']['partial_rows']);
+        if ($status === 'EXPLICIT_CANCELLED_PARTIAL_ROWS_NO_AGARI') {
+            $coverage = Files::json($path.'/coverage-total.json');
+            $this->assertSame(1, $coverage['cancelled_partial_imports']);
+            $this->assertSame(count($values), $coverage['cancelled_partial_rows']);
+            $this->assertSame(0, $coverage['cancelled_partial_nonempty_agari_rows']);
+            $this->assertArrayNotHasKey('parsed_imports', $coverage);
+        }
+        if ($blockers > 0) {
+            $this->assertContains('INSUFFICIENT_RAW_HISTORY', $result['readiness']['secondary_blockers']);
+        }
+    }
+
+    public function test_cancelled_blank_entry_mapping_anomalies_are_separate_diagnostics(): void
+    {
+        $row = $this->fixture()['rows'][0];
+        $row['agari'] = '';
+        $row['syaban'] = '9';
+        $row['sensyuRegistNo'] = 'invalid';
+        $f = $this->fixture(rows: [$row]);
+        $parsed = (new Extractor)->parse($f['html'], $f['race'], $f['entries'], [], 'CANCELLED');
+        $this->assertSame('EXPLICIT_CANCELLED_PARTIAL_ROWS_NO_AGARI', $parsed['cancelled']['status']);
+        $this->assertSame(1, $parsed['cancelled']['entry_mapping_errors']);
+        $this->assertSame(1, $parsed['cancelled']['registration_identity_errors']);
+        $this->assertSame([], $parsed['rows']);
+    }
+
+    public static function invalidCancelledRows(): array
+    {
+        return [['duplicate'], ['zero'], ['ten'], ['schema'], ['nonobject']];
+    }
+
+    #[DataProvider('invalidCancelledRows')]
+    public function test_cancelled_rows_still_validate_schema_bike_range_and_uniqueness(string $kind): void
+    {
+        $rows = array_slice($this->fixture()['rows'], 0, 2);
+        foreach ($rows as &$row) {
+            $row['agari'] = '';
+        }
+        unset($row);
+        match ($kind) {
+            'duplicate' => $rows[1]['syaban'] = '1',
+            'zero' => $rows[0]['syaban'] = '0',
+            'ten' => $rows[0]['syaban'] = '10',
+            'schema' => $rows[0]['extra'] = 'x',
+            'nonobject' => $rows[0] = 'x',
+        };
+        $f = $this->fixture(rows: $rows);
         $this->expectException(RuntimeException::class);
-        $s->reproduce($this->root.'/audit', 'drift-01');
+        (new Extractor)->parse($f['html'], $f['race'], $f['entries'], [], 'CANCELLED');
+    }
+
+    public function test_normal_page_missing_results_remains_an_identity_blocker(): void
+    {
+        $f = $this->fixture();
+        $f['results'] = [];
+        $result = $this->service($f)->execute($this->root.'/audit', 'normal-mismatch', $this->root.'/source');
+        $audit = Files::json($result['path'].'/identity-mapping-audit.json');
+        $this->assertSame(1, $audit['normal_entry_result_mismatch']);
+        $this->assertFalse($audit['identity_safe']);
+        $this->assertSame('BLOCKED_IDENTITY_MAPPING', $result['readiness']['status']);
+    }
+
+    public function test_unresolved_target_alone_blocks_even_with_other_targets_usable_history(): void
+    {
+        $f = $this->fixture(rows: []);
+        $f['results'] = [];
+        $f['parsed_page_status'] = 'CANCELLED';
+        $f['entries'][0]['player_id'] = null;
+        $result = $this->service($f, withPrior: true)->execute($this->root.'/audit', 'unresolved-target-only', $this->root.'/source');
+        $identity = Files::json($result['path'].'/identity-mapping-audit.json');
+        $this->assertSame(0, $identity['unresolved_extracted_player_rows']);
+        $this->assertSame(1, $identity['unresolved_target_entries']);
+        $this->assertSame(1, $identity['identity_blocker_total']);
+        $this->assertFalse($identity['identity_safe']);
+        $this->assertSame(4, $result['readiness']['historical_as_of_target_count']);
+        $this->assertSame('BLOCKED_IDENTITY_MAPPING', $result['readiness']['status']);
+    }
+
+    public static function playerResolution(): array
+    {
+        return [['unresolved_without_prior', true, false, 0], ['unresolved_with_other_prior', true, true, 4], ['resolved_with_prior', false, true, 5]];
+    }
+
+    #[DataProvider('playerResolution')]
+    public function test_extracted_and_target_unresolved_identities_are_explicit_blockers(string $id, bool $unresolved, bool $prior, int $history): void
+    {
+        $f = $this->fixture();
+        if ($unresolved) {
+            $f['entries'][0]['player_id'] = null;
+            $f['results'][0]['player_id'] = null;
+        }
+        $result = $this->service($f, withPrior: $prior)->execute($this->root.'/audit', str_replace('_', '-', $id), $this->root.'/source');
+        $audit = Files::json($result['path'].'/identity-mapping-audit.json');
+        $this->assertSame((int) $unresolved, $audit['unresolved_extracted_player_rows']);
+        $this->assertSame((int) $unresolved, $audit['unresolved_target_entries']);
+        $this->assertSame($unresolved ? 2 : 0, $audit['identity_blocker_total']);
+        $this->assertSame(! $unresolved, $audit['identity_safe']);
+        $this->assertSame($history, $result['readiness']['historical_as_of_target_count']);
+        $this->assertSame($unresolved ? 'BLOCKED_IDENTITY_MAPPING' : 'STRUCTURALLY_READY_FOR_STAT35_STORAGE_BACKFILL_REVIEW', $result['readiness']['status']);
+        $details = iterator_to_array(JsonlArtifact::read($result['path'].'/target-history-detail.jsonl'));
+        $this->assertSame($unresolved ? 'UNRESOLVED_PLAYER' : 'RESOLVED_PLAYER', $details[0]['identity']);
+        $this->assertSame($unresolved ? 0 : 1, $details[0]['pre_meeting_count']);
     }
 
     public function test_type7_histogram_and_revision_are_deterministic(): void

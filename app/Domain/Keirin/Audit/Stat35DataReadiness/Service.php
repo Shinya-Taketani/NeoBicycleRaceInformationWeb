@@ -16,6 +16,7 @@ use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
 use App\Domain\Keirin\Scraping\Support\CharacterEncodingConverter;
 use App\Domain\Keirin\Scraping\Support\HtmlTextNormalizer;
 use RuntimeException;
+use Throwable;
 
 final class Service
 {
@@ -80,21 +81,27 @@ final class Service
         $manifest = $this->verify($path);
         $code = $this->code();
         Files::same(Files::json($path.'/code.json'), $code, 'reproduce code');
-        $this->verifyRaw($path.'/raw-source-inventory.jsonl');
-        $stage = Files::directory($root.'/.reproduce-'.$id);
-        $result = $this->analysis($stage, $path.'/database-inventory.jsonl', $path.'/targets.jsonl');
-        foreach ($result['expected'] as $name => $seal) {
-            Files::same($manifest['files'][$name] ?? [], $seal, 'byte-exact '.$name);
-        }
-        $this->writer->verifyGenerated($stage, $result['expected']);
-        $this->verifyRaw($path.'/raw-source-inventory.jsonl');
-        $this->verify($path);
-        Files::same($code, $this->code(), 'reproduce END code');
-        $report = ['status' => 'BYTE_EXACT', 'db' => 'NONE', 'files_compared' => count($result['expected']),
-            '2026_access_count' => 0, 'peak_memory_bytes' => memory_get_peak_usage(true)];
-        $this->writer->writeJson($stage, 'reproduce.json', $report);
+        // Like the Growth audits, retain each independent attempt and its evidence.
+        $stage = Files::directory($root.'/.reproduce-'.$id.'-'.bin2hex(random_bytes(8)));
+        try {
+            $this->verifyRaw($path.'/raw-source-inventory.jsonl');
+            $result = $this->analysis($stage, $path.'/database-inventory.jsonl', $path.'/targets.jsonl');
+            foreach ($result['expected'] as $name => $seal) {
+                Files::same($manifest['files'][$name] ?? [], $seal, 'byte-exact '.$name);
+            }
+            $this->writer->verifyGenerated($stage, $result['expected']);
+            $this->verifyRaw($path.'/raw-source-inventory.jsonl');
+            $this->verify($path);
+            Files::same($code, $this->code(), 'reproduce END code');
+            $report = ['status' => 'BYTE_EXACT', 'db' => 'NONE', 'files_compared' => count($result['expected']),
+                '2026_access_count' => 0, 'peak_memory_bytes' => memory_get_peak_usage(true)];
+            $this->writer->writeJson($stage, 'reproduce.json', $report);
 
-        return $report;
+            return $report + ['attempt_path' => $stage];
+        } catch (Throwable $error) {
+            $this->writer->writeJson($stage, 'failure.json', ['status' => 'FAILED_NOT_PUBLISHED', 'error' => $error->getMessage()]);
+            throw $error;
+        }
     }
 
     private function analysis(string $stage, string $source, string $targets): array

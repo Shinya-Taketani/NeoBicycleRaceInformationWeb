@@ -241,3 +241,86 @@ ZIPは同rootの`STAT-35-DATA-READINESS-AUDIT-01-report.zip`。
 Review only. A future storage proposal may consider `agari_time_seconds`, `agari_raw_text`, `agari_status`,
 `agari_source_import_id`; timing distance would be separate. No schema or backfill is authorized here.
 Growth k=34/w=+0.34 remains NOT_TRANSFERRED and not adopted. 2026 remains frozen.
+
+## PR #64 Review Fix
+
+開始HEAD `267a17c74b4254de4d04337ab7dc38238598de0d`、同じaudit branch、開始時clean。
+上記旧run・bundle・ZIP・診断を履歴として保持する。以下はv3の独立した再監査である。
+
+- A: CANCELLEDかつDB結果0の部分行を通常結果のidentity失敗と混同していた。
+  同じheader・レース識別・PJ0326 object schema・車番範囲/重複を検証した中止専用経路に分ける。
+  空配列はEXPLICIT_CANCELLED_NO_RESULT_ROWS、全agari空欄はEXPLICIT_CANCELLED_PARTIAL_ROWS_NO_AGARI。
+  いずれも抽出結果・履歴は0行。非空agariとDB結果ありは独立blockerとして可視化する。
+  空欄中止行のentry/登録番号異常はper-import診断に分離し、通常のidentity成立とは呼ばない。
+- B: substringによる最終判定を廃止し、identity-mapping-audit.jsonに明示的な種別別件数を保存。
+  unresolved extracted playerとunresolved targetを別々に加算し、一件でもあればidentity_safe=false。
+  targetのNULL playerでは履歴SQLを実行せずUNRESOLVED_PLAYERを保持する。
+  primary/secondary blockerを併記し、抽出できることと過去as-of利用可能性を分ける。
+- C: reproduceはランダムsuffix付きの一意attemptを使用。Growth監査と同様、成功・失敗の証拠を保持する。
+  suffixは決定的生成物に含めず、応答のattempt_pathだけに記録する。元bundleへ再公開しない。
+
+契約: `STAT35-DATA-READINESS-v3-PR64-REVIEW-FIX`。
+新ID: `stat35-agari-readiness-2022-2025-pr64-review-fix-01`。保存rootは旧runと同一。
+Production全import READ ONLY executeと、DB無効の連続2回reproduceを128MBで実施した。
+正常ページのagari・player照合・revision・時刻境界は変更しない。
+readinessはidentity、semantic、as-of履歴不足、Raw gap policyの順に判定する。
+import未登録レースは物理欠損Rawと同一視せず、別のraces_without_importとして記録しRaw gap policy対象とする。
+正式STAT-35・schema・backfill・予測評価・2026レース参照は未許可のまま。
+
+### PR64 Production Old / New
+
+全127,121 importを本番READ ONLYと原Rawから再計算した。旧成果物のコピーによる結果作成ではない。
+旧新database inventory・targets・agari全行・target履歴明細・revision・分布等19ファイルはbytes/SHAが一致。
+全127,121 Raw参照の取得metadataも旧新完全一致。coverageは中止分類の変更だけで、通常値は全層不変。
+
+| 項目 | 旧run | PR64修正版 |
+| --- | ---: | ---: |
+| 対象レース / import | 101,326 / 127,121 | 101,326 / 127,121 |
+| Raw存在 / hash一致 | 127,121 / 127,121 | 127,121 / 127,121 |
+| 通常解析import / 抽出行 | 127,008 / 899,996 | 127,008 / 899,996 |
+| ENTRY_RESULT_BIKE_MISMATCH | 48 | 0 |
+| 空配列中止import | 65 | 65 |
+| 空欄部分行中止import / rows | 独立分類なし | 48 / 53 |
+| 中止非空agari / DB結果矛盾 | 独立分類なし | 0 / 0 |
+| unresolved extracted player / target | 独立blockerなし | 0 / 0 |
+| identity blocker total | 48（旧heuristic） | 0（明示的監査） |
+| identity_safe | false | true |
+| 正常有効agari / 正常行 | 879,661 / 887,400 | 879,661 / 887,400 |
+| revision比較 / changed | 183,159 / 0 | 183,159 / 0 |
+| first/latestレース / 出走 / changed | 101,200 / 700,885 / 0 | 101,200 / 700,885 / 0 |
+
+再分類した48 importは40レースで、全てCANCELLED・DB結果0・agari空欄。
+53行の非空agari、entry対応異常、登録番号異常は実集計で全て0。
+空欄中止を通常のparsed_importsへ加算せず、履歴にも入れていない。
+Headerは全127,121参照で同一signature `48be9980e816f89440fae32ba7ccc09822869f422eca0f405fa688d90cda88ec`。
+
+readinessは旧BLOCKED_IDENTITY_MAPPINGから **BLOCKED_INSUFFICIENT_RAW_HISTORY** へ変更。
+primary=INSUFFICIENT_RAW_HISTORY、secondary=RAW_GAP_POLICY（import未登録29レース）。
+2024の179,089 target / 2025の177,120 targetについてPRE/IN履歴は両年とも0のまま。
+storage_backfill_feasible=trueは既存確認済みRawの抽出可能性だけを示す。
+historical_as_of_backtest_feasible=falseであり、正式STAT実装やbackfillの許可ではない。
+PUBLICATION_TIME_UNKNOWNを維持し、当時サイト上に値がなかったとは結論しない。
+
+本番START/ENDは旧runと同じSHA、8,112業務SELECT、session/transaction READ ONLY=on、write=0。
+executeはexit 0、813.448秒、PHP peak 36MiB、memory_limit=128M。
+focused 76 tests /225 assertions、Parser関連83 tests /737 assertions、自動レース同期31 tests /570 assertions。
+全体1,787成功 /9 skip /13,773 assertions、変更PHP6ファイルのphp-l/Pint成功。
+9 skipは通常SQLite環境でのPostgreSQL専用テスト。production Parser・Migration変更は0。
+
+### PR64 Reproduction / Evidence
+
+同一IDの実データreproduceをDB_CONNECTION=stat35_disabled、memory_limit=128Mで連続実行した。
+1回目はexit 0、1,124.190秒、2回目はexit 0、887.862秒。PHP peakは両方32MiB。
+各27生成物がBYTE_EXACT。別の照合処理でも全サイズ・SHA-256・JSONL行数が一致した。
+attempt suffixはそれぞれc9866ad57dc194da / 7619de7c55287600で、衝突0。両方の試行証拠を保持する。
+人工テストでは同サイズRaw改変で失敗後、復旧した新attemptが成功し、失敗証拠hashも不変であることを確認。
+元の正式bundleを再公開・上書きせず、旧bundleと旧ZIP計40ファイルのSTART/END不変を確認した。
+旧ZIP SHA-256はcc73cb79342fd65d5470ceb263cdf6f1c063c0caf8b28f78f303bf8e5d4cf1cdのまま。
+
+同じ保存rootのpr64-review-fix/へ、指示【57】の46項目順REPORT、旧新比較、全実行ログ、
+中止診断、生成物参照、独立照合、変更コード・テスト・文書・Git差分をまとめる。
+実行コマンドはpr64-review-fix-run.phpと各*.execution.json、追加照合はpr64-review-fix-evidence.phpに記録。
+新共有ZIPはSTAT-35-DATA-READINESS-AUDIT-01-PR64-review-fix-report.zipで、旧ZIPとは別ファイル。
+存在・bytes・SHA-256・unzip/CRC・全member SHAの確定値はpr64-review-fix-zip-verification.jsonを参照。
+Raw本文の大量複製は行わず、参照・hashと中止診断を同梱する。
+PR #64の同じbranchで未コミットのレビュー待ちとし、次実装はNOT_AUTHORIZED。

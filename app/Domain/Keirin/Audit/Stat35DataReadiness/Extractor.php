@@ -11,7 +11,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class Extractor
 {
-    public function parse(string $html, array $race, array $entries, array $results): array
+    public function parse(string $html, array $race, array $entries, array $results, ?string $pageStatus = null): array
     {
         Contract::date($race['race_date']);
         $crawler = new Crawler;
@@ -49,7 +49,7 @@ final class Extractor
         }
         $page = $embedded->extract($scriptHtml, 'PJ0326');
         $rows = $page['tyakujyunItemSubData'] ?? [];
-        if (! is_array($rows) || ! array_is_list($rows) || $rows === []) {
+        if (! is_array($rows) || ! array_is_list($rows)) {
             throw new RuntimeException('RESULT_ROWS_UNAVAILABLE');
         }
         // These pages render the header in HTML and named result objects through PJ0326.
@@ -63,23 +63,17 @@ final class Extractor
             throw new RuntimeException('UNSUPPORTED_RENDERED_ROW_SCHEMA');
         }
         $entryMap = $this->map($entries);
+        if ($pageStatus === 'CANCELLED') {
+            return ['headers' => $headers, 'header_signature' => $signature, 'rows' => [],
+                'cancelled' => $this->cancelled($rows, $entryMap, $results)];
+        }
+        if ($rows === []) {
+            throw new RuntimeException('RESULT_ROWS_UNAVAILABLE');
+        }
         $resultMap = $this->map($results);
         $parsed = [];
-        $keys = Contract::ROW_KEYS;
-        sort($keys);
         foreach ($rows as $row) {
-            if (! is_array($row)) {
-                throw new RuntimeException('INVALID_RESULT_ROW');
-            }
-            $actualKeys = array_keys($row);
-            sort($actualKeys);
-            if ($actualKeys !== $keys) {
-                throw new RuntimeException('INCOMPATIBLE_RESULT_OBJECT_DEFINITION');
-            }
-            $bike = $row['syaban'];
-            if (! is_string($bike) || ! preg_match('/\A[1-9]\z/D', $bike) || isset($parsed[$bike])) {
-                throw new RuntimeException('INVALID_OR_DUPLICATE_BIKE');
-            }
+            $bike = $this->bike($row, $parsed);
             $entry = $entryMap[$bike] ?? null;
             $result = $resultMap[$bike] ?? null;
             if ($entry === null || $result === null) {
@@ -106,6 +100,49 @@ final class Extractor
         }
 
         return ['headers' => $headers, 'header_signature' => $signature, 'rows' => array_values($parsed)];
+    }
+
+    private function cancelled(array $rows, array $entryMap, array $results): array
+    {
+        $seen = [];
+        $nonempty = $entryErrors = $registrationErrors = 0;
+        foreach ($rows as $row) {
+            $bike = $this->bike($row, $seen);
+            $seen[$bike] = true;
+            // Never coerce malformed/non-string values into a blank cancellation row.
+            $text = is_string($row['agari']) ? HtmlTextNormalizer::normalize($row['agari']) : $row['agari'];
+            $nonempty += (int) ($text !== null && (! is_string($text) || preg_match('/\A\s*\z/uD', $text) !== 1));
+            $entry = $entryMap[$bike] ?? null;
+            $entryErrors += (int) ($entry === null);
+            $registrationErrors += (int) (! is_string($row['sensyuRegistNo']) || ! preg_match('/\A[0-9]+\z/D', $row['sensyuRegistNo'])
+                || ($entry !== null && $row['sensyuRegistNo'] !== $entry['external_player_id']));
+        }
+
+        return ['status' => $results !== [] ? 'CANCELLED_WITH_DB_RESULTS_CONFLICT'
+            : ($nonempty > 0 ? 'CANCELLED_WITH_AGARI_DATA_REQUIRES_REVIEW'
+                : ($rows === [] ? 'EXPLICIT_CANCELLED_NO_RESULT_ROWS' : 'EXPLICIT_CANCELLED_PARTIAL_ROWS_NO_AGARI')),
+            'partial_rows' => count($rows), 'nonempty_agari_rows' => $nonempty, 'db_result_rows' => count($results),
+            'entry_mapping_errors' => $entryErrors, 'registration_identity_errors' => $registrationErrors];
+    }
+
+    private function bike(mixed $row, array $seen): string
+    {
+        if (! is_array($row)) {
+            throw new RuntimeException('INVALID_RESULT_ROW');
+        }
+        $keys = Contract::ROW_KEYS;
+        $actualKeys = array_keys($row);
+        sort($keys);
+        sort($actualKeys);
+        if ($actualKeys !== $keys) {
+            throw new RuntimeException('INCOMPATIBLE_RESULT_OBJECT_DEFINITION');
+        }
+        $bike = $row['syaban'];
+        if (! is_string($bike) || ! preg_match('/\A[1-9]\z/D', $bike) || isset($seen[$bike])) {
+            throw new RuntimeException('INVALID_OR_DUPLICATE_BIKE');
+        }
+
+        return $bike;
     }
 
     public function value(mixed $raw): array

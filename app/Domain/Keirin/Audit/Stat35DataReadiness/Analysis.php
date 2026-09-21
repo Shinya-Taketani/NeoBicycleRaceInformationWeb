@@ -16,6 +16,8 @@ final class Analysis
 {
     private PDO $spool;
 
+    private IdentityAudit $identity;
+
     private array $coverage = [];
 
     private array $histograms = [];
@@ -35,12 +37,14 @@ final class Analysis
 
     public function run(string $directory, string $sourcePath, string $targetPath): array
     {
+        $this->identity = new IdentityAudit;
         $this->spool = new PDO('sqlite:'.$directory.'/workspace.sqlite');
         $this->spool->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->spool->exec('PRAGMA cache_size=-4096');
         $this->spool->exec('CREATE TABLE races (id INTEGER PRIMARY KEY, data TEXT NOT NULL)');
         $this->spool->exec('CREATE TABLE entries (id INTEGER PRIMARY KEY, race_id INTEGER, bike INTEGER, player_id INTEGER)');
         $this->spool->exec('CREATE TABLE imports (id INTEGER PRIMARY KEY, race_id INTEGER, data TEXT NOT NULL)');
+        $this->spool->exec('CREATE INDEX imports_race ON imports(race_id)');
         $this->spool->exec('CREATE TABLE extraction (race_id INTEGER, import_id INTEGER, bike INTEGER, player_id INTEGER, fetched INTEGER, data TEXT, PRIMARY KEY(import_id,bike))');
         $this->spool->exec('CREATE INDEX history_player_time ON extraction(player_id,fetched)');
         $this->spool->exec('CREATE TABLE targets (entry_id INTEGER PRIMARY KEY, race_id INTEGER, bike INTEGER, year INTEGER)');
@@ -83,18 +87,22 @@ final class Analysis
         }
         ksort($distribution);
         $all = $this->coverage['total']['ALL'] ?? [];
-        $mapping = 0;
-        foreach ($all as $key => $value) {
-            if (str_contains($key, 'MISMATCH') || str_contains($key, 'DUPLICATE') || str_contains($key, 'IDENTITY')) {
-                $mapping += $value;
-            }
-        }
+        $identity = $this->identity->artifact();
+        $mapping = $identity['identity_blocker_total'];
         $errors = array_filter($all, fn ($key) => str_starts_with($key, 'error:'), ARRAY_FILTER_USE_KEY);
         $asOf = $this->historySummary($directory.'/target-history-detail.jsonl');
-        $ready = self::readiness($mapping, $errors, $asOf['total_with_prior']);
+        $missingImports = (int) $this->spool->query('SELECT count(*) FROM races r WHERE NOT EXISTS (SELECT 1 FROM imports i WHERE i.race_id=r.id)')->fetchColumn();
+        $decisionErrors = $errors;
+        if ($missingImports > 0) {
+            $decisionErrors['error:RAW_MISSING'] = ($decisionErrors['error:RAW_MISSING'] ?? 0) + $missingImports;
+        }
+        $blockers = self::blockers($mapping, $decisionErrors, $asOf['total_with_prior']);
+        $ready = self::readiness($mapping, $decisionErrors, $asOf['total_with_prior']);
+        $storageFeasible = ($all['parsed_imports'] ?? 0) > 0 && $identity['identity_safe'] && IdentityAudit::semanticErrors($errors) === 0;
         $importSummary = ['counts' => $counts, 'versions_per_race' => $this->spool->query('SELECT n AS versions,count(*) AS races FROM (SELECT count(*) n FROM imports GROUP BY race_id) GROUP BY n ORDER BY n')->fetchAll(PDO::FETCH_ASSOC),
             'fetched_vs_own_start' => $this->timing, 'all_versions_preserved' => true, 'canonical_version_selected' => false];
         $outputs = [
+            'identity-mapping-audit.json' => $identity,
             'result-import-inventory.json' => $importSummary,
             'header-signatures.json' => $this->signatures,
             'coverage-by-year.json' => $this->coverage['year'] ?? [],
@@ -123,10 +131,17 @@ final class Analysis
                 'raw_missing_import_rate' => $counts['imports'] > 0 ? ($all['raw_missing'] ?? 0) / $counts['imports'] : null,
                 'refetch_required_rate' => ($all['raw_missing'] ?? 0) === 0 ? 0 : null,
                 'refetch_reason' => ($all['raw_missing'] ?? 0) === 0 ? 'NO_PHYSICALLY_MISSING_RAW' : 'RAW_GAPS_IDENTIFIED_BUT_REFETCH_SUCCESS_NOT_ESTABLISHED',
-                'errors' => $errors, 'identity_safe' => $mapping === 0, 'as_of_targets_with_prior' => $asOf['total_with_prior'],
+                'errors' => $errors, 'identity_safe' => $identity['identity_safe'], 'as_of_targets_with_prior' => $asOf['total_with_prior'],
+                'storage_backfill_feasible' => $storageFeasible,
+                'storage_scope' => 'VERIFIED_EXISTING_RAW_ONLY_NOT_ALL_RACES_OR_AUTHORIZATION',
+                'races_without_import' => $missingImports,
+                'historical_as_of_backtest_feasible' => $storageFeasible && $asOf['total_with_prior'] > 0,
                 'backfill_not_executed' => true],
             'readiness-decision.json' => ['status' => $ready, 'storage_extractability' => ($all['parsed_imports'] ?? 0) > 0,
+                'identity_safe' => $identity['identity_safe'], 'identity_blocker_total' => $mapping,
                 'historical_as_of_coverage_present' => $asOf['total_with_prior'] > 0,
+                'historical_as_of_target_count' => $asOf['total_with_prior'],
+                'primary_blocker' => $blockers[0] ?? null, 'secondary_blockers' => array_slice($blockers, 1),
                 'predictive_improvement' => 'NOT_EVALUATED', 'next_implementation' => 'NOT_AUTHORIZED'],
         ];
         foreach ($outputs as $name => $data) {
@@ -185,14 +200,29 @@ final class Analysis
                 $record['raw_bytes'] = $import['raw_response_size'];
                 $this->increment($groups, 'raw_hash_verified');
                 try {
-                    $parsed = $this->extractor->parse($html, $race, $source['entries'], $source['results']);
+                    $parsed = $this->extractor->parse($html, $race, $source['entries'], $source['results'], $import['parsed_page_status']);
                 } catch (RuntimeException $error) {
-                    if ($error->getMessage() === 'RESULT_ROWS_UNAVAILABLE' && $import['parsed_page_status'] === 'CANCELLED' && $source['results'] === []) {
-                        $record['extraction_status'] = 'EXPLICIT_CANCELLED_NO_RESULT_ROWS';
+                    $record['extraction_status'] = $error->getMessage();
+                    $this->increment($groups, 'error:'.$error->getMessage());
+                    $this->identity->error($error->getMessage());
+                    $insertImport->execute([$import['import_id'], $race['race_id'], Files::canonical($record)]);
+
+                    continue;
+                }
+                if (isset($parsed['cancelled'])) {
+                    $audit = $parsed['cancelled'];
+                    $record['extraction_status'] = $audit['status'];
+                    $record['header_signature'] = $parsed['header_signature'];
+                    $record['cancelled_audit'] = $audit;
+                    $this->identity->cancelled($audit);
+                    if ($audit['status'] === 'EXPLICIT_CANCELLED_NO_RESULT_ROWS') {
                         $this->increment($groups, 'cancelled_imports_without_rows');
+                    } elseif ($audit['status'] === 'EXPLICIT_CANCELLED_PARTIAL_ROWS_NO_AGARI') {
+                        $this->increment($groups, 'cancelled_partial_imports');
+                        $this->increment($groups, 'cancelled_partial_rows', $audit['partial_rows']);
+                        $this->increment($groups, 'cancelled_partial_nonempty_agari_rows', $audit['nonempty_agari_rows']);
                     } else {
-                        $record['extraction_status'] = $error->getMessage();
-                        $this->increment($groups, 'error:'.$error->getMessage());
+                        $this->increment($groups, 'error:'.$audit['status']);
                     }
                     $insertImport->execute([$import['import_id'], $race['race_id'], Files::canonical($record)]);
 
@@ -225,6 +255,7 @@ final class Analysis
                     }
                     if ($value['player_id'] === null) {
                         $this->increment($groups, 'unresolved_player_rows');
+                        $this->identity->unresolvedExtracted();
                     }
                     $row = ['race_id' => $race['race_id'], 'import_id' => $import['import_id'], 'race_date' => $race['race_date'],
                         'scheduled_start_at' => $race['scheduled_start_at'], 'meeting_id' => $race['meeting_id'], 'fetched_at' => $import['fetched_at']] + $value;
@@ -295,19 +326,32 @@ final class Analysis
 
     public static function readiness(int $identityErrors, array $parseErrors, int $targetsWithPrior): string
     {
+        return match (self::blockers($identityErrors, $parseErrors, $targetsWithPrior)[0] ?? null) {
+            'IDENTITY_MAPPING' => 'BLOCKED_IDENTITY_MAPPING',
+            'AMBIGUOUS_AGARI_SEMANTICS' => 'BLOCKED_AMBIGUOUS_AGARI_SEMANTICS',
+            'INSUFFICIENT_RAW_HISTORY' => 'BLOCKED_INSUFFICIENT_RAW_HISTORY',
+            'RAW_GAP_POLICY' => 'PARTIAL_READY_REQUIRES_RAW_GAP_POLICY',
+            default => 'STRUCTURALLY_READY_FOR_STAT35_STORAGE_BACKFILL_REVIEW',
+        };
+    }
+
+    private static function blockers(int $identityErrors, array $parseErrors, int $targetsWithPrior): array
+    {
+        $blockers = [];
         if ($identityErrors > 0) {
-            return 'BLOCKED_IDENTITY_MAPPING';
+            $blockers[] = 'IDENTITY_MAPPING';
         }
-        foreach ($parseErrors as $key => $_) {
-            if (str_contains($key, 'HEADER') || str_contains($key, 'TABLE_DEFINITION') || str_contains($key, 'AGARI_COLUMN')) {
-                return 'BLOCKED_AMBIGUOUS_AGARI_SEMANTICS';
-            }
+        if (IdentityAudit::semanticErrors($parseErrors) > 0) {
+            $blockers[] = 'AMBIGUOUS_AGARI_SEMANTICS';
         }
         if ($targetsWithPrior === 0) {
-            return 'BLOCKED_INSUFFICIENT_RAW_HISTORY';
+            $blockers[] = 'INSUFFICIENT_RAW_HISTORY';
+        }
+        if (($parseErrors['error:RAW_MISSING'] ?? 0) > 0) {
+            $blockers[] = 'RAW_GAP_POLICY';
         }
 
-        return $parseErrors !== [] ? 'PARTIAL_READY_REQUIRES_RAW_GAP_POLICY' : 'STRUCTURALLY_READY_FOR_STAT35_STORAGE_BACKFILL_REVIEW';
+        return $blockers;
     }
 
     private function targetDetails(): Generator
@@ -324,13 +368,17 @@ final class Analysis
                 throw new RuntimeException('Target year mismatch.');
             }
             $start = $policy->time($target['scheduled_start_at']);
-            $history->execute([$t['player_id'], $start]);
+            if ($t['player_id'] === null) {
+                $this->identity->unresolvedTarget();
+            } else {
+                $history->execute([$t['player_id'], $start]);
+            }
             $rows = (function () use ($history): Generator {
                 while ($json = $history->fetchColumn()) {
                     yield json_decode($json, true, flags: JSON_THROW_ON_ERROR);
                 }
             })();
-            $chosen = $policy->latest($rows, $target);
+            $chosen = $t['player_id'] === null ? [] : $policy->latest($rows, $target);
             $pre = $in = 0;
             $last = null;
             $normalAsOf = 0;

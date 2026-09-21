@@ -8,7 +8,7 @@ use RuntimeException;
 
 final class Contract
 {
-    public const VERSION = 'STAT35-DATA-READINESS-v2-QUALITY-ONLY';
+    public const VERSION = 'STAT35-DATA-READINESS-v3-PR64-REVIEW-FIX';
 
     public const FROM = '2022-01-01';
 
@@ -36,6 +36,9 @@ final class Contract
             'publication_time' => 'UNKNOWN', 'left_truncation' => 'LEFT_TRUNCATED_POSSIBLE',
             'header_policy' => 'EXACT_OBSERVED_SET_ORDER_INDEPENDENT_NO_ALIASES',
             'raw_hash_semantics' => 'SOURCE_HASH_ORIGINAL_BYTES_CONVERTED_HASH_UTF8',
+            'cancelled_policy' => 'VALIDATED_BLANK_ROWS_WITHOUT_DB_RESULTS_AUDIT_ONLY_NEVER_HISTORY',
+            'identity_policy' => 'EXPLICIT_MAPPING_AND_UNRESOLVED_EXTRACTION_AND_TARGET_BLOCKERS',
+            'reproduce_policy' => 'UNIQUE_ATTEMPT_RETAIN_SUCCESS_AND_FAILURE_EVIDENCE',
             'numeric_policy' => 'UNROUNDED_DECIMAL_STRING_NO_EMPIRICAL_EXCLUSION_THRESHOLD'];
     }
 
