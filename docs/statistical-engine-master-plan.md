@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.24
+- Version: 1.26
 - Created: 2026-08-23
-- Updated: 2026-09-20
+- Updated: 2026-09-21
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `17cc492e077034a4ebab46594cb2a6e1d3c3642f`
+- Remote `main` at last update: `121517ebf6edb311e20be2b730b378cb7b201c27`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: GROWTH-TREND-ADJUSTMENT-CALIBRATION-01_PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
+current_engine_state: STAT35_DATA_BLOCKED_INSUFFICIENT_HISTORY_PR64_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_PR63_OUTCOME_SEAL_FIX_AND_WAIT_FOR_USER_INSTRUCTION
+next_allowed_action: REVIEW_PR64_REVIEW_FIX_AND_WAIT_FOR_USER_INSTRUCTION
 next_implementation_phase: NOT_AUTHORIZED
 tactical_history_final_01_review: COMPLETED_PR56_MERGED
 tactical_prediction_pipeline_mode: DEVELOPMENT_REPLAY_ONLY
@@ -548,7 +548,8 @@ BT-03E-02以降で利用する場合は、
 | GROWTH-POINT-ANALYSIS-01-v2 | 符号・0を保持する独立point版の再集計 | PR60_MERGED | raw全件一致、v1/v2 DB不要再現、QUANTILE_BASEDのv1は不変 |
 | GROWTH-ADJUSTMENT-CALIBRATION-01 | 固定C1へのA SCORE_POINT_V2 utility補正 | PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED | 正式weight未採用、旧数値・時系列修正の記録を維持 |
 | GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | PR62_MERGED / DEVELOPMENT_SELECTED_GRANULARITY | MEETING_DELTA_LAG_1維持、修正版36生成物byte-exact再現、正式STAT未採用 |
-| GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 | 固定MEETING_DELTA_LAG_1のC1 utility補正 | PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 年別固定outcome sealへ修正、数値不変、P99=3.03、w=+0.34、2025 NOT_TRANSFERRED、41成果物完全再現、正式採用なし |
+| GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 | 固定MEETING_DELTA_LAG_1のC1 utility補正 | PR63_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER | GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED、P99=3.03、k=34/w=+0.34、2025 NOT_TRANSFERREDを維持 |
+| STAT-35-DATA-READINESS-AUDIT-01 | 保存済み上がりRawの抽出・識別・取得時点監査 | PR64_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | identity blocker 0、BLOCKED_INSUFFICIENT_RAW_HISTORY、DATA_QUALITY_ONLY |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2296,6 +2297,53 @@ focused 70 tests /788 assertions、関連401 tests /3607 assertions、全体1711
 
 ---
 
+## 15.36 STAT-35-DATA-READINESS-AUDIT-01
+
+2026-09-21の新規指示と結果参照範囲の明示承認により、PR #63 merge
+`121517ebf6edb311e20be2b730b378cb7b201c27` から専用audit branchで開始。
+PR #63はMERGED、GrowthはCOMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER / GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED。
+Section 15.35のレビュー待ちは過去の記録として保持し、k=34/w=+0.34と2025 NOT_TRANSFERREDは変更しない。
+
+2022-2025 result outcome fields are accessible only for STAT-35 data-quality classification.
+Target rank/winner are not consumed for predictive evaluation, feature selection or parameter selection.
+
+結果Rawの物理読取りとresult_statusの品質分類は許可。着順・勝者を分析変数として消費しない。
+対象自身の上がりを自身の履歴へ入れず、過去レースとその取得時刻が対象発走より前のものだけをas-of候補とする。
+PRE_MEETING/IN_MEETING、正常/異常状態、現在DB状態/過去import状態、システム取得/公式公開を区別する。
+2024/2025はDEVELOPMENT_CORPUS、2026レースのRaw・結果・メタデータ参照は全て禁止。
+DBとRawはREAD ONLY。監査専用実装だけを追加し、production Parser・Migration・STAT・モデル・Gateは変更しない。
+詳細契約と実行状態は `docs/stat35-data-readiness-audit-01.md`。
+全件監査とDB無効再現を完了。保存先は `/home/shinya/neo-keirin-artifacts/stat35-data-readiness-audit-01-20260921-01/`。
+101,326レース・127,121 importのRaw存在/hashは100%、127,008 importから899,996行を抽出。
+48中止import / 40レースはDB結果と車番照合不能、別65中止importは空結果。primary判定はBLOCKED_IDENTITY_MAPPING。
+全取得時刻が2026年のため、固定Outer 2024/2025の179,089 / 177,120出走行でPRE/IN履歴は全て0。
+BLOCKED_INSUFFICIENT_RAW_HISTORYの独立した制約も成立。2026レースを参照したという意味ではない。
+26生成物はBYTE_EXACT、独立照合も一致。128MB下のPHP peakはexecute 36MiB / reproduce 32MiB。
+focused 58 tests / 109 assertions、全体1,769成功 / 9 skip / 13,657 assertions。production write・Migration・予測評価は0。
+状態はSTAT35_DATA_BLOCKED_AWAITING_REVIEW。次の実装・構造化保存・backfillはNOT_AUTHORIZED。
+監査結果のレビューと次の明示指示を待ち、未コミットで停止する。
+
+### PR #64 Review Fix
+
+上記は旧v2 runの記録として保持する。PR #64 OPEN / REVIEW_FIXとして同じaudit branchで3点を修正した。
+契約はSTAT35-DATA-READINESS-v3-PR64-REVIEW-FIX、新IDはstat35-agari-readiness-2022-2025-pr64-review-fix-01。
+中止専用の空欄部分行診断、未解決抽出/targetの明示identity blocker、一意のreproduce attemptを実装。
+全127,121 importを原Rawと本番READ ONLYから再監査し、旧48件のidentityエラーは全て
+中止・DB結果0・上がり空欄（40レース・53行）と確認した。正常解析数へ加算せず、履歴にも含めない。
+新normal mismatch、unresolved extracted/target、中止非空値/DB結果矛盾は全て0、identity_safe=true。
+readinessはBLOCKED_INSUFFICIENT_RAW_HISTORY。primary=INSUFFICIENT_RAW_HISTORY、secondary=RAW_GAP_POLICY。
+後者はimport未登録29レースであり、確認済みRawの物理欠損0とは区別する。
+storage_backfill_feasible=trueは既存確認済みRawの抽出についてのみ。historical_as_of_backtest_feasible=false。
+2024/2025のPRE/IN履歴は全て0で、PUBLICATION_TIME_UNKNOWNを維持する。
+旧新19ファイルと全Raw取得metadataは完全一致。DB START/END一致、write=0、2026レース参照=0。
+同一IDのDB無効reproduceを2回連続実行し、各27生成物がBYTE_EXACT。独立したbytes/SHA/行数照合も一致。
+128MB制限でexecute peak 36MiB、reproduceは両方32MiB。旧bundleとZIPの40ファイルはSTART/END不変。
+focused 76 tests /225 assertions、全体1,787成功 /9 skip /13,773 assertions。変更PHPのphp-l/Pint成功。
+状態はSTAT35_DATA_BLOCKED_INSUFFICIENT_HISTORY_PR64_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。
+次はREVIEW_PR64_REVIEW_FIX_AND_WAIT_FOR_USER_INSTRUCTION。正式STAT・backfill・予測評価はNOT_AUTHORIZED。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2695,6 +2743,24 @@ reason:
 
 # 25. 変更履歴
 
+## v1.26 / 2026-09-21
+
+main `121517ebf6edb311e20be2b730b378cb7b201c27`、PR #63 MERGED / PR #64 OPEN / REVIEW_FIXを確認。
+開始HEAD `267a17c74b4254de4d04337ab7dc38238598de0d`、同じaudit branchを使用。
+中止部分空欄行、未解決選手blocker、再現attempt衝突の3点のみをv3監査契約で修正した。
+全件READ ONLY再監査・DBなし連続2回再現・独立照合を完了。旧runとZIPはSTART/END不変。
+identity blockerは0、readinessはBLOCKED_INSUFFICIENT_RAW_HISTORY。各27生成物がBYTE_EXACT。
+STAT35_DATA_BLOCKED_INSUFFICIENT_HISTORY_PR64_REVIEW_FIX_VERIFIED_AWAITING_REVIEWとしてレビューを待つ。
+Growthのk=34/w=+0.34・不採用、旧pilot保留、2026 FROZENを維持し次実装はNOT_AUTHORIZED。
+
+## v1.25 / 2026-09-21
+
+main `121517ebf6edb311e20be2b730b378cb7b201c27`、PR #63 MERGEDを確認。
+ユーザー明示許可のSTAT-35-DATA-READINESS-AUDIT-01を開始。旧Growth不採用・旧pilot保留を保持。
+結果参照契約をDATA_QUALITY_ONLYへ明確化し、rank/winnerの予測分析・2026利用は禁止のまま。
+実測・DB無効再現・独立照合を完了。BLOCKED_IDENTITY_MAPPINGとas-of履歴0を記録。
+監査以外の実装はNOT_AUTHORIZED。STAT35_DATA_BLOCKED_AWAITING_REVIEWとして停止。
+
 ## v1.24 / 2026-09-20
 
 PR #63 `OPEN / REVIEW_FIX`、開始HEAD `65a4cee3d987717e774b95b9381f26b6dd110eaa`。
@@ -3052,10 +3118,11 @@ GROWTH-POINT-ANALYSIS-01 = PR60_MERGED / DEVELOPMENT_DIAGNOSTIC_ONLY
 GROWTH-POINT-ANALYSIS-01-v2 = PR60_MERGED / SIGN_PRESERVING_POINT / V1_UNCHANGED
 GROWTH-ADJUSTMENT-CALIBRATION-01 = PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_RESULT / NOT_REPLICATED / FORMAL_WEIGHT_NOT_ADOPTED
 GROWTH-TREND-ANALYSIS-01 = PR62_MERGED / MEETING_DELTA_LAG_1 / BYTE_EXACT_36_ARTIFACTS / DEVELOPMENT_ONLY
-GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 = PR63_REVIEW_FIX_VERIFIED_AWAITING_REVIEW / FIXED_REVIEWED_PER_YEAR_OUTCOME_SEALS / k=34 / w=+0.34 / SCALE_P99=3.03 / BYTE_EXACT_41_ARTIFACTS
+GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 = PR63_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER / GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED / k=34 / w=+0.34 / SCALE_P99=3.03
+STAT-35-DATA-READINESS-AUDIT-01 = PR64_REVIEW_FIX_VERIFIED_AWAITING_REVIEW / BLOCKED_INSUFFICIENT_RAW_HISTORY / IDENTITY_SAFE / NO_AS_OF_HISTORY / TWO_REPRODUCTIONS_BYTE_EXACT_27_ARTIFACTS
 
 Next:
-Review PR63 outcome seal fix and wait for explicit user instruction. Fixed per-year reviewed outcome seals replace self-signed sidecar trust; all numerical results are unchanged. Execution and all 41 artifacts reproduced exactly with DB disabled and 128MB. The selected w=+0.34 improved selection-year 2024 but failed the fixed 2025 post-selection transfer condition (Hit@3 delta -0.020273pp). Do not substitute a 2025-best or subgroup weight. Preserve old bundles/ZIPs, PR62 artifacts, old SCORE_POINT_V2 negative result and C1. No formal adoption, refit, Gate/bootstrap, LIVE or 2026. Stop uncommitted for review; next implementation NOT_AUTHORIZED.
+Review the verified PR #64 fixes and wait for explicit user instruction. Forty cancelled races (48 imports, 53 blank rows) are cancellation diagnostics, not normal history or identity failures. Genuine identity blockers are zero, but all acquisitions postdate the fixed 2024/2025 targets, so as-of availability remains zero. The primary blocker is INSUFFICIENT_RAW_HISTORY; RAW_GAP_POLICY separately covers 29 races without imports, not physically missing stored Raw. Do not interpret extraction feasibility or execution success as readiness approval or predictive improvement. Result status is data-quality-only, never rank/winner-based predictive analysis. Preserve Growth k=34/w=+0.34 and its negative 2025 transfer, all old artifacts and C1. No model fitting, predictive evaluation, production writes, migration, scraping, LIVE or 2026 race access. Next implementation/backfill NOT_AUTHORIZED.
 
 Do not:
 redo BT-02 discovery
