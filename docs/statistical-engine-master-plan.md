@@ -1,7 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.27
+- Version: 1.28
 - Created: 2026-08-23
 - Updated: 2026-09-21
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_STORAGE_BACKFILL_01_IMPLEMENTATION_AWAITING_REVIEW
+current_engine_state: STAT35_STORAGE_BACKFILL_01_PR65_REVIEW_FIX_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_STORAGE_BACKFILL_01
+next_allowed_action: REVIEW_PR65_REVIEW_FIX
 next_implementation_phase: NOT_AUTHORIZED
 current_phase: STAT-35-STORAGE-BACKFILL-01
 remote_main: cefd6b4e777315f08cc10980369d5734196d01f7
@@ -560,7 +560,7 @@ BT-03E-02以降で利用する場合は、
 | GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | PR62_MERGED / DEVELOPMENT_SELECTED_GRANULARITY | MEETING_DELTA_LAG_1維持、修正版36生成物byte-exact再現、正式STAT未採用 |
 | GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 | 固定MEETING_DELTA_LAG_1のC1 utility補正 | PR63_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER | GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED、P99=3.03、k=34/w=+0.34、2025 NOT_TRANSFERREDを維持 |
 | STAT-35-DATA-READINESS-AUDIT-01 | 保存済み上がりRawの抽出・識別・取得時点監査 | COMPLETED_PR64_MERGED | identity blocker 0、BLOCKED_INSUFFICIENT_RAW_HISTORY、DATA_QUALITY_ONLY |
-| STAT-35-STORAGE-BACKFILL-01 | current上がり・import別観測保存とRaw backfill基盤 | IMPLEMENTATION_AWAITING_REVIEW | 人工テストのみ、本番Migration/backfill未許可、as-of回復なし |
+| STAT-35-STORAGE-BACKFILL-01 | current上がり・import別観測保存とRaw backfill基盤 | PR65_REVIEW_FIX_AWAITING_REVIEW | 男子gap分離・Manual中止非空行拒否、人工テストのみ、本番適用未許可 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2365,16 +2365,19 @@ PJ0326.agariのdecimal正規化、race_resultsの現在値、import/bike別appen
 同一transactionでの新規結果保存、2022-2025限定のRaw backfill commandを追加した。
 現在値のsourceは既存race_result_import_idを使い、訂正前後の観測を上書きしない。
 手動HTMLは上りheaderを使い、headerなしはMISSING。0/負数/不正表記と欠損、異常結果の数値を区別する。
-取消部分空欄行は観測0件。原Rawのhash/size/path/変換後hashと終了時sealを検証する。
+PJ0326の取消部分空欄行は観測0件。原Rawのhash/size/path/変換後hashと終了時sealを検証する。
 
 バックフィルはBACKFILLED_FINAL_RESULTであり、publication timestampはUNKNOWN。
 取得日時はfetch logの実値だけを保持し、発走前取得証跡の不足は解消しない。
 readinessはBLOCKED_INSUFFICIENT_RAW_HISTORY、identity_safe=true、secondary=RAW_GAP_POLICYのまま。
 正式STAT・historical model inputへの採用・予測評価・2026アクセスは許可していない。
-今回は人工SQLite/一時PostgreSQLテストのみ。本番Migration・backfill・Rawへの書込みは実行していない。
+初回実装では人工SQLite/一時PostgreSQLテストのみ。本番Migration・backfill・Rawへの書込みは実行していない。
 仕様と検証結果は [stat35-storage-backfill-01.md](stat35-storage-backfill-01.md) に記録する。
 
-次は `REVIEW_STAT35_STORAGE_BACKFILL_01`。追加実装と本番適用は `NOT_AUTHORIZED`。
+PR #65 review fixでは、NO_IMPORTを既存RaceCategoryPolicyによるMen限定とし、Girls/UnknownはNO_IMPORT_UNSUPPORTEDへ分離。
+Manual CANCELLEDは部分行semantic未監査のため非空データ行をfail closedとし、PJ0326の監査済みblank partial契約は維持する。
+初回検証結果は履歴として保持し、今回の人工テスト結果は同仕様書のPR #65 Review Fixへ追記する。
+次は `REVIEW_PR65_REVIEW_FIX`。追加実装と本番適用は `NOT_AUTHORIZED`。
 旧モデル・旧成果物・Growth不採用・旧pilot保留・2026 FROZENを維持する。
 
 ---
@@ -2778,6 +2781,13 @@ reason:
 
 # 25. 変更履歴
 
+## v1.28 / 2026-09-21
+
+PR #65の2指摘だけを修正。NO_IMPORTをMen限定、対象外gapをNO_IMPORT_UNSUPPORTEDへ分離する。
+Manual CANCELLEDの非空結果行をfail closedとし、PJ0326 blank partialの既存契約は変更しない。
+現在地はSTAT35_STORAGE_BACKFILL_01_PR65_REVIEW_FIX_AWAITING_REVIEW、次はREVIEW_PR65_REVIEW_FIX。
+schema変更なし。本番Migration/backfill、次実装はNOT_AUTHORIZED、2026 FROZENと旧履歴を維持する。
+
 ## v1.27 / 2026-09-21
 
 PR #64 MERGED、main/origin `cefd6b4e777315f08cc10980369d5734196d01f7` を確認。
@@ -3164,10 +3174,10 @@ GROWTH-ADJUSTMENT-CALIBRATION-01 = PR61_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_
 GROWTH-TREND-ANALYSIS-01 = PR62_MERGED / MEETING_DELTA_LAG_1 / BYTE_EXACT_36_ARTIFACTS / DEVELOPMENT_ONLY
 GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 = PR63_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER / GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED / k=34 / w=+0.34 / SCALE_P99=3.03
 STAT-35-DATA-READINESS-AUDIT-01 = COMPLETED_PR64_MERGED / BLOCKED_INSUFFICIENT_RAW_HISTORY / IDENTITY_SAFE / NO_AS_OF_HISTORY / TWO_REPRODUCTIONS_BYTE_EXACT_27_ARTIFACTS
-STAT-35-STORAGE-BACKFILL-01 = IMPLEMENTATION_AWAITING_REVIEW / SYNTHETIC_TESTS_ONLY / PRODUCTION_MIGRATION_BACKFILL_NOT_AUTHORIZED
+STAT-35-STORAGE-BACKFILL-01 = PR65_REVIEW_FIX_AWAITING_REVIEW / SYNTHETIC_TESTS_ONLY / PRODUCTION_MIGRATION_BACKFILL_NOT_AUTHORIZED
 
 Next:
-Review STAT-35-STORAGE-BACKFILL-01. PR #64 is merged; the explicitly authorized storage code, migration and synthetic tests are implemented, but production migration/backfill has not been authorized or executed. Forty cancelled races (48 imports, 53 blank rows) remain cancellation diagnostics, never normal observations. Identity is safe; as-of availability remains zero. The primary blocker is INSUFFICIENT_RAW_HISTORY; RAW_GAP_POLICY covers 29 races without imports. Structural storage does not restore historical availability or imply predictive improvement. Preserve Growth k=34/w=+0.34 and its negative 2025 transfer, old artifacts, C1, and 2026 FROZEN_FOR_MODEL_SELECTION. No model fitting, predictive evaluation, production writes, scraping, LIVE or 2026 race access. Next implementation and production backfill NOT_AUTHORIZED.
+Review PR #65 review fix (REVIEW_PR65_REVIEW_FIX). NO_IMPORT now counts Men only; unsupported gaps are separate. Manual cancelled nonempty result rows fail closed; audited PJ0326 blank partial rows remain cancellation diagnostics. The earlier audit found 40 cancelled races (48 imports, 53 blank rows) and 29 no-import races; this review fix does not re-audit or hard-code those counts. Identity is safe; as-of availability remains zero. The primary blocker is INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY. Structural storage does not restore historical availability or imply predictive improvement. Preserve Growth k=34/w=+0.34 and its negative 2025 transfer, old artifacts, C1, and 2026 FROZEN_FOR_MODEL_SELECTION. No model fitting, predictive evaluation, production writes, scraping, LIVE or 2026 race access. Next implementation and production migration/backfill NOT_AUTHORIZED.
 
 Do not:
 redo BT-02 discovery

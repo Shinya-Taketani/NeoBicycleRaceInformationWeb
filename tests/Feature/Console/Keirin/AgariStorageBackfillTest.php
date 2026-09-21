@@ -106,6 +106,82 @@ class AgariStorageBackfillTest extends TestCase
         $this->assertSame('UNKNOWN', $observation->metadata['acquisition_timing']);
     }
 
+    #[DataProvider('missingImportCategories')]
+    public function test_missing_import_counts_use_the_backfill_category_scope(?string $raceType, int $men, int $unsupported): void
+    {
+        $this->race()->update(['race_type' => $raceType]);
+        $before = $this->snapshot();
+        $summary = $this->runBackfill();
+        $this->assertSame($men, $summary['NO_IMPORT']);
+        $this->assertSame($unsupported, $summary['NO_IMPORT_UNSUPPORTED']);
+        $this->assertSame(0, $summary['success']);
+        $this->assertSame(0, $summary['skipped']);
+        $this->assertSame(0, $summary['failed']);
+        $this->assertSame($before, $this->snapshot());
+        $this->assertSame([], Storage::disk('local')->allFiles());
+        Http::assertNothingSent();
+    }
+
+    public static function missingImportCategories(): array
+    {
+        return [
+            'S' => ['S級予選', 1, 0],
+            'A' => ['A級チャレンジ', 1, 0],
+            'full-width S' => ['Ｓ級予選', 1, 0],
+            'girls' => ['L級ガールズ', 0, 1],
+            'unknown' => ['Unknown', 0, 1],
+            'missing category' => [null, 0, 1],
+        ];
+    }
+
+    public function test_missing_import_counts_stream_chunks_and_exclude_other_sources_dates_and_imports(): void
+    {
+        foreach (['S級予選', 'L級ガールズ', 'A級予選', null, 'Ｓ級予選'] as $i => $raceType) {
+            $this->race('2025-02-0'.($i + 1))->update(['race_type' => $raceType]);
+        }
+        $this->race('2025-02-06')->update(['source' => 'other-synthetic-source']);
+        $this->race('2021-12-31');
+        $this->race('2025-03-01');
+        $import = $this->saved($this->race('2025-02-07'), 'unused synthetic raw');
+        Storage::disk('local')->delete($import->raw_file_path);
+        $events = [];
+        $summary = app(AgariBackfillService::class)->run('2025-02-01', '2025-02-28', 2, true,
+            function (array $event) use (&$events): void {
+                $events[] = $event;
+            });
+        $this->assertSame(3, $summary['NO_IMPORT']);
+        $this->assertSame(2, $summary['NO_IMPORT_UNSUPPORTED']);
+        $this->assertSame(1, $summary['failed']);
+        $this->assertSame([$import->id], array_column($events, 'import_id'));
+        $this->assertDatabaseCount('race_result_agari_observations', 0);
+    }
+
+    #[DataProvider('unsupportedImportCategories')]
+    public function test_unsupported_import_is_skipped_without_opening_raw_or_counting_a_gap(?string $raceType): void
+    {
+        $race = $this->race();
+        $race->update(['race_type' => $raceType]);
+        $import = $this->saved($race, 'unused synthetic raw');
+        Storage::disk('local')->delete($import->raw_file_path);
+        $before = $this->snapshot();
+        $summary = $this->runBackfill();
+        $this->assertSame(0, $summary['NO_IMPORT']);
+        $this->assertSame(0, $summary['NO_IMPORT_UNSUPPORTED']);
+        $this->assertSame(1, $summary['skipped']);
+        $this->assertSame(0, $summary['success']);
+        $this->assertSame(0, $summary['failed']);
+        $this->assertDatabaseHas('batch_run_items', ['item_key' => 'import:'.$import->id,
+            'status' => 'SKIPPED', 'skip_reason' => 'UNSUPPORTED_RACE_CATEGORY']);
+        $this->assertSame($before, $this->snapshot());
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+        Http::assertNothingSent();
+    }
+
+    public static function unsupportedImportCategories(): array
+    {
+        return [['L級ガールズ'], ['Unknown'], [null]];
+    }
+
     #[DataProvider('counts')]
     public function test_new_sync_retains_exact_values_and_corrected_observations(int $count): void
     {
@@ -460,6 +536,55 @@ class AgariStorageBackfillTest extends TestCase
         $this->assertSame(1, $summary['skipped']);
         $this->assertSame(1, $summary['failed']);
         $this->assertSame(0, RaceResultAgariObservation::query()->count());
+    }
+
+    #[DataProvider('manualCancelledTables')]
+    public function test_manual_cancelled_requires_no_nonempty_data_rows(string $table, bool $fails): void
+    {
+        $race = $this->race();
+        $html = '<html><body><p>開催中止</p>'.$table.'</body></html>';
+        $import = $this->saved($race, $html);
+        $this->current($race, $import);
+        RaceResult::query()->where('bike_number', 1)->update([
+            'agari_raw_text' => '11.7', 'agari_time_seconds' => '11.7', 'agari_status' => 'VALID',
+        ]);
+        $before = $this->snapshot();
+        $events = [];
+        $summary = app(AgariBackfillService::class)->run('2022-01-01', '2025-12-31', 2, false,
+            function (array $event) use (&$events): void {
+                $events[] = $event;
+            });
+        $this->assertSame((int) $fails, $summary['failed']);
+        $this->assertSame((int) ! $fails, $summary['skipped']);
+        $this->assertSame(0, $summary['success']);
+        $this->assertSame(0, $summary['observations']);
+        $this->assertSame(0, $summary['current_updates']);
+        $this->assertDatabaseCount('race_result_agari_observations', 0);
+        $this->assertSame($before, $this->snapshot());
+        $this->assertSame($html, Storage::disk('local')->get($import->raw_file_path));
+        $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
+        $this->assertDatabaseHas('batch_run_items', ['item_key' => 'import:'.$import->id,
+            'status' => $fails ? 'FAILED' : 'SKIPPED']);
+        if ($fails) {
+            $this->assertSame('MANUAL_CANCELLED_RESULT_ROWS_PRESENT', $events[0]['error']);
+        } else {
+            $this->assertSame('CANCELLED', $events[0]['reason']);
+            $this->assertDatabaseHas('batch_run_items', ['item_key' => 'import:'.$import->id, 'skip_reason' => 'CANCELLED']);
+        }
+    }
+
+    public static function manualCancelledTables(): array
+    {
+        return [
+            'no result marker' => ['', false],
+            'empty result body' => ['<table><tbody id="pitbodyBs"></tbody></table>', false],
+            'header only' => ['<table id="pitbodyBs"><tr><th>着</th><th>車番</th><th>上り</th></tr></table>', false],
+            'thead only' => ['<table id="pitbodyBs"><thead><tr><td>着</td><td>車番</td><td>上り</td></tr></thead></table>', false],
+            'empty cells' => ["<table><tbody id=\"pitbodyBs\"><tr><td> \n\t</td><td>&nbsp;　</td></tr></tbody></table>", false],
+            'blank agari but nonempty result row' => ['<table><tbody id="pitbodyBs"><tr><td>1</td><td>1</td><td></td></tr></tbody></table>', true],
+            'numeric agari' => ['<table><tbody id="pitbodyBs"><tr><td>1</td><td>1</td><td>11.5</td></tr></tbody></table>', true],
+            'dash is not an empty row' => ['<table><tbody id="pitbodyBs"><tr><td>－</td></tr></tbody></table>', true],
+        ];
     }
 
     public function test_cancelled_sync_preserves_earlier_observations_and_down_refuses_to_remove_history(): void

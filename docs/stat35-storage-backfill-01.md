@@ -80,7 +80,7 @@ php -d memory_limit=512M artisan keirin:stat35:backfill-agari --execute --from=2
 - modeはplanまたはexecuteを必須とする。dry-runはexecuteと組み合わせる。
 - 日付は実在日かつ2022-01-01..2025-12-31、from<=to。範囲外はDB/Raw取得前に拒否。
 - SQLでもsourceとrace_dateを限定する。各import IDをchunk単位で昇順走査。既定100、1..1000。
-- 男子以外/不明カテゴリはRawを解析せず明示skip。NO_IMPORTは指定source/期間のraceでimportがない件数。既知29件をハードコードせず、日付範囲から再計数する。
+- 男子以外/不明カテゴリはRawを解析せず明示skip。NO_IMPORTは指定source/期間内のMenでimportがない件数。Girls/Unknownのimport欠落はNO_IMPORT_UNSUPPORTEDへ分離する。既存RaceCategoryPolicyで分類し、既知29件をハードコードしない。
 - planはDB/Rawを開かない。dry-runは同じ検証と衝突検知を行うが、batchを含めDBへ書かない。
 - executeはimport単位transactionとrace lock、バッチ用advisory lockを使う。1import失敗はロールバックしてFAILEDを記録し、後続importへ進む。外側例外でもBatchRun終了とlock解放を試みる。
 - summaryのobservations/current_updatesは今回の追加/補完件数。dry-run時は予定件数。peak_memory_bytesも出力する。
@@ -98,8 +98,10 @@ PJ0326は元PC0201の日付/会場/レース番号を対象raceと照合する�
 現在resultの同じimportに属する行の車番/状態/順位を照合する。不整合はfail-visible。
 出走IDの補助リンクはRaw登録番号と一致する既存行に限り、不明ならNULLとする。
 
-CANCELLEDで行なし、または車番が一意でagariが空欄の部分行は通常観測0件。
-中止非空値・不正車番等はFAILED。PR64の48imports/53blank rowsは通常履歴へ昇格させない。
+PJ0326 CANCELLEDで行なし、または車番が一意でagariが空欄の部分行は通常観測0件。
+PJ0326の中止非空値・不正車番・重複車番はFAILED。PR64の48imports/53blank rowsは通常履歴へ昇格させない。
+Manual CANCELLEDは部分行semantic未監査のため、`#pitbodyBs` 配下にtdを持つ非空データ行があればFAILED。
+上り列だけを推測せず、agari空欄でも他の値がある行を拒否する。表なし・データ行なし・headerのみ・完全な空欄行は観測0件でskipする。
 未掲載・審議中・確定根拠不明も0件として区別してskipする。
 
 現在値はrow自身のimport IDに一致する観測からだけ補完する。最新import検索はしない。
@@ -113,7 +115,7 @@ fetched_atは実際の保存済みfetch logの日時であり、race_date/result
 構造化保存は発走前取得証跡を増やさない。2024/2025 historical model inputとしてSTAT-35を使うことは禁止のまま。
 旧Growth不採用、E08不採用、旧TACTICAL-PILOT-01保留、既存モデル/成果物、2026凍結を変更しない。
 
-## Verification
+## Initial Implementation Verification
 
 人工Rawはテスト内で生成し、実Raw全体や個人データは追加していない。
 focusedではdecimal/異常値/同着/5・7・8・9車、ヘッダー、有無/順序/余分列、訂正/原子性/再実行、Raw改変/欠落/symlink、期間境界、取消部分行を検査する。
@@ -147,3 +149,42 @@ PostgreSQLテストでは独立した空DBとUnix socketを明示し、本番の
 本番DB write=0、本番Migration=0、正式backfill=0、新規取得=0、実2026アクセス=0。
 実装完了状態は `STAT35_STORAGE_BACKFILL_01_IMPLEMENTATION_AWAITING_REVIEW`。
 次は `REVIEW_STAT35_STORAGE_BACKFILL_01` のみ。次実装・本番Migration/backfillはNOT_AUTHORIZED。
+
+## PR #65 Review Fix
+
+開始HEADは `19c3faa9f546d2e461c0d6793594a92c20ca57c8`、同じPR branchで次の2点だけを修正する。
+上記の初回実装・一時PostgreSQL検証結果は当時の履歴であり、今回再実行した結果とは区別する。
+
+- `NO_IMPORT`: 指定source/期間内、importなし、`RaceCategory::Men` のgap。
+- `NO_IMPORT_UNSUPPORTED`: 同条件のGirls/Unknown。importがあるGirls/Unknownは従来の `UNSUPPORTED_RACE_CATEGORY` skipであり、どちらのgapにも加算しない。
+- importなしraceだけをSQLで絞り、id/race_typeを `lazyById(chunk)` で走査して既存RaceCategoryPolicyを適用する。Rawを開かず、分類SQLや固定件数を追加しない。
+- Manual CANCELLEDの非空データ行は `MANUAL_CANCELLED_RESULT_ROWS_PRESENT` としてfail closed。現在上がり値と観測は書き込まない。空欄判定は空白だけを対象とし、欠損記号を行全体の空欄へ読み替えない。
+- PJ0326 CANCELLEDの監査済みblank partial許可と、不正/非空値の拒否は変更しない。Manualの未監査semanticへ流用しない。
+
+追加人工テストは、S/A・全角S・Girls/Unknown/NULL、chunk境界、source/期間除外、importあり対象外のRaw未読、
+Manual中止の表なし/空表/header/空欄行/非空行/数値agari/欠損記号、既存値とRawの維持を確認する。
+
+| 今回の検証 | 結果 |
+|---|---|
+| AgariStorageBackfill (SQLite, 128M) | 53 passed / 468 assertions |
+| AgariTime / RaceResultParser / RaceResultPageParser (128M) | 35 passed / 111 assertions |
+| `php artisan test` 全体 (今回1回のみ) | 1,877件中1,868 passed / 9 skipped / 14,333 assertions |
+| 変更PHP 2ファイルの `php -l` / Pint | PASS |
+| `git diff --check` | PASS |
+
+今回の実行コマンド（人工テストのみ）:
+
+```bash
+php -d memory_limit=128M vendor/bin/phpunit tests/Feature/Console/Keirin/AgariStorageBackfillTest.php
+php -d memory_limit=128M vendor/bin/phpunit tests/Unit/Domain/Keirin/Scraping/AgariTimeTest.php tests/Unit/Domain/Keirin/Scraping/RaceResultParserTest.php tests/Unit/Domain/Keirin/Scraping/RaceResultPageParserTest.php
+php artisan test
+php -l app/Domain/Keirin/Scraping/Services/AgariBackfillService.php
+php -l tests/Feature/Console/Keirin/AgariStorageBackfillTest.php
+vendor/bin/pint --test app/Domain/Keirin/Scraping/Services/AgariBackfillService.php tests/Feature/Console/Keirin/AgariStorageBackfillTest.php
+git diff --check
+```
+
+Migration・Parser・Normalizer・観測/結果保存モデルは変更しない。
+本番write/Migration/backfill/dry-run、実Raw全件再監査、新規取得、実2026アクセスは0。
+現在地は `STAT35_STORAGE_BACKFILL_01_PR65_REVIEW_FIX_AWAITING_REVIEW`、次は `REVIEW_PR65_REVIEW_FIX`。
+次実装・本番Migration/backfillは `NOT_AUTHORIZED`、2026は `FROZEN_FOR_MODEL_SELECTION` のまま。

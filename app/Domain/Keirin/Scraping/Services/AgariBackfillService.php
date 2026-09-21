@@ -57,14 +57,19 @@ class AgariBackfillService
     public function run(string $from, string $to, int $chunk, bool $dryRun, ?callable $report = null): array
     {
         $plan = $this->plan($from, $to, $chunk);
-        $totals = ['success' => 0, 'skipped' => 0, 'failed' => 0, 'observations' => 0, 'current_updates' => 0, 'NO_IMPORT' => 0];
+        $totals = ['success' => 0, 'skipped' => 0, 'failed' => 0, 'observations' => 0, 'current_updates' => 0,
+            'NO_IMPORT' => 0, 'NO_IMPORT_UNSUPPORTED' => 0];
         $lockKey = 'stat35-agari-backfill';
         $run = $dryRun ? null : $this->batches->start('STAT35_AGARI_BACKFILL', $plan, $lockKey);
         try {
             $races = Race::query()->where('source', config('keirin.source'))->whereBetween('race_date', [$from, $to]);
-            $totals['NO_IMPORT'] = (clone $races)->whereNotExists(function ($query): void {
+            $missingImports = (clone $races)->whereNotExists(function ($query): void {
                 $query->selectRaw('1')->from('race_result_imports')->whereColumn('race_result_imports.race_id', 'races.id');
-            })->count();
+            })->select(['id', 'race_type']);
+            foreach ($missingImports->lazyById($chunk) as $race) {
+                $key = $this->categories->classify($race->race_type) === RaceCategory::Men ? 'NO_IMPORT' : 'NO_IMPORT_UNSUPPORTED';
+                $totals[$key]++;
+            }
             $imports = RaceResultImport::query()->whereIn('race_id', (clone $races)->select('races.id'));
             foreach ($imports->lazyById($chunk) as $import) {
                 $item = $run === null ? null : $this->batches->startItem($run, 'AGARI_IMPORT', 'import:'.$import->id);
@@ -146,6 +151,9 @@ class AgariBackfillService
             }
         } else {
             $page = $this->manual->parse($html);
+            if ($page->pageStatus === ParsedRaceResultPageStatus::Cancelled) {
+                $this->assertManualCancelledRowsEmpty($crawler);
+            }
         }
         $outcome = ['reason' => null, 'observations' => 0, 'current_updates' => 0,
             'raw_file_path' => $import->raw_file_path, 'source_hash' => $import->source_hash,
@@ -220,6 +228,17 @@ class AgariBackfillService
             'source_hash' => $import->source_hash, 'raw_response_size' => (int) $import->raw_response_size,
             'converted_hash' => $import->converted_hash, 'content_type' => $log?->content_type,
             'fetch_hash' => $log?->sha256, 'fetch_bytes' => $log === null ? null : (int) $log->response_size];
+    }
+
+    private function assertManualCancelledRowsEmpty(Crawler $crawler): void
+    {
+        foreach ($crawler->filter('#pitbodyBs tr') as $node) {
+            $row = new Crawler($node);
+            if ($row->ancestors()->filter('thead')->count() === 0 && $row->filter('td')->count() > 0
+                && preg_match('/[^\s\p{Z}]/u', $row->text('', false)) === 1) {
+                throw new RuntimeException('MANUAL_CANCELLED_RESULT_ROWS_PRESENT');
+            }
+        }
     }
 
     private function cancelledRows(string $html): int
