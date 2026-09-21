@@ -532,9 +532,41 @@ class TacticalPredictionResultTest extends TestCase
             yield $target;
         })());
         $this->assertGreaterThan(128 * 1024 * 1024, filesize($this->directory.'/source/labels.jsonl'));
-        $run = $this->execute();
-        $this->assertSame(1, $run['summary']['matched']);
-        $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+
+        // Enforce the limit in a fresh process, independently of full-suite memory usage.
+        $program = <<<'PHP'
+        require $argv[1].'/vendor/autoload.php';
+        $app = require $argv[1].'/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        config(['database.default' => 'disabled-result-test', 'tactical_prediction_pipeline.artifact_base' => $argv[2]]);
+        $app->instance(App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ModelIdentity::class,
+            new class extends App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\ModelIdentity {
+                public function __construct() {}
+                public function validate(string $artifact): void {
+                    if (App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files::json(dirname($artifact).'/model.json') !== ['synthetic' => 'frozen']) {
+                        throw new RuntimeException('Synthetic model identity mismatch.');
+                    }
+                }
+            });
+        $run = app(App\Domain\Keirin\Backtest\Experiments\TacticalPredictionResult\ResultService::class)->execute(
+            App\Domain\Keirin\Backtest\Experiments\TacticalPredictionPipeline\Contract::MODE,
+            'test-01', $argv[2].'/output', $argv[2].'/source/selection.json',
+            $argv[2].'/source/labels.jsonl', $argv[2].'/source/labels.jsonl.manifest.json'
+        );
+        echo json_encode(['memory_limit' => ini_get('memory_limit'), 'matched' => $run['summary']['matched']], JSON_THROW_ON_ERROR);
+        PHP;
+        $process = proc_open([PHP_BINARY, '-d', 'memory_limit=128M', '-r', $program, base_path(), $this->directory],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($process);
+        fclose($pipes[0]);
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $this->assertSame(0, proc_close($process), $stderr."\n".$stdout);
+        $result = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('128M', $result['memory_limit']);
+        $this->assertSame(1, $result['matched']);
     }
 
     public function test_plan_requires_no_database_or_files_and_command_reproduction_is_offline(): void
