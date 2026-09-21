@@ -25,5 +25,7 @@ readonly class RaceResultDto
         public ?string $backHome = null,
         public ?string $lineRank = null,
         public array $individualStates = [],
+        // finishTime currently carries normalized PJ0326.agari (AGARI_TIME), not a full-race finish time.
+        public ?string $agariRawText = null,
     ) {}
 }

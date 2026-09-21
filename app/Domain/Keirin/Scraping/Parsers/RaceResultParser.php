@@ -31,6 +31,8 @@ class RaceResultParser
             throw new ParserException('Race result table marker was not found.');
         }
 
+        $columns = $this->agariColumns($crawler->filter('#pitbodyBs')->first());
+
         $crawler->filter('#pitbodyBs tr')->each(function (Crawler $row, int $index) use (
             &$results,
             &$totalRows,
@@ -39,6 +41,7 @@ class RaceResultParser
             &$dataRows,
             &$parsedRows,
             &$seenBikeNumbers,
+            $columns,
         ): void {
             $totalRows++;
             $thCount = $row->filter('th')->count();
@@ -70,12 +73,15 @@ class RaceResultParser
                 throw new ParserException("Race result row {$index} had fewer than four columns.");
             }
 
-            $rawRank = $values[0] ?? null;
+            if ($columns !== null && count($values) !== $columns['count']) {
+                throw new ParserException("Race result row {$index} did not match its header.");
+            }
+            $rawRank = $values[$columns['rank'] ?? 0] ?? null;
             if ($rawRank === null) {
                 throw new ParserException("Race result row {$index} had no rank or official status.");
             }
 
-            $bikeNumber = $this->positiveInteger($values[2] ?? null);
+            $bikeNumber = $this->positiveInteger($values[$columns['bike'] ?? 2] ?? null);
             if ($bikeNumber === null || $bikeNumber > 9) {
                 throw new ParserException("Race result row {$index} had an invalid bike number.");
             }
@@ -84,7 +90,7 @@ class RaceResultParser
                 throw new ParserException("Race result bike number {$bikeNumber} appeared more than once.");
             }
 
-            $playerName = $values[3] ?? null;
+            $playerName = $values[$columns['player'] ?? 3] ?? null;
             if ($playerName === null) {
                 throw new ParserException("Race result row {$index} had no player identifier.");
             }
@@ -98,6 +104,8 @@ class RaceResultParser
                 status: $status,
                 winningTechnique: null,
                 rawText: implode(' ', array_filter($values, fn (?string $value): bool => $value !== null)),
+                finishTime: $columns === null ? null : $values[$columns['agari']],
+                agariRawText: $columns === null ? null : $row->filter('td')->eq($columns['agari'])->text(null, false),
             );
             $parsedRows++;
         });
@@ -120,12 +128,45 @@ class RaceResultParser
 
         $results = array_map(
             fn (RaceResultDto $result): RaceResultDto => $result->rank !== null && ($rankCounts[$result->rank] ?? 0) > 1
-                ? new RaceResultDto($result->rank, $result->bikeNumber, $result->playerName, RaceEntryResultStatus::Tied, $result->winningTechnique, $result->rawText)
+                ? new RaceResultDto($result->rank, $result->bikeNumber, $result->playerName, RaceEntryResultStatus::Tied, $result->winningTechnique, $result->rawText,
+                    finishTime: $result->finishTime, agariRawText: $result->agariRawText)
                 : $result,
             $results,
         );
 
         return $results;
+    }
+
+    private function agariColumns(Crawler $body): ?array
+    {
+        $table = $body->nodeName() === 'table' ? $body : $body->ancestors()->filter('table')->first();
+        $columns = null;
+        if ($table->count() === 0) {
+            return null;
+        }
+        foreach ($table->filter('tr') as $node) {
+            $row = new Crawler($node);
+            if ($row->filter('th')->count() === 0 && $row->ancestors()->filter('thead')->count() === 0) {
+                continue;
+            }
+            $headers = $row->filter('th, td')->each(fn (Crawler $cell) => HtmlTextNormalizer::normalize($cell->text(null, false)));
+            if (! in_array('上り', $headers, true)) {
+                continue;
+            }
+            if ($columns !== null) {
+                throw new ParserException('Race result agari header was ambiguous.');
+            }
+            $columns = ['count' => count($headers)];
+            foreach (['rank' => '着', 'bike' => '車番', 'player' => '選手名', 'agari' => '上り'] as $key => $header) {
+                $matches = array_keys($headers, $header, true);
+                if (count($matches) !== 1) {
+                    throw new ParserException("Race result header {$header} was missing or ambiguous.");
+                }
+                $columns[$key] = $matches[0];
+            }
+        }
+
+        return $columns;
     }
 
     /**
