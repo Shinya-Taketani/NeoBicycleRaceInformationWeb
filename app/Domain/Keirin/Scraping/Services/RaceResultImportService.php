@@ -17,6 +17,7 @@ use App\Domain\Keirin\Scraping\Parsers\RaceResultPageParser;
 use App\Models\BatchRun;
 use App\Models\BatchRunItem;
 use App\Models\Race;
+use App\Models\RaceEntry;
 use App\Models\RacePayout;
 use App\Models\RaceResult;
 use App\Models\RaceResultImport;
@@ -35,6 +36,7 @@ class RaceResultImportService
         private readonly RaceResultPageParser $parser,
         private readonly RaceEntrantExpectationResolver $entrantExpectations,
         private readonly RaceResultCompletenessValidator $completenessValidator,
+        private readonly AgariObservationService $agari,
     ) {}
 
     /**
@@ -260,11 +262,13 @@ class RaceResultImportService
             $this->completenessValidator->validate($page, $lockedExpectedEntrants);
             $this->assertTransitionAllowed($lockedRace, $requestedResultStatus);
             $fetchedAt = CarbonImmutable::now();
+            $entries = RaceEntry::query()->where('race_id', $lockedRace->id)->get()->keyBy('bike_number');
 
             $seenResultBikeNumbers = [];
             foreach ($page->results as $result) {
                 $bikeNumber = (int) $result->bikeNumber;
                 $seenResultBikeNumbers[] = $bikeNumber;
+                $observation = $this->agari->record($import, $result, $entries->get($bikeNumber));
                 RaceResult::query()->updateOrCreate(
                     [
                         'race_id' => $lockedRace->id,
@@ -272,6 +276,7 @@ class RaceResultImportService
                     ],
                     [
                         'race_result_import_id' => $import->id,
+                        ...$observation['values'],
                         'rank' => $result->rank,
                         'result_status' => $result->status->value,
                         'winning_technique' => $result->winningTechnique,

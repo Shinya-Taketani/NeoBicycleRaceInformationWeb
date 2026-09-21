@@ -17,6 +17,9 @@ class RaceResult extends Model
         'rank',
         'result_status',
         'winning_technique',
+        'agari_time_seconds',
+        'agari_raw_text',
+        'agari_status',
         'raw_result_text',
         'source_url',
         'fetched_at',
@@ -24,6 +27,6 @@ class RaceResult extends Model
 
     protected function casts(): array
     {
-        return ['fetched_at' => 'immutable_datetime'];
+        return ['fetched_at' => 'immutable_datetime', 'agari_time_seconds' => 'string'];
     }
 }

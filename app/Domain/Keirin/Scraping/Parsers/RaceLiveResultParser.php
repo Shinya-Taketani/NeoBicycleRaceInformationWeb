@@ -147,6 +147,7 @@ class RaceLiveResultParser
                 backHome: $this->text($rawResult['BH'] ?? null),
                 lineRank: $this->text($rawResult['inLineJyuni'] ?? null),
                 individualStates: array_values(array_filter(array_map(fn (mixed $state): ?string => is_array($state) ? $this->text($state['kojinState'] ?? null) : null, $states))),
+                agariRawText: $this->agariRawText($rawResult['agari'] ?? null),
             );
         }
 
@@ -269,6 +270,15 @@ class RaceLiveResultParser
     private function text(mixed $value): ?string
     {
         return HtmlTextNormalizer::normalize(is_string($value) || is_int($value) || is_float($value) ? (string) $value : null);
+    }
+
+    private function agariRawText(mixed $value): ?string
+    {
+        if ($value !== null && ! is_string($value) && ! is_int($value)) {
+            throw new ParserException('PJ0326 agari must be a display string or null.');
+        }
+
+        return $value === null ? null : (string) $value;
     }
 
     private function boolean(mixed $value): bool
