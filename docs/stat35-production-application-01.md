@@ -1,5 +1,93 @@
 # STAT-35-PRODUCTION-PREFLIGHT-01 / Application Procedure
 
+## Current Result / STAT-35-PRODUCTION-MIGRATION-01
+
+2026-09-22 JST: **APPLIED_AND_SCHEMA_VERIFIED。次は適用結果レビュー。backfill/dry-runは未実施・未承認。**
+PR #66はMERGED。cleanなmain/origin `2715757a6952dbf32fc97f881945d94721a08282` から
+`ops/stat35-production-migration-01` を作成し、最新ユーザー指示による対象Migration 1本のDDLとLaravel履歴登録だけを実行した。
+今回の限定許可は旧NOT_AUTHORIZEDより優先するが、他Migration・業務DML・backfill・同期起動・2026分析を許可しない。
+
+### Backup And Immediate Checks
+
+取得済みbackup:
+
+```text
+/run/media/shinya/KEIRIN_BKUP/neo_keirin_prediction_db-20260922-083530-TI9oyc/neo_keirin_prediction_db.dump
+```
+
+- サイズ: 5,583,650,971 bytes。
+- 記録済みSHA-256: `74918382a77ea243e9af1a21e2af1fe834d35c3d39c49fa46e62a0f5e6bbccbe`。
+- 取得: 2026-09-22 08:56:08～09:01:39 JST。pg_dump / pg_restore --listともexit 0、警告なし。
+- 今回は存在・読取り可否・サイズと既存report/checksumだけを照合。再取得・全hash再計算・一覧再取得・展開・復元はなし。
+- **復元試験は未実施**。一覧確認成功を復元成功とは扱わない。先行する全DB保全許可は2026も含むが、データの表示・分析・モデル利用は禁止のまま。
+- 対象接続: Laravel `pgsql`、`127.0.0.1:5432 / neo_keirin_prediction_db / public`。認証情報は表示・保存していない。
+- 対象Migrationは未適用、agari3列・観測table未作成をREAD ONLYで確認。
+- Migration SHA-256: `91f516f8e9a43138166ffd816635d5b9b7161343d64ef2f65cf6fca8f06eed90`、期待値と一致。
+- DB/結果tableはpg_default。ローカル18/mainの格納先 `/var/lib/postgresql/18/main` は `/dev/nvme0n1p1` 上。実行直前の空き容量は `prerequisites.json` に記録した。
+- 初回の確認はIPが `127.0.0.1/32` と表記される比較差で停止し、PostgreSQLのhost()で一致を確認した。次の確認ではdata_directory表示権限不足を記録し、既存ローカルクラスタmetadataで格納先を確認。権限変更・DB設定変更はなく、初回証跡も保持する。
+- ユーザーは結果同期・手動importを起動していないと明示。cron/systemd再調査、サービス操作、他セッション終了はしていない。
+
+### Executed Command And Result
+
+次のコマンドだけを1回実行した。PGOPTIONSはこの子プロセスの接続限定で、role/DB/postgresql.confの設定は変更しない。
+
+```bash
+PGOPTIONS='-c default_transaction_read_only=off -c lock_timeout=5s -c statement_timeout=15min' \
+php -d memory_limit=512M artisan migrate \
+  --database=pgsql \
+  --path=database/migrations/2026_09_21_000013_add_agari_storage.php \
+  --force
+```
+
+- 開始: 2026-09-22 09:44:27 JST。終了: 09:44:28 JST。所要時間: 1.306743902秒。
+- 終了コード: 0。stdoutは対象MigrationのDONEのみ（実行案内を含む）、stderrは0 bytes。警告なし。
+- 適用履歴: `2026_09_21_000013_add_agari_storage`、id=17、batch=14。
+- 前後履歴は16件から対象1件追加の17件のみ。他Migrationの履歴変更・追加なし。
+- 対象DDLと当該履歴を書き込んだ。以前の本番write=0を今回の結果へ流用しない。
+- 自動再試行、無指定Migration、seed、rollback、restoreは行っていない。
+
+### Read-Only Schema Verification
+
+接続開始時とtransaction内のREAD ONLYを確認し、schema metadataとMigration履歴だけを照合した。
+`schema-verification.json` の全28項目は成功。完了判定はexit 0だけではなく、以下の一致を含む。
+
+| 対象 | 照合結果 |
+|---|---|
+| race_results追加3列 | nullable NUMERIC（typmod=-1、precision/scaleなし）/ TEXT / VARCHAR(40)、defaultなし |
+| 観測table全16列 | 名前・順序・型・nullable・defaultがMigrationと一致。idはbigint sequence、日時はtimestamp(0) with time zone |
+| PK / UNIQUE | id PK、import＋bike UNIQUE、ともに有効 |
+| INDEX | PK/UNIQUEを含む5本、列構成と定義一致、valid/ready |
+| FK | race/importの2本、ON DELETE RESTRICT、validated。entry/playerへFK追加なし |
+| CHECK | 両tableのagari状態・数値整合とbike 1～9の定義一致、全てvalidated |
+| 不変trigger | agari_observations_immutable、有効O、BEFORE DELETE OR UPDATE、FOR EACH ROW |
+| function | reject_agari_observation_mutation()、引数なし、RETURNS trigger、plpgsql、append-only例外の本文一致 |
+| 既存構造 | race_resultsの既存14列と既存制約/index/triggerは前後一致 |
+
+業務行の全件読取り・値digest作成・順位/払戻再集計・試験INSERT/UPDATE/DELETEは行っていない。
+Migration内部の型変換・CHECK検証は許可DDLの実行であり、2026データの分析ではない。
+本作業による通常同期や本番backfillの動作試験は未実施。schema適合と未実施の業務処理を区別する。
+
+### Evidence And Stop State
+
+```text
+/home/shinya/neo-keirin-artifacts/stat35-production-migration-01/run-20260922-093636-fa14dd06/
+```
+
+before/after metadata、照会台帳、前提・容量・backup記録、実行コマンド・時刻・終了コード、stdout/stderr、構造照合を保存。
+適用前の2件の確認停止と修正版スクリプトも別名で保持し、Migration自体は1回のみ。
+backfill/dry-run/同期起動/2026業務データ分析は未実施。次は適用結果レビューだけであり、自動的にbackfillへ進まない。
+historical_as_of_available=false、既存C1・旧成果物・Growth不採用・Goal 4/5・2026凍結は不変。
+アプリ・Migration・テスト・設定は無変更。2文書の差分とgit diff --checkだけを確認し、未コミットで停止する。
+
+---
+
+## Historical Preflight Record / PR #66
+
+以下はSTAT-35-PRODUCTION-PREFLIGHT-01当時の記録・手順を保持したもの。
+当時の未適用・未承認・write=0は上記Migration実行前の事実であり、現在状態へ流用しない。
+旧backup条件に対しては、後の明示許可による全DBbackup取得と今回限定のMigration承認を上記に記録した。
+未実施のbackfill/dry-run・復旧手順の存在は、今回の実行許可を意味しない。
+
 ## Status And Scope
 
 2026-09-22 JST、本番適用前確認と手順作成を実施。**手順レビュー待ち。本番書込みはNOT_AUTHORIZED。**
