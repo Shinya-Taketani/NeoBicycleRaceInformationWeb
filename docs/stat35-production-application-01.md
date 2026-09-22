@@ -1,6 +1,119 @@
 # STAT-35-PRODUCTION-PREFLIGHT-01 / Application Procedure
 
-## Current Result / STAT-35-PRODUCTION-MIGRATION-01
+## Current Result / STAT-35-PRODUCTION-BACKFILL-PILOT-01
+
+2026-09-22 JST: **2024-12-31だけの正式保存・READ ONLY保存照合・保存後dry-runが成功。次は結果レビュー。**
+PR #67 MERGED、Migration結果レビュー完了。Migration batch 14の再適用・構造28項目再監査は行っていない。
+開始main / 実行SHA: `15bb52de18eb5908a01d181d8177f33c0b1ca583`。
+cleanなmainから `ops/stat35-production-backfill-pilot-01` を作成し、アプリコードは変更していない。
+
+今回の最新ユーザー許可は、当日対象importの観測追加、currentのagari3列補完、BatchRun/Item記録と必要な採番・ロックに限定。
+以前のNOT_AUTHORIZEDとwrite=0は当時の履歴である。**今回は業務値と監査履歴の本番書込みがある。**
+他期間の書込み、正式STAT計算、学習・予測評価、2026レース参照は未承認のまま。
+
+### Reviewed Dry-Run And Before Snapshot
+
+前回証跡: `/home/shinya/neo-keirin-artifacts/stat35-production-backfill-dryrun-01/run-20260922-103047-97c266fc/`。
+2026-09-22 10:33:10 JST、exit 0、0.753224769秒、peak 37,748,736 bytes、stderr空。
+success/skipped/failed=75/0/0、予定observations/current_updates=490/490、NO_IMPORT/NO_IMPORT_UNSUPPORTED=0/0、dry_run=true、batch_run_id=null。
+ユーザーがこの結果を確認し、同日保存を許可した。保存前dry-runは再実行していない。
+
+今回の接続は `pgsql / 127.0.0.1:5432 / neo_keirin_prediction_db / public` と一致。
+保存前後照会は接続開始からREAD ONLY、REPEATABLE READ transaction内。認証情報は表示・保存していない。
+source=`keirin_jp`、race_date=`2024-12-31`だけを選び、主キー順で全列を外部snapshotへ記録した。
+実schemaの列metadataも記録し、存在しない列を仮定していない。対象race ID/import IDを固定した。
+
+| 保存前対象 | 行数 |
+|---|---:|
+| races | 75 |
+| race_entries | 490 |
+| race_results | 490 |
+| race_payouts | 525 |
+| race_result_imports | 75 |
+| 対象importのagari観測 | 0 |
+| 対応fetch metadata | 75 |
+
+前回stdoutの75 import ID・Rawパス・source_hashは全件一致。前回記録にない項目の一致を推定していない。
+現在結果490行のagari3列はすべてNULLで、既存保存の形跡なし。今回snapshotにはconverted_hash等の出典も保持した。
+backup取得・一覧確認済み／復元試験未実施は維持し、backup再取得・再hash・一覧再取得・復元はしていない。
+
+### Formal Command And Persisted Verification
+
+次を1回だけ実行。環境変数は子プロセス限定で、設定ファイル・role・DB全体の設定は変更しない。
+
+```bash
+DB_CONNECTION=pgsql \
+PGOPTIONS='-c default_transaction_read_only=off -c lock_timeout=5s -c statement_timeout=5min' \
+php -d memory_limit=512M artisan keirin:stat35:backfill-agari \
+  --execute --from=2024-12-31 --to=2024-12-31 --chunk=100
+```
+
+- 開始/終了: 2026-09-22 11:12:13.507981～11:12:14.689292 JST。
+- PHP終了コード0、所要1.181310603秒、peak 37,748,736 bytes（36 MiB）、stderr 0 bytes。
+- summary: success=75、skipped=0、failed=0、observations=490、current_updates=490、NO_IMPORT=0、NO_IMPORT_UNSUPPORTED=0、dry_run=false、batch_run_id=120。
+- BatchRun 120はSUCCEEDED。AGARI_IMPORT 75 itemはすべてSUCCEEDED、FAILED/RUNNING=0。対象import集合・summary・batch/item件数が一致。
+- skip理由・失敗importなし。success/skipped/failedはimport単位であり、レース数の定義ではない。
+- import単位transactionの既存実装を使用。再試行・独自補完SQL・rollback・履歴削除・trigger無効化なし。
+
+| 件数照合 | 前回dry-run予定 | 正式summary | 保存前後の実DB差分 |
+|---|---:|---:|---:|
+| 観測追加 | 490 | 490 | 490 |
+| agari3列が変化した現在結果 | 490 | 490 | 490 |
+
+観測/現在結果のagari_statusは、ともに **VALID 477 / MISSING 13**。490件すべてをVALIDタイムとは扱わない。
+NULLと0を区別し、NUMERICは文字列のdecimal正規化で照合してfloat化していない。
+各現在行自身のrace_result_import_id＋bike_numberに対応する観測との不一致0、import＋bike重複0。
+レースの最新importへの付替えはない。各import別の保存増分も正式イベントと一致。
+
+保存前後20確認項目は全て成功。以下を含む。
+
+- race_resultsのagari3列以外の全列が不変。ID、着順、結果状態、import参照、fetched_at、updated_atも一致。
+- 対象races/race_entries/race_payouts/race_result_importsの全列と参照fetch metadataは不変。
+- 既存観測は保存前0件。上書き・削除はない。
+- 追加観測のsource_hash・converted_hash・Rawパス・source_url・fetched_at・source_parser_versionが対応出典と一致。出典不一致0。
+- origin=BACKFILLED_FINAL_RESULT、publication_timestamp=UNKNOWNを保持。
+
+対象2024年レースのRaw取得日時が2026年であることは今回の許可範囲内。2026年開催レースの業務行・Rawは参照していない。
+
+### One Post-Save Dry-Run
+
+上記の実保存照合成功後だけ、次を1回実行した。2回目の正式書込みではない。
+
+```bash
+DB_CONNECTION=pgsql \
+PGOPTIONS='-c default_transaction_read_only=on -c lock_timeout=5s -c statement_timeout=5min' \
+php -d memory_limit=512M artisan keirin:stat35:backfill-agari \
+  --execute --dry-run --from=2024-12-31 --to=2024-12-31 --chunk=100
+```
+
+- 開始/終了: 2026-09-22 11:13:22.343443～11:13:23.423929 JST。
+- PHP終了コード0、所要1.080487291秒、peak 37,748,736 bytes、stderr 0 bytes。
+- summary: success=75、skipped=0、failed=0、observations=0、current_updates=0、NO_IMPORT=0、NO_IMPORT_UNSUPPORTED=0、dry_run=true、batch_run_id=null。
+- 対象75 importは不変。successは保存済みimportの正常照合を含み、0を要求しない。
+- 追加・更新予定0件を確認。DB書込みを伴う再実行で冪等性を試したものではない。
+
+### Evidence And Review Boundary
+
+実在する証跡ディレクトリ:
+
+```text
+/home/shinya/neo-keirin-artifacts/stat35-production-backfill-pilot-01/run-20260922-110730-e4408a8c/
+```
+
+`pilot.php`、保存前後snapshot、前回入力照合、正式/保存後dry-runのstdout全文・stderr・argv・実行SHA・時刻・終了コード・summary、保存照合JSONを保持する。
+既存証跡・Raw・正式成果物は上書きしない。保存前snapshotは同じ対象日の比較用で、全DB/全年backupではない。
+状態は **SAVED_AND_VERIFIED_AWAITING_REVIEW（2024-12-31のみ）**。
+2022-2025全期間完了ではない。他期間書込みと次実装はNOT_AUTHORIZED。
+historical_as_of_available=false、PUBLICATION_TIME_UNKNOWN、既存C1・2026凍結・Goal 4/5未着手を維持する。
+Migration、構造28項目再監査、cron調査、同期起動、新規取得、学習・精度評価は未実施。
+2文書だけを更新し、全テスト/Pintは再実行せず、差分範囲とgit diff --checkを確認。未コミットで結果レビューを待ち、他期間へ進まない。
+
+---
+
+## Historical Migration Record / PR #67
+
+以下はMigration実行時の記録。未承認・未実施・レビュー待ちは当時の状態として保持し、
+今回の1日分の限定許可・保存結果は上のCurrent Resultを正本とする。
 
 2026-09-22 JST: **APPLIED_AND_SCHEMA_VERIFIED。次は適用結果レビュー。backfill/dry-runは未実施・未承認。**
 PR #66はMERGED。cleanなmain/origin `2715757a6952dbf32fc97f881945d94721a08282` から
