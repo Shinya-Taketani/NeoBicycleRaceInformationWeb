@@ -167,9 +167,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_37_TRACK_CONTEXT_01_IMPLEMENTED_TESTED_PARTIAL_HISTORICAL_COVERAGE_AWAITING_REVIEW
+current_engine_state: STAT35_37_TRACK_CONTEXT_01_PR70_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_37_TRACK_CONTEXT_IMPLEMENTATION_AND_COVERAGE_GAPS
+next_allowed_action: REVIEW_PR70_TRACK_CONTEXT_EXCERPT_FIX_AND_COVERAGE_GAPS
 next_implementation_phase: NOT_AUTHORIZED
 current_phase: STAT-35-37-TRACK-CONTEXT-01
 remote_main: 3d03273ab8aee5a23e8fd317e98a2dc7bad8e9e6
@@ -179,7 +179,7 @@ pr66_status: MERGED
 pr67_status: MERGED
 pr68_status: MERGED
 pr69_status: MERGED
-stat35_37_track_context_01_code: IMPLEMENTED_TESTED_AWAITING_REVIEW
+stat35_37_track_context_01_code: PR70_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
 stat35_37_track_context_01_master: V1_42_TRACKS_44_OBSERVATION_LAYOUTS
 stat35_37_track_context_01_historical_coverage: RESOLVED_3_OF_10660_TRACK_DAYS
 stat35_37_track_context_01_unknown_layout_days: 10657
@@ -616,7 +616,7 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-PRODUCTION-BACKFILL-DRYRUN-01 | 対象1日の保存前READ ONLY試行 | COMPLETED_ONE_DAY_2024_12_31 | 75 import成功、観測/現在値補完予定490/490、batchなし |
 | STAT-35-PRODUCTION-BACKFILL-PILOT-01 | 同日正式保存・保存照合・保存後dry-run | REVIEW_COMPLETED_PR68_MERGED | BatchRun 120、実増分490/490、保存後予定0/0、今回終端でも保存行不変 |
 | STAT-35-PRODUCTION-BACKFILL-2022-2025-01 | pilot日を除く月別正式保存・照合・保存後dry-run | REVIEW_COMPLETED_PR69_MERGED | 48区間・BatchRun 121-168、実増分899,506/716,347、全区間保存後予定0/0、既存記録保持・再実行なし |
-| STAT-35-37-TRACK-CONTEXT-01 | 版付き構造マスタ・日付解決・未補正距離換算・実coverage | IMPLEMENTED_TESTED_PARTIAL_HISTORICAL_COVERAGE_AWAITING_REVIEW | 42場44観測版、10,660場日中3解決・10,657期間不明・競合0。SCR全体未完了、予測利用未承認 |
+| STAT-35-37-TRACK-CONTEXT-01 | 版付き構造マスタ・日付解決・未補正距離換算・実coverage | PR70_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 配布原文の場/項目/期間をロード時照合。42場44観測版、10,660場日中3解決・10,657期間不明・競合0。SCR全体未完了、予測利用未承認 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2603,6 +2603,33 @@ exact decimalによる半周換算、出力だけ12小数桁half-even、m/sの�
 現在静的構造取得は限定許可内。2026結果/出走表/オッズ/bank record取得・分析は行わない。
 historical_as_of_available=false、旧C1/成果物、2026凍結は不変。次は実装とcoverage不足のレビューだけ、未コミットで停止する。
 
+### PR #70 Review Fix / 2026-09-23
+
+上記の初回テスト・coverageは当時の結果として保持する。配布抜粋とDIRECT値・期間の意味照合は当時未実装だった。
+開始HEAD `5d69de51c93fc5f6d24e1025a13d31f655355f8b`、同じPR branchのclean状態から2指摘だけを修正した。
+P1は旧抽出が `table.hyo3` の先頭（記録表）を選んでいた問題。指定の保存済み静的Rawのサイズ/hashを照合し、
+周長・ホーム傾斜角・センター傾斜角の3ラベルが揃う唯一の表を再抽出。400m / 2°51′45″ / 29°26′54″はactual Fixtureとも一致。
+実meta原文の「2022年6月28日～30日に西武園競輪場で開催される」も保持し、手書き期間コメントへの依存を除いた。
+旧外部抽出スクリプトは不変。修正版 `extract-review.php` は新証跡へ保存した。
+
+P2はhash/sizeとJSON内部整合だけでは原文の取り違えを検出できない問題。
+ロード成功前に4形式の同梱抜粋を解析し、source_refs・台帳のtrack_id/場名行/列とDIRECT raw/value/unit、
+原文の期間・半周定義・DERIVED出典連鎖を照合する。伊東/伊東温泉、向日町/京都向日町は明示aliasのみ。
+decimal/DMSをfloatへ変換せず、抜粋と異なる整合的JSON改変、別場参照、行/項目/期間欠落・重複・単位違いを拒否する。
+runtimeは同梱資料だけで完結し、本番DB・HTTP・外部Rawへ依存しない。値・計算式・丸め・結果状態は不変。
+
+修正前manifest SHA: `d8eb9cbfff17e64ab4a97ed7d1f8b33ea8ec86f6f5af2824f2754cd604b42b71`。
+修正後manifest SHA: `d987a6eed079a8370492e57cc92e51611145e42705ae6c68866478e32e35da8a`。
+固定targetsのSHA `9826917544d22feb5ccbce9855151e293278a974e084f362ec1a88c23e001067` は不変。
+修正版coverageは512M・offlineで1回、exit 0・stderr空。manifest SHA以外のJSON全内容が旧結果と一致した。
+42場44版、10,660場日中3解決/10,657期間不明/競合0。旧manifest・coverage・Rawは上書きしていない。
+TrackContext 84 tests /736 assertions、隔離SQLite全体1,952 passed /既存9 skip /15,069 assertions、変更PHP6本のPint/構文検査成功。
+人工Fixtureも原文照合の実体を持ち、検証迂回なし。新規29ケースで配布実ファイル統合と再封印改変拒否を確認した。
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/pr70-review-fix-20260923-125144-2u5Yb8/`。
+詳細は [stat35-37-track-context-01.md](stat35-37-track-context-01.md)。PR #70再レビュー待ちでありMERGED/承認済みではない。
+本番DB接続・新規取得・旧処理再実行0。40場の個別案内未確認、歴史期間不足、SCR全体未完了、
+historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、旧C1/成果物・2026凍結を維持する。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation
@@ -3028,6 +3055,10 @@ next_action: REVIEW_STAT35_37_TRACK_CONTEXT_IMPLEMENTATION_AND_COVERAGE_GAPS
 42場44観測版は歴史通年42場対応を意味しない。3/10,660場日だけ解決、残り10,657期間不明、競合0、原典確認の不足を維持する。
 PR #69 mergeと保存工程レビュー完了をmetadata・現在地・工程表・引継ぎへ同期。過去のBatchRun・件数・状態記録は変更しない。
 本番書込み0、旧処理再実行0、予測利用NOT_AUTHORIZED、historical_as_of_available=false、2026凍結。未コミットでレビュー待ち。
+
+同Version内のPR #70レビュー修正: Section 15.42の追記にP1抜粋取り違え/P2ロード時原文照合、
+新旧manifest・coverage比較・回帰検証・別証跡を記録。初回結果は旧検証の履歴として残す。
+現在地・工程表・引継ぎは `PR70_REVIEW_FIX_VERIFIED_AWAITING_REVIEW` へ同期し、remote mainは変更しない。
 
 ## v1.32 / 2026-09-22
 
@@ -3515,7 +3546,7 @@ Filled current status = VALID_700405_MISSING_15939_INVALID_FORMAT_0_OBSERVED_ABN
 Combined with pilot exactly once = 899996_OBSERVATIONS / 716837_CURRENT_RESULTS
 Post-save READ ONLY dry-run = ZERO_PLANNED_CHANGES_ALL_EXECUTED_INTERVALS / FAILED_0 / BATCH_RUN_ID_NULL
 Production write in prior backfill phase = USER_AUTHORIZED_2022_2025_EXCLUDING_PILOT_OBSERVATIONS_CURRENT_AGARI_AND_BATCH_AUDIT
-STAT-35-37-TRACK-CONTEXT-01 = IMPLEMENTED_TESTED_PARTIAL_HISTORICAL_COVERAGE_AWAITING_REVIEW
+STAT-35-37-TRACK-CONTEXT-01 = PR70_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
 Track context master = v1 / 42_TRACKS_44_OBSERVATION_LAYOUTS / TWO_INDIVIDUAL_STATIC_GUIDES_CHECKED
 Track context coverage = RESOLVED_3_UNKNOWN_LAYOUT_10657_CONFLICT_0 / TARGET_TRACK_DAYS_10660
 Track context source gaps = FORTY_CURRENT_GUIDES_AND_HISTORICAL_PERIODS_UNCONFIRMED / SCR_OVERALL_NOT_COMPLETED
@@ -3526,7 +3557,7 @@ Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review only STAT-35-37-TRACK-CONTEXT-01 implementation and coverage gaps (REVIEW_STAT35_37_TRACK_CONTEXT_IMPLEMENTATION_AND_COVERAGE_GAPS). PR #69 is merged and the production backfill result review is complete; prior batch counts and evidence remain unchanged. The limited file-master/date-resolution/unadjusted-distance-conversion code is implemented and tested. Official source collection establishes 42 tracks with 44 observation layouts, not complete historical coverage: only the explicitly documented Seibuen 2022-06-28/30 event resolves 3 of 10,660 target track-days, with 10,657 UNKNOWN_LAYOUT_VERSION and zero overlapping effective layouts. Forty individual current guides and historical validity periods remain unconfirmed. Current values and the 2012 snapshot cannot fill historical gaps. Production access this phase was READ ONLY track identity/date inventory only, with no result/agari reread and no writes. No old backfill, dry-run, migration, backup or audit was rerun. Preserve historical_as_of_available=false, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. This is not full SCR/STAT completion, an adjusted ability score or improved prediction accuracy. Further implementation, writes, STAT scoring, training and predictive evaluation remain NOT_AUTHORIZED. Stop for review.
+Re-review PR #70 excerpt and runtime evidence fixes (REVIEW_PR70_TRACK_CONTEXT_EXCERPT_FIX_AND_COVERAGE_GAPS). PR #70 is not merged or approved. PR #69 is merged; prior batch counts and evidence remain unchanged. The corrected Seibuen excerpt is selected by all three structural labels and includes the actual event-date meta text. Load now verifies sealed excerpts against source identity, named track rows/fields, DIRECT values, half-lap definition and period evidence. New focused/full tests pass; new offline coverage matches all old semantic content except manifest_sha256. The old tests/coverage did not perform this new semantic verification and remain historical evidence. There are 42 tracks and 44 observation layouts, but only the Seibuen 2022-06-28/30 event resolves 3 of 10,660 target days; 10,657 remain UNKNOWN_LAYOUT_VERSION with zero conflicts. Forty individual current guides and historical periods remain unconfirmed. Current values and the 2012 snapshot cannot fill historical gaps. This review fix used no production DB connection or new HTTP fetch and reran no backfill, dry-run, migration, backup or old audit. Preserve historical_as_of_available=false, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. This is not full SCR/STAT completion, an adjusted ability score or improved prediction accuracy. Further implementation, writes, STAT scoring, training and predictive evaluation remain NOT_AUTHORIZED. Stop uncommitted for re-review.
 
 Do not:
 redo BT-02 discovery

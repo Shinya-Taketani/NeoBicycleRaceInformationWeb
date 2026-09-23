@@ -19,12 +19,12 @@
             "sha256": "04bcbe857694c892fc43ad2e6936fed1ca79ddb82dbe92076e0a56094b8708a2"
         },
         "seibuen-structure.html": {
-            "bytes": 312,
-            "sha256": "e625603d969f7a7129dd15e761bc0e9697fd657a2be6fd5e42e399331da05d9e"
+            "bytes": 572,
+            "sha256": "e509b245a195c2d1ea4f3c240d6fd13a31d5f53423644540e8081d85a0b2080d"
         },
         "sources.json": {
-            "bytes": 29433,
-            "sha256": "392033ebc1da34fb3bdc18e248c7021588294305df90d98bcb08aec401ae8fbc"
+            "bytes": 46393,
+            "sha256": "d2e8eb4bc62f1e4e2b378182852b3174dee19329ef9cdcf27e55371202342b39"
         },
         "structure2012.tsv": {
             "bytes": 2116,

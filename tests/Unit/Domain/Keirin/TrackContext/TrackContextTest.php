@@ -95,16 +95,21 @@ final class TrackContextTest extends TestCase
     {
         $files = TrackContextFixture::files();
         $layouts = &$files['tracks.json']['keirin_jp:11']['layouts'];
+        $layouts[0]['period']['from'] = '2023-12-31';
+        $layouts[0]['period']['until'] = '2024-01-01';
+        TrackContextFixture::evidence($files);
         $layouts[] = $layouts[0];
         $layouts[1]['layout_version'] = 'synthetic-b';
         $layouts[1]['period']['from'] = '2024-01-01';
-        $layouts[1]['period']['until'] = '2025-01-01';
+        $layouts[1]['period']['until'] = '2024-01-02';
         TrackContextFixture::circumference($files, '333.3', 1);
         $master = $this->master($files);
         self::assertSame('synthetic-a', $master->resolve('keirin_jp', '11', '2023-12-31')->layout['layout_version']);
         self::assertSame('synthetic-b', $master->resolve('keirin_jp', '11', '2024-01-01')->layout['layout_version']);
         self::assertSame('UNKNOWN_LAYOUT_VERSION', $master->resolve('keirin_jp', '11', '2025-01-01')->status);
         $layouts[1]['period']['from'] = '2023-12-31';
+        $layouts[1]['period']['until'] = '2024-01-01';
+        TrackContextFixture::evidence($files, 1);
         self::assertSame('SOURCE_CONFLICT', $this->master($files)->resolve('keirin_jp', '11', '2023-12-31')->status);
         $layouts[1]['period'] = ['status' => 'UNKNOWN', 'from' => null, 'until' => null, 'source_refs' => [], 'evidence' => 'Current observation only'];
         self::assertSame('UNKNOWN_LAYOUT_VERSION', $this->master($files)->resolve('keirin_jp', '11', '2025-01-01')->status);

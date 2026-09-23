@@ -53,6 +53,7 @@ final readonly class TrackContextMaster
         $tracks = self::json($files['tracks.json']);
         $master = new self($version, hash('sha256', $manifestBytes), $sources, $definitions, $tracks);
         $master->validate($files);
+        (new ExcerptEvidenceVerifier)->verify($master, $files);
 
         return $master;
     }

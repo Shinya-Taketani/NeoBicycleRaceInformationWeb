@@ -10,17 +10,33 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class OfficialStructureParser
 {
-    public const VERSION = 'official-structure-table-v1';
+    public const VERSION = 'official-structure-table-v2';
+
+    private const LABELS = ['周長' => 'bank_circumference_m', 'ホーム傾斜角' => 'straight_slope', 'センター傾斜角' => 'cant'];
+
+    public function table(string $html): Crawler
+    {
+        $tables = (new Crawler($html))->filter('table.hyo3')->reduce(function (Crawler $table): bool {
+            $labels = $table->filter('th')->each(fn (Crawler $cell): ?string => HtmlTextNormalizer::normalize($cell->text()));
+
+            return array_diff(array_keys(self::LABELS), $labels) === [];
+        });
+        if ($tables->count() !== 1) {
+            throw new InvalidArgumentException('Expected exactly one labelled structural table.');
+        }
+
+        return $tables;
+    }
 
     /** Only the labelled structural table verified in the Seibuen official static guide. */
     public function parse(string $html): array
     {
         $fields = [];
-        $labels = ['周長' => 'bank_circumference_m', 'ホーム傾斜角' => 'straight_slope', 'センター傾斜角' => 'cant'];
-        (new Crawler($html))->filter('table.hyo3 tr')->each(function (Crawler $row) use (&$fields, $labels): void {
+        $labels = self::LABELS;
+        $this->table($html)->filter('tr')->each(function (Crawler $row) use (&$fields, $labels): void {
             $label = HtmlTextNormalizer::normalize($row->filter('th')->count() === 1 ? $row->filter('th')->text() : null);
             if (! isset($labels[$label ?? ''])) {
-                return;
+                throw new InvalidArgumentException('Unexpected structural row.');
             }
             $key = $labels[$label];
             if (isset($fields[$key]) || $row->filter('td')->count() !== 1) {
