@@ -1,0 +1,38 @@
+{
+    "version": "v1",
+    "normalization_version": "track-context-v1",
+    "files": {
+        "definitions.json": {
+            "bytes": 496,
+            "sha256": "91be0e1cc82bdb94d0f83c492e2ef50f2286d3a6a3bc815d804792f7730d8009"
+        },
+        "glossary.txt": {
+            "bytes": 100,
+            "sha256": "0a698ec4ae0a814b18c49d46f82cde02d10dd1db8cdaa69792699064da65b2fa"
+        },
+        "kumamoto-structure.txt": {
+            "bytes": 283,
+            "sha256": "c41f455749d7d364f410ae2ca9a811611fa01f4fb19bc481641f794e679916cc"
+        },
+        "qa.txt": {
+            "bytes": 183,
+            "sha256": "04bcbe857694c892fc43ad2e6936fed1ca79ddb82dbe92076e0a56094b8708a2"
+        },
+        "seibuen-structure.html": {
+            "bytes": 312,
+            "sha256": "e625603d969f7a7129dd15e761bc0e9697fd657a2be6fd5e42e399331da05d9e"
+        },
+        "sources.json": {
+            "bytes": 29433,
+            "sha256": "392033ebc1da34fb3bdc18e248c7021588294305df90d98bcb08aec401ae8fbc"
+        },
+        "structure2012.tsv": {
+            "bytes": 2116,
+            "sha256": "3413368910c634ea1c4ef9a2913bc07e1201d352a4bfaf559891d932f5a19816"
+        },
+        "tracks.json": {
+            "bytes": 240343,
+            "sha256": "f79304889b67fea91a15a537841e9a3131ddb99e8aea6b33fc796258c3878e12"
+        }
+    }
+}

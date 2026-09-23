@@ -1,0 +1,9 @@
+Official Kumamoto facility guide: current observation, NOT a historical interval.
+bank_circumference_m	400m
+straight_length_m	60.3m
+cant	34°15′29″
+straight_slope	2°51′45″
+home_width_m	10.0m
+back_width_m	9.0m
+center_width_m	8.0m
+2024年6月にリニューアルオープン

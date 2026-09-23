@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.32
+- Version: 1.33
 - Created: 2026-08-23
-- Updated: 2026-09-22
+- Updated: 2026-09-23
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `88ac8ff4677dde5c53a40ef028e5d83923671e07`
+- Remote `main` at last update: `3d03273ab8aee5a23e8fd317e98a2dc7bad8e9e6`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,17 +167,27 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_PRODUCTION_BACKFILL_2022_2025_01_ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW
+current_engine_state: STAT35_37_TRACK_CONTEXT_01_IMPLEMENTED_TESTED_PARTIAL_HISTORICAL_COVERAGE_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_PRODUCTION_BACKFILL_2022_2025_RESULT
+next_allowed_action: REVIEW_STAT35_37_TRACK_CONTEXT_IMPLEMENTATION_AND_COVERAGE_GAPS
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-PRODUCTION-BACKFILL-2022-2025-01
-remote_main: 88ac8ff4677dde5c53a40ef028e5d83923671e07
+current_phase: STAT-35-37-TRACK-CONTEXT-01
+remote_main: 3d03273ab8aee5a23e8fd317e98a2dc7bad8e9e6
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
 pr67_status: MERGED
 pr68_status: MERGED
+pr69_status: MERGED
+stat35_37_track_context_01_code: IMPLEMENTED_TESTED_AWAITING_REVIEW
+stat35_37_track_context_01_master: V1_42_TRACKS_44_OBSERVATION_LAYOUTS
+stat35_37_track_context_01_historical_coverage: RESOLVED_3_OF_10660_TRACK_DAYS
+stat35_37_track_context_01_unknown_layout_days: 10657
+stat35_37_track_context_01_conflicting_days: 0
+stat35_37_track_context_01_individual_guides: TWO_CHECKED_FORTY_CURRENT_GUIDES_UNCONFIRMED
+stat35_37_track_context_01_production_writes: 0
+stat35_37_track_context_01_prediction_use: NOT_AUTHORIZED
+scr_stat35_02_overall: NOT_COMPLETED_HISTORICAL_PERIODS_AND_SOURCE_FIELDS_REMAIN_UNCONFIRMED
 stat35_storage_backfill_01: IMPLEMENTATION_REVIEW_MERGE_COMPLETED
 stat35_production_preflight_01: COMPLETED_PR66_MERGED
 stat35_production_migration_01: APPLIED_AND_SCHEMA_VERIFIED_REVIEW_COMPLETED_PR67_MERGED
@@ -193,7 +203,7 @@ stat35_production_backfill_pilot_01: REVIEW_COMPLETED_PR68_MERGED_SAVED_ROWS_UNC
 stat35_backfill_batch_run_id: 120
 stat35_backfill_observations_added: 490
 stat35_backfill_current_results_updated: 490
-stat35_production_backfill_2022_2025_01: ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW
+stat35_production_backfill_2022_2025_01: REVIEW_COMPLETED_PR69_MERGED_SAVED_ROWS_UNCHANGED
 stat35_post_save_dry_run: ZERO_PLANNED_CHANGES_ALL_EXECUTED_INTERVALS
 stat35_backfill_2022_2025_executed_intervals: 48
 stat35_backfill_2022_2025_unstarted_intervals: 0
@@ -312,6 +322,7 @@ completed_phases:
   - STAT-35-PRODUCTION-MIGRATION-01
   - STAT-35-PRODUCTION-BACKFILL-PILOT-01_ONE_DAY_2024_12_31
   - STAT-35-PRODUCTION-BACKFILL-2022-2025-01_SCOPE_PROCESSED_AND_VERIFIED
+  - STAT-35-PRODUCTION-BACKFILL-2022-2025-01_RESULT_REVIEW_PR69_MERGED
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -604,7 +615,8 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-PRODUCTION-MIGRATION-01 | 対象1本の本番DDL・適用後READ ONLY照合 | REVIEW_COMPLETED_PR67_MERGED | Migration batch 14、再適用・構造再監査なし |
 | STAT-35-PRODUCTION-BACKFILL-DRYRUN-01 | 対象1日の保存前READ ONLY試行 | COMPLETED_ONE_DAY_2024_12_31 | 75 import成功、観測/現在値補完予定490/490、batchなし |
 | STAT-35-PRODUCTION-BACKFILL-PILOT-01 | 同日正式保存・保存照合・保存後dry-run | REVIEW_COMPLETED_PR68_MERGED | BatchRun 120、実増分490/490、保存後予定0/0、今回終端でも保存行不変 |
-| STAT-35-PRODUCTION-BACKFILL-2022-2025-01 | pilot日を除く月別正式保存・照合・保存後dry-run | ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW | 48区間・BatchRun 121-168、実増分899,506/716,347、全区間保存後予定0/0、次は結果レビュー |
+| STAT-35-PRODUCTION-BACKFILL-2022-2025-01 | pilot日を除く月別正式保存・照合・保存後dry-run | REVIEW_COMPLETED_PR69_MERGED | 48区間・BatchRun 121-168、実増分899,506/716,347、全区間保存後予定0/0、既存記録保持・再実行なし |
+| STAT-35-37-TRACK-CONTEXT-01 | 版付き構造マスタ・日付解決・未補正距離換算・実coverage | IMPLEMENTED_TESTED_PARTIAL_HISTORICAL_COVERAGE_AWAITING_REVIEW | 42場44観測版、10,660場日中3解決・10,657期間不明・競合0。SCR全体未完了、予測利用未承認 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2562,6 +2574,37 @@ Migration/backup/旧監査/全テスト/Pintの再実行、新規取得、同期
 
 ---
 
+## 15.42 STAT-35-37-TRACK-CONTEXT-01
+
+PR #69 MERGED、2022-2025保存結果レビュー完了。開始main/originは `3d03273ab8aee5a23e8fd317e98a2dc7bad8e9e6`。
+最新ユーザー指示は今回の構造・計測定義マスタ、日付解決、純粋距離換算、限定公式資料取得とテストだけを許可した。
+過去のNOT_AUTHORIZEDは当時の記録として保持し、学習/STAT得点/予測利用/追加backfillへ拡張しない。
+clean mainから `feature/stat35-37-track-context-01` を作成し、既存保存・scraping・予測・設定・DB schemaは変更していない。
+
+接続開始からREAD ONLYを確認し、keirin_jpの2022-2025対象場ID/外部コード/名称/日付だけを保存。
+実対象42場・10,660場日。業務結果・上がり全件・順位・払戻は再取得していない。
+公式用語集/Q&Aから上がり半周定義、公式2012資料から対象全場の構造4項目、西武園静的イベント案内と熊本静的施設案内を確認。
+固定v1は42場44観測版。公表時刻/計測精度/屋内外は未確認のまま保存し、原文・URL・取得時刻・hash・項目出典を保持。
+過去時点の表は2022年以降の通年根拠にせず、西武園の資料が明示する2022-06-28～30だけを限定採用。
+熊本の旧500m/現400mは別観測とし、現在値を過去へ遡及しない。他40場の個別現在案内/改修履歴確認は未完了。
+
+日付は根拠付き `[from, until)`、期間重複はSOURCE_CONFLICT、期間不明はUNKNOWN_LAYOUT_VERSION、最新値fallbackなし。
+実coverageを1回生成: RESOLVED 3、UNKNOWN_LAYOUT_VERSION 10,657、SOURCE_CONFLICT 0、距離解決3場日。
+実際の上がり秒数は読まず、速度計算は人工値だけで検証。FINISHED/TIED + VALID + 確認距離/定義のみ、欠損はnullと理由。
+exact decimalによる半周換算、出力だけ12小数桁half-even、m/sの丸めをkm/hへ持ち越さない。
+新規/関連78 tests / 222 assertions、追加の原文整合性検査後の影響範囲55 tests / 156 assertionsは成功。
+全テストはtesting/SQLiteメモリDBで1回実行: 1,932件中1,923成功・既存9skip、14,489 assertions。新規skipなし。
+変更PHPのPint --testと全10 PHPの構文検査も成功。
+
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/`。
+詳細・場別表・原典採否・コマンド・残課題は [stat35-37-track-context-01.md](stat35-37-track-context-01.md)。
+コード検証成功と歴史全期間網羅を分離し、SCR-STAT-35-02/STAT-35全体/STAT-37全歴史網羅をCOMPLETEDとしない。
+今回の本番DB書込み、Migration、agari再処理、旧backfill/dry-run/監査/backup再実行、STAT得点、学習、予測評価は0。
+現在静的構造取得は限定許可内。2026結果/出走表/オッズ/bank record取得・分析は行わない。
+historical_as_of_available=false、旧C1/成果物、2026凍結は不変。次は実装とcoverage不足のレビューだけ、未コミットで停止する。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2858,6 +2901,7 @@ run 6は正式完了済み。
 | #66 | ops:stat35 production preflight 01 | MERGED |
 | #67 | STAT-35 production migration結果 | MERGED |
 | #68 | STAT-35 production backfill pilot結果 | MERGED |
+| #69 | STAT-35 production backfill 2022-2025結果 | MERGED / 保存結果レビュー完了 |
 
 Current remote `main` at the v1.2 update:
 
@@ -2967,6 +3011,23 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.33 / 2026-09-23
+
+```text
+updated_by: Codex
+remote_main_sha: 3d03273ab8aee5a23e8fd317e98a2dc7bad8e9e6
+changed_sections: metadata, 5, 8, 15.42, 21, 25, 27
+related_pr: PR #69 merged / backfill result review completed
+related_run: stat35-37-track-context-01/run-20260923-104546-92962a55
+decision: IMPLEMENTED_TESTED_PARTIAL_HISTORICAL_COVERAGE_AWAITING_REVIEW
+next_action: REVIEW_STAT35_37_TRACK_CONTEXT_IMPLEMENTATION_AND_COVERAGE_GAPS
+```
+
+今回のみ許可されたファイルマスタ/日付解決/距離換算を実装・テストし、公式資料と限定READ ONLY対象一覧からcoverageを生成。
+42場44観測版は歴史通年42場対応を意味しない。3/10,660場日だけ解決、残り10,657期間不明、競合0、原典確認の不足を維持する。
+PR #69 mergeと保存工程レビュー完了をmetadata・現在地・工程表・引継ぎへ同期。過去のBatchRun・件数・状態記録は変更しない。
+本番書込み0、旧処理再実行0、予測利用NOT_AUTHORIZED、historical_as_of_available=false、2026凍結。未コミットでレビュー待ち。
 
 ## v1.32 / 2026-09-22
 
@@ -3436,7 +3497,8 @@ STAT-35-DATA-READINESS-AUDIT-01 = COMPLETED_PR64_MERGED / BLOCKED_INSUFFICIENT_R
 PR #65 = MERGED / main adb847c5b0a2b0778ecb02a57c37bffbecf2d926
 PR #66 = MERGED / migration-phase main 2715757a6952dbf32fc97f881945d94721a08282
 PR #67 = MERGED / pilot-phase main 15bb52de18eb5908a01d181d8177f33c0b1ca583
-PR #68 = MERGED / current main 88ac8ff4677dde5c53a40ef028e5d83923671e07 / PILOT_REVIEW_COMPLETED
+PR #68 = MERGED / backfill-phase main 88ac8ff4677dde5c53a40ef028e5d83923671e07 / PILOT_REVIEW_COMPLETED
+PR #69 = MERGED / current main 3d03273ab8aee5a23e8fd317e98a2dc7bad8e9e6 / BACKFILL_RESULT_REVIEW_COMPLETED
 STAT-35-STORAGE-BACKFILL-01 = IMPLEMENTATION_REVIEW_MERGE_COMPLETED / PRODUCTION_SCHEMA_APPLIED_AND_VERIFIED
 STAT-35-PRODUCTION-PREFLIGHT-01 = COMPLETED_PR66_MERGED / HISTORICAL_READ_ONLY_PREFLIGHT_RECORD_PRESERVED
 STAT-35-PRODUCTION-MIGRATION-01 = APPLIED_AND_SCHEMA_VERIFIED_REVIEW_COMPLETED_PR67_MERGED / MIGRATION_BATCH_14
@@ -3444,21 +3506,27 @@ STAT-35-PRODUCTION-BACKFILL-DRYRUN-01 = COMPLETED_2024_12_31_ONLY / 75_IMPORTS /
 STAT-35-PRODUCTION-BACKFILL-PILOT-01 = REVIEW_COMPLETED_PR68_MERGED / 2024_12_31_ONLY / BATCH_RUN_120_SUCCEEDED / END_SNAPSHOT_UNCHANGED
 Pilot saved counts = 490_OBSERVATIONS / 490_CURRENT_RESULTS / VALID_477_MISSING_13 / NON_AGARI_CHANGES_0
 Pilot post-save READ ONLY dry-run = SUCCESS_75_FAILED_0 / OBSERVATIONS_0_CURRENT_UPDATES_0 / BATCH_RUN_ID_NULL / NOT_RERUN
-STAT-35-PRODUCTION-BACKFILL-2022-2025-01 = ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW / EXCLUDES_2024_12_31
+STAT-35-PRODUCTION-BACKFILL-2022-2025-01 = REVIEW_COMPLETED_PR69_MERGED / EXCLUDES_2024_12_31 / NO_RERUN
 Executed intervals = 48 / unstarted = 0 / BatchRun 121-168 SUCCEEDED
-This-phase summary = SUCCESS_126933_SKIPPED_113_FAILED_0 / NO_IMPORT_29_NO_IMPORT_UNSUPPORTED_0
-This-phase actual DB delta = 899506_OBSERVATIONS / 716347_CURRENT_RESULTS / NON_AGARI_CHANGES_0
+Prior backfill-phase summary = SUCCESS_126933_SKIPPED_113_FAILED_0 / NO_IMPORT_29_NO_IMPORT_UNSUPPORTED_0
+Prior backfill-phase actual DB delta = 899506_OBSERVATIONS / 716347_CURRENT_RESULTS / NON_AGARI_CHANGES_0
 New observation status = VALID_879184_MISSING_20319_INVALID_FORMAT_0_OBSERVED_ABNORMAL_RESULT_3
 Filled current status = VALID_700405_MISSING_15939_INVALID_FORMAT_0_OBSERVED_ABNORMAL_RESULT_3
 Combined with pilot exactly once = 899996_OBSERVATIONS / 716837_CURRENT_RESULTS
 Post-save READ ONLY dry-run = ZERO_PLANNED_CHANGES_ALL_EXECUTED_INTERVALS / FAILED_0 / BATCH_RUN_ID_NULL
-Production write this phase = USER_AUTHORIZED_2022_2025_EXCLUDING_PILOT_OBSERVATIONS_CURRENT_AGARI_AND_BATCH_AUDIT
+Production write in prior backfill phase = USER_AUTHORIZED_2022_2025_EXCLUDING_PILOT_OBSERVATIONS_CURRENT_AGARI_AND_BATCH_AUDIT
+STAT-35-37-TRACK-CONTEXT-01 = IMPLEMENTED_TESTED_PARTIAL_HISTORICAL_COVERAGE_AWAITING_REVIEW
+Track context master = v1 / 42_TRACKS_44_OBSERVATION_LAYOUTS / TWO_INDIVIDUAL_STATIC_GUIDES_CHECKED
+Track context coverage = RESOLVED_3_UNKNOWN_LAYOUT_10657_CONFLICT_0 / TARGET_TRACK_DAYS_10660
+Track context source gaps = FORTY_CURRENT_GUIDES_AND_HISTORICAL_PERIODS_UNCONFIRMED / SCR_OVERALL_NOT_COMPLETED
+Track context production writes = 0 / NO_AGARI_REPROCESSING / NO_PREDICTION_EVALUATION
+Track context prediction use = NOT_AUTHORIZED / historical_as_of_available=false
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review only the STAT-35 2022-2025 production backfill result (REVIEW_STAT35_PRODUCTION_BACKFILL_2022_2025_RESULT). PR #68 is merged and pilot review is complete. All 48 monthly intervals excluding 2024-12-31 ran once and passed read-only before/after verification; BatchRun 121-168 all SUCCEEDED, zero failed imports. Actual additions/updates match summaries at 899,506/716,347. NO_IMPORT 29 races, CANCELLED 113 skipped imports and MISSING values remain: scope processing is complete, not a claim of complete data. Every post-save READ ONLY dry-run had zero planned additions/updates, failed=0 and batch_run_id=null, with unchanged target rows and audit records. Source/current mismatches and non-agari changes are zero. Pilot BatchRun 120 and its saved rows match the prior snapshot; its Raw and command were not rerun. This phase wrote observations/current agari and batch audit, not DDL. The existing backup and archive list succeeded; restore testing remains unperformed, with no backup or migration re-execution. Preserve historical records, historical_as_of_available=false, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. Further writes, implementation, STAT calculation, training and predictive evaluation remain NOT_AUTHORIZED. Stop for result review.
+Review only STAT-35-37-TRACK-CONTEXT-01 implementation and coverage gaps (REVIEW_STAT35_37_TRACK_CONTEXT_IMPLEMENTATION_AND_COVERAGE_GAPS). PR #69 is merged and the production backfill result review is complete; prior batch counts and evidence remain unchanged. The limited file-master/date-resolution/unadjusted-distance-conversion code is implemented and tested. Official source collection establishes 42 tracks with 44 observation layouts, not complete historical coverage: only the explicitly documented Seibuen 2022-06-28/30 event resolves 3 of 10,660 target track-days, with 10,657 UNKNOWN_LAYOUT_VERSION and zero overlapping effective layouts. Forty individual current guides and historical validity periods remain unconfirmed. Current values and the 2012 snapshot cannot fill historical gaps. Production access this phase was READ ONLY track identity/date inventory only, with no result/agari reread and no writes. No old backfill, dry-run, migration, backup or audit was rerun. Preserve historical_as_of_available=false, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. This is not full SCR/STAT completion, an adjusted ability score or improved prediction accuracy. Further implementation, writes, STAT scoring, training and predictive evaluation remain NOT_AUTHORIZED. Stop for review.
 
 Do not:
 redo BT-02 discovery
