@@ -9,7 +9,7 @@ use DateTimeImmutable;
 use RuntimeException;
 use Symfony\Component\DomCrawler\Crawler;
 
-/** The four sealed v1 excerpt formats, not a network or general-purpose scraping parser. */
+/** Sealed source excerpts, not a network or general-purpose scraping parser. */
 final class ExcerptEvidenceVerifier
 {
     public const TABLE_COLUMNS = ['bank_circumference_m' => 'circumference_m', 'cant' => 'cant', 'straight_slope' => 'straight_slope', 'straight_length_m' => 'straight_length_m'];
@@ -35,6 +35,9 @@ final class ExcerptEvidenceVerifier
                 'SEIBUEN_EVENT_HTML' => $this->event($bytes, $evidence),
                 'KUMAMOTO_FACILITY_TEXT' => $this->facility($bytes, $evidence),
                 'HALF_LAP_GLOSSARY', 'HALF_LAP_QA' => $this->definition($bytes, $evidence),
+                'ANNUAL_2023_STRUCTURAL_COLUMNS_TSV', 'MAEBASHI_2023_PROGRAM_TRANSCRIPT', 'HIRATSUKA_2024_PROGRAM_TRANSCRIPT' => $master->version === 'v2'
+                    ? (new HistoricalStructureExcerptParser)->parse($bytes, $evidence)
+                    : throw new RuntimeException('Historical excerpt requires explicit v2 master.'),
                 default => throw new RuntimeException('Unsupported excerpt format: '.$id),
             };
         }

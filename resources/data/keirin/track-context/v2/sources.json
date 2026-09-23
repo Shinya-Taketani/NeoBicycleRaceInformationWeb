@@ -1,0 +1,1990 @@
+{
+    "glossary": {
+        "url": "https://keirin.jp/pc/static/beginner/keirin-glossary/a-o.html",
+        "fetched_at": "2026-09-23T10:46:19+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/glossary.raw",
+        "raw_sha256": "7f9d42469a5acbef31580905b4b27b59c5e6c53f7883ce6e85f2ca71bd0af6db",
+        "raw_bytes": 22728,
+        "excerpt_file": "glossary.txt",
+        "locator": "上がりタイム",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "HALF_LAP_GLOSSARY"
+        }
+    },
+    "qa": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/guide/question/race.html",
+        "fetched_at": "2026-09-23T10:46:24+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/qa.raw",
+        "raw_sha256": "8b9ff90891c15fb530f630b761a6c88b92e879c98b4027012956d7ff23363dc7",
+        "raw_bytes": 67302,
+        "excerpt_file": "qa.txt",
+        "locator": "Q27",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "HALF_LAP_QA"
+        }
+    },
+    "structure2012-11": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 函館; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "11",
+            "row": "函館",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-12": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 青森; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "12",
+            "row": "青森",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-13": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row いわき平; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "13",
+            "row": "いわき平",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-21": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 弥彦; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "21",
+            "row": "弥彦",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-22": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 前橋; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "22",
+            "row": "前橋",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-23": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 取手; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "23",
+            "row": "取手",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-24": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 宇都宮; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "24",
+            "row": "宇都宮",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-25": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 大宮; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "25",
+            "row": "大宮",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-26": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 西武園; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "26",
+            "row": "西武園",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-27": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 京王閣; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "27",
+            "row": "京王閣",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-28": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 立川; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "28",
+            "row": "立川",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-31": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 松戸; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "31",
+            "row": "松戸",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-34": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 川崎; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "34",
+            "row": "川崎",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-35": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 平塚; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "35",
+            "row": "平塚",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-36": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 小田原; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "36",
+            "row": "小田原",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-37": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 伊東温泉; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "37",
+            "row": "伊東温泉",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-38": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 静岡; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "38",
+            "row": "静岡",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-42": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 名古屋; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "42",
+            "row": "名古屋",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-43": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 岐阜; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "43",
+            "row": "岐阜",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-44": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 大垣; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "44",
+            "row": "大垣",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-45": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 豊橋; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "45",
+            "row": "豊橋",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-46": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 富山; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "46",
+            "row": "富山",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-47": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 松阪; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "47",
+            "row": "松阪",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-48": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 四日市; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "48",
+            "row": "四日市",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-51": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 福井; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "51",
+            "row": "福井",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-53": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 奈良; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "53",
+            "row": "奈良",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-54": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 京都向日町; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "54",
+            "row": "京都向日町",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-55": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 和歌山; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "55",
+            "row": "和歌山",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-56": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 岸和田; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "56",
+            "row": "岸和田",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-61": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 玉野; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "61",
+            "row": "玉野",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-62": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 広島; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "62",
+            "row": "広島",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-63": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 防府; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "63",
+            "row": "防府",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-71": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 高松; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "71",
+            "row": "高松",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-73": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 小松島; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "73",
+            "row": "小松島",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-74": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 高知; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "74",
+            "row": "高知",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-75": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 松山; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "75",
+            "row": "松山",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-81": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 小倉; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "81",
+            "row": "小倉",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-83": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 久留米; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "83",
+            "row": "久留米",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-84": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 武雄; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "84",
+            "row": "武雄",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-85": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 佐世保; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "85",
+            "row": "佐世保",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-86": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 別府; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "86",
+            "row": "別府",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "structure2012-87": {
+        "url": "https://keirin.jp/pc/dfw/portal/guest/column/download/kiroku2012_2.pdf",
+        "fetched_at": "2026-09-23T10:55:27+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/structure2012.raw",
+        "raw_sha256": "94760a7c87c1a5bd6bee10f1088db6d8eb91548350af681f68a4d531e7aa73c2",
+        "raw_bytes": 2509099,
+        "excerpt_file": "structure2012.tsv",
+        "locator": "physical PDF page 11, named row 熊本; statement as of 2012-12-31",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "STRUCTURE_TABLE_TSV",
+            "track_id": "87",
+            "row": "熊本",
+            "columns": {
+                "bank_circumference_m": "circumference_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "straight_length_m": "straight_length_m"
+            }
+        }
+    },
+    "seibuen-guide": {
+        "url": "https://www.keirin-saitama.jp/seibuen/lp/",
+        "fetched_at": "2026-09-23T10:53:30+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/seibuen-guide.raw",
+        "raw_sha256": "1a2b17049aac0c967712dc937ed35812f0f93f48d1ccdc0de14d02be5a2d4022",
+        "raw_bytes": 17380,
+        "excerpt_file": "seibuen-structure.html",
+        "locator": "Unique table.hyo3 with 周長 / ホーム傾斜角 / センター傾斜角; meta[name=description] original 2022年6月28日～30日 event and venue",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "SEIBUEN_EVENT_HTML",
+            "track_id": "26",
+            "row": "西武園",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "straight_slope": "ホーム傾斜角",
+                "cant": "センター傾斜角"
+            }
+        }
+    },
+    "kumamoto-guide": {
+        "url": "https://www.kumamotokeirin.jp/guidance/facility/",
+        "fetched_at": "2026-09-23T10:59:28+09:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/kumamoto-guide.raw",
+        "raw_sha256": "775c37e8a139f85f83f13934f07e42287fe933f9d481c98d97c9cb7f0fca2825",
+        "raw_bytes": 163131,
+        "excerpt_file": "kumamoto-structure.txt",
+        "locator": "バンク情報 / 総合情報",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "KUMAMOTO_FACILITY_TEXT",
+            "track_id": "87",
+            "row": "熊本",
+            "columns": {
+                "bank_circumference_m": "bank_circumference_m",
+                "straight_length_m": "straight_length_m",
+                "cant": "cant",
+                "straight_slope": "straight_slope",
+                "home_width_m": "home_width_m",
+                "back_width_m": "back_width_m",
+                "center_width_m": "center_width_m"
+            }
+        }
+    },
+    "annual2023-11": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "11",
+            "row": "函館",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-12": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "12",
+            "row": "青森",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-13": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "13",
+            "row": "いわき平",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-21": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "21",
+            "row": "弥彦",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-22": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "22",
+            "row": "前橋",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-23": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "23",
+            "row": "取手",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-24": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "24",
+            "row": "宇都宮",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-25": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "25",
+            "row": "大宮",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-26": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "26",
+            "row": "西武園",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-27": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "27",
+            "row": "京王閣",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-28": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "28",
+            "row": "立川",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-31": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "31",
+            "row": "松戸",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-34": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "34",
+            "row": "川崎",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-35": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "35",
+            "row": "平塚",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-36": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "36",
+            "row": "小田原",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-37": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "37",
+            "row": "伊東温泉",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-38": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "38",
+            "row": "静岡",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-42": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "42",
+            "row": "名古屋",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-43": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "43",
+            "row": "岐阜",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-44": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "44",
+            "row": "大垣",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-45": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "45",
+            "row": "豊橋",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-46": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "46",
+            "row": "富山",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-47": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "47",
+            "row": "松阪",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-48": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "48",
+            "row": "四日市",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-51": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "51",
+            "row": "福井",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-53": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "53",
+            "row": "奈良",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-54": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "54",
+            "row": "京都向日町",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-55": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "55",
+            "row": "和歌山",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-56": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "56",
+            "row": "岸和田",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-61": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "61",
+            "row": "玉野",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-62": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "62",
+            "row": "広島",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-63": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "63",
+            "row": "防府",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-71": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "71",
+            "row": "高松",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-73": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "73",
+            "row": "小松島",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-74": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "74",
+            "row": "高知",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-75": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "75",
+            "row": "松山",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-81": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "81",
+            "row": "小倉",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-83": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "83",
+            "row": "久留米",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-84": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "84",
+            "row": "武雄",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-85": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "85",
+            "row": "佐世保",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-86": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "86",
+            "row": "別府",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "annual2023-87": {
+        "url": "https://keirin-web.com/admin/wp-content/uploads/2024/10/%E7%AB%B6%E8%BC%AA%E5%B9%B4%E9%96%93%E8%A8%98%E9%8C%B2%E9%9B%86.pdf",
+        "fetched_at": "2026-09-23T06:25:22+00:00",
+        "published_at": "2024-10-22",
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4090c95795b9ec07c9d8a07378dbf01e8602cf6e47c4ba7117dbc9da07956ca1.raw",
+        "raw_sha256": "8894dfc332fe579f41e9276a91e4352b660e7c11361d67c99e8b921ae1257939",
+        "raw_bytes": 6077949,
+        "excerpt_file": "annual2023-structure.tsv",
+        "locator": "PDF physical page 19 / printed 15; named row, structural columns only; NO structural as-of date",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "ANNUAL_2023_STRUCTURAL_COLUMNS_TSV",
+            "track_id": "87",
+            "row": "熊本",
+            "columns": {
+                "bank_circumference_m": "周長",
+                "cant": "最大カント",
+                "straight_slope": "直線部カント",
+                "straight_length_m": "見なし直線距離"
+            }
+        }
+    },
+    "maebashi-20230629-event": {
+        "url": "https://www.maebashi-keirin.jp/wp-content/uploads/2023/05/dome2306.pdf",
+        "fetched_at": "2026-09-23T06:25:00+00:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/5f45f583a6771715bca86978ae6545cb96b0af2dea4472b6eb26018e0233d295.raw",
+        "raw_sha256": "ed87904fa46863008b271ba3092243e1939a0dedcb18ed5b538a6233178baaae",
+        "raw_bytes": 6066810,
+        "excerpt_file": "maebashi2023-program.txt",
+        "locator": "PDF page 1 banner and page 2 lower right bank box; visually checked actual transcript",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "MAEBASHI_2023_PROGRAM_TRANSCRIPT",
+            "track_id": "22",
+            "row": "前橋",
+            "event_index": 0,
+            "columns": {
+                "bank_circumference_m": "バンク周長",
+                "straight_length_m": "ゴールまでの見なし直線",
+                "cant": "最大カント"
+            }
+        }
+    },
+    "hiratsuka-202411-event-0": {
+        "url": "https://www.shonanbank.com/wp-content/uploads/2024/10/web-hiratsuka.pdf",
+        "fetched_at": "2026-09-23T06:25:03+00:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/433f7c6d81110eb6c70427904f62f32c7eac371d6ee0746ce3776150761ebd38.raw",
+        "raw_sha256": "1265e646b55ccebbc1a51ddcf7c78a7f9e0215d0748305661913e604b8f09dfd",
+        "raw_bytes": 8960575,
+        "excerpt_file": "hiratsuka2024-program.txt",
+        "locator": "PDF page 1 event banner 0 and page 4 lower bank diagram/table; actual image transcript; no graph/entry as-of date reused",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "HIRATSUKA_2024_PROGRAM_TRANSCRIPT",
+            "track_id": "35",
+            "row": "平塚",
+            "event_index": 0,
+            "columns": {
+                "bank_circumference_m": "周長",
+                "straight_length_m": "みなし直線",
+                "cant": "最大カント"
+            }
+        }
+    },
+    "hiratsuka-202411-event-1": {
+        "url": "https://www.shonanbank.com/wp-content/uploads/2024/10/web-hiratsuka.pdf",
+        "fetched_at": "2026-09-23T06:25:03+00:00",
+        "published_at": null,
+        "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/433f7c6d81110eb6c70427904f62f32c7eac371d6ee0746ce3776150761ebd38.raw",
+        "raw_sha256": "1265e646b55ccebbc1a51ddcf7c78a7f9e0215d0748305661913e604b8f09dfd",
+        "raw_bytes": 8960575,
+        "excerpt_file": "hiratsuka2024-program.txt",
+        "locator": "PDF page 1 event banner 1 and page 4 lower bank diagram/table; actual image transcript; no graph/entry as-of date reused",
+        "normalization_version": "track-context-v1",
+        "evidence": {
+            "format": "HIRATSUKA_2024_PROGRAM_TRANSCRIPT",
+            "track_id": "35",
+            "row": "平塚",
+            "event_index": 1,
+            "columns": {
+                "bank_circumference_m": "周長",
+                "straight_length_m": "みなし直線",
+                "cant": "最大カント"
+            }
+        }
+    }
+}

@@ -56,4 +56,25 @@ final class TrackContextCoverageCommandTest extends TestCase
         $this->artisan('keirin:track-context:coverage', ['--master-version' => 'latest', '--targets' => $this->directory.'/targets.json', '--output' => $this->directory.'/report.json'])->assertFailed();
         self::assertFileDoesNotExist($this->directory.'/report.json');
     }
+
+    public function test_v2_runs_offline_preserves_gaps_and_rejects_2026_duplicates_and_overwrite(): void
+    {
+        $targets = array_map(fn ($date) => ['source' => 'keirin_jp', 'external_track_id' => '35', 'race_date' => $date],
+            ['2024-11-04', '2024-11-07', '2024-11-08']);
+        $input = $this->directory.'/targets.json';
+        file_put_contents($input, json_encode($targets, JSON_THROW_ON_ERROR));
+        $options = ['--master-version' => 'v2', '--targets' => $input, '--output' => $this->directory.'/v2.json'];
+        $this->artisan('keirin:track-context:coverage', $options)->assertSuccessful();
+        $bytes = file_get_contents($options['--output']);
+        self::assertSame(2, json_decode($bytes, true, 512, JSON_THROW_ON_ERROR)['distance_resolved_days']);
+        $this->artisan('keirin:track-context:coverage', $options)->assertFailed();
+        self::assertSame($bytes, file_get_contents($options['--output']));
+        $options['--output'] = $this->directory.'/rejected.json';
+        foreach ([[...$targets, $targets[0]], [['source' => 'keirin_jp', 'external_track_id' => '35', 'race_date' => '2026-01-01']]] as $invalid) {
+            file_put_contents($input, json_encode($invalid, JSON_THROW_ON_ERROR));
+            $this->artisan('keirin:track-context:coverage', $options)->assertFailed();
+            self::assertFileDoesNotExist($options['--output']);
+        }
+        Http::assertNothingSent();
+    }
 }

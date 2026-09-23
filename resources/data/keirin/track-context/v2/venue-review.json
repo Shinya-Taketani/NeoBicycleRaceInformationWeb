@@ -1,0 +1,1388 @@
+{
+    "11": {
+        "name": "函館",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://keirin.hakodate.jp/",
+                "http_status": 200,
+                "raw_sha256": "e0a69e15427433833959f3899d52cfdd70468f15f7b9ae90500458b799171ffe",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/0c3a41b3f2ef45e4043292d0278aaf281db52e1f46d6ecf03af67032e2833ac2.raw",
+                "error": null
+            },
+            {
+                "url": "https://keirin.hakodate.jp/facility.html",
+                "http_status": 200,
+                "raw_sha256": "45418944de9789a4417705043ee7ed90fc3959c1790dcef6b601c92ed4e545ae",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c479e9a2a894014a897936d0553d7a2d33cadadf5e07e4df9f84641cf333b6b4.raw",
+                "error": null
+            },
+            {
+                "url": "https://keirin.hakodate.jp/facility_open-use.html",
+                "http_status": 200,
+                "raw_sha256": "e353f326107d992c604ea35707d6ae8ffc7990161b6b78137168c083fa0a7b40",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/00929a8630e4706fa94ef4f0bd250f8a5b5e2adde1aabe5fd275290bdf22580b.raw",
+                "error": null
+            },
+            {
+                "url": "https://keirin.hakodate.jp/sitepolicy.html",
+                "http_status": 200,
+                "raw_sha256": "3b8b358986c85f4515c88382878036b2c28c539979565aa0ab312960e4685b7e",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/10034c55c498b53625bf307d142ea4594057d356264c7646863da539d38dcc85.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-11",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "12": {
+        "name": "青森",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://aomorikeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "351877e6231908f74d67ed76a3445cea0b4d07f32820fe660e8efd704d4f88bf",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/8aa7fe6b0d5a002ed65bb417a5eac8173c6baf49f3ec00e2e5a4be19c4ccdf6a.raw",
+                "error": null
+            },
+            {
+                "url": "https://aomorikeirin.com/magazine",
+                "http_status": 200,
+                "raw_sha256": "96e2b98958ae909bb91051d999526ab34a9fed714801cc94650fda452ed30d4b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/13718896763e8bb78d277e46a9db45afe3451c1d16928ca7166778e7a6328d85.raw",
+                "error": null
+            },
+            {
+                "url": "https://aomorikeirin.com/news/aomorikeirinbankkoukoku/",
+                "http_status": 200,
+                "raw_sha256": "911396ac5cef3b63d5d73eec6cf98a14dc8b958cc0f69bb158d6e9996548a754",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/d39e05e15b5984e751751bc46225ca020fe15b94d710e159d68c17c6811e0a99.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.chariloto.com/statics/guide/entry_step",
+                "http_status": 200,
+                "raw_sha256": "4536653d1fe721ef4c5226dc6e9a065a2f6644d708889e97eac79d2ab2082d05",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/24ebd84a2114b38f20f0cc0aedf50ab940bc554cbc41ce23d10aa0baacdcb3c8.raw",
+                "error": null
+            },
+            {
+                "url": "https://aomorikeirin.com/policy",
+                "http_status": 200,
+                "raw_sha256": "62991de4feab532cde7e7c5e6a1fc8f6c60999ec96a5524f28058f32825e0c98",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/9d998476906e00a1e595815caf779738c9428902f9fe6bd31b5418da484fc42d.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-12",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "13": {
+        "name": "いわき平",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.tairakeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "a45eba566e674d3838bcc4afc384b6b4f4d5f26f47ff7d998e698e1a60cc335c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/eb099563a2de4273e6f3df3d741e73212c2c36ce459b015c44518fe19d132c98.raw",
+                "error": null
+            },
+            {
+                "url": "https://tairakeirin.com/facilities/",
+                "http_status": 200,
+                "raw_sha256": "c3f68ff9044f42d041cc29e8e9b9ae305ee923a01df8ca37a36e2ab86b11599a",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/49d3775df4531cc0a59ec58363374b0e62ea25b865d80b3de187043c1978fd12.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-13",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "21": {
+        "name": "弥彦",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.yahikokeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "50ff29df7d79f55cb1489a4eda3c5b76f09f489e95dec4fe9bacfe73cdf710e6",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/b768d6783398a8e06ef7f726c5f55bc4d64e053a0f213da1ef1cc1d4d93f4d0f.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.yahikokeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "50ff29df7d79f55cb1489a4eda3c5b76f09f489e95dec4fe9bacfe73cdf710e6",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/b768d6783398a8e06ef7f726c5f55bc4d64e053a0f213da1ef1cc1d4d93f4d0f.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.yahikokeirin.com/index.php/guide-facilities",
+                "http_status": 200,
+                "raw_sha256": "3afe9691e7aa7a07bab38926d89d3f83580dcc9c0623542541930c94f99d2ffb",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/68bae6097f622b11a4775e8a7cb1a0f5c9145c63116deab9fa59f49cebd6fa18.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-21",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "22": {
+        "name": "前橋",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.maebashi-keirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "7699a5216e576bbc6c48da0b8ca142bfd571f438c629972ca1a53fdd7d0943cd",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/2d8fc9cdcb8ecdded47b61d9528dad38da413088d2aa2e57737a60851c4c1885.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.maebashi-keirin.jp/sitepolicy/",
+                "http_status": 200,
+                "raw_sha256": "6b064374e89aa6f92842fec3f1b552269efa0f2b7149c36882aa6e98ead25106",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4ffc98a7fa396e1c6bad7112e480ca422c475c27270f93e40238cf747dfed6dd.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-22",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events.",
+        "adopted_periods": [
+            [
+                "2023-06-29",
+                "2023-07-03"
+            ]
+        ]
+    },
+    "23": {
+        "name": "取手",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.toride-keirin.com/",
+                "http_status": 200,
+                "raw_sha256": "6c529b6053fd90889b79f9da947aa1e990f9dc83fd381541e868e0d67f0c7596",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/23bd77b2413f9e764510d23433cfbf16417275758ac25094935d6f8fb2329b6f.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.toride-keirin.com/",
+                "http_status": 200,
+                "raw_sha256": "6c529b6053fd90889b79f9da947aa1e990f9dc83fd381541e868e0d67f0c7596",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/23bd77b2413f9e764510d23433cfbf16417275758ac25094935d6f8fb2329b6f.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.toride-keirin.com/guide",
+                "http_status": 200,
+                "raw_sha256": "2a1dad8a29802a2fe2e9ee7688c0bcbdd29a98c996206e3b5d9454348659cf29",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/0f6eb2f6c0db62f90b5b25372f9d02d26ccd2715d2246c1e3385002e8bf7444d.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-23",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "24": {
+        "name": "宇都宮",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://utsunomiya-keirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "49226a387b08ae4206319d822aeeb9074d74586f0bd507cfc4dd759d51639dfa",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/300be05d27cc1cd368179c1596735f09752ec18515717b4cc9afd3884c4d0d08.raw",
+                "error": null
+            },
+            {
+                "url": "https://utsunomiya-keirin.jp/bank_data/index.html",
+                "http_status": 200,
+                "raw_sha256": "111b3d091b2c5c857160d97646c8e74b47b3bf82ca7323b000f944fad64b6243",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/efb3bf47277356d127809744e46727c44a670ba311572c9685aec8ed43f04436.raw",
+                "error": null
+            },
+            {
+                "url": "https://utsunomiya-keirin.jp/facilities/index.html",
+                "http_status": 200,
+                "raw_sha256": "cbbc7e3c2d723b15940a560e80d7a1921acff5ffbd1b69c01f6b222a345c6932",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/ab4e64449c3e4bf281e6ee92c567846dbe98d3adb4db94b58e58909d87a272f0.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-24",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "25": {
+        "name": "大宮",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.keirin-saitama.jp/omiya/",
+                "http_status": 200,
+                "raw_sha256": "f91de874ed075f2319c2d00483d0decbba512391d04c3aa804de70d79e49195a",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/0f21cf9c92701807860ddaecb6d3bc8aa0fe872b28ff02797ccc71c28ef17ae3.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/omiya/bank/",
+                "http_status": 200,
+                "raw_sha256": "616073457890b6105143abe0b0cf06b0618af45a1ccc4d043db8eca51a8eb116",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/2358e6797a8f2e18fdaf845cf3f2950e0411ea6a2c7b981d3613f63a2f65ec4b.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/omiya/map/",
+                "http_status": 200,
+                "raw_sha256": "975ade0826ea1d99987b4fdfac2cc388e59b1a5c39fa9729295e44ea6246d649",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/252549818d8994e1e578507c8aed68ca7ae72863adaf194dd8882b3893d3efca.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/omiya/about/",
+                "http_status": 200,
+                "raw_sha256": "1513efc90fdb2daaccfc245de4987d0d8bebba4f5e983d1930868af9d5b0e7a2",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f47c3ffaf3dd2b7832ecb63fd525e70b1c425c49577247ea837acc7c53ddc403.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/omiya/history/",
+                "http_status": 200,
+                "raw_sha256": "32fb2f39dc7be86c130d1c35942f720173d5ab835f5f3ddea48604b11c8b4ea6",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/7a8740288c99bcafb37dfe9a159cb1ca0b48b4e97268f60b4a39d306a4ab5d9a.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/omiya/policy/",
+                "http_status": 200,
+                "raw_sha256": "d2b0f3df81d6888f2515d108afbef2218fb580cd0b3a25e2847d74d1b245bb5b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c7496898da8eb50fe2341c04909c07415b583fa16b975af7523505fe513b18d8.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": {
+            "https://www.keirin-saitama.jp/omiya/history/": "大宮競輪のあゆみ"
+        },
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-25",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "26": {
+        "name": "西武園",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.keirin-saitama.jp/seibuen/",
+                "http_status": 200,
+                "raw_sha256": "c3c5fadffaba35e25339b490af517473417224788edf27cc7ef85300924371aa",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/de364b9bf7f1397981e96ef95eefd45b2e8b505b6a94a77579918612f0691cf8.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/seibuen/bank/",
+                "http_status": 200,
+                "raw_sha256": "cf401db3a70d2bd44896ec27e492bad53328285816708a4a0c8f0ac922052948",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/72e890026ee96d9ff329b1acac61deae3bc03e89cbfc33994b7570aa099e686b.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/seibuen/map/",
+                "http_status": 200,
+                "raw_sha256": "21c4a6e01f6e1054165b91ffd6f2434d748f143ce91de5bd6291d5bfc8282bf2",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/489da8f6ff6944ca4e9adbef6506d7a625b2288e0cf4cf9de5c654bfc6c16a2b.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/seibuen/about/",
+                "http_status": 200,
+                "raw_sha256": "8a8aaca87522b60b2591828546ac0c8bd547df26b703c7ff7fb75fb476e50439",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/ca3ecba50bf0f5ddcc4cd08d851e59847b8c03c4fa4cea8cad96b06fd4756b7e.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/seibuen/history/",
+                "http_status": 200,
+                "raw_sha256": "bf8384cbdde7db87cfc2d6a662b059a3aac8978efeefa2659c39f843dd7ee99e",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c5fa8b1c319f113c65a3d38d92d6d3511b0b961bd5acf0951f78739e7b7c46f7.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin-saitama.jp/seibuen/policy/",
+                "http_status": 200,
+                "raw_sha256": "dad2e5b5b92a7bd36f961ec18da8a210d7f1bd49acd9958659b3abeb0ae9355b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/6aff845999bdedbcabe213c89e8c884f4c9ef6998c99df8e0688e1b1a6d171a9.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": {
+            "https://www.keirin-saitama.jp/seibuen/history/": "西武園競輪のあゆみ"
+        },
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-26",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "27": {
+        "name": "京王閣",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://keiokaku.com/",
+                "http_status": 200,
+                "raw_sha256": "41383e1df10de6659d686cdb7e3bbd28cc5881ba39983e2f9a567b8ccc352aa3",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/0b9484e907e76e72fb3f8e5a2e182311cadc3b623da3dbbd4107729361644151.raw",
+                "error": null
+            },
+            {
+                "url": "https://keiokaku.com/spot/",
+                "http_status": 200,
+                "raw_sha256": "fe842b59b344e9b6880b342eb793d4851c327b14e53b2900b014675a325f6b16",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/63252dc363f816fed4148076154061d5ab83570f4e0ed98de0fe216ffe548397.raw",
+                "error": null
+            },
+            {
+                "url": "https://keiokaku.com/spot/bank/",
+                "http_status": 200,
+                "raw_sha256": "c03aaf761e094bb3de18eaa055743e8d258c59af1821345587e6cbeaceee29c3",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/cb26c17203dea04128c2f42301edc0ee17a3973ae2cac9f92ac0831025fe985c.raw",
+                "error": null
+            },
+            {
+                "url": "https://keiokaku.com/info/guide/",
+                "http_status": 200,
+                "raw_sha256": "0f91ab593d2a03386dbcd9d2d57781cc1bd277d550b6b9fd867253982bc87c0b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/54f207a02af7f906d95d3046e80255d9d1ca0d5fea6516c187e5bf20d5747345.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-27",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "28": {
+        "name": "立川",
+        "navigation_checked": false,
+        "urls": [
+            {
+                "url": "https://www.tachikawakeirin.jp/",
+                "http_status": null,
+                "raw_sha256": null,
+                "raw_reference": null,
+                "error": "mb_convert_encoding(): Argument #3 ($from_encoding) contains invalid encoding \"none\""
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-28",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "31": {
+        "name": "松戸",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.matsudokeirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "61eac15125b793c0d0b6e49f2511bee600873977a255c0477ccaac0d26c35a2f",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4666caec5f04777340bdedac1a408f800e7e9f995d47a7bffac0779b4986193f.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.matsudokeirin.jp/guidance",
+                "http_status": 200,
+                "raw_sha256": "8fefd66f866e26081f9931f3c4ffa46a720e895445fa781fb7c4e924519538d6",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/0d2aea0ea034d42570fec540346e77d81c70c845ba1b662e8746d3232c4e8ec1.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.matsudokeirin.jp/guide",
+                "http_status": 200,
+                "raw_sha256": "767f177e7d368826b388203edc85cb0cb0a3e76e4c0d54c9bf021ef446362fb0",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/21c6221130c2a6a2f4649c458c266ad48e479bffdfac29573cd4ff2f422c419b.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.pref.chiba.lg.jp/cmhc/kokoro/aboutaddiction.html",
+                "http_status": 200,
+                "raw_sha256": "e8c00894a4fbbde485390cdfefda1bf80c2bfb76b416183565dde2b3de5a3f5e",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/8ad3b6acc92c3ff7712de632cb094b3bd777b5cfe1ef775b98ae50ed68ab1c91.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.pref.chiba.lg.jp/cate/kbs/rekishi-bunka/index.html",
+                "http_status": 200,
+                "raw_sha256": "50d74e8fff5cc5382a048e60870248af29d18fbb0c3260bd57711188a9483dfc",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/50ce7d1773369d0336c19c1e2e86e4dda96dbe959653937a7bef4ff2ff2cd948.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": {
+            "https://www.pref.chiba.lg.jp/cate/kbs/rekishi-bunka/index.html": "歴史・文化"
+        },
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-31",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "34": {
+        "name": "川崎",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.kawasakikeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "004ebb16f8964caec87a4b89d457b794657b5d88ad111532f0a3493d7d3c6756",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/44c22a1ffb551820787509de92eb19b6e578df7d90f6bb108f3e148006e7a6ba.raw",
+                "error": null
+            },
+            {
+                "url": "https://ctc.gr.jp/",
+                "http_status": 200,
+                "raw_sha256": "3dce34905156b4dafae76b4bbc7ef9e1113cf13aa80d141559ee557681de26ff",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/aedcd5ed64f8e0970bca3122de462ccd89406c54233426f4ba095fd1e5359e99.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-34",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "35": {
+        "name": "平塚",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.shonanbank.com/",
+                "http_status": 200,
+                "raw_sha256": "6af7cfe713efdb69fc6c2b35d2539c9dbdd237e9f4b1d7a81bb08fd58cdbeb16",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/65dfb0214e51d9bb323d7faad9399b5bde095f5b5b28c6dbaeeb2543d74f4739.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.shonanbank.com",
+                "http_status": 200,
+                "raw_sha256": "6665d0fe88e25f474d1414a76b7e878f9a90b543115671e14f975faaa33226e9",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/78fa0d2900a5221a008dfc93505181a04a75e164853f2505ae2980333f0529cf.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.tiktok.com/@shonanbank_windy?_t=8kRLuuP4q9Q&_r=1",
+                "http_status": 200,
+                "raw_sha256": "5e812c4af945f16c3f3b53cc5cc83db366966ebf818a73549096605bc184f01b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/dee2c5f81c82b61e039c5c3ee03004f9a60faa9d961b28fbd47c792101b5a342.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-35",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events.",
+        "adopted_periods": [
+            [
+                "2024-11-04",
+                "2024-11-07"
+            ],
+            [
+                "2024-11-08",
+                "2024-11-12"
+            ]
+        ]
+    },
+    "36": {
+        "name": "小田原",
+        "navigation_checked": false,
+        "urls": [
+            {
+                "url": "https://www.odawarakeirin.com/",
+                "http_status": null,
+                "raw_sha256": null,
+                "raw_reference": null,
+                "error": "mb_convert_encoding(): Argument #3 ($from_encoding) contains invalid encoding \"non\""
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-36",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "37": {
+        "name": "伊東",
+        "navigation_checked": false,
+        "urls": [
+            {
+                "url": "https://www.itokeirin.com/",
+                "http_status": null,
+                "raw_sha256": null,
+                "raw_reference": null,
+                "error": "mb_convert_encoding(): Argument #3 ($from_encoding) contains invalid encoding \"non\""
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-37",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "38": {
+        "name": "静岡",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.shizuoka38.jp/",
+                "http_status": 200,
+                "raw_sha256": "7532929046da2b8b0e177485da1dc0760298deb0e7b200378a98348333d234b7",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/af2d742a7130c7bc2241602814384d57ecb94040892df302fb40770f95364c52.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.shizuoka38.jp/bank/",
+                "http_status": 200,
+                "raw_sha256": "d7ce67b463843f1a154e024b9a124bcdc5d05df5bc50101ecafb025746c96e86",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4ab3867a93c8b29e8e02efa6da6efde6a0672102bae2bca6572292d5cc6ae255.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.shizuoka38.jp/information/8952",
+                "http_status": 200,
+                "raw_sha256": "53db257a9a352006572b37ef33eb1f07aabd52e2bb2b2987b40302d7f36dbe10",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/088300be6708c2a41874b9bf188f69f180f011ec579fa2beff07791865d62032.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.shizuoka38.jp/information/4264",
+                "http_status": 200,
+                "raw_sha256": "0c677a689e28a11151eb5c8d4e2dad9422d199dce15182dc4866941101cd41d5",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/3226fe4bf37fe06aaf8ceb75ce52e5ca84a07b207a66c9167908ca98d31bd22d.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.shizuoka38.jp/sitepolicy/",
+                "http_status": 200,
+                "raw_sha256": "82e2f2bf878b4890f113a87a7207a9c983711d4f6c3dedbd25eb726b82b7a2bc",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/72137173b38562e4c3f0ec88e1adc66cd51b7a42b2fd4596f87a62319339739e.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-38",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "42": {
+        "name": "名古屋",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.nagoyakeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "9ea63ed51eec4df1e8169b036ec606dbe9c519ff24d7d7024926905ba95ed0d6",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/331257d2788b3bdc40d9c9bcf3600df55bd1d304f2552136cbd7bb25fafb62c7.raw",
+                "error": null
+            },
+            {
+                "url": "https://nagoyakeirin.com/guide/",
+                "http_status": 200,
+                "raw_sha256": "709a18c86a424e69e319f76d0f4f4c7fed80260c47080508baad20f88fb759e0",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/65f551f5204bd62b3368cac2a9aa830fbd6c0e099340f7a7860f7b734dc3cfaf.raw",
+                "error": null
+            },
+            {
+                "url": "https://nagoyakeirin.com//guide/",
+                "http_status": 200,
+                "raw_sha256": "709a18c86a424e69e319f76d0f4f4c7fed80260c47080508baad20f88fb759e0",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/bf02d5209b30604da2e4022e10e7b3a7e13942bd21e2d7259af2a73f4a7b213f.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-42",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "43": {
+        "name": "岐阜",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.gifukeirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "6501dd20b58bbae58333055b5c158159ba8b6a62ad0b9861dccea77955ddc9a4",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/fa6c2585c4c4483d4f50970becac48614419b615cb2fbea0f5e75ec11c072053.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.gifukeirin.jp/guide",
+                "http_status": 200,
+                "raw_sha256": "db62364616e4c044f80176b4ac492d159434e4421a4bbf4078583095e40f1c26",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f831b3657b2e9c3b088a213c3afeb069be3b1d62396eba01d377798d9f220978.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.gifukeirin.jp/guide/dokoto",
+                "http_status": 200,
+                "raw_sha256": "91668b78c7c3d8698a8b84d59554cf8b21aac2687e1a7b8d8a233a12e9c05064",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/203d7ba34723fbe830fd3225a2b1969758e56997a27fea542ea293efbea7bffa.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.gifukeirin.jp/guide/winners",
+                "http_status": 200,
+                "raw_sha256": "a8655e483b66807c7b01bfc110b0a8ea2a4104f65ba8024df2692de3eb5f3ce7",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/67a2eb2c19e29f3810d6de0aace426e3605efca8120c32408ee0d40b15419038.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-43",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "44": {
+        "name": "大垣",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.ogakikeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "7b461558129be974abfa430b34e5d2fa169a64fb588e9d87629cd1a98849757c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/b642d9bb8c1e71a5c1b55d0b3f51d58305b151728c2cbf730a657ef3e398fa2e.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.ogakikeirin.com/guide/facility",
+                "http_status": 200,
+                "raw_sha256": "e451c14bf810a49b7842939d33d5ee9a9b56379fc8ebb67d805e909d825fe6ca",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/07e3480e857f6829ce03925eaf5e9afa0f559069a923d1a4423784d818442b61.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.ogakikeirin.com/guide/bank",
+                "http_status": 200,
+                "raw_sha256": "55dbdd54fc539853a491eccf7ced455fb47b839adb07e817b412a19ca8a27f10",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/a0cb4e11ae64bb379640ca6efad5577e25c4b30f7eb47cd72675586a7102bfcb.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.ogakikeirin.com/guide/service",
+                "http_status": 200,
+                "raw_sha256": "458fabeae686ce8a7ef6ee7e8b3b2da445626cfdd6c40064106e52da06219047",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/2b4732f5103f4dea9a5dcf88e90d819928e0b4faee1a0f3287fc3b10576cf2a7.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-44",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "45": {
+        "name": "豊橋",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.toyohashikeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "709c916808ebcb5a6c3e2f327f3471530c10043ffaea9547dd9919e4eadb95aa",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/fdacb142147ef588b4520cbcc92071ad491179e8ee58a194237a0a2651d58b67.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.toyohashikeirin.com/facilities",
+                "http_status": 200,
+                "raw_sha256": "761a84dd99b196d3a7186d8f8e7e364b97d609fbc0b5e7f645900e4609b5d6de",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/d14f3c622dec32f3f51c1cae9359ef39e7539782968cbcdb93177f22c1c37c3f.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-45",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "46": {
+        "name": "富山",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.toyama-keirin.com/",
+                "http_status": 200,
+                "raw_sha256": "4960d7826a6e0dbe2a4792e59410d649b8194ee2a999ce2c8dfb5ff2148d4096",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/9b1bd9b222743d82ccaa1da72a9907811d4d125e47550d9dd5743c0addde206d.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.toyama-keirin.com/guide",
+                "http_status": 200,
+                "raw_sha256": "c30836cb5fd1c62c2e507d45ff90d4e2f5d662b371a11d70bfd188bf38fbcbd9",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/06cc473625676489071dc335c991aa99b0e44cb3a8c96f3285adfd02c5e2ba3e.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.toyama-keirin.com/information/detail/2999",
+                "http_status": 200,
+                "raw_sha256": "19b66546b7f24b2791833c454b97ba9e0885152409677d5f7b2f9ffb452ddca3",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/32410d3e461f6748f2908b962fa7519c78c2c863355237df14110c3dea449705.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.toyama-keirin.com/information/detail/2954",
+                "http_status": 200,
+                "raw_sha256": "d28d927cb8ba1f3214982b9df97ffbad49ba235ee1a1c1ead7b82c50ba7c9b5b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/458ef1f7170e57772f5ae8aad7776446577febbe40cea62d755a5024a6fc1643.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.toyama-keirin.com/information/detail/2930",
+                "http_status": 200,
+                "raw_sha256": "d22dab1df7451cc9b6be905632817093b71fd34d7e626473eabc4606cd44a344",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/23489b416e5505002dc190e7d427433b5ee0f1d45a9c779e5a41ed4028d3f8ee.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-46",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "47": {
+        "name": "松阪",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://matsusaka-keirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "c367d94a249990cbc1838d3a998dfa5c647b14294539616d1e03782aaa9cc7a4",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/b92aa5f081503ce23ded32de4982def836ebb56eccea24501d2f6384e9109127.raw",
+                "error": null
+            },
+            {
+                "url": "https://matsusaka-keirin.jp/facility_top/",
+                "http_status": 200,
+                "raw_sha256": "3d0360570843ad8ad9f3e5295f392971857057bb308c8ee3103320e608df887d",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/07e9b5662927bceaa2f5c4474798e607241cacaa3474293ce088f4b937177f79.raw",
+                "error": null
+            },
+            {
+                "url": "https://matsusaka-keirin.jp/facility_top/facility/",
+                "http_status": 200,
+                "raw_sha256": "d98eebe6aee6e4441ea5f8c71270c709441e409c852781ca529c65353d1bfd3c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c72b1fb3849e4d4b41d321cf54fda179740c9d4a026c101287bfeccb48861829.raw",
+                "error": null
+            },
+            {
+                "url": "https://matsusaka-keirin.jp/facility_top/bankdata/",
+                "http_status": 200,
+                "raw_sha256": "d7111f9dd6055d689cbe544dcc23344b2190e89f4c512085515aea9e449f41c8",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c7ff2ae1a4a70f2299207a25eda31b487e27529ca5116d06e69cdb65e9854cd1.raw",
+                "error": null
+            },
+            {
+                "url": "https://matsusaka-keirin.jp/infos/privacy-policy/",
+                "http_status": 200,
+                "raw_sha256": "137049193792bad3189efea4131ec47239c1ab08e5b9e7dec2072b3f268a9dd4",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f35efcbb8cba60d59b099107a29eb6e6f2021d81f24a55250148ac150c10c883.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-47",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "48": {
+        "name": "四日市",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://yokkaichikeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "1db53547a583e9aa8c90acc013e28571e4e73a49317632f82b35fc9bf6932869",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/80aef7be023641493f64e8827d7936df4e1b42ee85aee257d0f8a6bf6081ab91.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.youtube.com/watch?v=zLGowtBhttk",
+                "http_status": 200,
+                "raw_sha256": "540307235a00f08189b76e22a9b3988528ac6c86e09a6b74d9999b01d2aaf5a2",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/43859f3e2e464ac3874f841ba8532692e95dc40cac3276c470b6b2d1a36b50af.raw",
+                "error": null
+            },
+            {
+                "url": "https://yokkaichikeirin.com/about/",
+                "http_status": 200,
+                "raw_sha256": "089f3d127b9d16d1e3e571edefb57e50827e886f8a1569e5e02b4759aadf6b3e",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/09f1a93d51ce3e325933bfac72e2f2d18c95406ea7d141142eb2a0189ac704f6.raw",
+                "error": null
+            },
+            {
+                "url": "https://yokkaichikeirin.com/sitepolicy/",
+                "http_status": 200,
+                "raw_sha256": "db3cb3f0a4b1189ea8b21ad712f207fb358a5973c233d91a9bb6fd93911c6a1c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/7ff1f776919ba482fb2b73dab2dd581b2f886ab26e19d576c417a948f8427561.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-48",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "51": {
+        "name": "福井",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.f-keirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "4e1286266662b69dd26352b0c9b2c251d6f05eae121dac9471f9b5258ad7620f",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/e7c082582454a2b1491686b2294835781aa6dec06a7d2216a87d63508888ad9b.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.f-keirin.jp/facilities",
+                "http_status": 200,
+                "raw_sha256": "34884a4d59e843a4a5941614d49b5a8b5b37d06953862d228714e8c4c02b8f0a",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/e1aa85485d5318ebc46a8315dda959f82281feb0452040f6b099c2bd80107ab5.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-51",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "53": {
+        "name": "奈良",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.narakeirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "44c2be940184c311f53749a8e77c065841dc85e9018f8c646b818b62ddb5cc13",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/81c92bc7ed88624e5460d10a23157e959d73fd3001e7b6c533a8ca76447892e4.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.narakeirin.jp/guide.html",
+                "http_status": 200,
+                "raw_sha256": "c0d99692e9922ad0213046e64c07d8bd5c7cfabafc46ebf8ce70dc5f7ec79c64",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/d89af66620be19d9e7d3370151ba73f1d7cb414ce515f7d138ec42fbf8a45791.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.narakeirin.jp/about.html",
+                "http_status": 200,
+                "raw_sha256": "2238ede45245f012f69f175ba469bf006b782e04f61c28a28d86715081aee60d",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/a288882f3ff7f3ec501f02ad52fc9dd714221bfd0a5b2cf065795d83003292f3.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-53",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "54": {
+        "name": "向日町",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://kyoto-mukomachikeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "66bb972bf8ccb121d93d3d8eb9f4aae726f29f554350aa20b35796b3468ac6c6",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/ee166329b2fae17eb885e26d43a5e85a93492c067c2db33c765afe601cf7c39e.raw",
+                "error": null
+            },
+            {
+                "url": "https://kyoto-mukomachikeirin.com/bank/",
+                "http_status": 200,
+                "raw_sha256": "957cf1e3813f6ff70fda20cd6ebac7f437cd5f229c222574f0c4df3225a1df91",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f885c53770e9d0af4a7da9cbff15fa0c1609ee708bbc9435674d3cc7bf508825.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-54",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "55": {
+        "name": "和歌山",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.keirinwa.com/",
+                "http_status": 200,
+                "raw_sha256": "e8c48350de0243d47ff2fca94f9ed879595468d6aab2e0c14862c31301f83e4a",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/368820e6829974e0a1437dfb232a88cd37129eca42fa0ce206cfe2fa02eeca9a.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirinwa.com/information/",
+                "http_status": 200,
+                "raw_sha256": "0e722fb7741ccd57f17dd5e46a2f93cf19a94b56b62a32b39a75bc6ebc49290d",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/220a56dae738dd8f719624455e78ca46220c4524fa2221226134d4796d828711.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirinwa.com/report/obank.html",
+                "http_status": 200,
+                "raw_sha256": "14cd4c28c09bf998d0cbafeeeecc44e04d999a54dcc99bcd81c2f9eeddb22d65",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/0f823384c1196aff3f9d898f013c513e0a7a962ca539c524a27886e08fb0b422.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirinwa.com/information/index.html",
+                "http_status": 200,
+                "raw_sha256": "0e722fb7741ccd57f17dd5e46a2f93cf19a94b56b62a32b39a75bc6ebc49290d",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/14aa5669d3a3493e0741365e40404ca56ed5a2f88d53e8d29d1d48fc0957f3b7.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-55",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "56": {
+        "name": "岸和田",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://chalionkun.com/",
+                "http_status": 200,
+                "raw_sha256": "a7d01429a12ae3e76e139aea8e835c811b694a7434161073d51e58d222e53e97",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/569e6c90cb8f6c901d1e4df18c32b720e0f10748106a0ebcf82912e62110bf91.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-56",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "61": {
+        "name": "玉野",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.tamano-keirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "1eed72b82f3e475eb5a2169832b264fd27c03429490c0935ad6d00259d32ac24",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/dbf8c187ebb1e2fbe308d2bf5bb696fa6fb600d0caf18001b190c5a9e1824174.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.tamano-keirin.jp/map?disp_id=1",
+                "http_status": 200,
+                "raw_sha256": "bf4198ce2046eb3e5264ebd9773bd26a3585f7865891f2d387107f4fc58bcb75",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/a9d2f4ecfc338dd6d19a7d36f84c8f2b947606c01bb6c8bec08737269d4f536d.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.tamano-keirin.jp/map?disp_id=2",
+                "http_status": 200,
+                "raw_sha256": "22c9d0f3b51974d335a86d0c465eddff8975faecdc330377addd45573a661a1a",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/1c9cc0773e999b7826d6cf33e8c25365772f513e7c94a8acf9c08d6186c4a4be.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-61",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "62": {
+        "name": "広島",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://hiroshima-keirin.com/",
+                "http_status": 200,
+                "raw_sha256": "83536b8f8574843d8e0102a32551684680dc72135fb3e590f7f9379256ca81ea",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/5c82d4aada406f5e4d59015acaff935699bcbc60e5e2ef6bd57652c6e0ba195e.raw",
+                "error": null
+            },
+            {
+                "url": "https://hiroshima-keirin.com/facility",
+                "http_status": 200,
+                "raw_sha256": "f09cb46b01eb02fa353ee8ccd3d6e25e85c752bf1ee8eac64ac688e85a5a75e7",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4e9bd3281151a73f931d9a4088f1b1c713de8f9efa2d5e8048cfe54877580141.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-62",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "63": {
+        "name": "防府",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.hofukeirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "e010aeffdc17b7050c1663d1611a1a55ccca8d1bde0805dfd99b32be10f4ea7b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/7b6592311d17ff91ac7f20b16eb0519e603cf58be4f53a5db4ece2fa52eadcf2.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.hofukeirin.jp/facilities/",
+                "http_status": 200,
+                "raw_sha256": "13263fbd87525ceb97b14580277985a9b46916be949ed141f91b62fa53b696be",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/1e4d090fc680ea8ceb1b5c0a7d302e6272354a30eeb39ea3b9fd7fef31e55e92.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.hofukeirin.jp/bank_introduction",
+                "http_status": 200,
+                "raw_sha256": "23d8949605a0992b4842139c1f5c9661327211c037f56e9003c8c2a44d87c14b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/527fdffd29995ab33625a5bd94d93ef67bfab39022092fad7c1b9bb87fb0ea2c.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.hofukeirin.jp/policy",
+                "http_status": 200,
+                "raw_sha256": "647a79bdb035f0832b3a970ba77610192f385cca9da94ef5c8506ff4d018e2ac",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/2ee96208f6db23e338340f44f93545a1f186761d2217c415eed2866ab9416c47.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-63",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "71": {
+        "name": "高松",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.takamatsu-keirin.com/",
+                "http_status": 200,
+                "raw_sha256": "889cfd0388e4d1beb5eb404d87a07166679196b620b5d48700486a1cadd642af",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/a7eaa7190c4ff95cf08e8305708450f5a0f1e46d5435a04ccee682e50c462af3.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.takamatsu-keirin.com/guide/",
+                "http_status": 200,
+                "raw_sha256": "ac79680e9285fa74d8165357b1190d0f0e29ad5e333e68c8dc89b35f46d86f8c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/eaaad791e1eee81fc845e641769157ae3dbd12101a88c3f94c3820b540cfac10.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.takamatsu-keirin.com/guide",
+                "http_status": 200,
+                "raw_sha256": "ac79680e9285fa74d8165357b1190d0f0e29ad5e333e68c8dc89b35f46d86f8c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/93adb0e8499cf2e902321c801cb40415358aa272b87ab6c90474236ecc70dc5e.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.takamatsu-keirin.com/history",
+                "http_status": 200,
+                "raw_sha256": "66a6674a1ba818aced01b614a8d14531f0b06fb3de1c6f50ec5556def88dc52b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/81a1b35c71ab28410a293790bcc925b3d3077e05c7539135f8332a6a800067c5.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.takamatsu-keirin.com/history/",
+                "http_status": 200,
+                "raw_sha256": "66a6674a1ba818aced01b614a8d14531f0b06fb3de1c6f50ec5556def88dc52b",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/29d1e262a72a35e9442803df0803e7d7d635415052f95efdce8e3d40ebd08aad.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": {
+            "https://www.takamatsu-keirin.com/history/": "高松けいりんの歩み"
+        },
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-71",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "73": {
+        "name": "小松島",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.komatsushimakeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "02b9a16a48e5bf396f56175ad27a7d4c564821c7408537e19be5b04761b1bf71",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/b9012e5205cf9fed961b39db3a08e58e73e67e1e5c3929be86978c7f41719037.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.komatsushimakeirin.com/bank/",
+                "http_status": 200,
+                "raw_sha256": "6676c4fee89d525c674024f1c5158209dcb5426e2c93c426d287cfe0743c2912",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/8f9292a551bb3036cddf1e7b0655226f8cf22e6255c992279d74dbc886ac5d8a.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-73",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "74": {
+        "name": "高知",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.kochi-keirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "4d7cc6620cb2ac9789493ca182199f43262f24176724a0c33c8ed740c9e956dd",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c03fd8ee4017176817ecb29d4b130a7e40bb305f51cb54e118d1db2939c38de3.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kochi-keirin.jp/facility.html",
+                "http_status": 200,
+                "raw_sha256": "b3571f8df3e7464166b4c23808dfc25999d880955d37e546da38cc1cc057be16",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/0e4d89a7f76231f8460dfc8c24a1cfd53f8d33557511b6eebf3566e3cc4a2b0b.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kochi-keirin.jp/forecast/bank/",
+                "http_status": 200,
+                "raw_sha256": "d2869b98abd5f8561ee3107e6062afd5d0e291a8f004ce896d6fa1b4bfc16ca3",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/d45d36745116bdd3ae0a5f61277bda2677ddc8013539b7fa9b73c70591e94794.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kochi-keirin.jp/poricy.html",
+                "http_status": 200,
+                "raw_sha256": "12e7ae805e5f095181b464bf97a2aa6a8efde56275f80de1ebe6baa7bed76e86",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/dafc6c67706f496cd6ed683de74c128c18dd8d944f289da15d5bf9518b703f36.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-74",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "75": {
+        "name": "松山",
+        "navigation_checked": false,
+        "urls": [],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-75",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "81": {
+        "name": "小倉",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.kokurakeirin.com/",
+                "http_status": 200,
+                "raw_sha256": "8b5ee5cc893154203fc25699e010b02378c865a5436e3930a350b8b67571a5e3",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/8cc6c518581e8144a493facdbab0d0b3155832362c1b92383d49f827aea54a55.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kokurakeirin.com/guide/",
+                "http_status": 200,
+                "raw_sha256": "7d35c0e6afdb64ffb80a40009fab5b6feb991b788ddb7c3d60638240323543d6",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f34616a8664073bf48a7471668f53453a6f4580db8df714bf7c2d2be5042947d.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kokurakeirin.com/history/",
+                "http_status": 200,
+                "raw_sha256": "0786284e020f364d7135eab30f0519393f13c9332820394306e8adaf70add193",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f2689872d38a9cefea5b9e557882d11de598d8bbdca8658be2107860b1d710b7.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kokurakeirin.com/user-guide/",
+                "http_status": 200,
+                "raw_sha256": "aa32aa4f7c95153400056f3a5ec2880e25e2141fe7f7b08af6a4091a6f42b706",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/051cf345fa9fa6e3c63bd76ac321e9d68ec9a85f4a6bfa1d909544b5d62ed5b3.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kokurakeirin.com/history/",
+                "http_status": 200,
+                "raw_sha256": "0786284e020f364d7135eab30f0519393f13c9332820394306e8adaf70add193",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f2689872d38a9cefea5b9e557882d11de598d8bbdca8658be2107860b1d710b7.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": {
+            "https://www.kokurakeirin.com/history/": "小倉競輪の歴史"
+        },
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-81",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "83": {
+        "name": "久留米",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www3.city.kurume.fukuoka.jp/kurume-keirin/",
+                "http_status": 200,
+                "raw_sha256": "aca43bd6a7c637b5c3c373f8bc22e043587f049dd1d4d33f3198c4c8cd3e8e6c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/a756894056a58d3dbf372558bc1adf4fec2220305d737a88833e7ee7fa4d17c7.raw",
+                "error": null
+            },
+            {
+                "url": "https://www3.city.kurume.fukuoka.jp/kurume-keirin/guide/guide.htm",
+                "http_status": 200,
+                "raw_sha256": "458f14342dbc6fe252fb0f6c07bff984090af7a2f7ae26d314e663c4b8be2b20",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/dfa1ac828c3a849e81785d3d9e9335f9bc41c8dbb05eddc5c5d40e29e785cefb.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-83",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "84": {
+        "name": "武雄",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.keirin.city.takeo.lg.jp/",
+                "http_status": 200,
+                "raw_sha256": "3d25afa22afd14f6f6e8412fe2372c958d2521899d2850482ce3a3d5216b75a0",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/b2b608df232e44bfdf8f6b0308325e453801722fecb0dc3555cd17ad5379e22f.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin.city.takeo.lg.jp/guide/",
+                "http_status": 200,
+                "raw_sha256": "4174375be9bf5652579dbaa92c62effffc6e1ef945094149ae74cfd1c4555c92",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/9eb57d03ae55c34a55f4419fd06ef5d0b284ebd2b88126470901c648239a9eba.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.keirin.city.takeo.lg.jp/bank/",
+                "http_status": 200,
+                "raw_sha256": "52de88ad64cea788fd10c60ea010408420242495209e8a17f01a09833adb2ca9",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/a75341b823bf1982e423631574bde55db6f57da3a96cd5a99356b09d90e22933.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-84",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "85": {
+        "name": "佐世保",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.sasebokeirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "7c86ae41f802894a7f51e47dadd627fd084e367e69115dcbb49ad89121e47868",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/30a5b40b6bcc110f3c4f1a38a051652da015eba504cb0817b8c24660630860f8.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.sasebokeirin.jp/guidebook",
+                "http_status": 200,
+                "raw_sha256": "f46bccf439446045dff323bf4462310ad5dcd13a26f238f9847fea926a6fbb40",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c64b7e6822f9f956be331a423a856e3fd60a5ab1a6ffd053b16dd0680337f8f3.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.sasebokeirin.jp/facilities",
+                "http_status": 200,
+                "raw_sha256": "54cd0ab068139ea2a74d1e794ce6a050ae1c5e9865260bfeba2fc6e70cc155e9",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/4bb5c833618879bf66dfdc3b725cadec9e1b612470e4ad526ae59340c1f37d77.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-85",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "86": {
+        "name": "別府",
+        "navigation_checked": false,
+        "urls": [
+            {
+                "url": "https://beppu-keirin.net/",
+                "http_status": null,
+                "raw_sha256": null,
+                "raw_reference": null,
+                "error": "mb_convert_encoding(): Argument #3 ($from_encoding) contains invalid encoding \"non\""
+            }
+        ],
+        "history_candidates": [],
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-86",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events."
+    },
+    "87": {
+        "name": "熊本",
+        "navigation_checked": true,
+        "urls": [
+            {
+                "url": "https://www.kumamotokeirin.jp/",
+                "http_status": 200,
+                "raw_sha256": "7bc9c3e3cb3d4e25df5264e5d9b30796065f57056de313b4e04a4ca098a42b9c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/54c12c435121a0b7659ddb6f409800e430abbfd52d4c9c47caec6efb36b3b74d.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kumamotokeirin.jp/guidance/",
+                "http_status": 200,
+                "raw_sha256": "5fb5000aeb46583a620adcd0cc4fe90852af5c98bd7674f1520af665560d7f68",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/f5bbb1afdc8e1b95d846ae41306b68f9ff3b2f6481c50ca00e8de72903fd6829.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kumamotokeirin.jp/guidance/facility/",
+                "http_status": 200,
+                "raw_sha256": "775c37e8a139f85f83f13934f07e42287fe933f9d481c98d97c9cb7f0fca2825",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-01/run-20260923-104546-92962a55/kumamoto-guide.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kumamotokeirin.jp/guidance/history/",
+                "http_status": 200,
+                "raw_sha256": "4532d25007b432ab04d66be5883525f6fe55ff1cf73f313db5df91e81a4da45c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c562f5f9a36961ed07d54cd417d0d893920275a7966e0af718f219c685a318d1.raw",
+                "error": null
+            },
+            {
+                "url": "https://www.kumamotokeirin.jp/guidance/history/",
+                "http_status": 200,
+                "raw_sha256": "4532d25007b432ab04d66be5883525f6fe55ff1cf73f313db5df91e81a4da45c",
+                "raw_reference": "/home/shinya/neo-keirin-artifacts/stat35-37-track-context-02/run-20260923-061824-fe45e340/c562f5f9a36961ed07d54cd417d0d893920275a7966e0af718f219c685a318d1.raw",
+                "error": null
+            }
+        ],
+        "history_candidates": {
+            "https://www.kumamotokeirin.jp/guidance/history/": "熊本競輪の歴史"
+        },
+        "decision": "STATIC_GUIDE_OR_RENOVATION_DID_NOT_ESTABLISH_2022_2025_FIELD_INTERVAL",
+        "supplement": "annual2023-87",
+        "remaining": "Historical applicability, field-specific renovation boundaries, indoor/outdoor and publication timing remain unconfirmed outside adopted events.",
+        "renovation_note": "2024-06 facility renewal statement; 2024-07-18 notice for 2024-07-20 reopening. Neither binds all current field values to a historical interval. Municipal plan candidate returned 404. Current 400m and old 500m retained separately; no bridge."
+    }
+}
