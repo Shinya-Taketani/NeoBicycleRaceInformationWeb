@@ -7,6 +7,8 @@ namespace App\Console\Commands\Keirin;
 use App\Domain\Keirin\Scraping\Services\RaceResultSyncService;
 use DateTimeImmutable;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
+use Throwable;
 
 class SyncRaceResultsCommand extends Command
 {
@@ -19,22 +21,33 @@ class SyncRaceResultsCommand extends Command
         {--race-number= : Race number}
         {--limit= : Maximum number of races}
         {--force : Include races without a result-available flag}
-        {--sleep-ms= : Request interval override in milliseconds}';
+        {--sleep-ms= : Request interval override in milliseconds}
+        {--retry-failed-batch-run-id= : Retry only FAILED races from a completed result Batch Run}
+        {--transient-retry-passes= : Deferred retry passes for transient fetch failures}
+        {--transient-retry-sleep-ms= : Wait between deferred retry passes in milliseconds}';
 
     protected $description = 'Sync KEIRIN.JP race details, results, and payouts.';
 
     public function handle(RaceResultSyncService $results): int
     {
-        [$from, $to] = $this->dateRange();
-        if (! $from instanceof DateTimeImmutable || ! $to instanceof DateTimeImmutable) {
-            return self::FAILURE;
-        }
-        $options = $this->optionsForService();
-        if ($options === null) {
+        try {
+            $sourceBatchRunId = $this->integerOption('retry-failed-batch-run-id', 1);
+            if ($sourceBatchRunId !== null) {
+                $this->assertRetryModeOptions();
+                $result = $results->retryFailedBatch(
+                    $sourceBatchRunId,
+                    $this->optionsForService(retryMode: true),
+                );
+            } else {
+                [$from, $to] = $this->dateRange();
+                $result = $results->sync($from, $to, $this->optionsForService(retryMode: false));
+            }
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage());
+
             return self::FAILURE;
         }
 
-        $result = $results->sync($from, $to, $options);
         $this->info("batch_run_id={$result['batch_run']->id}");
         $this->line("success={$result['success']} skipped={$result['skipped']} failed={$result['failed']} results={$result['results']} payouts={$result['payouts']}");
         if ($result['failed'] > 0 && $result['batch_run']->error_message !== null) {
@@ -44,7 +57,7 @@ class SyncRaceResultsCommand extends Command
         return $result['failed'] === 0 ? self::SUCCESS : self::FAILURE;
     }
 
-    /** @return array{0:?DateTimeImmutable,1:?DateTimeImmutable} */
+    /** @return array{0:DateTimeImmutable,1:DateTimeImmutable} */
     private function dateRange(): array
     {
         $single = $this->option('date');
@@ -55,52 +68,95 @@ class SyncRaceResultsCommand extends Command
         }
         $from = $this->date($this->option('from'), '--from');
         $to = $this->date($this->option('to'), '--to');
-        if ($from instanceof DateTimeImmutable && $to instanceof DateTimeImmutable && $from > $to) {
-            $this->error('--from must be before or equal to --to.');
-
-            return [null, null];
+        if ($from > $to) {
+            throw new InvalidArgumentException('--from must be before or equal to --to.');
         }
 
         return [$from, $to];
     }
 
-    private function date(mixed $value, string $option): ?DateTimeImmutable
+    private function date(mixed $value, string $option): DateTimeImmutable
     {
         if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
-            $this->error("{$option} must be a valid YYYY-MM-DD date.");
-
-            return null;
+            throw new InvalidArgumentException("{$option} must be a valid YYYY-MM-DD date.");
         }
         $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
         if (! $date instanceof DateTimeImmutable || $date->format('Y-m-d') !== $value) {
-            $this->error("{$option} must be a real calendar date.");
-
-            return null;
+            throw new InvalidArgumentException("{$option} must be a real calendar date.");
         }
 
         return $date;
     }
 
-    private function optionsForService(): ?array
+    private function optionsForService(bool $retryMode): array
     {
-        $options = ['force' => (bool) $this->option('force')];
-        foreach (['race-id' => 'race_id', 'race-number' => 'race_number', 'limit' => 'limit', 'sleep-ms' => 'sleep_ms'] as $option => $key) {
-            $value = $this->option($option);
-            if ($value === null) {
-                continue;
+        $options = [
+            'transient_retry_passes' => $this->integerOption('transient-retry-passes', 0)
+                ?? $this->configuredNonNegativeInteger('keirin.result_transient_retry_passes'),
+            'transient_retry_sleep_ms' => $this->integerOption('transient-retry-sleep-ms', 0)
+                ?? $this->configuredNonNegativeInteger('keirin.result_transient_retry_sleep_ms'),
+        ];
+        foreach (['limit' => 1, 'sleep-ms' => 0] as $option => $minimum) {
+            $value = $this->integerOption($option, $minimum);
+            if ($value !== null) {
+                $options[str_replace('-', '_', $option)] = $value;
             }
-            $minimum = $option === 'sleep-ms' ? 0 : 1;
-            if (! is_numeric($value) || (int) $value < $minimum) {
-                $this->error("--{$option} must be an integer greater than or equal to {$minimum}.");
-
-                return null;
-            }
-            $options[$key] = (int) $value;
         }
-        if (is_string($this->option('track-code')) && $this->option('track-code') !== '') {
+
+        if (! $retryMode) {
+            $options['force'] = (bool) $this->option('force');
+            foreach (['race-id' => 'race_id', 'race-number' => 'race_number'] as $option => $key) {
+                $value = $this->integerOption($option, 1);
+                if ($value !== null) {
+                    $options[$key] = $value;
+                }
+            }
+        }
+        if (! $retryMode && is_string($this->option('track-code')) && $this->option('track-code') !== '') {
             $options['track_code'] = (string) $this->option('track-code');
         }
 
         return $options;
+    }
+
+    private function assertRetryModeOptions(): void
+    {
+        foreach (['date', 'from', 'to', 'race-id', 'track-code', 'race-number'] as $option) {
+            if ($this->hasValue($this->option($option))) {
+                throw new InvalidArgumentException("--{$option} cannot be used with --retry-failed-batch-run-id.");
+            }
+        }
+        if ((bool) $this->option('force')) {
+            throw new InvalidArgumentException('--force cannot be used with --retry-failed-batch-run-id.');
+        }
+    }
+
+    private function integerOption(string $name, int $minimum): ?int
+    {
+        $value = $this->option($name);
+        if (! $this->hasValue($value)) {
+            return null;
+        }
+        $text = is_string($value) || is_int($value) ? (string) $value : '';
+        if (preg_match('/^\d+$/', $text) !== 1 || (int) $text < $minimum) {
+            throw new InvalidArgumentException("--{$name} must be an integer greater than or equal to {$minimum}.");
+        }
+
+        return (int) $text;
+    }
+
+    private function configuredNonNegativeInteger(string $key): int
+    {
+        $value = config($key);
+        if (! is_int($value) || $value < 0) {
+            throw new InvalidArgumentException("{$key} must be a non-negative integer.");
+        }
+
+        return $value;
+    }
+
+    private function hasValue(mixed $value): bool
+    {
+        return $value !== null && $value !== '';
     }
 }

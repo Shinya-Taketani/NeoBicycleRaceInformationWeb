@@ -11,6 +11,8 @@ return [
     'retry_times' => (int) env('KEIRIN_RETRY_TIMES', 2),
     'retry_base_sleep_ms' => (int) env('KEIRIN_RETRY_BASE_SLEEP_MS', 500),
     'sleep_ms' => (int) env('KEIRIN_SLEEP_MS', 1000),
+    'result_transient_retry_passes' => (int) env('KEIRIN_RESULT_TRANSIENT_RETRY_PASSES', 1),
+    'result_transient_retry_sleep_ms' => (int) env('KEIRIN_RESULT_TRANSIENT_RETRY_SLEEP_MS', 5000),
     'parser_version' => env('KEIRIN_PARSER_VERSION', '2026-07-18-initial'),
     'raw_disk' => env('KEIRIN_RAW_DISK', 'local'),
     'raw_root' => env('KEIRIN_RAW_ROOT', 'scraping/raw'),
