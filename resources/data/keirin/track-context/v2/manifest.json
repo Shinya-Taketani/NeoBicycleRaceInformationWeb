@@ -1,0 +1,53 @@
+{
+    "version": "v2",
+    "files": {
+        "definitions.json": {
+            "bytes": 496,
+            "sha256": "91be0e1cc82bdb94d0f83c492e2ef50f2286d3a6a3bc815d804792f7730d8009"
+        },
+        "glossary.txt": {
+            "bytes": 100,
+            "sha256": "0a698ec4ae0a814b18c49d46f82cde02d10dd1db8cdaa69792699064da65b2fa"
+        },
+        "kumamoto-structure.txt": {
+            "bytes": 283,
+            "sha256": "c41f455749d7d364f410ae2ca9a811611fa01f4fb19bc481641f794e679916cc"
+        },
+        "qa.txt": {
+            "bytes": 183,
+            "sha256": "04bcbe857694c892fc43ad2e6936fed1ca79ddb82dbe92076e0a56094b8708a2"
+        },
+        "seibuen-structure.html": {
+            "bytes": 572,
+            "sha256": "e509b245a195c2d1ea4f3c240d6fd13a31d5f53423644540e8081d85a0b2080d"
+        },
+        "sources.json": {
+            "bytes": 99862,
+            "sha256": "98bca3b04c6152af8ba9331a423031c66d6cbad531ae4ec1dd2df32899bafe4e"
+        },
+        "structure2012.tsv": {
+            "bytes": 2116,
+            "sha256": "3413368910c634ea1c4ef9a2913bc07e1201d352a4bfaf559891d932f5a19816"
+        },
+        "tracks.json": {
+            "bytes": 474889,
+            "sha256": "5f985a0697a82663ad12b4d004f036de8aa0ad73ce16ba4a8f2da80c692aa73b"
+        },
+        "annual2023-structure.tsv": {
+            "bytes": 2202,
+            "sha256": "18abe372cda6bc313990998bc1db42c14dbb55f165666b23e9a78805259e31a6"
+        },
+        "maebashi2023-program.txt": {
+            "bytes": 221,
+            "sha256": "e47eec0d343ddeb3fdb5de36f89e589c9a238fd96b22b58601e0ded2859e9fee"
+        },
+        "hiratsuka2024-program.txt": {
+            "bytes": 267,
+            "sha256": "1aaaffe1c39dee4f08e3b9d014b848cc2f90e3baeff8810b7d0921d5b98e5d92"
+        },
+        "venue-review.json": {
+            "bytes": 79875,
+            "sha256": "3359c8eb640bccbd8ddfabc607eb816e93efd4ae01ae32a9148ee452d32a4997"
+        }
+    }
+}
