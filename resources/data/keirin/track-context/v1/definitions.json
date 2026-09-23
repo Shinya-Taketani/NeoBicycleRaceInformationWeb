@@ -1,0 +1,14 @@
+{
+    "keirin-jp-final-back-half-lap-v1": {
+        "id": "keirin-jp-final-back-half-lap-v1",
+        "status": "CONFIRMED",
+        "kind": "HALF_LAP",
+        "description": "最終周回のバック・ストレッチ・ラインから決勝線までの半周のタイム。",
+        "source_refs": [
+            "glossary",
+            "qa"
+        ],
+        "precision_seconds": null,
+        "precision_note": "This source does not establish a timestamped measurement resolution."
+    }
+}
