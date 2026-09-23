@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.34
+- Version: 1.35
 - Created: 2026-08-23
 - Updated: 2026-09-23
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `24a217e2fdfd21c7df490c55a08cb34760031e80`
+- Remote `main` at last update: `7f2a59d15af13785d36471f9f86c1dfa03f1222b`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,12 +167,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_37_TRACK_CONTEXT_02_V2_VERIFIED_PARTIAL_COVERAGE_AWAITING_REVIEW
+current_engine_state: STAT35_RACE_RELATIVE_01_IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_TRACK_CONTEXT_V2_AND_HISTORICAL_GAPS
+next_allowed_action: REVIEW_RACE_RELATIVE_EXPORT_PREFLIGHT_FAILURE
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-37-TRACK-CONTEXT-02
-remote_main: 24a217e2fdfd21c7df490c55a08cb34760031e80
+current_phase: STAT-35-RACE-RELATIVE-01
+remote_main: 7f2a59d15af13785d36471f9f86c1dfa03f1222b
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -180,6 +180,20 @@ pr67_status: MERGED
 pr68_status: MERGED
 pr69_status: MERGED
 pr70_status: MERGED_REVIEW_COMPLETED
+pr71_status: MERGED_REVIEW_COMPLETED
+stat35_race_relative_01_code: IMPLEMENTED_TESTED
+stat35_race_relative_01_execution: EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW
+stat35_race_relative_01_export_attempts: 1
+stat35_race_relative_01_export_exit_code: 1
+stat35_race_relative_01_real_counts: UNCONFIRMED_NOT_GENERATED
+stat35_race_relative_01_build_and_reproduction: NOT_STARTED
+stat35_race_relative_01_analysis_mode: FINAL_RESULT_DESCRIPTIVE_ONLY
+stat35_race_relative_01_historical_as_of_available: false
+stat35_race_relative_01_prediction_use: NOT_AUTHORIZED
+stat35_race_relative_01_points: null
+stat35_race_relative_01_production_business_reads_and_writes: 0
+stat35_race_relative_01_read_only_preflight: NOT_VERIFIED_ENDPOINT_OR_SETTING_MISMATCH
+stat35_race_relative_01_retry: NOT_AUTHORIZED_WITHOUT_NEW_INSTRUCTION
 stat35_37_track_context_01_code: REVIEW_COMPLETED_PR70_MERGED
 stat35_37_track_context_01_master: V1_42_TRACKS_44_OBSERVATION_LAYOUTS
 stat35_37_track_context_01_historical_coverage: RESOLVED_3_OF_10660_TRACK_DAYS
@@ -188,7 +202,7 @@ stat35_37_track_context_01_conflicting_days: 0
 stat35_37_track_context_01_individual_guides: AT_V1_TWO_CHECKED_FORTY_CURRENT_GUIDES_UNCONFIRMED
 stat35_37_track_context_01_production_writes: 0
 stat35_37_track_context_01_prediction_use: NOT_AUTHORIZED
-stat35_37_track_context_02_code: IMPLEMENTED_TESTED_AWAITING_REVIEW
+stat35_37_track_context_02_code: REVIEW_COMPLETED_PR71_MERGED
 stat35_37_track_context_02_master: V2_42_TRACKS_89_OBSERVATION_LAYOUTS
 stat35_37_track_context_02_source_review: ALL_42_ATTEMPTED_37_NAVIGATIONS_CHECKED_5_UNAVAILABLE_NOT_HISTORY_COMPLETE
 stat35_37_track_context_02_historical_coverage: RESOLVED_14_OF_10660_TRACK_DAYS
@@ -630,7 +644,8 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-PRODUCTION-BACKFILL-PILOT-01 | 同日正式保存・保存照合・保存後dry-run | REVIEW_COMPLETED_PR68_MERGED | BatchRun 120、実増分490/490、保存後予定0/0、今回終端でも保存行不変 |
 | STAT-35-PRODUCTION-BACKFILL-2022-2025-01 | pilot日を除く月別正式保存・照合・保存後dry-run | REVIEW_COMPLETED_PR69_MERGED | 48区間・BatchRun 121-168、実増分899,506/716,347、全区間保存後予定0/0、既存記録保持・再実行なし |
 | STAT-35-37-TRACK-CONTEXT-01 | 版付き構造マスタ・日付解決・未補正距離換算・実coverage | REVIEW_COMPLETED_PR70_MERGED | v1の42場44観測版・3解決場日と全原文/値/期間を保持。旧テスト・coverageは当時の記録。SCR全体未完了、予測利用未承認 |
-| STAT-35-37-TRACK-CONTEXT-02 | 公式資料一巡・v2出典/期間追加・offline coverage比較 | V2_VERIFIED_PARTIAL_COVERAGE_AWAITING_REVIEW | 42場89観測版。42場入口を一巡、37場navigation確認・5場取得不能。距離14/10,660（+11）、期間不明10,646・競合/後退0。歴史網羅未完了、次は結果レビュー |
+| STAT-35-37-TRACK-CONTEXT-02 | 公式資料一巡・v2出典/期間追加・offline coverage比較 | REVIEW_COMPLETED_PR71_MERGED | 部分的拡充のレビュー完了。42場89観測版、距離14/10,660（+11）、期間不明10,646・競合/後退0という前工程記録を維持。歴史網羅未完了 |
+| STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW | 純粋計算・接続・人工テスト完了。READ ONLY export 1回は接続先/設定の事前確認で終了1。実入力・実集計・実再現は未生成、再試行なし |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2679,6 +2694,29 @@ historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、旧C1/成果�
 
 ---
 
+## 15.44 STAT-35-RACE-RELATIVE-01
+
+PR #71 MERGED、TrackContext v2の部分拡充レビュー完了。開始main `7f2a59d15af13785d36471f9f86c1dfa03f1222b`。
+clean mainから `feature/stat35-race-relative-01` を作成。同一レース内相対化を先行するユーザーの限定許可により、保存済み現在結果/import/観測のREAD ONLY接続、純粋計算とoffline生成経路を追加した。
+計算は実データ確認前に固定。正確なdecimalによる順位min/同タイム平均順位/percentile/最速秒差、n<2のnull、正常完走のタイム欠損によるPARTIALを明示する。
+現在結果自身のimport+bikeだけを参照し、版混在・件数・状態・観測/出典hash不一致はレース単位除外。旧import二重計上や補助ID差の誤判定を防ぐ。
+AGARI_TIME・保存/正規化/元Parser版・公式出典とv2半周定義を対応付け、共通定義不明と数値距離不明を区別する。v2が解決する場合だけ既存Calculatorの未補正速度を併記する。
+構造マスタ/速度式/保存/backfill/import/予測/Migrationを変更せず、前工程の構造期間10,646場日未解決は維持した。
+
+初回関連テストで新規decimal API名の誤りを検出・修正。影響テスト42件/441 assertions成功、最終128M隔離全体2,018 passed・既存9 skip・16,543 assertions成功。
+変更PHP11本の限定Pint・構文検査成功。人工のoffline再現はbytes一致。実データ再現とは区別する。
+指定PGOPTIONSでexportを1回だけ実行したが、2026-09-23 17:41:43-17:41:44 JST（0.251秒）に終了コード1。
+エラーは `Unexpected endpoint or READ ONLY was not enabled before connecting.`。実際の返却設定を保存していないため、不一致が接続先か実効READ ONLYかは未確認であり推測しない。
+事前確認は業務データ照会・入力ディレクトリ作成より前。接続設定SELECT以外の本番業務データ読取り/書込みは0。
+入力レース数/現在結果行数、完全/部分/不能、相対値/速度行数、年×開催グレード集計は未生成・未確認。build/再現は未開始。失敗時peak memoryは未記録。
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-race-relative-01/run-20260923-083705-9f02c3d4/`。
+詳細は [stat35-race-relative-01.md](stat35-race-relative-01.md)。失敗ログを保持し、再接続/再export/自動修復はしない。
+状態は `IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW`。実生成成功・READ ONLY検証成功・STAT-35/37全体完了とは記録しない。
+`FINAL_RESULT_DESCRIPTIVE_ONLY`、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=nullを維持する。
+Raw再解析・HTTP・学習・予測評価・2026レース参照なし。C1/旧成果物不変。次は事前確認失敗のレビューのみ、再試行は新規指示を待つ。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2977,6 +3015,7 @@ run 6は正式完了済み。
 | #68 | STAT-35 production backfill pilot結果 | MERGED |
 | #69 | STAT-35 production backfill 2022-2025結果 | MERGED / 保存結果レビュー完了 |
 | #70 | STAT-35/37 track context v1・配布抜粋/ロード時原文照合 | MERGED / 2件のレビュー修正完了 |
+| #71 | STAT-35/37 track context v2・部分的歴史構造拡充 | MERGED / レビュー完了 |
 
 Current remote `main` at the v1.2 update:
 
@@ -3086,6 +3125,24 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.35 / 2026-09-23
+
+```yaml
+document_version: 1.35
+updated_at: 2026-09-23
+remote_main_sha: 7f2a59d15af13785d36471f9f86c1dfa03f1222b
+phase_changed: STAT-35-RACE-RELATIVE-01
+related_pr: PR71_MERGED_TRACK_CONTEXT_V2_REVIEW_COMPLETED
+decision: IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW
+real_generation: NOT_GENERATED
+reproduction: SYNTHETIC_VERIFIED_REAL_NOT_STARTED
+next: REVIEW_RACE_RELATIVE_EXPORT_PREFLIGHT_FAILURE
+```
+
+同レース内agari相対化を限定実装し、人工回帰・全テストを確認した。許可された1回の本番exportは接続先/READ ONLY確認で終了1、業務データ未取得。
+原因の具体的返却値は未確認。自動再試行なし、失敗証跡保持。実件数/実再現を成功扱いにしない。
+v2未解決期間10,646場日、SCR-STAT-35-02/STAT-35/37全体未完了、公表時点不明、予測利用未承認、points=null、C1/2026凍結を維持する。
 
 ## v1.34 / 2026-09-23
 
@@ -3596,7 +3653,8 @@ PR #66 = MERGED / migration-phase main 2715757a6952dbf32fc97f881945d94721a08282
 PR #67 = MERGED / pilot-phase main 15bb52de18eb5908a01d181d8177f33c0b1ca583
 PR #68 = MERGED / backfill-phase main 88ac8ff4677dde5c53a40ef028e5d83923671e07 / PILOT_REVIEW_COMPLETED
 PR #69 = MERGED / context-v1-phase main 3d03273ab8aee5a23e8fd317e98a2dc7bad8e9e6 / BACKFILL_RESULT_REVIEW_COMPLETED
-PR #70 = MERGED / current main 24a217e2fdfd21c7df490c55a08cb34760031e80 / TWO_REVIEW_FIXES_COMPLETED
+PR #70 = MERGED / context-v2-phase main 24a217e2fdfd21c7df490c55a08cb34760031e80 / TWO_REVIEW_FIXES_COMPLETED
+PR #71 = MERGED / current main 7f2a59d15af13785d36471f9f86c1dfa03f1222b / TRACK_CONTEXT_V2_REVIEW_COMPLETED
 STAT-35-STORAGE-BACKFILL-01 = IMPLEMENTATION_REVIEW_MERGE_COMPLETED / PRODUCTION_SCHEMA_APPLIED_AND_VERIFIED
 STAT-35-PRODUCTION-PREFLIGHT-01 = COMPLETED_PR66_MERGED / HISTORICAL_READ_ONLY_PREFLIGHT_RECORD_PRESERVED
 STAT-35-PRODUCTION-MIGRATION-01 = APPLIED_AND_SCHEMA_VERIFIED_REVIEW_COMPLETED_PR67_MERGED / MIGRATION_BATCH_14
@@ -3616,7 +3674,7 @@ Production write in prior backfill phase = USER_AUTHORIZED_2022_2025_EXCLUDING_P
 STAT-35-37-TRACK-CONTEXT-01 = REVIEW_COMPLETED_PR70_MERGED
 Historical v1 master = 42_TRACKS_44_OBSERVATION_LAYOUTS / ALL_FILES_AND_RESOLVED_EVIDENCE_UNCHANGED
 Historical v1 coverage = RESOLVED_3_UNKNOWN_LAYOUT_10657_CONFLICT_0 / TARGET_TRACK_DAYS_10660
-STAT-35-37-TRACK-CONTEXT-02 = V2_VERIFIED_PARTIAL_COVERAGE_AWAITING_REVIEW
+STAT-35-37-TRACK-CONTEXT-02 = REVIEW_COMPLETED_PR71_MERGED
 Track context v2 master = 42_TRACKS_89_OBSERVATION_LAYOUTS / EXPLICIT_VERSION_NO_FALLBACK
 Track context v2 review = ALL_42_ENTRYPOINTS_ATTEMPTED_37_NAVIGATIONS_CHECKED_5_UNAVAILABLE
 Track context v2 coverage = RESOLVED_14_DISTANCE_RESOLVED_14_UNKNOWN_LAYOUT_10646_CONFLICT_0_REGRESSED_0 / SAME_10660_TRACK_DAYS
@@ -3624,12 +3682,17 @@ Track context v2 gain = MAEBASHI_4_HIRATSUKA_7 / SEIBUEN_3_UNCHANGED
 Track context source gaps = HISTORICAL_INTERVALS_10646_DAYS_AND_OPTIONAL_FIELDS_UNCONFIRMED / SCR_OVERALL_NOT_COMPLETED
 Track context production writes = 0 / NO_AGARI_REPROCESSING / NO_PREDICTION_EVALUATION
 Track context prediction use = NOT_AUTHORIZED / historical_as_of_available=false
+STAT-35-RACE-RELATIVE-01 = IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW
+Race relative tests = 2018_PASSED_9_EXISTING_SKIPPED_16543_ASSERTIONS / LIMITED_PINT_AND_11_PHP_LINT_PASSED
+Race relative production export = ONE_ATTEMPT_EXIT_1_ENDPOINT_OR_READ_ONLY_GUARD / BUSINESS_DATA_NOT_READ / NO_RETRY
+Race relative real counts / build / reproduction = NOT_GENERATED_NOT_STARTED / FAILURE_PEAK_MEMORY_UNRECORDED
+Race relative purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review v2 source evidence, applicability and remaining gaps (REVIEW_TRACK_CONTEXT_V2_AND_HISTORICAL_GAPS). PR #70 is merged and its two review fixes are complete. All 42 venue entrypoints were attempted; 37 navigations were readable and 5 unavailable. This does not establish complete historical research. V2 adds 42 annual publication observations with UNKNOWN periods and three programme-backed intervals: Maebashi 2023-06-29 through 07-02, Hiratsuka 2024-11-04 through 06 and 11-08 through 11. Do not bridge November 7 or infer historical intervals from the annual edition or Kumamoto reopening notice. The same 10,660 targets now resolve 14 distance days (+11); 10,646 remain UNKNOWN, conflicts and regressions are zero. V1 files, all old layouts and three resolved Seibuen days remain unchanged. New focused/full tests, limited Pint and changed-PHP lint passed; Raw, extraction/build scripts, source decisions, v2 manifest, coverage comparison and logs are in stat35-37-track-context-02/run-20260923-061824-fe45e340. See docs/stat35-37-track-context-02.md. No production DB connection/write, agari reprocessing, backfill/dry-run/migration/backup/old audit rerun, STAT scoring, training or predictive evaluation occurred. New static official structure retrieval was explicitly authorized, not 2026 race retrieval or analysis. Preserve historical_as_of_available=false, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. This is not full SCR/STAT completion, an adjusted ability score or improved prediction accuracy. Further implementation/writes/predictive use remain NOT_AUTHORIZED. Stop uncommitted for review.
+Review the STAT-35-RACE-RELATIVE-01 export preflight failure (REVIEW_RACE_RELATIVE_EXPORT_PREFLIGHT_FAILURE). PR #71 and partial TrackContext v2 expansion are reviewed and merged. Pure decimal within-race ranks/percentiles/gaps, version/provenance validation, read-only export and offline build are implemented; final isolated tests, limited Pint and changed-PHP lint passed. The sole authorized real export exited 1 at the endpoint/READ ONLY guard, before business queries or input publication. The returned settings were not logged, so the precise mismatch remains unconfirmed. Real counts, year/grade summaries and reproduction are not available; do not claim zero-data success. No retry or new production connection was performed, and another attempt needs a new instruction. Evidence is stat35-race-relative-01/run-20260923-083705-9f02c3d4; see docs/stat35-race-relative-01.md. Prior v2 14 resolved/10,646 UNKNOWN track-days remain a separate historical record, not a fixed expected count for this task. No Raw reparse, new HTTP, production DML/DDL/audit writes, training, prediction evaluation or 2026 race access occurred. Preserve FINAL_RESULT_DESCRIPTIVE_ONLY, historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. This is not STAT-35/37 completion, corrected ability or predictive improvement. Stop uncommitted for review; do not advance automatically.
 
 Do not:
 redo BT-02 discovery
