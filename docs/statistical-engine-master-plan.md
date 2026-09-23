@@ -1,13 +1,13 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.31
+- Version: 1.32
 - Created: 2026-08-23
 - Updated: 2026-09-22
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `15bb52de18eb5908a01d181d8177f33c0b1ca583`
+- Remote `main` at last update: `88ac8ff4677dde5c53a40ef028e5d83923671e07`
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,31 +167,44 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_PRODUCTION_BACKFILL_PILOT_01_SAVED_AND_VERIFIED_AWAITING_REVIEW
+current_engine_state: STAT35_PRODUCTION_BACKFILL_2022_2025_01_ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_PRODUCTION_BACKFILL_PILOT_RESULT
+next_allowed_action: REVIEW_STAT35_PRODUCTION_BACKFILL_2022_2025_RESULT
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-PRODUCTION-BACKFILL-PILOT-01
-remote_main: 15bb52de18eb5908a01d181d8177f33c0b1ca583
+current_phase: STAT-35-PRODUCTION-BACKFILL-2022-2025-01
+remote_main: 88ac8ff4677dde5c53a40ef028e5d83923671e07
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
 pr67_status: MERGED
+pr68_status: MERGED
 stat35_storage_backfill_01: IMPLEMENTATION_REVIEW_MERGE_COMPLETED
 stat35_production_preflight_01: COMPLETED_PR66_MERGED
 stat35_production_migration_01: APPLIED_AND_SCHEMA_VERIFIED_REVIEW_COMPLETED_PR67_MERGED
 stat35_production_schema: APPLIED_AND_SCHEMA_VERIFIED
 stat35_migration_batch: 14
 stat35_other_pending_migrations: 0
-stat35_production_write_authorization: ONE_DAY_2024_12_31_OBSERVATIONS_CURRENT_AGARI_AND_BATCH_AUDIT_EXECUTED
+stat35_production_write_authorization: YEARS_2022_2025_EXCLUDING_PILOT_2024_12_31_OBSERVATIONS_CURRENT_AGARI_AND_BATCH_AUDIT_EXECUTED
 stat35_further_production_writes: NOT_AUTHORIZED
-stat35_production_dry_run: ONE_DAY_2024_12_31_COMPLETED_BEFORE_AND_AFTER_SAVE
-stat35_production_backfill: ONE_DAY_2024_12_31_SAVED_AND_VERIFIED_ONLY
-stat35_production_backfill_pilot_01: SAVED_VERIFIED_POST_DRY_RUN_ZERO_PLANNED_CHANGES_AWAITING_REVIEW
+stat35_production_dry_run: POST_SAVE_READ_ONLY_COMPLETED_ALL_48_INTERVALS
+stat35_production_backfill: YEARS_2022_2025_SCOPE_PROCESSED_GAPS_AND_MISSING_REMAIN
+stat35_production_backfill_pilot_01: REVIEW_COMPLETED_PR68_MERGED_SAVED_ROWS_UNCHANGED
+# 以下3件は既存pilotの実績。今回の増分と混同しない。
 stat35_backfill_batch_run_id: 120
 stat35_backfill_observations_added: 490
 stat35_backfill_current_results_updated: 490
-stat35_backfill_other_dates: NOT_AUTHORIZED
+stat35_production_backfill_2022_2025_01: ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW
+stat35_post_save_dry_run: ZERO_PLANNED_CHANGES_ALL_EXECUTED_INTERVALS
+stat35_backfill_2022_2025_executed_intervals: 48
+stat35_backfill_2022_2025_unstarted_intervals: 0
+stat35_backfill_2022_2025_batch_run_ids: 121-168
+stat35_backfill_2022_2025_observations_added: 899506
+stat35_backfill_2022_2025_current_results_updated: 716347
+stat35_backfill_2022_2025_no_import_races: 29
+stat35_backfill_2022_2025_no_import_unsupported_races: 0
+stat35_backfill_2022_2025_cancelled_imports_skipped: 113
+stat35_backfill_2022_2025_failed_imports: 0
+stat35_backfill_other_dates: OUTSIDE_EXECUTED_2022_2025_SCOPE_NOT_AUTHORIZED
 stat35_backup: CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED_RESTORE_TEST_NOT_PERFORMED
 bounded_memory_test_limit: INDEPENDENT_PROCESS_128M
 production_memory_example: 512M_ADJUST_BY_MEASUREMENT
@@ -298,6 +311,7 @@ completed_phases:
   - STAT-35-PRODUCTION-PREFLIGHT-01
   - STAT-35-PRODUCTION-MIGRATION-01
   - STAT-35-PRODUCTION-BACKFILL-PILOT-01_ONE_DAY_2024_12_31
+  - STAT-35-PRODUCTION-BACKFILL-2022-2025-01_SCOPE_PROCESSED_AND_VERIFIED
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -585,11 +599,12 @@ BT-03E-02以降で利用する場合は、
 | GROWTH-TREND-ANALYSIS-01 | outcome-free得点観測から開催・日数粒度を診断 | PR62_MERGED / DEVELOPMENT_SELECTED_GRANULARITY | MEETING_DELTA_LAG_1維持、修正版36生成物byte-exact再現、正式STAT未採用 |
 | GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 | 固定MEETING_DELTA_LAG_1のC1 utility補正 | PR63_MERGED / COMPLETED_NEGATIVE_DEVELOPMENT_TRANSFER | GLOBAL_LINEAR_WEIGHT_NOT_ADOPTED、P99=3.03、k=34/w=+0.34、2025 NOT_TRANSFERREDを維持 |
 | STAT-35-DATA-READINESS-AUDIT-01 | 保存済み上がりRawの抽出・識別・取得時点監査 | COMPLETED_PR64_MERGED | identity blocker 0、BLOCKED_INSUFFICIENT_RAW_HISTORY、DATA_QUALITY_ONLY |
-| STAT-35-STORAGE-BACKFILL-01 | current上がり・import別観測保存とRaw backfill基盤 | IMPLEMENTATION_REVIEW_MERGE_COMPLETED_PR65 | 本番schema適用・照合完了、backfillは2024-12-31のみ保存・照合完了 |
+| STAT-35-STORAGE-BACKFILL-01 | current上がり・import別観測保存とRaw backfill基盤 | IMPLEMENTATION_REVIEW_MERGE_COMPLETED_PR65 | 本番schema適用済み、2022-2025処理範囲の保存・照合完了、gap/skip/MISSINGは残る |
 | STAT-35-PRODUCTION-PREFLIGHT-01 | READ ONLY構造確認・plan・適用手順作成 | COMPLETED_PR66_MERGED | 当工程の本番書込み0という記録は履歴として維持 |
 | STAT-35-PRODUCTION-MIGRATION-01 | 対象1本の本番DDL・適用後READ ONLY照合 | REVIEW_COMPLETED_PR67_MERGED | Migration batch 14、再適用・構造再監査なし |
 | STAT-35-PRODUCTION-BACKFILL-DRYRUN-01 | 対象1日の保存前READ ONLY試行 | COMPLETED_ONE_DAY_2024_12_31 | 75 import成功、観測/現在値補完予定490/490、batchなし |
-| STAT-35-PRODUCTION-BACKFILL-PILOT-01 | 同日正式保存・保存照合・保存後dry-run | SAVED_AND_VERIFIED_AWAITING_REVIEW | BatchRun 120、実増分490/490、保存後予定0/0、他期間未承認 |
+| STAT-35-PRODUCTION-BACKFILL-PILOT-01 | 同日正式保存・保存照合・保存後dry-run | REVIEW_COMPLETED_PR68_MERGED | BatchRun 120、実増分490/490、保存後予定0/0、今回終端でも保存行不変 |
+| STAT-35-PRODUCTION-BACKFILL-2022-2025-01 | pilot日を除く月別正式保存・照合・保存後dry-run | ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW | 48区間・BatchRun 121-168、実増分899,506/716,347、全区間保存後予定0/0、次は結果レビュー |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2498,6 +2513,55 @@ STAT計算・学習・予測評価・新規取得・同期起動・2026レース
 
 ---
 
+## 15.41 STAT-35-PRODUCTION-BACKFILL-2022-2025-01
+
+PR #68 MERGED、pilot結果レビュー完了。開始main/実行SHAは `88ac8ff4677dde5c53a40ef028e5d83923671e07`。
+cleanなmainから `ops/stat35-production-backfill-2022-2025-01` を作成し、既存コードは変更せず使用した。
+最新ユーザー指示により、source=`keirin_jp`、2022-01-01～2025-12-31のうち保存済み2024-12-31を除く
+観測追加・current agari3列補完・BatchRun/Item記録、前後READ ONLY照合と各区間1回の保存後dry-runを許可した。
+Section 15.40以前の他期間未承認・レビュー待ちは当時の記録として保持する。
+
+日付ライブラリで48暦月区間・1,460日を固定し、重複/対象外日付/除外日以外の欠落なしをDBアクセス前に検査。
+2024年12月だけ12-01～12-30。昇順・逐次で全48区間を実行・照合し、未着手0、対象import 0の区間0。
+正式実行は各月1回、BatchRun 121-168は全てSUCCEEDED、FAILED/RUNNING itemなし。
+各PHPは512M・chunk100、接続限定lock_timeout=5s/statement_timeout=5min、子プロセス上限30分。
+全正式実行・全保存後dry-runがexit 0、stderr空、タイムアウト/再試行なし。
+
+| 年（今回分） | success/import | skipped/import | failed/import | 観測実追加 | 現在結果実補完 | NO_IMPORT/race | NO_IMPORT_UNSUPPORTED/race |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 2022 | 24,824 | 41 | 0 | 173,847 | 173,847 | 3 | 0 |
+| 2023 | 51,076 | 32 | 0 | 362,784 | 181,392 | 7 | 0 |
+| 2024（12-31除外） | 25,526 | 14 | 0 | 181,357 | 181,357 | 9 | 0 |
+| 2025 | 25,507 | 26 | 0 | 181,518 | 179,751 | 10 | 0 |
+| 合計 | 126,933 | 113 | 0 | 899,506 | 716,347 | 29 | 0 |
+
+正式summaryと実DB増分は各区間・各importで一致。skipは全113 importがCANCELLED。
+観測のagari_statusはVALID 879,184 / MISSING 20,319 / INVALID_FORMAT 0 / OBSERVED_ABNORMAL_RESULT 3。
+補完した現在結果はVALID 700,405 / MISSING 15,939 / INVALID_FORMAT 0 / OBSERVED_ABNORMAL_RESULT 3。
+観測はimport-version行、現在結果は採用importに対応するcurrent行であり、件数を同一視しない。
+年別status、全月batch ID、gap race ID/カテゴリ、skip import ID/理由は下記手順文書と証跡に保存した。
+
+保存前後照合は全区間成功。既存観測変更、import＋bike重複、出典/現在値不一致、非agari変更は全て0。
+対象races/entries/payouts/imports/fetch metadataと現在結果のimport参照を含むagari3列以外は不変。
+NULLと0を区別し、decimalはfloat化せず照合。origin=BACKFILLED_FINAL_RESULT、publication_timestamp=UNKNOWNを維持。
+全48区間の保存後READ ONLY dry-runはfailed=0、dry_run=true、batch_run_id=null、observations/current_updates=0/0。
+dry-run後も対象import集合・業務行・当該batch/itemは不変。これは追加・更新予定0の確認であり、正式書込みの再実行ではない。
+
+2026-09-22 15:58:43.894883～17:07:00.259958 JST、照合を含む処理全体4,096.365072123秒（約68分16秒）。
+正式実行時間合計1,943.007422218秒、保存後dry-run合計1,653.220918562秒、最大peak 37,748,736 bytes（36 MiB）。
+pilot BatchRun 120の対象9種の保存行は旧保存後snapshotと一致。pilotのRaw再解析・コマンド再実行なし。
+pilotの実績490/490（VALID 477 / MISSING 13）は不変で、1回だけ加えた統合実増分は観測899,996 / 現在結果716,837。
+
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-production-backfill-2022-2025-01/run-20260922-155146-60eeb526/`。
+実行スクリプトはリポジトリ外へ保存しphp -l成功後に実行。全ログ、分割snapshot、月/年/合計report、pilot終端照合を保持。
+詳細は [stat35-production-application-01.md](stat35-production-application-01.md)。次は今回の結果レビューのみ。
+これは処理範囲の完了であり、gap/skip/MISSINGの解消やas-of回復・STAT採用・精度改善を意味しない。
+historical_as_of_available=false、PUBLICATION_TIME_UNKNOWN、旧成果物・C1・2026凍結を維持。
+Migration/backup/旧監査/全テスト/Pintの再実行、新規取得、同期、STAT、学習、予測評価、2026レース参照はしていない。
+追加書込みや次実装へ自動移行せず、2文書だけを未コミットで結果レビュー待ちとする。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -2793,6 +2857,7 @@ run 6は正式完了済み。
 | #65 | feature:stat35 storage backfill 01 | MERGED |
 | #66 | ops:stat35 production preflight 01 | MERGED |
 | #67 | STAT-35 production migration結果 | MERGED |
+| #68 | STAT-35 production backfill pilot結果 | MERGED |
 
 Current remote `main` at the v1.2 update:
 
@@ -2902,6 +2967,24 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.32 / 2026-09-22
+
+```text
+updated_by: Codex
+remote_main_sha: 88ac8ff4677dde5c53a40ef028e5d83923671e07
+changed_sections: metadata, 5, 8, 15.41, 21, 25, 27
+related_pr: PR #68 merged / pilot review completed
+related_run: stat35-production-backfill-2022-2025-01/run-20260922-155146-60eeb526
+decision: ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW
+next_action: REVIEW_STAT35_PRODUCTION_BACKFILL_2022_2025_RESULT
+```
+
+pilot日を除く2022-2025の限定許可、48区間の正式保存・READ ONLY照合・保存後dry-run完了を記録。
+BatchRun 121-168、実増分899,506/716,347、保存後予定は全区間0/0、NO_IMPORT 29、CANCELLED skip 113、MISSINGを保持。
+pilot BatchRun 120と保存490/490の不変を終端確認し、統合値へ1回だけ加算。過去の履歴は変更しない。
+今回の本番書込みは観測/current補完/batch監査でありDDLなし。as-of回復・正式STAT採用・精度改善は未確認。
+次は結果レビューだけ。2026凍結、historical_as_of_available=false、旧モデル/成果物、backup復元試験未実施を維持。
 
 ## v1.31 / 2026-09-22
 
@@ -3352,21 +3435,30 @@ GROWTH-TREND-ADJUSTMENT-CALIBRATION-01 = PR63_MERGED / COMPLETED_NEGATIVE_DEVELO
 STAT-35-DATA-READINESS-AUDIT-01 = COMPLETED_PR64_MERGED / BLOCKED_INSUFFICIENT_RAW_HISTORY / IDENTITY_SAFE / NO_AS_OF_HISTORY / TWO_REPRODUCTIONS_BYTE_EXACT_27_ARTIFACTS
 PR #65 = MERGED / main adb847c5b0a2b0778ecb02a57c37bffbecf2d926
 PR #66 = MERGED / migration-phase main 2715757a6952dbf32fc97f881945d94721a08282
-PR #67 = MERGED / current main 15bb52de18eb5908a01d181d8177f33c0b1ca583
+PR #67 = MERGED / pilot-phase main 15bb52de18eb5908a01d181d8177f33c0b1ca583
+PR #68 = MERGED / current main 88ac8ff4677dde5c53a40ef028e5d83923671e07 / PILOT_REVIEW_COMPLETED
 STAT-35-STORAGE-BACKFILL-01 = IMPLEMENTATION_REVIEW_MERGE_COMPLETED / PRODUCTION_SCHEMA_APPLIED_AND_VERIFIED
 STAT-35-PRODUCTION-PREFLIGHT-01 = COMPLETED_PR66_MERGED / HISTORICAL_READ_ONLY_PREFLIGHT_RECORD_PRESERVED
 STAT-35-PRODUCTION-MIGRATION-01 = APPLIED_AND_SCHEMA_VERIFIED_REVIEW_COMPLETED_PR67_MERGED / MIGRATION_BATCH_14
 STAT-35-PRODUCTION-BACKFILL-DRYRUN-01 = COMPLETED_2024_12_31_ONLY / 75_IMPORTS / PLANNED_490_OBSERVATIONS_490_CURRENT_UPDATES
-STAT-35-PRODUCTION-BACKFILL-PILOT-01 = SAVED_AND_VERIFIED_AWAITING_REVIEW / 2024_12_31_ONLY / BATCH_RUN_120_SUCCEEDED
-Saved counts = 490_OBSERVATIONS / 490_CURRENT_RESULTS / VALID_477_MISSING_13 / NON_AGARI_CHANGES_0
-Post-save READ ONLY dry-run = SUCCESS_75_FAILED_0 / OBSERVATIONS_0_CURRENT_UPDATES_0 / BATCH_RUN_ID_NULL
-Production write this phase = USER_AUTHORIZED_ONE_DAY_OBSERVATIONS_CURRENT_AGARI_AND_BATCH_AUDIT
-Further production writes / other-date backfill = NOT_AUTHORIZED
+STAT-35-PRODUCTION-BACKFILL-PILOT-01 = REVIEW_COMPLETED_PR68_MERGED / 2024_12_31_ONLY / BATCH_RUN_120_SUCCEEDED / END_SNAPSHOT_UNCHANGED
+Pilot saved counts = 490_OBSERVATIONS / 490_CURRENT_RESULTS / VALID_477_MISSING_13 / NON_AGARI_CHANGES_0
+Pilot post-save READ ONLY dry-run = SUCCESS_75_FAILED_0 / OBSERVATIONS_0_CURRENT_UPDATES_0 / BATCH_RUN_ID_NULL / NOT_RERUN
+STAT-35-PRODUCTION-BACKFILL-2022-2025-01 = ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW / EXCLUDES_2024_12_31
+Executed intervals = 48 / unstarted = 0 / BatchRun 121-168 SUCCEEDED
+This-phase summary = SUCCESS_126933_SKIPPED_113_FAILED_0 / NO_IMPORT_29_NO_IMPORT_UNSUPPORTED_0
+This-phase actual DB delta = 899506_OBSERVATIONS / 716347_CURRENT_RESULTS / NON_AGARI_CHANGES_0
+New observation status = VALID_879184_MISSING_20319_INVALID_FORMAT_0_OBSERVED_ABNORMAL_RESULT_3
+Filled current status = VALID_700405_MISSING_15939_INVALID_FORMAT_0_OBSERVED_ABNORMAL_RESULT_3
+Combined with pilot exactly once = 899996_OBSERVATIONS / 716837_CURRENT_RESULTS
+Post-save READ ONLY dry-run = ZERO_PLANNED_CHANGES_ALL_EXECUTED_INTERVALS / FAILED_0 / BATCH_RUN_ID_NULL
+Production write this phase = USER_AUTHORIZED_2022_2025_EXCLUDING_PILOT_OBSERVATIONS_CURRENT_AGARI_AND_BATCH_AUDIT
+Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review only the STAT-35 one-day production backfill pilot result (REVIEW_STAT35_PRODUCTION_BACKFILL_PILOT_RESULT). PR #67 is merged and the migration result review is complete. After the reviewed 2024-12-31 dry-run, the explicitly authorized formal command ran once: exit 0, BatchRun 120 SUCCEEDED, 75 successful imports, 490 observations added and 490 current result agari fields filled. Read-only before/after verification matches planned and reported counts; VALID 477 and MISSING 13, source/current mismatches and non-agari changes are zero. The one post-save READ ONLY dry-run returned exit 0, 75 successes, zero failures/additions/updates, batch_run_id=null. This phase wrote one-day business values and batch audit, not DDL. It does not complete the full 2022-2025 backfill. The existing backup and archive list succeeded; restore testing remains unperformed, with no backup or migration re-execution. Preserve historical records, historical_as_of_available=false, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. Other-date writes, further implementation, STAT calculation, training and predictive evaluation remain NOT_AUTHORIZED. Stop for result review; do not expand the date range.
+Review only the STAT-35 2022-2025 production backfill result (REVIEW_STAT35_PRODUCTION_BACKFILL_2022_2025_RESULT). PR #68 is merged and pilot review is complete. All 48 monthly intervals excluding 2024-12-31 ran once and passed read-only before/after verification; BatchRun 121-168 all SUCCEEDED, zero failed imports. Actual additions/updates match summaries at 899,506/716,347. NO_IMPORT 29 races, CANCELLED 113 skipped imports and MISSING values remain: scope processing is complete, not a claim of complete data. Every post-save READ ONLY dry-run had zero planned additions/updates, failed=0 and batch_run_id=null, with unchanged target rows and audit records. Source/current mismatches and non-agari changes are zero. Pilot BatchRun 120 and its saved rows match the prior snapshot; its Raw and command were not rerun. This phase wrote observations/current agari and batch audit, not DDL. The existing backup and archive list succeeded; restore testing remains unperformed, with no backup or migration re-execution. Preserve historical records, historical_as_of_available=false, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, old artifacts, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. Further writes, implementation, STAT calculation, training and predictive evaluation remain NOT_AUTHORIZED. Stop for result review.
 
 Do not:
 redo BT-02 discovery

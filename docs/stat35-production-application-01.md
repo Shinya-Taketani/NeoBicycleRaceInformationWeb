@@ -1,6 +1,144 @@
 # STAT-35-PRODUCTION-PREFLIGHT-01 / Application Procedure
 
-## Current Result / STAT-35-PRODUCTION-BACKFILL-PILOT-01
+## Current Result / STAT-35-PRODUCTION-BACKFILL-2022-2025-01
+
+2026-09-22 JST: **ALL_INTERVALS_PROCESSED_AND_VERIFIED_AWAITING_REVIEW**。
+PR #68 MERGED、pilot結果レビュー完了後、今回のユーザー明示許可で残りの2022-2025を処理した。
+全48区間の正式保存・READ ONLY保存照合・保存後dry-runが成功し、未着手0。次は今回の結果レビューだけ。
+**処理範囲の完了と欠損のない完全データは別であり、NO_IMPORT / CANCELLED skip / MISSING等は残る。**
+
+### Authorization And Fixed Intervals
+
+- 開始main / 実行SHA: `88ac8ff4677dde5c53a40ef028e5d83923671e07`。cleanを確認して `ops/stat35-production-backfill-2022-2025-01` を作成。
+- 対象接続: `pgsql / 127.0.0.1:5432 / neo_keirin_prediction_db / public`、source=`keirin_jp`。実IPをhost()で正規化して照合。認証情報は出力・保存しない。
+- 範囲: 2022-01-01～2025-12-31、ただし保存済み2024-12-31を除外。暦月48区間、2024年12月だけ12-01～12-30。
+- `intervals.json` は日付ライブラリで作成。48区間/1,460日、重複・期間外日付・除外日以外の欠落なしをDBアクセスなしで検査した。
+- 今回の許可は既存コマンドによるimport別観測追加、対応currentのagari3列補完、BatchRun/Item記録・採番・ロックと、保存前後照合/保存後dry-run。**本番業務値・監査履歴の書込みがある。**
+- コード/Migration/設定は不変。補助PHPはリポジトリ外へ保存しphp -l成功後に使用。既存Artisan呼出しとREAD ONLY照合に限定し、Parser・補完保存ロジックは再実装していない。
+- 既存pilot BatchRun 120、観測490/current490、VALID477/MISSING13は別実績として保持。pilotのコマンド・Raw解析・保存前dry-runを再実行していない。
+
+### Executed Commands And Timing
+
+各区間を昇順・逐次で、保存前snapshot → 正式実行1回 → 保存照合 → 保存後READ ONLY dry-run1回 → 不変確認の順に実行。
+以下は実行済み最初の区間。後続は保存した `intervals.json` のfrom/toだけを変更した。再実行を指示するものではない。
+
+```bash
+DB_CONNECTION=pgsql \
+PGOPTIONS='-c default_transaction_read_only=off -c lock_timeout=5s -c statement_timeout=5min' \
+php -d memory_limit=512M artisan keirin:stat35:backfill-agari \
+  --execute --from=2022-01-01 --to=2022-01-31 --chunk=100
+
+DB_CONNECTION=pgsql \
+PGOPTIONS='-c default_transaction_read_only=on -c lock_timeout=5s -c statement_timeout=5min' \
+php -d memory_limit=512M artisan keirin:stat35:backfill-agari \
+  --execute --dry-run --from=2022-01-01 --to=2022-01-31 --chunk=100
+```
+
+環境変数は子プロセス限定。全stdoutは逐次ファイル出力し、PHP自身の終了コードと実argvを保存。
+子プロセス上限30分は各SQLのstatement_timeout=5minとは別。再試行・並列処理・独自DML・rollbackなし。
+
+- 全体開始/終了: 2026-09-22 15:58:43.894883～17:07:00.259958 JST。
+- 照合・pilot終端確認を含む所要4,096.365072123秒（約68分16秒）。文書更新時間は含めない。
+- 正式コマンド48回の所要合計1,943.007422218秒、保存後dry-run48回の所要合計1,653.220918562秒。
+- 全96コマンドexit 0、stderr 0 bytes、タイムアウト0。各開始/終了時刻・所要・exitは月別証跡に保存。
+- 最大peak memoryは37,748,736 bytes（36 MiB）。peakは合計していない。ラッパー終了コードも0。
+
+### Monthly Batch IDs
+
+全48 BatchRunがSUCCEEDED。表の月は各年の暦月で、2024-12だけ12-31を含まない。
+各月のsummary、実DB差分、status、gap/skip、対象ID、照合結果は `report.json` のmonthsと各月ディレクトリに保存。
+
+| 月 | 2022 batch | 2023 batch | 2024 batch | 2025 batch |
+|---|---:|---:|---:|---:|
+| 01 | 121 | 133 | 145 | 157 |
+| 02 | 122 | 134 | 146 | 158 |
+| 03 | 123 | 135 | 147 | 159 |
+| 04 | 124 | 136 | 148 | 160 |
+| 05 | 125 | 137 | 149 | 161 |
+| 06 | 126 | 138 | 150 | 162 |
+| 07 | 127 | 139 | 151 | 163 |
+| 08 | 128 | 140 | 152 | 164 |
+| 09 | 129 | 141 | 153 | 165 |
+| 10 | 130 | 142 | 154 | 166 |
+| 11 | 131 | 143 | 155 | 167 |
+| 12 | 132 | 144 | 156 | 168 |
+
+### Formal Summary And Actual DB Deltas
+
+success/skipped/failedはimport単位、NO_IMPORT系はrace単位。
+観測はimport-version行、現在結果は採用importに対応するcurrent行であり、両者の件数一致は要求していない。
+下表の追加/補完は正式summaryと実DB差分が各区間・各importで一致した**実保存件数**。dry-runやpilotの件数は混ぜない。
+
+| 年（今回分） | success | skipped | failed | 観測実追加 | 現在結果実補完 | NO_IMPORT | NO_IMPORT_UNSUPPORTED |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 2022 | 24,824 | 41 | 0 | 173,847 | 173,847 | 3 | 0 |
+| 2023 | 51,076 | 32 | 0 | 362,784 | 181,392 | 7 | 0 |
+| 2024（12-31除外） | 25,526 | 14 | 0 | 181,357 | 181,357 | 9 | 0 |
+| 2025 | 25,507 | 26 | 0 | 181,518 | 179,751 | 10 | 0 |
+| 合計 | 126,933 | 113 | 0 | 899,506 | 716,347 | 29 | 0 |
+
+### Persisted Agari Status
+
+| 年 | 観測VALID | 観測MISSING | 観測INVALID_FORMAT | 観測OBSERVED_ABNORMAL_RESULT | current VALID | current MISSING | current INVALID_FORMAT | current OBSERVED_ABNORMAL_RESULT |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2022 | 169,678 | 4,168 | 0 | 1 | 169,678 | 4,168 | 0 | 1 |
+| 2023 | 354,086 | 8,698 | 0 | 0 | 177,043 | 4,349 | 0 | 0 |
+| 2024（12-31除外） | 177,154 | 4,202 | 0 | 1 | 177,154 | 4,202 | 0 | 1 |
+| 2025 | 178,266 | 3,251 | 0 | 1 | 176,530 | 3,220 | 0 | 1 |
+| 合計 | 879,184 | 20,319 | 0 | 3 | 700,405 | 15,939 | 0 | 3 |
+
+MISSINGや異常結果観測を有効タイムへ補正せず、NULLと0を区別。decimal比較は文字列正規化で行いfloat化していない。
+origin=BACKFILLED_FINAL_RESULT、publication_timestamp=UNKNOWN、historical_as_of_available=falseを維持する。
+
+### Gaps And Skips
+
+- skipは全113 importが既存契約のCANCELLED（2022:41、2023:32、2024:14、2025:26）。`formal-skips.jsonl` にimport ID/既存理由を保存。失敗importは0。
+- NO_IMPORT 29 raceの月別内訳は2022-07:3、2023-01:7、2024-01:2、2024-02:7、2025-02:6、2025-03:4。他の月0、NO_IMPORT_UNSUPPORTEDは全月0。
+- `gaps.jsonl` にrace ID/日付/race_type/既存カテゴリ/理由を保存。分類は既存RaceCategoryPolicyを使用し、SQLで別分類や固定期待件数を作っていない。
+- 対象import 0の区間は0。既存の中止・対象外・未確定の全行へ観測保存を要求せず、import欠落やskipを成功件数に加算していない。
+
+### Read-Only Verification
+
+全48区間で保存前後23確認項目が成功。各snapshotは対象source/dateで限定し、主キー順・同列順・分割取得/ストリーミング、READ ONLY/REPEATABLE READで保存。
+
+- 固定した対象import集合、summary、BatchRun/Item集合・件数が一致。BatchRunはSUCCEEDED、FAILED/RUNNING item 0。
+- 観測追加/現在結果補完は実DB差分と一致。既存観測変更0、import＋bike重複0、出典不一致0。
+- 補完currentは自身のimport＋bikeの観測とagari3列が一致。不一致0、非NULL既存値上書き0、import参照付替え0。
+- race_resultsのagari3列以外は全列不変（ID、着順、状態、import参照、fetched_at、updated_atを含む）。非agari変更0。
+- races/entries/payouts/importsと対応fetch metadataは全列不変。追加観測のRawパス・source/converted hash・URL・取得時刻・Parser versionは対応出典と一致。
+
+保存後READ ONLY dry-runは全48区間でexit=0、failed=0、dry_run=true、batch_run_id=null、observations=0、current_updates=0。
+正常照合successの合計126,933、CANCELLED skip113、NO_IMPORT29/NO_IMPORT_UNSUPPORTED0は正式実行と一致するが、正式件数へ二重加算しない。
+dry-run後の対象業務行・観測・fetch metadata・当該BatchRun/Itemは全区間不変。対象import集合も不変。
+状態は **ZERO_PLANNED_CHANGES_ALL_EXECUTED_INTERVALS**。正式書込みを再実行した検証ではない。
+
+終端でpilotの旧 `after-snapshot.json` と対象9種の保存行をREAD ONLY比較し全件一致。
+BatchRun 120・既存490観測/490補完・VALID477/MISSING13は不変。Raw再解析やpilotコマンド再実行はない。
+pilotを1回だけ加えた統合実増分は **観測899,996 / 現在結果716,837**。今回分899,506/716,347とは区別する。
+
+### Evidence And Stop Boundary
+
+実在する今回の証跡ディレクトリ（既存証跡とは別、umask 077）:
+
+```text
+/home/shinya/neo-keirin-artifacts/stat35-production-backfill-2022-2025-01/run-20260922-155146-60eeb526/
+```
+
+`monthly-backfill.php`、`execution-contract.json`、`intervals.json`、`report.json`、runnerログ、`pilot-verification.json`/`pilot-end/`、月別証跡を保存。
+各月にはbefore/after/postの全列snapshot・manifest、正式/dry-runのstdout全文・stderr・argv・SHA・時刻・exit・summary、検証JSON、追加/変更/gap/skip明細、完了状態を保持。
+既存pilot証跡・Raw・旧正式成果物・backupを変更していない。backup取得/一覧確認成功・復元試験未実施という記録を維持し、再取得・再hash・復元なし。
+
+今回の本番書込みは許可範囲の観測/current/batch監査のみ。Migration・構造28項目再監査・cron調査・旧監査・新規取得・同期は未実施。
+STAT計算・学習・予測評価・2026開催レースのDB/Raw参照は未実施。2022-2025レースの2026年取得Rawは今回の読取り許可に含む。
+全テスト/Pintは再実行せず、許可2文書だけの差分とgit diff --checkを確認。as-of回復・STAT採用・予測精度改善は主張しない。
+次は今回の結果レビューだけであり、追加書込み・次実装は未承認。commit/push/PR作成/mergeせず、未コミットで停止する。
+
+---
+
+## Historical Pilot Record / PR #68
+
+以下はpilot実行時の記録。PR #68マージでレビューは完了し、保存行は今回の終端照合でも不変。
+他期間未承認・レビュー待ち等の過去記録を残し、最新の許可範囲・結果は上のCurrent Resultに記載する。
 
 2026-09-22 JST: **2024-12-31だけの正式保存・READ ONLY保存照合・保存後dry-runが成功。次は結果レビュー。**
 PR #67 MERGED、Migration結果レビュー完了。Migration batch 14の再適用・構造28項目再監査は行っていない。
@@ -113,7 +251,7 @@ Migration、構造28項目再監査、cron調査、同期起動、新規取得�
 ## Historical Migration Record / PR #67
 
 以下はMigration実行時の記録。未承認・未実施・レビュー待ちは当時の状態として保持し、
-今回の1日分の限定許可・保存結果は上のCurrent Resultを正本とする。
+pilot時点の1日分の限定許可・保存結果は上のHistorical Pilot Record、最新の結果はCurrent Resultを正本とする。
 
 2026-09-22 JST: **APPLIED_AND_SCHEMA_VERIFIED。次は適用結果レビュー。backfill/dry-runは未実施・未承認。**
 PR #66はMERGED。cleanなmain/origin `2715757a6952dbf32fc97f881945d94721a08282` から
