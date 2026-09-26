@@ -21,6 +21,17 @@ final class MemoryLimitedTestProcess
         'Tests\\Feature\\GrowthTrendScoreSourceTest::test_capture_uses_only_approved_tables_and_columns_and_verify_needs_no_db',
         'Tests\\Feature\\GrowthTrendScoreSourceTest::test_history_pagination_has_no_duplicates_or_missing_rows',
         'Tests\\Feature\\Stat35DataReadinessAuditTest::test_real_execution_path_and_db_disabled_byte_exact_reproduction',
+        'Tests\\Feature\\GrowthTrendAdjustmentCalibrationTest::test_execute_withholds_2025_until_seal_then_reproduces_all_bytes',
+        'Tests\\Feature\\GrowthAdjustmentCalibrationTest::test_synthetic_execute_reproduce_is_exact_without_database',
+        'Tests\\Feature\\GrowthPointAnalysisTest::test_bounded_disk_workspace_stream_over_one_hundred_thousand_entries',
+        'Tests\\Feature\\GrowthPointAnalysisV2Test::test_mass_zero_is_not_negative_and_bounded_memory',
+        'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e04BoundedMemoryTest::test_two_thousand_nine_car_source_races_are_stream_parsed_under_the_process_limit',
+        'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e04BoundedMemoryTest::test_two_thousand_nine_car_decisions_are_spooled_under_the_process_limit',
+        'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e05BoundedMemoryTest::test_two_thousand_nine_car_source_races_are_stream_parsed_under_the_process_limit',
+        'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e05BoundedMemoryTest::test_two_thousand_nine_car_decisions_are_spooled_under_the_process_limit',
+        'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e06BoundedMemoryTest::test_two_thousand_nine_rider_forward_decodes_and_bootstrap_are_bounded',
+        'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e07BoundedMemoryTest::test_two_thousand_nine_rider_predictions_metric_spools_and_bootstrap_are_bounded',
+        'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e08BoundedMemoryTest::test_two_thousand_nine_rider_decisions_and_bootstrap_stay_below_128m',
     ];
 
     public static function delegate(string $case): bool

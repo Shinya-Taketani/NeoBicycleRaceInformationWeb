@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\GrowthTrendCalibrationFixture;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\TestCase;
 
 class GrowthTrendAdjustmentCalibrationTest extends TestCase
@@ -175,6 +176,10 @@ class GrowthTrendAdjustmentCalibrationTest extends TestCase
 
     public function test_execute_withholds_2025_until_seal_then_reproduces_all_bytes(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $s = $this->fixture();
         $outcomes = $this->outcomePaths($s['outer_root'], 2025);
         foreach ($outcomes as $p) {
@@ -234,6 +239,7 @@ class GrowthTrendAdjustmentCalibrationTest extends TestCase
         }
         $this->assertLessThan($sequence['2024:OUTCOME_IDENTITY_RESOLVE'], $sequence[':SCALING_SEALED']);
         $this->assertLessThan($sequence['2025:OUTCOME_IDENTITY_RESOLVE'], $sequence[':SELECTION_SEALED']);
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     #[DataProvider('outcomeKinds')]

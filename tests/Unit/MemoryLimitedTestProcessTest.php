@@ -33,10 +33,18 @@ final class MemoryLimitedTestProcessTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_high_parent_peak_cannot_pollute_real_128m_child(): void
+    public static function memoryCases(): iterable
+    {
+        foreach (Child::CASES as $case) {
+            yield $case => [$case];
+        }
+    }
+
+    #[DataProvider('memoryCases')]
+    public function test_high_parent_peak_cannot_pollute_real_128m_child(string $case): void
     {
         $execution = Child::launch([PHP_BINARY, '-d', 'memory_limit=512M',
-            Child::base().'/tests/Support/memory-process-high-parent.php', $this->directory], $this->directory);
+            Child::base().'/tests/Support/memory-process-high-parent.php', $this->directory, $case], $this->directory);
         $this->assertSame(0, $execution['exit_code'], $this->logs());
         $this->assertNull($execution['error']);
         $report = json_decode(file_get_contents($this->directory.'/stdout.log'), true, flags: JSON_THROW_ON_ERROR);
@@ -45,7 +53,7 @@ final class MemoryLimitedTestProcessTest extends TestCase
         $this->assertGreaterThan(Child::LIMIT, $report['parent_peak']);
         $this->assertSame($report['parent_pid'], $report['child']['parent_pid']);
         $this->assertNotSame($report['parent_pid'], $report['child']['child_pid']);
-        $this->assertSame(Child::CASES[3], $report['child']['case']);
+        $this->assertSame($case, $report['child']['case']);
         $this->assertSame('128M', $report['child']['memory_limit']);
         $this->assertSame(Child::LIMIT, $report['child']['memory_limit_bytes']);
         $this->assertLessThan(Child::LIMIT, $report['child']['peak_memory_bytes']);

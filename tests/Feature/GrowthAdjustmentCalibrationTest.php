@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\TestCase;
 
 class GrowthAdjustmentCalibrationTest extends TestCase
@@ -183,6 +184,10 @@ class GrowthAdjustmentCalibrationTest extends TestCase
 
     public function test_synthetic_execute_reproduce_is_exact_without_database(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $source = $this->fixture('first');
         $this->bindSources($source);
         $root = $this->root('result');
@@ -210,6 +215,7 @@ class GrowthAdjustmentCalibrationTest extends TestCase
             $this->assertSame('GROWTH_MISSING_NO_ADJUSTMENT', $row['entries'][4]['status']);
             $this->assertSame($row['entries'][4]['original_anchor'], $row['entries'][4]['adjusted_anchor']);
         }
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     public function test_2025_outcome_change_cannot_change_2024_selection_or_prediction_hashes(): void

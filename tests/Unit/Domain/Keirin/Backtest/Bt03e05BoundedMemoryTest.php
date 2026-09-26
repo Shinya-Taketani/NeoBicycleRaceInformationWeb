@@ -12,11 +12,16 @@ use App\Domain\Keirin\Backtest\Support\Bt03e05RaceSpool;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\Bt03e05SyntheticBundle;
+use Tests\Support\MemoryLimitedTestProcess;
 
 class Bt03e05BoundedMemoryTest extends TestCase
 {
     public function test_two_thousand_nine_car_source_races_are_stream_parsed_under_the_process_limit(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $bundle = new Bt03e05SyntheticBundle(
             sys_get_temp_dir().'/bt03e05-bounded-source-'.bin2hex(random_bytes(8)),
             1000,
@@ -37,10 +42,15 @@ class Bt03e05BoundedMemoryTest extends TestCase
             }
             $bundle->cleanup();
         }
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     public function test_two_thousand_nine_car_decisions_are_spooled_under_the_process_limit(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $spool = new Bt03e05RaceSpool('DECODER', sys_get_temp_dir().'/bt03e05-bounded-'.bin2hex(random_bytes(8)).'.jsonl');
         $manifest = new Bt03e05DecoderManifestAccumulator(new CanonicalHasher);
         $decoder = new Bt03e05DecisionDecoder;
@@ -58,6 +68,7 @@ class Bt03e05BoundedMemoryTest extends TestCase
         } finally {
             $spool->cleanup();
         }
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     /** @return array<string,mixed> */

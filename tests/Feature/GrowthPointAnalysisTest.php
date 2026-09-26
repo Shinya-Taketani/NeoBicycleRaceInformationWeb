@@ -19,6 +19,7 @@ use App\Domain\Keirin\Backtest\Experiments\TacticalPredictionResult\ResultStore;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\TestCase;
 
 class GrowthPointAnalysisTest extends TestCase
@@ -333,6 +334,10 @@ class GrowthPointAnalysisTest extends TestCase
 
     public function test_bounded_disk_workspace_stream_over_one_hundred_thousand_entries(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $w = new Workspace($this->dir.'/bounded.sqlite');
         $rows = (function (): \Generator {
             for ($i = 1; $i <= 22000; $i++) {
@@ -342,6 +347,7 @@ class GrowthPointAnalysisTest extends TestCase
         $w->history($rows);
         $this->assertSame(110000, (int) $w->db->query('SELECT count(*) FROM history')->fetchColumn());
         $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     public function test_history_sql_bounds_readonly_and_rejects_holdout_before_lookup(): void

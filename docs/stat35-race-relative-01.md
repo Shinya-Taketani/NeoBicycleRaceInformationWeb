@@ -255,9 +255,114 @@ php -d memory_limit=512M /var/www/NeoBicycleRaceInformationWeb/vendor/bin/phpuni
 ```
 
 The recorded wrapper supplies the explicit evidence path and `PR72_MEMORY_EVIDENCE` for child logs, plus the safe environment above.
-Current test caveat: `RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS`.
+Test caveat at that execution: `RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS` (historical; superseded by the completion below).
 Dataset status stays `DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW`.
 The successful real 101,326-race dataset and its five matching artifacts were not reread/rehashed or regenerated.
 Production DB access, real export/build/reproduce, Raw access, backup, Migration/backfill, HTTP, training,
 prediction evaluation and 2026 real-data access: none. C1, historical_as_of_available=false,
 prediction_use=NOT_AUTHORIZED and points=null remain unchanged. Next: review this uncommitted test fix only.
+
+## PR72-HERMETIC-MEMORY-COMPLETION-01 / 2026-09-27
+
+Branch: `feature/stat35-race-relative-01`; start/end HEAD: `816a80413b004f4291d3ae352cf27977e9647d45`, clean at start.
+This is a test-only continuation of PR #72, not production generation, approval or merge.
+Version 1.35 and remote main `7f2a59d15af13785d36471f9f86c1dfa03f1222b` remain unchanged.
+
+### Failure History and Static Inventory
+
+Keep four distinct prior records: the original Codex one-failure run; the later user's five-failure run;
+the preceding five-case isolation's successful **direct PHPUnit** full suite; and the newly supplied
+**php artisan test** one-failure report. The last report fails
+`GrowthTrendAdjustmentCalibrationTest::test_execute_withholds_2025_until_seal_then_reproduces_all_bytes`
+because the unchanged Service returned shared lifetime peak **135,266,304 bytes**, exceeding the strict
+**134,217,728-byte** ceiling. No unreported counts are inferred for that user run. The previous direct
+runner success remains valid for its recorded conditions and is not treated as a successful Artisan run.
+
+Static searches of all `tests/` memory/peak/RSS/resident assertions and the relevant Service return producers
+found **16** lifetime-peak absolute-128MiB cases: **5 already isolated + 11 remaining**. All 11 now delegate
+through the existing `MemoryLimitedTestProcess`; all 16 are registered, delegated and recorded. No same-kind
+unisolated case remains. Incremental/current-usage tests, reporting-only checks, and the already independent
+TacticalPredictionResult annual-label child are unchanged. The inventory records file, exact method,
+threshold, producer and disposition, with before/after search logs in the evidence directory below.
+
+The new cases are the eleven rows marked `new` in the table. In the two calibration cases the original
+returned `peak_bytes` assertions remain, as do 2025-outcome withholding until selection seal, audit order,
+zero-adjustment baseline identity, missing diagnostics, all-artifact reproduction and original-bundle checks.
+Every new case records the actual child peak **after** all original body assertions (and after local finally
+cleanup where present). Fixtures and setUp/tearDown remain intact. The E08 test's existing return-statement
+indentation was also corrected for scoped Pint; no behavior change.
+
+The existing helper still launches `PHP_BINARY -d memory_limit=128M`, validates one exact JUnit identity,
+actual limit, distinct PIDs, assertions, exit 0 and no failure/error/skip. Environment separation, 120-second
+timeout and failure evidence remain unchanged. High-parent regression now takes an allowlisted case name
+and data-provides **all 16 cases**, rather than using a single numeric CASES index. Each polluted parent is
+a separate 512M process; the suite process is never deliberately inflated.
+
+### Completed Validation
+
+Evidence (new directory, umask 077; UTC path/log timestamps, JST document date):
+`/home/shinya/neo-keirin-artifacts/stat35-race-relative-01/pr72-memory-completion-20260926-213318-6d625ace/`.
+
+- All **12 changed PHP files** passed `php -l` and scoped `./vendor/bin/pint --test`. Initial scoped Pint
+  detected only the pre-existing E08 indentation issue; that one line was corrected and scoped Pint passed.
+- Focused run: **53 tests / 281 parent assertions**, all passed, exit 0, 24.244306 seconds. This comprises
+  11 newly isolated cases plus 42 helper regressions (16 high-parent cases + 26 unchanged negative/environment cases).
+  Direct children: 11 tests / **209 assertions**; high-parent children: 16 tests / **451 assertions**, separately counted.
+- Final full suite executed **once** through the normal command, without filters, exclusions, order changes,
+  `-d` overrides or direct-PHPUnit substitution:
+
+```bash
+cd /var/www/NeoBicycleRaceInformationWeb
+php artisan test
+```
+
+The evidence wrapper supplies only the existing testing/SQLite `:memory:` values, absent config-cache path,
+blank DB URL/credentials, and `PR72_MEMORY_EVIDENCE` for child logs; no PHPUnit/php.ini/common TestCase/vendor
+configuration changes. The installed default CLI parent limit is `-1`; it was not changed and is **not**
+the limit being tested. All target children explicitly use 128M.
+
+Full result: **2,120 tests: 2,111 passed / 9 existing PostgreSQL-only skips / 0 failures / 0 errors**,
+**17,379 parent assertions**, exit **0**, **51.062072 seconds** (Artisan reports 50.92s).
+Start/end: 2026-09-27 06:35:44 / 06:36:35 JST. Parent PHPUnit PID **19653**, Artisan PID **19650**.
+The nine existing skips were not expanded. No fixture shrinking, threshold relaxation, assertion removal,
+new skip, peak reset, GC workaround or Service measurement change.
+
+Each row below is one successful child with **128M / 134,217,728 bytes** effective limit, exit 0 and
+zero failures/errors/skips. All 16 high-parent runs separately observed parent peak **146,804,736 bytes**;
+their children had the same peak and assertion count as the corresponding direct child.
+Exact names below omit only the namespace and `test_` prefix.
+
+| Case | Registration | Direct child PID | Peak bytes | Child assertions | High parent / child PID |
+|---|---|---:|---:|---:|---|
+| GrowthTrendAnalysisTest::db_disabled_execute_reproduce_byte_exact_and_labels_can_be_withheld_until_seal | existing | 20988 | 44,564,480 | 112 | 20804 / 20806 |
+| GrowthTrendAnalysisTest::selected_candidate_diagnostics_match_independent_winner_gaps | existing | 20989 | 42,467,328 | 21 | 20807 / 20808 |
+| GrowthTrendScoreSourceTest::capture_uses_only_approved_tables_and_columns_and_verify_needs_no_db | existing | 20991 | 42,467,328 | 75 | 20809 / 20810 |
+| GrowthTrendScoreSourceTest::history_pagination_has_no_duplicates_or_missing_rows | existing | 20992 | 42,467,328 | 14 | 20811 / 20812 |
+| Stat35DataReadinessAuditTest::real_execution_path_and_db_disabled_byte_exact_reproduction | existing | 20993 | 42,467,328 | 20 | 20813 / 20814 |
+| GrowthTrendAdjustmentCalibrationTest::execute_withholds_2025_until_seal_then_reproduces_all_bytes | new | 20986 | 42,467,328 | 39 | 20815 / 20816 |
+| GrowthAdjustmentCalibrationTest::synthetic_execute_reproduce_is_exact_without_database | new | 20975 | 42,467,328 | 41 | 20817 / 20818 |
+| GrowthPointAnalysisTest::bounded_disk_workspace_stream_over_one_hundred_thousand_entries | new | 20976 | 40,370,176 | 13 | 20819 / 20820 |
+| GrowthPointAnalysisV2Test::mass_zero_is_not_negative_and_bounded_memory | new | 20978 | 40,370,176 | 14 | 20822 / 20823 |
+| Bt03e04BoundedMemoryTest::two_thousand_nine_car_source_races_are_stream_parsed_under_the_process_limit | new | 20355 | 23,068,672 | 14 | 20824 / 20825 |
+| Bt03e04BoundedMemoryTest::two_thousand_nine_car_decisions_are_spooled_under_the_process_limit | new | 20356 | 23,068,672 | 13 | 20826 / 20827 |
+| Bt03e05BoundedMemoryTest::two_thousand_nine_car_source_races_are_stream_parsed_under_the_process_limit | new | 20373 | 23,068,672 | 14 | 20828 / 20829 |
+| Bt03e05BoundedMemoryTest::two_thousand_nine_car_decisions_are_spooled_under_the_process_limit | new | 20374 | 23,068,672 | 13 | 20830 / 20831 |
+| Bt03e06BoundedMemoryTest::two_thousand_nine_rider_forward_decodes_and_bootstrap_are_bounded | new | 20391 | 25,165,824 | 16 | 20832 / 20833 |
+| Bt03e07BoundedMemoryTest::two_thousand_nine_rider_predictions_metric_spools_and_bootstrap_are_bounded | new | 20400 | 25,165,824 | 16 | 20839 / 20840 |
+| Bt03e08BoundedMemoryTest::two_thousand_nine_rider_decisions_and_bootstrap_stay_below_128m | new | 20505 | 25,165,824 | 16 | 20842 / 20843 |
+
+Full-run direct children total **16 tests / 451 assertions**; high-parent children separately total
+**16 tests / 451 assertions**. Neither total is added to the parent 17,379 assertions or reported as extra
+full-suite tests. All 42 helper regressions passed, including retained failure/OOM/timeout/zero-tests/
+tearDown/environment/identifier/corrupt-evidence cases. `completion-results.json` reconciles exact cases,
+PIDs, measurements and counts; `git diff --check` passed.
+
+Current test status: **ISOLATED_MEMORY_CHECKS_AND_ARTISAN_FULL_SUITE_PASS (16 cases)**.
+Only 12 test/support PHP files and these two documents changed, uncommitted for review.
+Production code, Migration, TrackContext masters/configuration and generated artifacts are unchanged.
+The successful 101,326 races / 716,837 current rows / 700,869 relative rows / 1,079 speed rows and five-file
+offline reproduction remain historical evidence; no real data was reread, rehashed or regenerated.
+No production DB, Raw, backup/backfill, HTTP, training, prediction evaluation or 2026 real-data access.
+Dataset state remains `DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW`,
+historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, C1 and 2026 frozen.
+Next: review this test completion only. No further execution or PR merge/approval is authorized.
