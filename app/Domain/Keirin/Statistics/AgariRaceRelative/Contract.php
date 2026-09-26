@@ -56,6 +56,7 @@ final class Contract
         }
         foreach ($row['results'] as $entry) {
             if (! is_array($entry) || ! is_int($entry['id'] ?? null) || $entry['id'] < 1
+                || ! is_int($entry['race_id'] ?? null) || $entry['race_id'] < 1
                 || ! is_int($entry['bike_number'] ?? null) || ! array_key_exists('import', $entry)
                 || ! array_key_exists('observation', $entry)) {
                 throw new RuntimeException('Invalid result snapshot schema.');

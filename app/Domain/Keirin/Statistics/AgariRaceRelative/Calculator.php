@@ -133,6 +133,9 @@ final class Calculator
             $reasons[] = 'UNKNOWN_MEASUREMENT_DEFINITION';
         }
         foreach ($rows as $entry) {
+            if (($entry['race_id'] ?? null) !== $race['race_id']) {
+                $reasons[] = 'CURRENT_RESULT_RACE_ID_MISMATCH';
+            }
             $import = $entry['import'];
             $observation = $entry['observation'];
             if (! is_array($import) || ($import['id'] ?? null) !== $entry['race_result_import_id']

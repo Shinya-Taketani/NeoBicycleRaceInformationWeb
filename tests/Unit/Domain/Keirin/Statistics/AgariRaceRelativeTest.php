@@ -107,6 +107,8 @@ class AgariRaceRelativeTest extends TestCase
     {
         $race = Fixture::race();
         switch ($case) {
+            case 'current-race': $race['results'][0]['race_id'] = 999;
+                break;
             case 'mixed': $race['results'][0]['race_result_import_id'] = 99;
                 break;
             case 'count': $race['results'][0]['import']['result_count'] = 6;
@@ -155,7 +157,7 @@ class AgariRaceRelativeTest extends TestCase
 
     public static function integrityCases(): array
     {
-        return [['mixed', 'MIXED_IMPORT_VERSIONS'], ['count', 'IMPORT_RESULT_COUNT_MISMATCH'],
+        return [['current-race', 'CURRENT_RESULT_RACE_ID_MISMATCH'], ['mixed', 'MIXED_IMPORT_VERSIONS'], ['count', 'IMPORT_RESULT_COUNT_MISMATCH'],
             ['failed', 'INVALID_IMPORT_REFERENCE'], ['import-race', 'INVALID_IMPORT_REFERENCE'], ['missing', 'MISSING_OBSERVATION'],
             ['bike', 'OBSERVATION_IDENTITY_OR_VALUE_MISMATCH'], ['obs-race', 'OBSERVATION_IDENTITY_OR_VALUE_MISMATCH'],
             ['value', 'OBSERVATION_IDENTITY_OR_VALUE_MISMATCH'], ['hash', 'SOURCE_HASH_MISMATCH'], ['converted', 'SOURCE_HASH_MISMATCH'],

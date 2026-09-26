@@ -9,6 +9,7 @@ use App\Domain\Keirin\Statistics\AgariRaceRelative\Artifacts;
 use App\Domain\Keirin\Statistics\AgariRaceRelative\Builder;
 use App\Domain\Keirin\Statistics\AgariRaceRelative\Exporter;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -190,6 +191,88 @@ class AgariRaceRelativeCommandTest extends TestCase
         } finally {
             $this->assertFileDoesNotExist($this->root.'/out/COMPLETE.json');
         }
+    }
+
+    #[DataProvider('invalidResultRaceIds')]
+    public function test_resealed_invalid_current_race_id_is_schema_failure_without_complete(mixed $value, bool $missing = false): void
+    {
+        $race = Fixture::race();
+        $race['results'][0]['race_id'] = $value;
+        if ($missing) {
+            unset($race['results'][0]['race_id']);
+        }
+        Fixture::input($this->root.'/input', [$race]);
+        Artifacts::input($this->root.'/input');
+        DB::shouldReceive('connection')->never();
+        $this->artisan('keirin:stat35:race-relative:build', ['--input-dir' => $this->root.'/input',
+            '--master-version' => 'v2', '--output-dir' => $this->root.'/result'])
+            ->expectsOutputToContain('Invalid result snapshot schema.')
+            ->assertFailed();
+        $this->assertFileDoesNotExist($this->root.'/result/COMPLETE.json');
+        Http::assertNothingSent();
+    }
+
+    public static function invalidResultRaceIds(): array
+    {
+        return [[null, true], [null], ['1'], [true], [false], [0], [-1], [1.0], [[]]];
+    }
+
+    public function test_resealed_current_race_mismatch_excludes_entire_race_and_preserves_detail_counts(): void
+    {
+        $race = Fixture::race();
+        $race['results'][0]['race_id'] = 999;
+        $this->assertSame(1, $race['results'][0]['import']['race_id']);
+        $this->assertSame(1, $race['results'][0]['observation']['race_id']);
+        Fixture::input($this->root.'/input', [$race]);
+        DB::shouldReceive('connection')->never();
+        $summary = app(Builder::class)->build($this->root.'/input', 'v2', $this->root.'/result');
+        $this->assertSame(['CURRENT_RESULT_RACE_ID_MISMATCH' => 1], $summary['race_exclusion_reason_counts_nonexclusive']);
+        $this->assertSame(7, $summary['totals']['current_result_rows']);
+        $this->assertSame(1, $summary['totals']['unusable_races']);
+        foreach (['comparison_rows', 'relative_rows', 'speed_rows'] as $key) {
+            $this->assertSame(0, $summary['totals'][$key]);
+        }
+        $detail = iterator_to_array(Artifacts::lines($this->root.'/result/details.jsonl'))[0];
+        $this->assertSame(['CURRENT_RESULT_RACE_ID_MISMATCH'], $detail['exclusion_reasons']);
+        $this->assertCount(7, $detail['results']);
+        foreach ($detail['results'] as $row) {
+            foreach (['rank_min', 'rank_average', 'percentile', 'percentile_numerator', 'percentile_denominator', 'gap_to_fastest_seconds'] as $key) {
+                $this->assertNull($row[$key]);
+            }
+            $this->assertFalse($row['speed']['calculable']);
+            $this->assertSame('RACE_EXCLUDED', $row['relative_status']);
+        }
+        $this->assertFileExists($this->root.'/result/COMPLETE.json');
+        Http::assertNothingSent();
+    }
+
+    public function test_empty_input_keeps_all_ten_integer_counters_and_reproduces_byte_exact(): void
+    {
+        $keys = ['races', 'current_result_rows', 'normal_finisher_rows', 'valid_timing_rows', 'comparison_rows',
+            'relative_rows', 'speed_rows', 'complete_comparison_races', 'partial_comparison_races', 'unusable_races'];
+        $zeros = array_fill_keys($keys, 0);
+        Fixture::input($this->root.'/input', []);
+        DB::shouldReceive('connection')->never();
+        foreach (['result', 'reproduced'] as $name) {
+            $this->assertSame(0, Artisan::call('keirin:stat35:race-relative:build', ['--input-dir' => $this->root.'/input',
+                '--master-version' => 'v2', '--output-dir' => $this->root.'/'.$name]));
+            $output = json_decode(trim(Artisan::output()), true, 64, JSON_THROW_ON_ERROR);
+            $this->assertSame('BUILT', $output['status']);
+            $this->assertSame($zeros, array_intersect_key($output, $zeros));
+            $summary = Files::json($this->root.'/'.$name.'/summary.json');
+            $this->assertCount(10, $summary['totals']);
+            foreach ($zeros as $key => $zero) {
+                $this->assertSame($zero, $summary['totals'][$key]);
+            }
+            $this->assertSame([], $summary['groups']);
+            $this->assertSame('', file_get_contents($this->root.'/'.$name.'/details.jsonl'));
+            $this->assertSame('axis,dimension_1,dimension_2,'.implode(',', $keys).",analysis_mode,historical_as_of_available,prediction_use,points\n",
+                file_get_contents($this->root.'/'.$name.'/summary.csv'));
+        }
+        foreach (['details.jsonl', 'summary.json', 'summary.csv', 'manifest.json', 'COMPLETE.json'] as $file) {
+            $this->assertSame(file_get_contents($this->root.'/result/'.$file), file_get_contents($this->root.'/reproduced/'.$file));
+        }
+        Http::assertNothingSent();
     }
 
     private function schema(): void

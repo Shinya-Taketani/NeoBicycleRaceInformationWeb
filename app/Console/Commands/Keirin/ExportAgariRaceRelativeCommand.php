@@ -6,6 +6,7 @@ namespace App\Console\Commands\Keirin;
 
 use App\Domain\Keirin\Statistics\AgariRaceRelative\Exporter;
 use Illuminate\Console\Command;
+use PDOException;
 use Throwable;
 
 final class ExportAgariRaceRelativeCommand extends Command
@@ -24,7 +25,8 @@ final class ExportAgariRaceRelativeCommand extends Command
 
             return self::SUCCESS;
         } catch (Throwable $e) {
-            $this->error($e->getMessage());
+            $this->error($e instanceof PDOException ? 'Database export failed; connection credentials and SQL omitted.' : $e->getMessage());
+            $this->line(json_encode(['status' => 'FAILED', 'peak_memory_bytes' => memory_get_peak_usage(true)], JSON_THROW_ON_ERROR));
 
             return self::FAILURE;
         }

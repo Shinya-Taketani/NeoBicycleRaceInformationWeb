@@ -8,6 +8,8 @@
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
 - Remote `main` at last update: `7f2a59d15af13785d36471f9f86c1dfa03f1222b`
+- Current review: PR #72 / STAT-35-RACE-RELATIVE-01 / 未マージ・レビュー承認未完了
+- Current execution: `DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW`（v1.35内の3指摘修正・追加許可実行）
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -167,9 +169,9 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_RACE_RELATIVE_01_IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW
+current_engine_state: STAT35_RACE_RELATIVE_01_DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_RACE_RELATIVE_EXPORT_PREFLIGHT_FAILURE
+next_allowed_action: REVIEW_PR72_FIXES_DESCRIPTIVE_DATASET_AND_TEST_LIMITATION
 next_implementation_phase: NOT_AUTHORIZED
 current_phase: STAT-35-RACE-RELATIVE-01
 remote_main: 7f2a59d15af13785d36471f9f86c1dfa03f1222b
@@ -181,18 +183,24 @@ pr68_status: MERGED
 pr69_status: MERGED
 pr70_status: MERGED_REVIEW_COMPLETED
 pr71_status: MERGED_REVIEW_COMPLETED
-stat35_race_relative_01_code: IMPLEMENTED_TESTED
-stat35_race_relative_01_execution: EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW
-stat35_race_relative_01_export_attempts: 1
-stat35_race_relative_01_export_exit_code: 1
-stat35_race_relative_01_real_counts: UNCONFIRMED_NOT_GENERATED
-stat35_race_relative_01_build_and_reproduction: NOT_STARTED
+pr72_status: AWAITING_REVIEW_NOT_MERGED
+stat35_race_relative_01_code: THREE_REVIEW_FIXES_REGRESSION_VERIFIED
+stat35_race_relative_01_test_caveat: SHARED_PEAK_FULL_SUITE_ONE_FAILURE_AFFECTED_FILE_PASSES_ISOLATED_128M
+stat35_race_relative_01_execution: DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW
+stat35_race_relative_01_prior_export: ONE_ATTEMPT_EXIT_1_ACTUAL_MISMATCH_UNCONFIRMED_PRESERVED
+stat35_race_relative_01_review_fix_export_attempts: 1
+stat35_race_relative_01_review_fix_export_exit_code: 0
+stat35_race_relative_01_real_counts: RACES_101326_CURRENT_RESULTS_716837
+stat35_race_relative_01_comparison_races: COMPLETE_95712_PARTIAL_5475_UNUSABLE_139
+stat35_race_relative_01_generated_rows: RELATIVE_700869_SPEED_1079
+stat35_race_relative_01_build_and_reproduction: EXIT_0_BOTH_FIVE_FILES_BYTE_AND_SHA256_EXACT
 stat35_race_relative_01_analysis_mode: FINAL_RESULT_DESCRIPTIVE_ONLY
 stat35_race_relative_01_historical_as_of_available: false
 stat35_race_relative_01_prediction_use: NOT_AUTHORIZED
 stat35_race_relative_01_points: null
-stat35_race_relative_01_production_business_reads_and_writes: 0
-stat35_race_relative_01_read_only_preflight: NOT_VERIFIED_ENDPOINT_OR_SETTING_MISMATCH
+stat35_race_relative_01_production_business_reads: ONE_AUTHORIZED_2022_2025_REPEATABLE_READ_SNAPSHOT
+stat35_race_relative_01_production_writes: 0
+stat35_race_relative_01_read_only_preflight: VERIFIED_ENDPOINT_SESSION_ON_TRANSACTION_ON_SNAPSHOT_ON_REPEATABLE_READ
 stat35_race_relative_01_retry: NOT_AUTHORIZED_WITHOUT_NEW_INSTRUCTION
 stat35_37_track_context_01_code: REVIEW_COMPLETED_PR70_MERGED
 stat35_37_track_context_01_master: V1_42_TRACKS_44_OBSERVATION_LAYOUTS
@@ -645,7 +653,7 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-PRODUCTION-BACKFILL-2022-2025-01 | pilot日を除く月別正式保存・照合・保存後dry-run | REVIEW_COMPLETED_PR69_MERGED | 48区間・BatchRun 121-168、実増分899,506/716,347、全区間保存後予定0/0、既存記録保持・再実行なし |
 | STAT-35-37-TRACK-CONTEXT-01 | 版付き構造マスタ・日付解決・未補正距離換算・実coverage | REVIEW_COMPLETED_PR70_MERGED | v1の42場44観測版・3解決場日と全原文/値/期間を保持。旧テスト・coverageは当時の記録。SCR全体未完了、予測利用未承認 |
 | STAT-35-37-TRACK-CONTEXT-02 | 公式資料一巡・v2出典/期間追加・offline coverage比較 | REVIEW_COMPLETED_PR71_MERGED | 部分的拡充のレビュー完了。42場89観測版、距離14/10,660（+11）、期間不明10,646・競合/後退0という前工程記録を維持。歴史網羅未完了 |
-| STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW | 純粋計算・接続・人工テスト完了。READ ONLY export 1回は接続先/設定の事前確認で終了1。実入力・実集計・実再現は未生成、再試行なし |
+| STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW | PR #72の3点修正。追加許可export 1回で101,326レース/716,837行、相対値700,869/速度1,079行。offline 5成果物bytes/SHA一致。旧失敗保持、共有peak全体テスト1件失敗と独立128M成功を区別 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2715,6 +2723,40 @@ AGARI_TIME・保存/正規化/元Parser版・公式出典とv2半周定義を対
 `FINAL_RESULT_DESCRIPTIVE_ONLY`、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=nullを維持する。
 Raw再解析・HTTP・学習・予測評価・2026レース参照なし。C1/旧成果物不変。次は事前確認失敗のレビューのみ、再試行は新規指示を待つ。
 
+### PR #72 Review Fix / 2026-09-23
+
+上記の初回停止は当時の記録として保持する。旧返却値は未記録であり、IPだけが原因だったとは断定しない。
+最新ユーザー指示は3指摘の修正、追加export 1回、固定入力のbuild 1回・offline再現1回を許可した。
+開始/終了HEADは `16f3d20e603688542d5b2d2e068fd50d3e009807`、同じPR branch上の未コミット差分。PR #72は未マージ・レビュー承認未完了。
+
+- 接続hostを `host(inet_server_addr())` とし、列順/port型に依存せず各項目を検証。portは整数/桁列だけを正規化、欠落/不正/READ ONLY offを拒否。field/expected/actual/actual_typeの限定診断と失敗時peakを記録し、認証/URL/PDO設定は出力しない。
+- 現在結果行自身のrace_idは必須正整数。schema不正は公開せず、親と異なる正整数は `CURRENT_RESULT_RACE_ID_MISMATCH` で全レース除外。import/観測が正しくても検出し、補助ID差の従来許容は維持。
+- 空入力は共通10カウンタを整数0で保持。groups=[]、CSVヘッダーのみ、5成果物byte-exact。通常の計算式・集計順は不変。
+
+新規51ケース。PostgreSQL Connection doubleによる実分岐/SQL/transaction順序/拒否時業務照会なし、再seal入力改変、単体Calculator、空入力を検証した。
+関連128Mは201件中200成功・テスト側出力取得1件失敗（3,035 assertions）、helper修正後は該当1件/6 assertions成功。初期helper名衝突も修正し履歴を記録。
+共有128M全体は既存監査テスト中に終了（原因未記録）、その報告テスト単独1件/5 assertionsは成功。
+全件process-isolationは既存Closure providerをserializeできず実行不能。
+testing/SQLite・共有512Mで完走した全体は2,078件中2,068成功・既存9skip・1失敗、17,382 assertions（34.902秒）。
+残る失敗は既存Stat35DataReadinessAuditTestの共有processピーク135,266,304 bytesを128MiB未満とする検査。
+該当ファイルだけ独立128Mで再確認し76件/225 assertions成功。対象外テスト/閾値は変更せず、全件PASSとは記載しない。
+変更PHP10本の限定Pint/構文検査成功。新規skip・assertion削除なし。
+
+本番exportは18:54:18～18:54:36 JST、18.213535178秒・peak48,234,496 bytes・exit0。
+実接続database=neo_keirin_prediction_db / public / 127.0.0.1:5432、session/transaction READ ONLY=on、
+isolation=repeatable read、snapshot_read_only=on、snapshot=274247:274247:を入力manifestへ保存。
+同一snapshotから101,326レース・716,837現在結果行を取得。診断専用の別接続なし、本番書込み0。
+DB不要buildは22.622826945秒、再現は22.625007102秒。各peak37,748,736 bytes・exit0、全工程stderr空、timeout/再試行なし。
+正常完走706,843、有効タイム/比較700,882、相対値700,869、速度1,079行。
+完全95,712・部分5,475・比較不能139レース。非排他的理由はCANCELLED97、NO_CURRENT_RESULTS126、RESULT_NOT_FINAL29、INSUFFICIENT_COMPARISON13。
+入力と明細の件数、年×開催グレードの全10カウンタ合計が一致。UNKNOWN0、全24区分の表は `docs/stat35-race-relative-01.md` に記録。
+details/summary JSON/CSV/manifest/COMPLETEの5ファイルがbytes/SHA-256一致。旧実入力は未生成のため旧実集計との比較はしていない。
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-race-relative-01/pr72-review-fix-20260923-185418-dbdce2/`。
+旧失敗ディレクトリ・v1/v2マスタ・速度式・既存保存処理は不変。今回の業務読取りを旧read=0と区別する。
+状態は `DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW`。次は修正・実生成結果と共有peakテスト制約のレビューのみ。
+FINAL_RESULT_DESCRIPTIVE_ONLY、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=nullを維持。
+STAT-35/37全体未完了、既存C1・2026凍結は不変。Raw再処理/本番書込み/学習/予測評価/2026レース参照は0、次工程へ自動移行しない。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation
@@ -3143,6 +3185,22 @@ next: REVIEW_RACE_RELATIVE_EXPORT_PREFLIGHT_FAILURE
 同レース内agari相対化を限定実装し、人工回帰・全テストを確認した。許可された1回の本番exportは接続先/READ ONLY確認で終了1、業務データ未取得。
 原因の具体的返却値は未確認。自動再試行なし、失敗証跡保持。実件数/実再現を成功扱いにしない。
 v2未解決期間10,646場日、SCR-STAT-35-02/STAT-35/37全体未完了、公表時点不明、予測利用未承認、points=null、C1/2026凍結を維持する。
+
+同VersionのPR #72レビュー修正（上記YAMLは初回実行時の履歴として保持）:
+
+```yaml
+related_pr: PR72_AWAITING_REVIEW_NOT_MERGED
+review_fix_start_head: 16f3d20e603688542d5b2d2e068fd50d3e009807
+decision: DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW
+real_generation: RACES_101326_CURRENT_RESULTS_716837_RELATIVE_700869_SPEED_1079
+reproduction: FIVE_FILES_BYTE_AND_SHA256_EXACT
+test_caveat: FULL_SUITE_SHARED_PEAK_ONE_FAILURE_AFFECTED_FILE_PASSES_INDEPENDENT_128M
+next: REVIEW_PR72_FIXES_DESCRIPTIVE_DATASET_AND_TEST_LIMITATION
+```
+
+接続項目検証/安全な診断、current race_id、空入力カウンタの3点を修正。追加許可export/build/再現各1回はexit0。
+冒頭metadata・現在地・工程表・15.44・引継ぎへ実結果を同期し、旧失敗と未確認原因は保持する。
+remote main/version/数式/予測利用制限は不変。書込み0と業務読取りありを分離し、PRマージ/承認済みにはしない。
 
 ## v1.34 / 2026-09-23
 
@@ -3682,17 +3740,22 @@ Track context v2 gain = MAEBASHI_4_HIRATSUKA_7 / SEIBUEN_3_UNCHANGED
 Track context source gaps = HISTORICAL_INTERVALS_10646_DAYS_AND_OPTIONAL_FIELDS_UNCONFIRMED / SCR_OVERALL_NOT_COMPLETED
 Track context production writes = 0 / NO_AGARI_REPROCESSING / NO_PREDICTION_EVALUATION
 Track context prediction use = NOT_AUTHORIZED / historical_as_of_available=false
-STAT-35-RACE-RELATIVE-01 = IMPLEMENTED_TESTED_EXPORT_PREFLIGHT_FAILED_AWAITING_REVIEW
-Race relative tests = 2018_PASSED_9_EXISTING_SKIPPED_16543_ASSERTIONS / LIMITED_PINT_AND_11_PHP_LINT_PASSED
-Race relative production export = ONE_ATTEMPT_EXIT_1_ENDPOINT_OR_READ_ONLY_GUARD / BUSINESS_DATA_NOT_READ / NO_RETRY
-Race relative real counts / build / reproduction = NOT_GENERATED_NOT_STARTED / FAILURE_PEAK_MEMORY_UNRECORDED
+PR #72 = AWAITING_REVIEW_NOT_MERGED / START_END_HEAD_16f3d20e603688542d5b2d2e068fd50d3e009807
+STAT-35-RACE-RELATIVE-01 = DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW
+Race relative fixes = FIELDWISE_POSTGRES_GUARD_SAFE_DIAGNOSTICS / CURRENT_RESULT_RACE_ID / EMPTY_TEN_COUNTERS
+Race relative tests = ADDED_51_CASES / FULL_2068_PASSED_9_EXISTING_SKIPPED_1_SHARED_PEAK_FAILURE_17382_ASSERTIONS / AFFECTED_FILE_ISOLATED_128M_76_PASSED_225_ASSERTIONS
+Race relative checks = LIMITED_PINT_AND_10_PHP_LINT_PASSED / NO_NEW_SKIP_OR_THRESHOLD_RELAXATION
+Race relative prior export = ONE_EXIT_1_ACTUAL_MISMATCH_UNCONFIRMED / OLD_EVIDENCE_PRESERVED
+Race relative review-fix export = ONE_AUTHORIZED_EXIT_0 / ENDPOINT_VERIFIED_SESSION_AND_TRANSACTION_RO_ON_REPEATABLE_READ / BUSINESS_READS_YES_WRITES_0
+Race relative real counts = RACES_101326_CURRENT_RESULTS_716837 / COMPLETE_95712_PARTIAL_5475_UNUSABLE_139 / RELATIVE_700869_SPEED_1079
+Race relative build / reproduction = EXIT_0_BOTH / FIVE_FILES_BYTE_AND_SHA256_EXACT / INPUT_DETAIL_AND_YEAR_GRADE_COUNTS_MATCH
 Race relative purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review the STAT-35-RACE-RELATIVE-01 export preflight failure (REVIEW_RACE_RELATIVE_EXPORT_PREFLIGHT_FAILURE). PR #71 and partial TrackContext v2 expansion are reviewed and merged. Pure decimal within-race ranks/percentiles/gaps, version/provenance validation, read-only export and offline build are implemented; final isolated tests, limited Pint and changed-PHP lint passed. The sole authorized real export exited 1 at the endpoint/READ ONLY guard, before business queries or input publication. The returned settings were not logged, so the precise mismatch remains unconfirmed. Real counts, year/grade summaries and reproduction are not available; do not claim zero-data success. No retry or new production connection was performed, and another attempt needs a new instruction. Evidence is stat35-race-relative-01/run-20260923-083705-9f02c3d4; see docs/stat35-race-relative-01.md. Prior v2 14 resolved/10,646 UNKNOWN track-days remain a separate historical record, not a fixed expected count for this task. No Raw reparse, new HTTP, production DML/DDL/audit writes, training, prediction evaluation or 2026 race access occurred. Preserve FINAL_RESULT_DESCRIPTIVE_ONLY, historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. This is not STAT-35/37 completion, corrected ability or predictive improvement. Stop uncommitted for review; do not advance automatically.
+Review PR #72's three fixes and generated descriptive data (REVIEW_PR72_FIXES_DESCRIPTIVE_DATASET_AND_TEST_LIMITATION). PR #72 remains unmerged and unapproved. The newly authorized single export verified the exact endpoint and READ ONLY settings in one REPEATABLE READ snapshot, exporting 101,326 races / 716,837 current rows. One build and one offline reproduction succeeded; all five files are byte/SHA-identical and counts reconcile. Complete/partial/unusable races are 95,712/5,475/139; relative/speed rows are 700,869/1,079. New evidence is stat35-race-relative-01/pr72-review-fix-20260923-185418-dbdce2; see docs/stat35-race-relative-01.md for all year/grade groups, nonexclusive exclusions, commands, timings and tests. The old export failure and its unknown actual mismatch remain preserved in run-20260923-083705-9f02c3d4. New regression cases pass; the completed full suite has 2,068 passes, 9 existing skips and one existing shared-process peak assertion failure. The affected file independently passes 76 tests under 128M; do not claim a shared full-suite all-pass. No unrelated test or threshold was changed. Limited Pint and all ten changed PHP syntax checks passed. No Raw reparse, new HTTP, production DML/DDL/audit writes, training, prediction evaluation or 2026 race access occurred. Preserve FINAL_RESULT_DESCRIPTIVE_ONLY, historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. STAT-35/37 overall and historical layout coverage remain incomplete. Stop uncommitted for review; no further export or predictive phase is authorized.
 
 Do not:
 redo BT-02 discovery

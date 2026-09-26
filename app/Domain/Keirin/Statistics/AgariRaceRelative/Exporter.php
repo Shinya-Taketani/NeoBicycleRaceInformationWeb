@@ -33,24 +33,17 @@ final class Exporter
             if ($db->getDriverName() !== 'pgsql') {
                 throw new RuntimeException('Production export requires PostgreSQL.');
             }
-            $settings = (array) $db->selectOne("SELECT current_database() AS database, current_schema() AS schema,
-                inet_server_addr()::text AS host, inet_server_port() AS port,
+            $settings = ConnectionGuard::endpoint((array) $db->selectOne("SELECT current_database() AS database, current_schema() AS schema,
+                host(inet_server_addr()) AS host, inet_server_port() AS port,
                 current_setting('default_transaction_read_only') AS session_read_only,
-                current_setting('transaction_read_only') AS transaction_read_only");
-            if ($settings !== ['database' => 'neo_keirin_prediction_db', 'schema' => 'public', 'host' => '127.0.0.1', 'port' => 5432,
-                'session_read_only' => 'on', 'transaction_read_only' => 'on']) {
-                throw new RuntimeException('Unexpected endpoint or READ ONLY was not enabled before connecting.');
-            }
+                current_setting('transaction_read_only') AS transaction_read_only"));
         }
         try {
             $db->beginTransaction();
             if (! $sqlite) {
                 $db->statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
-                $settings += (array) $db->selectOne("SELECT current_setting('transaction_isolation') AS isolation,
-                    current_setting('transaction_read_only') AS snapshot_read_only, pg_current_snapshot()::text AS snapshot");
-                if ($settings['isolation'] !== 'repeatable read' || $settings['snapshot_read_only'] !== 'on') {
-                    throw new RuntimeException('Invalid export snapshot isolation.');
-                }
+                $settings += ConnectionGuard::snapshot((array) $db->selectOne("SELECT current_setting('transaction_isolation') AS isolation,
+                    current_setting('transaction_read_only') AS snapshot_read_only, pg_current_snapshot()::text AS snapshot"));
             }
             Artifacts::create($output);
             $counts = ['race_count' => 0, 'result_count' => 0];

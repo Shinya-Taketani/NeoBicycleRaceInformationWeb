@@ -8,6 +8,12 @@ use Generator;
 
 final class Summary
 {
+    private const EMPTY_COUNTS = [
+        'races' => 0, 'current_result_rows' => 0, 'normal_finisher_rows' => 0, 'valid_timing_rows' => 0,
+        'comparison_rows' => 0, 'relative_rows' => 0, 'speed_rows' => 0,
+        'complete_comparison_races' => 0, 'partial_comparison_races' => 0, 'unusable_races' => 0,
+    ];
+
     private array $groups = [];
 
     private array $reasons = [];
@@ -32,7 +38,7 @@ final class Summary
             ['RACE_CLASS', $c['race_class']], ['COMPLETENESS', $race['comparison_completeness']],
             ['DISTANCE', $race['distance_status']]] as $dimensions) {
             $key = implode('|', $dimensions);
-            $this->groups[$key] ??= ['dimensions' => $dimensions, 'counts' => array_fill_keys(array_keys($counts), 0)];
+            $this->groups[$key] ??= ['dimensions' => $dimensions, 'counts' => self::EMPTY_COUNTS];
             foreach ($counts as $name => $value) {
                 $this->groups[$key]['counts'][$name] += $value;
             }
@@ -56,7 +62,7 @@ final class Summary
         ksort($this->speedReasons, SORT_STRING);
 
         return [...Contract::DISCLOSURE, 'version' => Contract::VERSION,
-            'totals' => $this->groups['ALL']['counts'] ?? ['races' => 0, 'current_result_rows' => 0],
+            'totals' => $this->groups['ALL']['counts'] ?? self::EMPTY_COUNTS,
             'groups' => array_values($this->groups), 'race_exclusion_reason_counts_nonexclusive' => $this->reasons,
             'relative_row_status_counts' => $this->rowReasons, 'speed_row_reason_counts' => $this->speedReasons];
     }
