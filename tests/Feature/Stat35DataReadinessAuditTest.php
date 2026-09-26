@@ -21,6 +21,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\TestCase;
 
 class Stat35DataReadinessAuditTest extends TestCase
@@ -344,6 +345,10 @@ class Stat35DataReadinessAuditTest extends TestCase
 
     public function test_real_execution_path_and_db_disabled_byte_exact_reproduction(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $service = $this->service($this->fixture());
         $result = $service->execute($this->root.'/audit', 'synthetic-01', $this->root.'/source');
         $this->assertSame(5, $result['counts']['extraction']);
@@ -360,6 +365,7 @@ class Stat35DataReadinessAuditTest extends TestCase
         $audit = Files::json($this->root.'/audit/synthetic-01/data_quality_access_audit.json');
         $this->assertSame(0, $audit['target_rank_semantic_reads']);
         $this->assertSame(0, $audit['predictive_metric_computations']);
+        MemoryLimitedTestProcess::record(__METHOD__, $repeat['peak_memory_bytes']);
     }
 
     public function test_duplicate_import_refuses_publication(): void

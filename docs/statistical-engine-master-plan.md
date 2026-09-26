@@ -3,13 +3,14 @@
 - Document: 統計エンジン開発工程マスター
 - Version: 1.35
 - Created: 2026-08-23
-- Updated: 2026-09-23
+- Updated: 2026-09-27
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
 - Remote `main` at last update: `7f2a59d15af13785d36471f9f86c1dfa03f1222b`
 - Current review: PR #72 / STAT-35-RACE-RELATIVE-01 / 未マージ・レビュー承認未完了
 - Current execution: `DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW`（v1.35内の3指摘修正・追加許可実行）
+- Current tests: `RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS`（v1.35内のテスト専用修正、実データ再実行なし）
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,7 +172,7 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 ```yaml
 current_engine_state: STAT35_RACE_RELATIVE_01_DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_PR72_FIXES_DESCRIPTIVE_DATASET_AND_TEST_LIMITATION
+next_allowed_action: REVIEW_PR72_HERMETIC_MEMORY_TEST_FIX
 next_implementation_phase: NOT_AUTHORIZED
 current_phase: STAT-35-RACE-RELATIVE-01
 remote_main: 7f2a59d15af13785d36471f9f86c1dfa03f1222b
@@ -185,7 +186,7 @@ pr70_status: MERGED_REVIEW_COMPLETED
 pr71_status: MERGED_REVIEW_COMPLETED
 pr72_status: AWAITING_REVIEW_NOT_MERGED
 stat35_race_relative_01_code: THREE_REVIEW_FIXES_REGRESSION_VERIFIED
-stat35_race_relative_01_test_caveat: SHARED_PEAK_FULL_SUITE_ONE_FAILURE_AFFECTED_FILE_PASSES_ISOLATED_128M
+stat35_race_relative_01_test_caveat: RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS
 stat35_race_relative_01_execution: DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW
 stat35_race_relative_01_prior_export: ONE_ATTEMPT_EXIT_1_ACTUAL_MISMATCH_UNCONFIRMED_PRESERVED
 stat35_race_relative_01_review_fix_export_attempts: 1
@@ -653,7 +654,7 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-PRODUCTION-BACKFILL-2022-2025-01 | pilot日を除く月別正式保存・照合・保存後dry-run | REVIEW_COMPLETED_PR69_MERGED | 48区間・BatchRun 121-168、実増分899,506/716,347、全区間保存後予定0/0、既存記録保持・再実行なし |
 | STAT-35-37-TRACK-CONTEXT-01 | 版付き構造マスタ・日付解決・未補正距離換算・実coverage | REVIEW_COMPLETED_PR70_MERGED | v1の42場44観測版・3解決場日と全原文/値/期間を保持。旧テスト・coverageは当時の記録。SCR全体未完了、予測利用未承認 |
 | STAT-35-37-TRACK-CONTEXT-02 | 公式資料一巡・v2出典/期間追加・offline coverage比較 | REVIEW_COMPLETED_PR71_MERGED | 部分的拡充のレビュー完了。42場89観測版、距離14/10,660（+11）、期間不明10,646・競合/後退0という前工程記録を維持。歴史網羅未完了 |
-| STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW | PR #72の3点修正。追加許可export 1回で101,326レース/716,837行、相対値700,869/速度1,079行。offline 5成果物bytes/SHA一致。旧失敗保持、共有peak全体テスト1件失敗と独立128M成功を区別 |
+| STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW | PR #72の3点修正・実生成101,326レース/716,837行、相対値700,869/速度1,079、offline 5成果物一致を保持。追加修正で5テストを各128Mへ分離し全体2,096成功/既存9skip。過去のCodex 1件失敗とユーザー5件失敗は別記録として保持、実データ再実行なし |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2757,6 +2758,30 @@ details/summary JSON/CSV/manifest/COMPLETEの5ファイルがbytes/SHA-256一致
 FINAL_RESULT_DESCRIPTIVE_ONLY、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=nullを維持。
 STAT-35/37全体未完了、既存C1・2026凍結は不変。Raw再処理/本番書込み/学習/予測評価/2026レース参照は0、次工程へ自動移行しない。
 
+### PR #72 Hermetic Memory Test Fix / 2026-09-27
+
+上記Codex実行の1件失敗は履歴として保持する。その後のユーザー実行は別記録で、
+2,064成功/既存9skip/5失敗/17,382 assertions。Growthの4件は135,266,304 bytes、監査Serviceは137,363,456 bytesだった。
+今回の開始/終了HEADは `b37c516458d5f398adb5b7d10fb2d663d3f0f6aa`、同じPR branchで開始時clean。
+最新指示により指定5件・テスト専用helper/回帰・2文書だけを変更。業務コードと元assertion/Fixture規模は不変。
+PHP_BINARYから各対象だけを128Mで起動し、実効ini/PID/元処理peakとJUnitの対象1件/実assertions/成功を照合する。
+子でsetUp/tearDownを実行し、Closure/接続/Fixtureをserializeしない。失敗/未実行/skip/壊れた結果を成功にしない。
+
+最初のfocusedは対象5子すべて成功、親32件中2件の新helper期待値不一致（OOM表示/0件exit）を検出。
+当該回帰を修正後、影響7件/24 assertions成功。最終全体は1回、2,105件中2,096成功/既存9skip/失敗・エラー0、
+親17,268 assertions、exit0、36.491467秒。別集計の対象5子は242 assertions、各実効128M、peak42,467,328～44,564,480 bytes。
+さらに別512M親のpeak146,804,736 bytesからの実pagination子も128M/42,467,328 bytesで成功（14 assertions）。
+共有全体processへ人工的な巨大割当ては行わない。補助回帰27件すべて成功、旧192 assertionsは子へ保持し架空加算なし。
+既存9skipはSQLiteでは実施しないPostgreSQL専用条件によるもの。新規skip/閾値緩和なし。
+7 PHPの構文検査と限定Pint成功、git diff --check成功。過去失敗を成功へ書き換えない。
+
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-race-relative-01/pr72-hermetic-memory-fix-20260926-205955-1608979c/`。
+詳細の5件別PID・ピーク・コマンド・親子件数は [stat35-race-relative-01.md](stat35-race-relative-01.md) に記録。
+現在のtest_caveatは `RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS`、実生成状態は変更しない。
+本番接続/実export/build/reproduce/Raw参照/2026実データ参照0。旧実成果物の再hashも行わない。
+Version1.35・remote mainは不変、PR #72未マージ/未承認。次は今回のテスト修正レビューのみ。
+historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=null、C1/2026凍結を維持し未コミットで停止。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation
@@ -3201,6 +3226,12 @@ next: REVIEW_PR72_FIXES_DESCRIPTIVE_DATASET_AND_TEST_LIMITATION
 接続項目検証/安全な診断、current race_id、空入力カウンタの3点を修正。追加許可export/build/再現各1回はexit0。
 冒頭metadata・現在地・工程表・15.44・引継ぎへ実結果を同期し、旧失敗と未確認原因は保持する。
 remote main/version/数式/予測利用制限は不変。書込み0と業務読取りありを分離し、PRマージ/承認済みにはしない。
+
+同Versionの2026-09-27テスト専用追加修正: 過去Codexの1件失敗と後続ユーザーの5件失敗を区別し、
+指定5件を独立128Mへ分離。全体2,096成功/既存9skip/失敗・エラー0、親17,268 assertions、対象5子242 assertions。
+current test_caveatを `RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS` へ更新し、
+次を `REVIEW_PR72_HERMETIC_MEMORY_TEST_FIX` へ同期。実生成結果は保持・再実行なし。
+詳細と途中の新helper期待値修正は15.44と実行文書に記録し、旧実行YAMLは当時の履歴として残す。
 
 ## v1.34 / 2026-09-23
 
@@ -3740,11 +3771,12 @@ Track context v2 gain = MAEBASHI_4_HIRATSUKA_7 / SEIBUEN_3_UNCHANGED
 Track context source gaps = HISTORICAL_INTERVALS_10646_DAYS_AND_OPTIONAL_FIELDS_UNCONFIRMED / SCR_OVERALL_NOT_COMPLETED
 Track context production writes = 0 / NO_AGARI_REPROCESSING / NO_PREDICTION_EVALUATION
 Track context prediction use = NOT_AUTHORIZED / historical_as_of_available=false
-PR #72 = AWAITING_REVIEW_NOT_MERGED / START_END_HEAD_16f3d20e603688542d5b2d2e068fd50d3e009807
+PR #72 = AWAITING_REVIEW_NOT_MERGED / CURRENT_TEST_FIX_START_END_HEAD_b37c516458d5f398adb5b7d10fb2d663d3f0f6aa
 STAT-35-RACE-RELATIVE-01 = DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW
 Race relative fixes = FIELDWISE_POSTGRES_GUARD_SAFE_DIAGNOSTICS / CURRENT_RESULT_RACE_ID / EMPTY_TEN_COUNTERS
-Race relative tests = ADDED_51_CASES / FULL_2068_PASSED_9_EXISTING_SKIPPED_1_SHARED_PEAK_FAILURE_17382_ASSERTIONS / AFFECTED_FILE_ISOLATED_128M_76_PASSED_225_ASSERTIONS
-Race relative checks = LIMITED_PINT_AND_10_PHP_LINT_PASSED / NO_NEW_SKIP_OR_THRESHOLD_RELAXATION
+Race relative historical tests = CODEX_2068_PASSED_9_SKIP_1_FAILURE / LATER_USER_2064_PASSED_9_SKIP_5_FAILURES / BOTH_17382_ASSERTIONS / RECORDS_PRESERVED
+Race relative current tests = RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS / FULL_2096_PASSED_9_EXISTING_SKIPPED_0_FAILURES_0_ERRORS_17268_PARENT_ASSERTIONS / FIVE_CHILDREN_242_ASSERTIONS
+Race relative checks = LIMITED_PINT_AND_7_CHANGED_PHP_LINT_PASSED / 27_HELPER_REGRESSIONS_PASS / NO_NEW_SKIP_OR_THRESHOLD_RELAXATION
 Race relative prior export = ONE_EXIT_1_ACTUAL_MISMATCH_UNCONFIRMED / OLD_EVIDENCE_PRESERVED
 Race relative review-fix export = ONE_AUTHORIZED_EXIT_0 / ENDPOINT_VERIFIED_SESSION_AND_TRANSACTION_RO_ON_REPEATABLE_READ / BUSINESS_READS_YES_WRITES_0
 Race relative real counts = RACES_101326_CURRENT_RESULTS_716837 / COMPLETE_95712_PARTIAL_5475_UNUSABLE_139 / RELATIVE_700869_SPEED_1079
@@ -3755,7 +3787,7 @@ Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review PR #72's three fixes and generated descriptive data (REVIEW_PR72_FIXES_DESCRIPTIVE_DATASET_AND_TEST_LIMITATION). PR #72 remains unmerged and unapproved. The newly authorized single export verified the exact endpoint and READ ONLY settings in one REPEATABLE READ snapshot, exporting 101,326 races / 716,837 current rows. One build and one offline reproduction succeeded; all five files are byte/SHA-identical and counts reconcile. Complete/partial/unusable races are 95,712/5,475/139; relative/speed rows are 700,869/1,079. New evidence is stat35-race-relative-01/pr72-review-fix-20260923-185418-dbdce2; see docs/stat35-race-relative-01.md for all year/grade groups, nonexclusive exclusions, commands, timings and tests. The old export failure and its unknown actual mismatch remain preserved in run-20260923-083705-9f02c3d4. New regression cases pass; the completed full suite has 2,068 passes, 9 existing skips and one existing shared-process peak assertion failure. The affected file independently passes 76 tests under 128M; do not claim a shared full-suite all-pass. No unrelated test or threshold was changed. Limited Pint and all ten changed PHP syntax checks passed. No Raw reparse, new HTTP, production DML/DDL/audit writes, training, prediction evaluation or 2026 race access occurred. Preserve FINAL_RESULT_DESCRIPTIVE_ONLY, historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. STAT-35/37 overall and historical layout coverage remain incomplete. Stop uncommitted for review; no further export or predictive phase is authorized.
+Review PR #72's hermetic memory test fix (REVIEW_PR72_HERMETIC_MEMORY_TEST_FIX). PR #72 remains unmerged and unapproved. The past successful single export, build and offline reproduction remain preserved in stat35-race-relative-01/pr72-review-fix-20260923-185418-dbdce2: 101,326 races / 716,837 current rows, complete/partial/unusable 95,712/5,475/139, relative/speed 700,869/1,079, five byte/SHA-identical files. They were not reread, rehashed or rerun in this test-only task. The old export failure and its unknown mismatch also remain preserved. Historical Codex one-failure and later user five-failure runs are distinct records. The five specified tests now run separately under actual 128M, preserving original assertions and fixtures: peaks 42,467,328 to 44,564,480 bytes, 242 child assertions. The final full suite ran once: 2,096 passes, nine existing PostgreSQL-only skips, zero failures/errors, 17,268 parent assertions. All 27 helper regressions passed, including a separate over-128MiB parent and rejected child failure/zero execution/timeout/corrupt results. Limited Pint and all seven changed PHP syntax checks passed. New evidence: stat35-race-relative-01/pr72-hermetic-memory-fix-20260926-205955-1608979c; full details in docs/stat35-race-relative-01.md. No production connection, real export/build/reproduce, Raw access, HTTP, Migration/backfill, training, prediction evaluation or 2026 real-data access occurred. Preserve FINAL_RESULT_DESCRIPTIVE_ONLY, historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, PUBLICATION_TIME_UNKNOWN, primary INSUFFICIENT_RAW_HISTORY, secondary RAW_GAP_POLICY, Growth negative transfer, C1, Goal 4/5 blocked and 2026 FROZEN_FOR_MODEL_SELECTION. STAT-35/37 overall and historical layout coverage remain incomplete. Stop uncommitted for review; no further execution or predictive phase is authorized.
 
 Do not:
 redo BT-02 discovery

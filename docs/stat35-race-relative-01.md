@@ -187,3 +187,77 @@ Added 51 synthetic cases: real PostgreSQL exporter branch via Connection double 
 - Only that affected file was rechecked in its own 128M PHP process: **76 tests / 225 assertions passed**. Its code and threshold were not changed. The shared-process full-suite failure remains explicitly reported, not relabelled as all-pass.
 
 No production DML/DDL, BatchRun/FetchLog writes, Migration/backfill/dry-run, Raw processing, scraping, training, prediction evaluation or 2026 race access occurred. Existing C1, masters and prior evidence are unchanged. The outcome is descriptive generation/reproduction, not predictive improvement or STAT-35/37 completion. Next: review these three fixes, generated data and the pre-existing shared-peak test limitation; no automatic next phase.
+
+## PR72-HERMETIC-MEMORY-TEST-FIX-01 / 2026-09-27
+
+The preceding execution/test records are historical, not rewritten as passes. Start/end HEAD:
+`b37c516458d5f398adb5b7d10fb2d663d3f0f6aa`, branch `feature/stat35-race-relative-01`, clean at start.
+PR #72 remains unmerged and unapproved. This follow-up changes only tests and the two documents.
+
+The later **user** execution was separate from the preceding Codex run: 2,064 passed / 9 skipped / 5 failed / 17,382 assertions.
+Its four Growth tests observed shared peak 135,266,304 bytes; the audit Service reported 137,363,456 bytes.
+The strict bound remains **less than 134,217,728 bytes**, not 129M or 131M.
+
+### Isolation Contract
+
+`tests/Support/MemoryLimitedTestProcess.php` delegates only the five explicitly allowlisted methods to
+`PHP_BINARY -d memory_limit=128M` plus the absolute PHPUnit executable, existing configuration and target file,
+an exact class/method filter and a fresh JUnit path. The same method runs its unchanged body inside PHPUnit's
+normal setUp/tearDown lifecycle; fixtures, SQLite, closures and Services are created afresh, never serialized.
+The child checks its actual ini limit and distinct parent/child PIDs before the original work.
+The first four original memory assertions remain intact. The fifth still checks the unchanged Service's
+reproduce `peak_memory_bytes` after execute and two reproductions; that returned value is also recorded.
+
+Parent acceptance requires exit 0, exactly one matching JUnit case with assertions, no errors/failures/skips,
+and a matching PID/case/128M/peak measurement. A body-completion record alone cannot hide tearDown failure.
+Unknown or mismatched child identifiers, missing/damaged reports and zero executed tests fail closed.
+The timeout is 120 seconds; stdout/stderr and execution metadata are retained in unique directories.
+Inherited environment is removed before explicit testing/SQLite `:memory:` / empty DB_URL and credentials,
+array cache/session and other existing testing values are supplied. No global test configuration is changed.
+Installed APIs verified locally: PHPUnit 12.5.31, Symfony Process 8.1.0; runtime PHP 8.5.4.
+
+### Validation Results
+
+Evidence (new, persistent, umask 077):
+`/home/shinya/neo-keirin-artifacts/stat35-race-relative-01/pr72-hermetic-memory-fix-20260926-205955-1608979c/`.
+Directory timestamps/logs use UTC; this record's date uses JST. Commands, stdout/stderr, timings, JUnit,
+individual measurements, code/diff and skip reasons are retained there. No earlier evidence was overwritten.
+
+The five children passed both the initial focused run (parent PID 12519) and final full suite (parent PID 12997):
+
+| Test (method suffix) | Focused child PID | Full child PID | Effective limit | Peak bytes | Child assertions |
+|---|---:|---:|---|---:|---:|
+| GrowthTrendAnalysis: db_disabled_execute_reproduce_byte_exact_and_labels_can_be_withheld_until_seal | 12566 | 13787 | 128M | 44,564,480 | 112 |
+| GrowthTrendAnalysis: selected_candidate_diagnostics_match_independent_winner_gaps | 12567 | 13788 | 128M | 42,467,328 | 21 |
+| GrowthTrendScoreSource: capture_uses_only_approved_tables_and_columns_and_verify_needs_no_db | 12568 | 13789 | 128M | 42,467,328 | 75 |
+| GrowthTrendScoreSource: history_pagination_has_no_duplicates_or_missing_rows | 12569 | 13790 | 128M | 42,467,328 | 14 |
+| Stat35DataReadinessAudit: real_execution_path_and_db_disabled_byte_exact_reproduction | 12570 | 13791 | 128M | 42,467,328 | 20 |
+
+Every row is one test, exit 0, no failure/error/skip; child totals are 5 tests / 242 assertions per run, separate from parent counts.
+Original bodies retain 192 assertions; the extra 50 are actual child setup/measurement assertions, not synthetic count adjustments.
+
+- Syntax passed for all seven changed/new PHP files. Initial limited Pint found one formatting issue in the new regression test; scoped formatting and the final limited Pint passed.
+- Initial focused run: 32 parent tests, 30 passed / 2 new helper-regression failures, 72 assertions, exit 1. All five target children passed. The two failures were test expectations: PHPUnit reports OOM as premature exit, and this installed version returns nonzero for zero tests.
+- The OOM probe now executes raw PHP with 128M so the fatal diagnostic is visible; empty real PHPUnit JUnit is also rejected even when a hypothetical exit-0 result is supplied to the validator. The affected seven failure-path cases alone were rerun: 7 passed / 24 assertions, exit 0. No unchanged full-suite retry was used.
+- Final full suite, run **once** after correction: 2,105 tests, **2,096 passed / 9 existing skipped / 0 failures / 0 errors**, **17,268 parent assertions**, exit 0, 36.491467 seconds (wrapper), PHPUnit time 36.337 seconds. Parent limit 512M, reported peak 131MiB.
+- All 27 helper regression cases passed in that full run (73 parent assertions): high-parent isolation, failure/nonzero/OOM/start failure/timeout/zero tests/tearDown failure, environment separation, invalid identifiers and missing/corrupt/mismatched JUnit or measurements.
+- High-parent regression is itself outside the suite process: PID 13725, 512M, peak **146,804,736 bytes**; its real pagination child PID 13726 used 128M and peaked at **42,467,328 bytes**, 1 test / 14 assertions. These additional child assertions are not added to the parent or five-target totals.
+- The nine unchanged skips require PostgreSQL-specific integration/constraint/transaction/lock tests; this execution used SQLite only. No new skip, lowered threshold, smaller fixture or removed assertion.
+- `git diff --check` passed. Production code, TrackContext masters, Migration, configuration and existing artifacts are unchanged.
+
+The full-suite command was launched directly (not through an unverified Artisan child limit):
+
+```bash
+APP_ENV=testing DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= \
+php -d memory_limit=512M /var/www/NeoBicycleRaceInformationWeb/vendor/bin/phpunit \
+  --configuration /var/www/NeoBicycleRaceInformationWeb/phpunit.xml \
+  --do-not-cache-result --colors=never --log-junit="$evidence/full/junit.xml"
+```
+
+The recorded wrapper supplies the explicit evidence path and `PR72_MEMORY_EVIDENCE` for child logs, plus the safe environment above.
+Current test caveat: `RESOLVED_FIVE_TESTS_ISOLATED_128M_FULL_SUITE_PASS`.
+Dataset status stays `DESCRIPTIVE_DATASET_GENERATED_REPRODUCED_AWAITING_REVIEW`.
+The successful real 101,326-race dataset and its five matching artifacts were not reread/rehashed or regenerated.
+Production DB access, real export/build/reproduce, Raw access, backup, Migration/backfill, HTTP, training,
+prediction evaluation and 2026 real-data access: none. C1, historical_as_of_available=false,
+prediction_use=NOT_AUTHORIZED and points=null remain unchanged. Next: review this uncommitted test fix only.
