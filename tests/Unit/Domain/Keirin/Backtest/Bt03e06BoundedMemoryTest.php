@@ -17,11 +17,16 @@ use App\Domain\Keirin\Backtest\Support\Bt03e06MetricContributionSpool;
 use App\Domain\Keirin\Backtest\Support\Bt03e06RaceSpool;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\MemoryLimitedTestProcess;
 
 class Bt03e06BoundedMemoryTest extends TestCase
 {
     public function test_two_thousand_nine_rider_forward_decodes_and_bootstrap_are_bounded(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $hasher = new CanonicalHasher;
         $scorer = new Bt03e03ProbabilityScorer;
         $decoder = new Bt03e06WinnerConditionedDecoder($scorer, $hasher);
@@ -74,6 +79,7 @@ class Bt03e06BoundedMemoryTest extends TestCase
                 $spool->cleanup();
             }
         }
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     /** @return array<string,mixed> */

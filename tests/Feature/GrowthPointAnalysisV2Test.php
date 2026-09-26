@@ -24,6 +24,7 @@ use App\Domain\Keirin\Backtest\Experiments\TacticalPredictionResult\ResultStore;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\TestCase;
 
 class GrowthPointAnalysisV2Test extends TestCase
@@ -118,6 +119,10 @@ class GrowthPointAnalysisV2Test extends TestCase
 
     public function test_mass_zero_is_not_negative_and_bounded_memory(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $w = new Workspace($this->dir.'/mass.sqlite');
         $q = $w->db->prepare("INSERT INTO training VALUES(2023,'SCORE',?)");
         $w->db->beginTransaction();
@@ -132,6 +137,7 @@ class GrowthPointAnalysisV2Test extends TestCase
         $this->assertSame(110000, $thresholds[2024]['SCORE']['zero_n']);
         $this->assertSame(0, Contract::point(0.0, $thresholds[2024]['SCORE'])['point']);
         $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     public function test_v1_v2_full_rows_raw_correlations_and_db_disabled_reproduction(): void

@@ -17,11 +17,16 @@ use App\Domain\Keirin\Backtest\Support\Bt03e06RaceSpool;
 use App\Domain\Keirin\Backtest\Support\Bt03e07PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\MemoryLimitedTestProcess;
 
 final class Bt03e07BoundedMemoryTest extends TestCase
 {
     public function test_two_thousand_nine_rider_predictions_metric_spools_and_bootstrap_are_bounded(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $hasher = new CanonicalHasher;
         $scorer = new Bt03e07DirectPositionScorer($hasher);
         $decoder = new Bt03e07P1FrozenDecisionDecoder;
@@ -55,6 +60,7 @@ final class Bt03e07BoundedMemoryTest extends TestCase
                 $spool->cleanup();
             }
         }
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     /** @return array<string,mixed> */

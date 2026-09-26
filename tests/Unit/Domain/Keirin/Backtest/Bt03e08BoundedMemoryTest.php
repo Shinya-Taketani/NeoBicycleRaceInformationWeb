@@ -17,11 +17,16 @@ use App\Domain\Keirin\Backtest\Support\Bt03e06RaceSpool;
 use App\Domain\Keirin\Backtest\Support\Bt03e08PredictionManifestAccumulator;
 use App\Domain\Keirin\Backtest\Support\CanonicalHasher;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\MemoryLimitedTestProcess;
 
 final class Bt03e08BoundedMemoryTest extends TestCase
 {
     public function test_two_thousand_nine_rider_decisions_and_bootstrap_stay_below_128m(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $hasher = new CanonicalHasher;
         $sourceDecoder = new Bt03e06WinnerConditionedDecoder(new Bt03e03ProbabilityScorer, $hasher);
         $decoder = new Bt03e08P1Q2FrozenDecoder($sourceDecoder, $hasher);
@@ -56,6 +61,7 @@ final class Bt03e08BoundedMemoryTest extends TestCase
                 $spool->cleanup();
             }
         }
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     /** @return array<string,mixed> */
@@ -79,6 +85,6 @@ final class Bt03e08BoundedMemoryTest extends TestCase
             $value['baseline'][$metric] = ['numerator' => (float) (($offset + $metricOffset + 1) % 2), 'denominator' => 1.0];
         }
 
-return $value;
+        return $value;
     }
 }

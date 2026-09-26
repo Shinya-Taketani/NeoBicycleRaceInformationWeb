@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\GrowthTrendFixture;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\TestCase;
 
 final class GrowthTrendAnalysisTest extends TestCase
@@ -392,6 +393,10 @@ final class GrowthTrendAnalysisTest extends TestCase
 
     public function test_db_disabled_execute_reproduce_byte_exact_and_labels_can_be_withheld_until_seal(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $sources = $this->sources();
         $service = $this->service($sources);
         config(['database.default' => 'growth_disabled']);
@@ -432,6 +437,7 @@ final class GrowthTrendAnalysisTest extends TestCase
             }
         }
         $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     #[DataProvider('outcomeYears')]
@@ -559,6 +565,10 @@ final class GrowthTrendAnalysisTest extends TestCase
 
     public function test_selected_candidate_diagnostics_match_independent_winner_gaps(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $w = new Workspace($this->root.'/diagnostics.sqlite');
         $entry = $w->db->prepare('INSERT INTO entries(entry_id,race_id,year,bike,score,p1,margin,predicted,first_obs,grade,class,n,margin_bin,normal,rank,fp,unique_winner) VALUES(?,?,?,?,10000,0.1,0.1,?,1,\'F2\',\'A1_A2\',7,1,1,?,?,1)');
         $signal = $w->db->prepare('INSERT INTO signals VALUES(?,?,?,\'VALID\')');
@@ -582,6 +592,7 @@ final class GrowthTrendAnalysisTest extends TestCase
             $this->assertSame(0, $result['c1-confidence-diagnostics.json'][$year][1]['c1_candidate_win']['wins']);
         }
         $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     #[DataProvider('dayFamilies')]

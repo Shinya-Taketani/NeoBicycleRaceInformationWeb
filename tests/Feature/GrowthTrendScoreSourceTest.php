@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\GrowthTrendFixture;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\TestCase;
 
 final class GrowthTrendScoreSourceTest extends TestCase
@@ -35,6 +36,10 @@ final class GrowthTrendScoreSourceTest extends TestCase
 
     public function test_capture_uses_only_approved_tables_and_columns_and_verify_needs_no_db(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         $queries = [];
         DB::listen(function ($event) use (&$queries): void {
             $queries[] = strtolower($event->sql);
@@ -52,6 +57,7 @@ final class GrowthTrendScoreSourceTest extends TestCase
         config(['database.default' => 'growth_disabled']);
         $this->assertSame('VERIFIED', $service->verify($result['bundle'])['status']);
         $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     #[DataProvider('forbiddenQueries')]
@@ -121,6 +127,10 @@ final class GrowthTrendScoreSourceTest extends TestCase
 
     public function test_history_pagination_has_no_duplicates_or_missing_rows(): void
     {
+        if (MemoryLimitedTestProcess::delegate(__METHOD__)) {
+            return;
+        }
+
         for ($i = 1; $i <= 150; $i++) {
             $this->dbRace(500000 + $i, '2023-05-01', 500000 + $i, 90.0);
         }
@@ -133,6 +143,7 @@ final class GrowthTrendScoreSourceTest extends TestCase
         $this->assertCount(1232, array_unique($ids));
         $this->assertSame(2, $audit['select_queries']);
         $this->assertLessThan(128 * 1024 * 1024, memory_get_peak_usage(true));
+        MemoryLimitedTestProcess::record(__METHOD__, memory_get_peak_usage(true));
     }
 
     #[DataProvider('invalidTargets')]
