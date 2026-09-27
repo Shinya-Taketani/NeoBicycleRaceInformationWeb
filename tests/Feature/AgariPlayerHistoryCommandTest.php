@@ -151,6 +151,234 @@ class AgariPlayerHistoryCommandTest extends TestCase
         $this->assertNull($this->entries()[21]['history']['windows'][3]['mean']);
     }
 
+    public function test_mixed_identity_meeting_keeps_only_the_identified_mean(): void
+    {
+        $normal = Fixture::race(1, '2023-07-01', 70, '2023-07-01', '2023-07-03');
+        $conflict = Fixture::race(2, '2023-07-02', 70, '2023-07-01', '2023-07-03');
+        $conflict['results'][1]['observation']['external_player_id'] = '000001';
+        $this->build([$normal, $conflict]);
+        $meetings = iterator_to_array(Artifacts::lines($this->root.'/result/player-meetings.jsonl'));
+        $group = array_values(array_filter($meetings, fn ($m) => $m['external_player_id'] === '000001'))[0];
+        $this->assertSame(3, $group['observed_result_rows']);
+        $this->assertSame(1, $group['adopted_races']);
+        $this->assertSame(['numerator' => '1', 'denominator' => '1', 'decimal' => '1.000000000000'], $group['meeting_percentile_mean']);
+        $this->assertSame(2, $group['exclusion_reasons']['IDENTITY_CONFLICT']);
+        $this->assertTrue($group['history_context_eligible']);
+    }
+
+    private function mixedIdentityRows(): array
+    {
+        $rows = [];
+        for ($id = 1; $id <= 6; $id++) {
+            $rows[] = Fixture::race($id, sprintf('2023-%02d-01', $id), times: $id <= 3 ? ['14', '12'] : ['12', '14']);
+        }
+        $rows[] = Fixture::race(7, '2023-07-01', 70, '2023-07-01', '2023-07-03');
+        $rows[] = Fixture::race(8, '2023-07-02', 70, '2023-07-01', '2023-07-03');
+        $rows[7]['results'][1]['observation']['external_player_id'] = '000001';
+        $rows[] = Fixture::race(9, '2023-08-01');
+
+        return $rows;
+    }
+
+    private function assertIdentityBlocked(array $entry, string $reason): void
+    {
+        $this->assertSame($reason, $entry['identity_status']);
+        foreach ($entry['history']['windows'] as $window) {
+            $this->assertSame([$reason], $window['blocking_reasons']);
+            $this->assertSame([], $window['meetings']);
+            $this->assertSame(0, $window['observed_meetings']);
+            $this->assertSame(0, $window['valid_meetings']);
+            foreach (['mean', 'median', 'population_variance'] as $field) {
+                $this->assertNull($window[$field]);
+            }
+        }
+        $this->assertNull($entry['history']['recent3_minus_previous3_meeting_percentile']);
+        $this->assertSame('BLOCKED_CONTEXT_OR_ORDER', $entry['history']['trend_null_reason']);
+    }
+
+    public function test_mixed_identity_targets_are_blocked_individually_and_following_history_uses_one_meeting(): void
+    {
+        $report = $this->build($this->mixedIdentityRows());
+        $entries = $this->entries();
+        $normal = $entries[71]['history'];
+        $this->assertSame([6, 5, 4, 3, 2, 1], array_column($normal['windows'][6]['meetings'], 'meeting_id'));
+        $this->assertSame('0.500000000000', $normal['windows'][6]['mean']['decimal']);
+        $this->assertSame('1.000000000000', $normal['recent3_minus_previous3_meeting_percentile']['decimal']);
+        foreach ([81, 82] as $id) {
+            $this->assertIdentityBlocked($entries[$id], 'IDENTITY_CONFLICT');
+            $this->assertSame('000001', $entries[$id]['external_player_id']);
+            $this->assertSame('000001', $entries[$id]['target_result_audit']['external_player_id']);
+            $this->assertSame($id, $entries[$id]['target_result_audit']['result_id']);
+            $this->assertSame($id, $entries[$id]['target_result_audit']['observation_id']);
+        }
+        $this->assertSame([], $entries[71]['context_flags']);
+        $window = $entries[91]['history']['windows'][3];
+        $this->assertSame([70, 6, 5], array_column($window['meetings'], 'meeting_id'));
+        $this->assertSame(3, $window['adopted_races']);
+        $this->assertSame('1.000000000000', $window['mean']['decimal']);
+        $this->assertSame(2, $window['exclusion_reasons']['IDENTITY_CONFLICT']);
+        $meetings = iterator_to_array(Artifacts::lines($this->root.'/result/player-meetings.jsonl'));
+        $group = array_values(array_filter($meetings, fn ($m) => $m['id'] === $entries[71]['player_meeting_id']))[0];
+        $this->assertSame([[], ['IDENTITY_CONFLICT'], ['IDENTITY_CONFLICT']], array_column($group['evidence'], 'reasons'));
+        $this->assertSame(18, $report['totals']['result_rows']);
+        $this->assertSame(16, $report['totals']['identified_rows']);
+        $this->assertSame(2, $report['totals']['identity_conflict_rows']);
+        $this->assertArrayNotHasKey('IDENTITY_CONFLICT', $report['reasons']['context']);
+        $this->assertSame(2, $report['reasons']['meeting_exclusions']['IDENTITY_CONFLICT']);
+        $this->assertSame(4, $report['totals']['trend_calculated']);
+        $this->assertSame(14, $report['totals']['trend_null']);
+        $this->assertSame(10, $report['totals']['window_3_full_valid']);
+        $this->assertSame(4, $report['totals']['window_6_full_valid']);
+        foreach ([3, 6, 12] as $n) {
+            $blocked = $full = 0;
+            foreach ($entries as $entry) {
+                $blocked += (int) ($entry['history']['windows'][$n]['blocking_reasons'] !== []);
+                $full += (int) ($entry['history']['windows'][$n]['valid_meetings'] === $n);
+            }
+            $this->assertSame(2, $blocked);
+            $this->assertSame($blocked, $report['totals']['window_'.$n.'_blocked']);
+            $this->assertSame($full, $report['totals']['window_'.$n.'_full_valid']);
+        }
+        (new Builder(Fixture::source($this->root)))->build($this->root.'/input', $this->root.'/relative', $this->root.'/reproduced');
+        foreach (Contract::FILES as $file) {
+            $this->assertSame(file_get_contents($this->root.'/result/'.$file), file_get_contents($this->root.'/reproduced/'.$file));
+        }
+    }
+
+    public function test_conflict_values_or_addition_cannot_change_the_identified_meeting_mean_or_normal_target_history(): void
+    {
+        $rows = $this->mixedIdentityRows();
+        $this->build($rows);
+        $entries = $this->entries();
+        $meetings = iterator_to_array(Artifacts::lines($this->root.'/result/player-meetings.jsonl'));
+        foreach (['changed', 'removed'] as $name) {
+            $variant = $rows;
+            if ($name === 'changed') {
+                foreach ([0 => '18', 1 => '12'] as $offset => $time) {
+                    AgariRaceRelativeFixture::value($variant[7], $offset, 'agari_time_seconds', $time);
+                    AgariRaceRelativeFixture::value($variant[7], $offset, 'agari_raw_text', $time);
+                }
+            } else {
+                unset($variant[7]);
+            }
+            mkdir($this->root.'/'.$name, 0700);
+            $source = Fixture::make($this->root.'/'.$name, $variant);
+            (new Builder($source))->build($this->root.'/'.$name.'/input', $this->root.'/'.$name.'/relative', $this->root.'/'.$name.'/result');
+            $new = $this->entries($name.'/result');
+            $this->assertNotSame($entries[71]['provenance'], $new[71]['provenance']);
+            foreach ([71, 72] as $id) {
+                $this->assertSame($entries[$id]['history'], $new[$id]['history']);
+            }
+            foreach (Artifacts::lines($this->root.'/'.$name.'/result/player-meetings.jsonl') as $group) {
+                $old = array_values(array_filter($meetings, fn ($m) => $m['id'] === $group['id']))[0];
+                $this->assertSame($old['meeting_percentile_mean'], $group['meeting_percentile_mean']);
+                $this->assertSame($old['adopted_races'], $group['adopted_races']);
+                $this->assertSame($old['history_context_eligible'], $group['history_context_eligible']);
+            }
+            if ($name === 'changed') {
+                $this->assertNotSame($entries[81]['target_result_audit']['percentile_numerator'], $new[81]['target_result_audit']['percentile_numerator']);
+                $this->assertSame($entries[91]['history'], $new[91]['history']);
+                $this->assertIdentityBlocked($new[81], 'IDENTITY_CONFLICT');
+            }
+        }
+    }
+
+    public function test_unconfirmed_identity_groups_are_not_history_but_identified_missing_time_consumes_a_slot(): void
+    {
+        $rows = [Fixture::race(1, '2023-01-01'), Fixture::race(2, '2023-02-01'), Fixture::race(3, '2023-03-01'),
+            Fixture::race(4, '2023-04-01', times: [null, '14']), Fixture::race(5, '2023-05-01')];
+        $rows[1]['results'][1]['observation']['external_player_id'] = '000001';
+        $rows[2]['results'][0]['observation']['external_player_id'] = null;
+        foreach ($rows as &$race) {
+            foreach ($race['results'] as &$row) {
+                $row['player_id'] = 999;
+                $row['observation']['player_id'] = 999;
+            }
+            unset($row);
+        }
+        unset($race);
+        $report = $this->build($rows);
+        $entries = $this->entries();
+        $this->assertCount(10, $entries);
+        $this->assertSame(2, $report['totals']['identity_conflict_rows']);
+        $this->assertSame(1, $report['totals']['unresolved_rows']);
+        $this->assertIdentityBlocked($entries[21], 'IDENTITY_CONFLICT');
+        $this->assertIdentityBlocked($entries[22], 'IDENTITY_CONFLICT');
+        $this->assertIdentityBlocked($entries[31], 'UNRESOLVED_EXTERNAL_ID');
+        $this->assertNull($entries[31]['external_player_id']);
+        $this->assertNull($entries[31]['target_result_audit']['external_player_id']);
+        $window = $entries[51]['history']['windows'][3];
+        $this->assertSame([4, 1], array_column($window['meetings'], 'meeting_id'));
+        $this->assertSame(2, $window['observed_meetings']);
+        $this->assertSame(1, $window['valid_meetings']);
+        $this->assertNull($window['meetings'][0]['meeting_percentile_mean']);
+        $this->assertTrue($window['flags']['missing_meeting_values']);
+        foreach (Artifacts::lines($this->root.'/result/player-meetings.jsonl') as $group) {
+            if (in_array($group['meeting']['meeting_id'], [2, 3], true) && $group['external_player_id'] !== '000002') {
+                $this->assertFalse($group['history_context_eligible']);
+                $this->assertNull($group['meeting_percentile_mean']);
+            }
+        }
+    }
+
+    public function test_identified_missing_time_with_conflicts_still_establishes_a_null_observed_meeting(): void
+    {
+        $rows = $this->mixedIdentityRows();
+        AgariRaceRelativeFixture::value($rows[6], 0, 'agari_time_seconds', null);
+        AgariRaceRelativeFixture::value($rows[6], 0, 'agari_raw_text', null);
+        AgariRaceRelativeFixture::value($rows[6], 0, 'agari_status', 'MISSING');
+        $this->build($rows);
+        $entries = $this->entries();
+        $this->assertSame('1.000000000000', $entries[71]['history']['recent3_minus_previous3_meeting_percentile']['decimal']);
+        $this->assertIdentityBlocked($entries[81], 'IDENTITY_CONFLICT');
+        $window = $entries[91]['history']['windows'][3];
+        $this->assertSame([70, 6, 5], array_column($window['meetings'], 'meeting_id'));
+        $this->assertSame(3, $window['observed_meetings']);
+        $this->assertSame(2, $window['valid_meetings']);
+        $this->assertNull($window['meetings'][0]['meeting_percentile_mean']);
+        $this->assertSame(2, $window['exclusion_reasons']['IDENTITY_CONFLICT']);
+        $this->assertSame(1, $window['exclusion_reasons']['AGARI_MISSING']);
+        foreach (Artifacts::lines($this->root.'/result/player-meetings.jsonl') as $group) {
+            if ($group['id'] === $entries[71]['player_meeting_id']) {
+                $this->assertTrue($group['history_context_eligible']);
+                $this->assertSame(0, $group['adopted_races']);
+                $this->assertNull($group['meeting_percentile_mean']);
+            }
+        }
+    }
+
+    #[DataProvider('mixedContextConflicts')]
+    public function test_identified_rows_do_not_override_genuine_mixed_meeting_context_blocks(string $kind, string $reason): void
+    {
+        $rows = $this->mixedIdentityRows();
+        if ($kind === 'metadata') {
+            $rows[7]['context']['ends_on'] = '2023-07-04';
+        } elseif ($kind === 'period') {
+            $rows[6]['context']['ends_on'] = $rows[7]['context']['ends_on'] = '2023-06-30';
+        } else {
+            $rows[6]['context']['meeting_track_id'] = $rows[7]['context']['meeting_track_id'] = 2;
+        }
+        $this->build($rows);
+        $entries = $this->entries();
+        $this->assertSame('IDENTIFIED', $entries[71]['identity_status']);
+        $this->assertContains($reason, $entries[71]['history']['windows'][3]['blocking_reasons']);
+        $this->assertNull($entries[71]['history']['windows'][3]['mean']);
+        $this->assertIdentityBlocked($entries[81], 'IDENTITY_CONFLICT');
+        $this->assertSame([6, 5, 4], array_column($entries[91]['history']['windows'][3]['meetings'], 'meeting_id'));
+        foreach (Artifacts::lines($this->root.'/result/player-meetings.jsonl') as $group) {
+            if ($group['meeting']['meeting_id'] === 70) {
+                $this->assertContains($reason, $group['context_flags']);
+                $this->assertFalse($group['history_context_eligible']);
+                $this->assertNull($group['meeting_percentile_mean']);
+            }
+        }
+    }
+
+    public static function mixedContextConflicts(): array
+    {
+        return [['metadata', 'MEETING_METADATA_CONFLICT'], ['period', 'MEETING_PERIOD_CONFLICT'], ['venue', 'MEETING_RELATION_CONFLICT']];
+    }
+
     public function test_overlapping_periods_are_not_arbitrarily_ordered_and_same_day_end_is_excluded(): void
     {
         $rows = [Fixture::race(1, '2023-01-01', 1, '2023-01-01', '2023-01-03'),

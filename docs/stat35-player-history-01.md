@@ -63,7 +63,8 @@ php -d memory_limit=512M artisan keirin:stat35:player-history:build \
 ```
 
 The thin command invokes a DB/HTTP-independent builder. A new private output directory holds a dedicated PDO SQLite workspace.
-Indexes support player/meeting aggregation and at most 13 historical candidates per target group; each group history is reused by its result rows.
+Indexes support player/meeting aggregation and at most 13 historical candidates per target group; identified target rows reuse the group history.
+Unidentified target rows instead receive identity-blocked 3/6/12 windows, without modifying that shared history; summary counts use the emitted row history.
 Global input lists are never loaded into PHP. One pathological player meeting above 4,096 evidence rows fails explicitly rather than growing without bound.
 All current result rows are emitted, and zero-result races remain in summary. Unknown identity/quality does not silently reduce the universe.
 Entry output separates target_result_audit from history; target own/future outcomes cannot alter its history values.
@@ -75,6 +76,8 @@ Summary contains year/meeting-grade and race-class totals, each fixed window's a
 Groups without identifiable players/meetings remain audit groups; `identified_player_meetings` distinguishes the known-player subset.
 
 ## Validation and Execution Record
+
+The following is the initial 2026-09-27 record. The PR #73 review-fix execution is recorded separately below.
 
 Status: `DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW`.
 Evidence root for this task: `/home/shinya/neo-keirin-artifacts/stat35-player-history-01/run-20260927-072445-4FJxV4/`.
@@ -152,3 +155,83 @@ Results are in `verification.json`; commands/stdout/stderr/timing in the stage d
 This completes descriptive generation/reproduction only, not STAT selection, optimized windows, growth causality, historical as-of availability or prediction improvement.
 No production DB/write, real export/old relative rebuild, Raw/HTTP, migration/backfill, training/evaluation or 2026 race access occurred.
 Next is review only. Changes remain uncommitted; no add/commit/push/PR/merge or automatic next stage.
+
+## PR #73 Identity Scope Review Fix / 2026-09-28
+
+Code: `PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW`.
+Generation: `DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW`.
+PR #73 remains unmerged and awaits re-review, not approval. Branch `feature/stat35-player-history-01`,
+start/end HEAD `4e95ddb1009feb5cf14fc22035d67fefe9979c65`; remote main remains `baac9c113d8a61061d7e5f8bd2b7cd391d091c54`.
+The initial code/run/hashes above are historical evidence and have not been replaced.
+
+### Scope and Regression
+
+Previously, Meetings excluded a conflicting row from the mean but also added its identity reason to the entire group's context flags.
+Saving that group then erased the identified rows' valid mean and removed the whole meeting from later history candidates.
+Builder also assigned the same group history to conflicting target rows. The fix separates three responsibilities:
+
+- Meeting/series context: metadata, dates, venue, class, boundaries and overlap rules remain unchanged.
+- Mean membership: row identity reasons remain in evidence/exclusion counts. At least one IDENTIFIED row establishes attendance;
+  qualifying identified rows alone contribute to the exact mean. A mixed group is not blocked merely by conflicting rows.
+- Target identity: IDENTITY_CONFLICT and UNRESOLVED_EXTERNAL_ID rows receive explicit blocking reasons, empty meeting lists,
+  null mean/median/variance/trend and no full-valid/trend contribution to summary. Identified rows still use the shared history.
+
+An identified meeting with no usable time remains an eligible null observation consuming one slot. A group containing only unconfirmed
+identities cannot establish attendance, remains null/auditable and is not a normal history candidate. Auxiliary IDs never repair identity.
+No output fields or calculation version changed. History, Source, Contract, Exact and upstream relative/context calculations are unchanged.
+
+The minimal mixed fixture first failed on the original code: 1 test / 4 assertions, expected exact mean 1 but received null (exit 1).
+Eight new cases through the real Builder verify normal 1 + conflicting 2 rows, observed=3/adopted=1/excluded=2, exact mean=1;
+one later meeting slot; actual nonnull previous history for the normal target; identity-blocked conflicting targets and matching summary;
+conflict value/addition isolation; unresolved/conflict-only versus identified-null slots; genuine metadata/period/venue blocks;
+and six-file synthetic reproduction. Existing boundary/class/overlap/same-day/null/rational/empty/corruption checks remain.
+
+The first focused run exposed only a new test's exact-array key-order expectation (40 passed / 1 failed, 732 assertions).
+That expectation was aligned with the existing numerator/denominator/decimal representation; production code was not changed for it.
+Final changed-PHP syntax checks (3 files) and scoped Pint passed, then:
+
+- `php artisan test --filter=AgariPlayerHistory`: 41 passed / 734 parent assertions, exit 0, 104.065428 seconds.
+- Normal `php artisan test`, once on final PHP: 2,161 tests, **2,152 passed / 9 existing skips / 0 failures / 0 errors**,
+  **18,129 parent assertions**, exit 0, 156.510868 seconds (Artisan 156.36s).
+- The nine skips retain their PostgreSQL transaction/COPY/constraint/lock/READ ONLY reasons; no new skip or weakened assertion.
+- All existing 17 independent 128M cases and all 17 high-parent cases passed. Player-history's unchanged >100MiB,
+  12,000-race / 108,000-row fixture had peak **50,855,936 bytes** and 107,478 child assertions in each run.
+  Direct child PID 109197; high-parent child PID 108752. Child assertions are not added to the parent total.
+
+### New Fixed-Input Execution and Comparison
+
+Evidence: `/home/shinya/neo-keirin-artifacts/stat35-player-history-01/pr73-review-fix-20260927-210230-b2d48a1f/`.
+The wrapper defines run/source/old-result paths before execution, uses umask 077, testing/SQLite with blank production credentials,
+absent config cache and 1,800-second process limits. Free space was 269,176,553,472 bytes versus the 23,769,617,450-byte allowance
+for two outputs including SQLite workspaces plus 1GiB. Generation and reproduction each ran exactly once with the command above,
+using new `result` and `reproduced` directories. No PHP/input changes between or during them, retry, source fallback or seal override.
+
+| Stage (2026-09-28 JST) | Start / End | Seconds | Exit | Peak bytes | stderr bytes |
+|---|---|---:|---:|---:|---:|
+| Generate | 06:12:07 / 06:15:05 | 178.394141 | 0 | 33,554,432 | 0 |
+| Reproduce | 06:15:05 / 06:18:01 | 175.937277 | 0 | 33,554,432 | 0 |
+| Streaming comparison/count/date verification | 06:18:11 / 06:18:42 | 31.148496 | 0 | 12,582,912 | 0 |
+
+Directory names/log timestamps are UTC; the table is JST. START/END source/code seals and publication checks passed.
+Measured again, not hard-coded: 101,326 races / 716,837 result rows, 2,436 external IDs, 241,464 groups / 235,725 numerical groups,
+573,435 trend rows / 143,402 null rows; unresolved/conflicting identity rows both 0. All year/grade/class/window totals and every
+selected history's strict end-before-target-start condition were independently reconciled from streamed records and sealed source details.
+
+Old result versus new result: **all four data files in the initial artifact table match byte-for-byte and SHA-256**, with zero changed
+lines/chunks. New result versus reproduced: **all six artifacts match byte-for-byte and SHA-256**. Their body seals were also verified.
+Old versus new manifest/COMPLETE is not an equality requirement: processing identity changed only for Meetings.php and Builder.php.
+
+| New artifact | Bytes | SHA-256 |
+|---|---:|---|
+| manifest.json | 12,049 | `844440cb08b06b0e69195a6384689bc545e63806ff85237ca36a81f5dd08507e` |
+| COMPLETE.json | 92 | `2d63b4657a32c9d36c4a0dca222f283ba238f68142b562887263aaa0f9d11d8d` |
+
+New processing identities: Meetings.php `24e4f72acaaacd3633ac74b8fbb953f7f0d0f04a9b471a3dba8dbfe85b179714`,
+Builder.php `dc1e1c54b66c8712203a879bcad89b1e2cb6c1868491a3263b772a433744b50b`.
+No old code hashes were copied over the new identities. The old data, manifest, COMPLETE, workspace and logs were never written.
+`verification.json` records streaming comparisons and independent counts; stage directories retain commands/stdout/stderr/exit/timing;
+`completion.json` and `changes.patch` record final checks and the uncommitted scope. Failed synthetic attempts are retained separately.
+
+No production DB connection/write, export or upstream relative rebuild, Raw/HTTP, migration/backfill/backup, training/evaluation or
+2026 real-race access. The frozen descriptive restrictions above, C1 and incomplete STAT-35/37 remain unchanged.
+Only re-review is next; no fetch/add/commit/push/PR operation/merge or automatic next phase.

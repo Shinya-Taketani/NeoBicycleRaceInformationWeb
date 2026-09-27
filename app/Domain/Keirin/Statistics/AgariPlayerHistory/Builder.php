@@ -31,7 +31,7 @@ final class Builder
         $reasons = ['context' => [], 'entry_identity' => [], 'meeting_exclusions' => [], 'trend_null' => []];
         $provenance = ['version' => Contract::VERSION, 'source_input_manifest' => $source['input_identity'], 'source_result_manifest' => $source['result_identity']];
         $files['player-meetings.jsonl'] = Artifacts::write($output, 'player-meetings.jsonl', $this->meetings($workspace->db, $provenance, $summary, $reasons));
-        $files['entry-history.jsonl'] = Artifacts::write($output, 'entry-history.jsonl', $this->entries($workspace->db, $provenance, $summary, $reasons));
+        $files['entry-history.jsonl'] = Artifacts::write($output, 'entry-history.jsonl', $this->entries($workspace->db, $provenance, $summary, $reasons, $source['input']['from']));
         $inventory = [];
         foreach (['identified_players' => 'SELECT COUNT(DISTINCT external) FROM groups WHERE external IS NOT NULL',
             'player_meetings' => 'SELECT COUNT(*) FROM groups',
@@ -69,7 +69,7 @@ final class Builder
         }
     }
 
-    private function entries(PDO $db, array $provenance, Summary $summary, array &$reasons): Generator
+    private function entries(PDO $db, array $provenance, Summary $summary, array &$reasons, string $from): Generator
     {
         foreach ($db->query('SELECT r.*,COUNT(e.id) AS rows FROM races r LEFT JOIN entries e ON e.race_id=r.id GROUP BY r.id ORDER BY r.id') as $row) {
             $race = json_decode($row['payload'], true, flags: JSON_THROW_ON_ERROR);
@@ -82,6 +82,9 @@ final class Builder
             $race = json_decode($row['race'], true, flags: JSON_THROW_ON_ERROR);
             $meeting = json_decode($row['meeting'], true, flags: JSON_THROW_ON_ERROR);
             $history = json_decode($row['history'], true, flags: JSON_THROW_ON_ERROR);
+            if ($entry['identity_status'] !== 'IDENTIFIED') {
+                $history = History::calculate([], $race['meeting']['starts_on'], $from, [$entry['identity_status']]);
+            }
             $counts = ['result_rows' => 1,
                 match ($entry['identity_status']) {
                     'IDENTIFIED' => 'identified_rows', 'IDENTITY_CONFLICT' => 'identity_conflict_rows', default => 'unresolved_rows'

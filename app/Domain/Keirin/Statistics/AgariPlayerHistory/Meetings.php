@@ -19,12 +19,14 @@ final class Meetings
         $put = $db->prepare('INSERT INTO groups VALUES (?,?,?,?,?,?,?,?,NULL)');
         $group = null;
         $sum = BigRational::zero();
+        $identified = false;
         $db->beginTransaction();
         while ($record = $rows->fetch()) {
             if ($group !== null && $group['id'] !== $record['group_key']) {
-                $this->save($put, $group, $sum);
+                $this->save($put, $group, $sum, $identified);
                 $group = null;
                 $sum = BigRational::zero();
+                $identified = false;
             }
             $entry = json_decode($record['payload'], true, flags: JSON_THROW_ON_ERROR);
             $race = json_decode($record['race'], true, flags: JSON_THROW_ON_ERROR);
@@ -41,9 +43,6 @@ final class Meetings
             if ($record['conflict']) {
                 $flags[] = 'MEETING_METADATA_CONFLICT';
             }
-            if ($entry['identity_status'] !== 'IDENTIFIED') {
-                $flags[] = $entry['identity_status'];
-            }
             if ($group['race_class'] === 'UNKNOWN') {
                 $flags[] = 'UNKNOWN_RACE_CLASS';
             }
@@ -51,6 +50,11 @@ final class Meetings
             $group['observed_result_rows']++;
             $audit = $entry['audit'];
             $reasons = $flags;
+            if ($entry['identity_status'] === 'IDENTIFIED') {
+                $identified = true;
+            } else {
+                $reasons[] = $entry['identity_status'];
+            }
             if ($entry['comparison_completeness'] === 'PARTIAL') {
                 $group['partial_rows']++;
                 $reasons[] = 'PARTIAL_COMPARISON';
@@ -85,13 +89,21 @@ final class Meetings
             }
         }
         if ($group !== null) {
-            $this->save($put, $group, $sum);
+            $this->save($put, $group, $sum, $identified);
         }
         $db->commit();
     }
 
-    private function save(\PDOStatement $put, array $group, BigRational $sum): void
+    private function save(\PDOStatement $put, array $group, BigRational $sum, bool $identified): void
     {
+        // Conflicting rows cannot establish attendance, but must not invalidate identified rows in the same meeting.
+        if (! $identified) {
+            foreach (['IDENTITY_CONFLICT', 'UNRESOLVED_EXTERNAL_ID'] as $reason) {
+                if (isset($group['exclusion_reasons'][$reason])) {
+                    $group['context_flags'][] = $reason;
+                }
+            }
+        }
         sort($group['context_flags']);
         ksort($group['exclusion_reasons']);
         $group['meeting_percentile_mean'] = Exact::value($group['adopted_races'] ? $sum->dividedBy($group['adopted_races']) : null);

@@ -3,14 +3,15 @@
 - Document: 統計エンジン開発工程マスター
 - Version: 1.36
 - Created: 2026-08-23
-- Updated: 2026-09-27
+- Updated: 2026-09-28
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
 - Remote `main` at last update: `baac9c113d8a61061d7e5f8bd2b7cd391d091c54`
-- Current review: STAT-35-PLAYER-HISTORY-01 / 未コミット・成果レビュー待ち。PR #72はMERGED_REVIEW_COMPLETED
-- Current execution: `DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW`（固定入力による新規履歴生成とoffline再現）
-- Current tests: `ISOLATED_MEMORY_CHECKS_AND_ARTISAN_FULL_SUITE_PASS`（既存16件＋新規1件、通常全体2,144成功・既存9skip・17,677親assertions）
+- Current review: STAT-35-PLAYER-HISTORY-01-PR73-REVIEW-FIX / PR #73は未マージ・再レビュー待ち、追加差分は未コミット。PR #72はMERGED_REVIEW_COMPLETED
+- Current code: `PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW`（行の本人識別と開催全体の対応条件を分離）
+- Current execution: `DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW`（修正版生成/再現各1回、新旧4データファイル不変・修正版6成果物完全一致）
+- Current tests: `ISOLATED_MEMORY_CHECKS_AND_ARTISAN_FULL_SUITE_PASS`（既存17件維持、通常全体2,152成功・既存9skip・18,129親assertions）
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -170,11 +171,11 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_PLAYER_HISTORY_01_DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW
+current_engine_state: STAT35_PLAYER_HISTORY_01_PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_PLAYER_HISTORY_RESULT
+next_allowed_action: REVIEW_PR73_IDENTITY_SCOPE_FIX_AND_PLAYER_HISTORY_RESULT
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-PLAYER-HISTORY-01
+current_phase: STAT-35-PLAYER-HISTORY-01-PR73-REVIEW-FIX
 remote_main: baac9c113d8a61061d7e5f8bd2b7cd391d091c54
 pr64_status: MERGED
 pr65_status: MERGED
@@ -185,6 +186,8 @@ pr69_status: MERGED
 pr70_status: MERGED_REVIEW_COMPLETED
 pr71_status: MERGED_REVIEW_COMPLETED
 pr72_status: MERGED_REVIEW_COMPLETED
+pr73_status: OPEN_NOT_MERGED_AWAITING_RE_REVIEW
+stat35_player_history_01_code: PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW
 stat35_player_history_01_execution: DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW
 stat35_player_history_01_analysis_mode: FINAL_RESULT_DESCRIPTIVE_ONLY
 stat35_player_history_01_history_time_basis: EVENT_DATE_BACKFILLED_FINAL_RESULTS
@@ -196,6 +199,8 @@ stat35_player_history_01_inventory: PLAYERS_2436_PLAYER_MEETING_CLASS_GROUPS_241
 stat35_player_history_01_full_valid_windows: N3_640112_N6_573435_N12_457715_TARGET_RESULT_ROWS
 stat35_player_history_01_trend: CALCULATED_573435_NULL_143402_TARGET_RESULT_ROWS
 stat35_player_history_01_reproduction: SIX_FILES_BYTE_AND_SHA256_EXACT_INDEPENDENT_COUNTS_AND_DATES_VERIFIED
+stat35_player_history_01_old_comparison: FOUR_DATA_FILES_BYTE_AND_SHA256_EXACT_ZERO_CHANGED_ROWS
+stat35_player_history_01_tests: ARTISAN_2152_PASSED_9_EXISTING_SKIPS_18129_PARENT_ASSERTIONS
 stat35_player_history_01_isolated_memory_cases: 17
 stat35_player_history_01_production_connection_and_write: 0
 stat35_race_relative_01_code: REVIEW_COMPLETED_PR72_MERGED
@@ -671,7 +676,7 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-37-TRACK-CONTEXT-01 | 版付き構造マスタ・日付解決・未補正距離換算・実coverage | REVIEW_COMPLETED_PR70_MERGED | v1の42場44観測版・3解決場日と全原文/値/期間を保持。旧テスト・coverageは当時の記録。SCR全体未完了、予測利用未承認 |
 | STAT-35-37-TRACK-CONTEXT-02 | 公式資料一巡・v2出典/期間追加・offline coverage比較 | REVIEW_COMPLETED_PR71_MERGED | 部分的拡充のレビュー完了。42場89観測版、距離14/10,660（+11）、期間不明10,646・競合/後退0という前工程記録を維持。歴史網羅未完了 |
 | STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | MERGED_REVIEW_COMPLETED_PR72 | 101,326レース/716,837行、5成果物一致と16件独立128M修正のレビュー完了。旧失敗・成功は15.44へ保持。実export/旧build再実行なし |
-| STAT-35-PLAYER-HISTORY-01 | 選手×開催×classの相対値履歴・3/6/12開催窓 | DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW | 2,436選手・241,464群、推移573,435行、6成果物一致と独立照合成功。窓最適化・予測利用は未許可。通常全体2,144成功/既存9skip、17件独立128M |
+| STAT-35-PLAYER-HISTORY-01 | 選手×開催×classの相対値履歴・3/6/12開催窓 | PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW / DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW | PR #73未マージ・再レビュー待ち。行の識別競合を分離、修正版生成/再現成功、新旧4データ不変・新6成果物一致。2,436選手・241,464群・推移573,435行。通常全体2,152成功/既存9skip、17件独立128M。窓最適化・予測利用は未許可 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2835,6 +2840,8 @@ C1/2026凍結を維持。次は今回のテスト補完レビューのみ、未�
 
 ## 15.45 STAT-35-PLAYER-HISTORY-01
 
+### 初回生成記録（2026-09-27）
+
 PR #72 MERGED_REVIEW_COMPLETEDは最新ユーザー確認による。15.44の未マージ/旧失敗/成功は当時の記録として残す。
 clean main `baac9c113d8a61061d7e5f8bd2b7cd391d091c54` から `feature/stat35-player-history-01` を作成。
 今回だけ許可された固定相対値の選手別履歴実装・人工テスト・実生成/offline再現を完了した。旧NOT_AUTHORIZEDを予測利用へ拡張しない。
@@ -2868,6 +2875,41 @@ analysis_mode=FINAL_RESULT_DESCRIPTIVE_ONLY、history_time_basis=EVENT_DATE_BACK
 STAT-35/37全体、構造・気象・ライン・相手水準補正は未完了。C1、過去採否、2026凍結は不変。
 本番DB接続/書込み、旧実export/build再実行、Raw/HTTP/Migration/backfill/学習/予測評価/2026実レース参照は0。
 未コミットでレビュー待ち。次工程へ自動移行しない。
+
+### PR #73 行単位本人識別のレビュー修正（2026-09-28）
+
+上記初回結果・失敗・hashは当時の記録として保持する。今回の開始/終了HEADは `4e95ddb1009feb5cf14fc22035d67fefe9979c65`、
+既存 `feature/stat35-player-history-01` のcleanな状態から追加修正。remote main/versionは変更しない。PR #73は未マージ・再レビュー待ち。
+旧実装は行のIDENTITY_CONFLICTをgroup.context_flagsへ追加し、正常行の開催平均もNULL化して後続履歴から開催全体を外していた。
+Meetingsは開催/系列対応と行採否を分離し、IDENTIFIED行があれば正常行だけの正確な平均を保持する。
+競合行はevidence/exclusionへ残し、本人未確定しかない群は正常履歴候補にしない。本人確認済みのタイム欠損はNULLの観測枠を維持。
+Builderは競合/未解決の対象行だけを本人識別理由でブロックし、3/6/12窓のmeetingsは空、各統計/推移はNULL、summaryも出力行に従う。
+正常対象行の共有historyは変更しない。真正な期間/場/class/重複/同日終了/境界ブロック、3/6/12窓、Exact/Source/Contract/versionは不変。
+
+旧コードで最小混在Fixtureが期待平均1に対しNULLとなり失敗したことを記録（1 test / 4 assertions、exit1）。
+新規8ケースは正常1＋競合2、採用1/除外2、後続へ1枠、正常対象に非NULLの過去履歴、競合対象のみブロック、summary照合、
+競合値/追加からの独立、本人未確定と確認済みNULL枠の区別、真正な開催不整合、6成果物人工再現を確認。
+途中の関連テスト1失敗は新テストの配列キー順期待値のみを既存表現へ修正し、失敗ログも保持。
+最終関連テスト41成功/734親assertions。通常 `php artisan test` は最終PHPで1回、2,152成功/既存9skip/失敗・エラー0、
+18,129親assertions、exit0、156.510868秒。変更PHP3件の構文/限定Pint成功。
+既存17件の独立128Mと高ピーク親下17件は全成功、player-historyの108,000行ケースpeak50,855,936 bytes。
+Fixture縮小/閾値緩和/assertion削除/新規skipなし。子assertionsは親件数へ加算しない。
+
+許可された固定入力から修正版生成1回/再現1回、exit0、178.394141/175.937277秒、各peak33,554,432 bytes、stderr空。
+実測101,326レース/716,837行、2,436外部ID/241,464群/235,725数値群、推移573,435/NULL143,402。本人不明/競合とも0件。
+新旧4データファイルはbytes/SHA完全一致、変更行0。修正版6成果物もbytes/SHA完全一致。旧manifest/COMPLETEとの一致は要求しない。
+新manifestは12,049 bytes / `844440cb08b06b0e69195a6384689bc545e63806ff85237ca36a81f5dd08507e`、
+新COMPLETEは92 bytes / `2d63b4657a32c9d36c4a0dca222f283ba238f68142b562887263aaa0f9d11d8d`。
+processing code identityの変更はMeetings/Builderだけで、旧hashのコピーなし。START/END seal、公開前検証も維持。
+独立逐次比較で年/grade/class/窓/件数・全履歴日付条件を照合しexit0、31.148496秒、peak12,582,912 bytes。
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-player-history-01/pr73-review-fix-20260927-210230-b2d48a1f/`。
+実行/比較/子processログ、verification、最終差分を保存。旧入力/旧出力/旧証跡は読取りのみで変更なし。
+
+コード状態 `PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW`、実生成状態 `DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW`。
+次は `REVIEW_PR73_IDENTITY_SCOPE_FIX_AND_PLAYER_HISTORY_RESULT` のみ。予測利用未承認、FINAL_RESULT_DESCRIPTIVE_ONLY、
+EVENT_DATE_BACKFILLED_FINAL_RESULTS、historical_as_of_available=false、points=null、C1/2026凍結、STAT-35/37全体未完了を維持。
+本番DB接続/書込み、前工程export/build、Raw/HTTP、Migration/backfill/バックアップ、学習/予測評価/2026実レース参照は0。
+未コミットの追加差分で停止し、fetch/add/commit/push/PR操作/merge・次工程移行はしない。
 
 ---
 
@@ -3298,6 +3340,27 @@ next: REVIEW_STAT35_PLAYER_HISTORY_RESULT
 実入力101,326レース/716,837行、2,436選手/241,464群、推移573,435行、6成果物完全再現と独立照合を完了。
 通常全体2,144成功/既存9skip/17,677親assertions、独立128M17件。旧記録を保持しmetadata/現在地/工程表/引継ぎを同期。
 予測利用・最適窓・STAT全体完了は主張せず、historical_as_of_available=false、C1、2026凍結を維持。次はレビューのみ。
+
+同VersionのPR #73レビュー修正（2026-09-28、上記初回YAML/実績は保持）:
+
+```yaml
+document_version: 1.36
+updated_at: 2026-09-28
+remote_main_sha: baac9c113d8a61061d7e5f8bd2b7cd391d091c54
+phase_changed: STAT-35-PLAYER-HISTORY-01-PR73-REVIEW-FIX
+related_pr: PR73_OPEN_NOT_MERGED_AWAITING_RE_REVIEW
+review_fix_start_head: 4e95ddb1009feb5cf14fc22035d67fefe9979c65
+decision: PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW
+real_generation: DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW
+related_run: stat35-player-history-01/pr73-review-fix-20260927-210230-b2d48a1f
+comparison: OLD_FOUR_DATA_FILES_UNCHANGED_NEW_SIX_FILES_REPRODUCED_BYTE_AND_SHA256_EXACT
+next: REVIEW_PR73_IDENTITY_SCOPE_FIX_AND_PLAYER_HISTORY_RESULT
+```
+
+行品質を開催対応へ波及させず、正常行平均を保持し、本人未確定の対象行だけ履歴をブロック。新規8ケース、
+最終通常全体2,152成功/既存9skip/18,129親assertions、独立128M17件を維持。修正版実生成/再現/独立照合成功。
+旧データ4本文は不変、manifest/COMPLETEは修正コードidentityを記録。冒頭/現在地/工程表/引継ぎを同じ差分へ同期。
+旧成果物・過去失敗/成功記録は保持、未マージ・追加差分未コミットで再レビュー待ち。予測利用・次工程は未許可。
 
 ## v1.35 / 2026-09-23
 
@@ -3896,18 +3959,23 @@ Race relative real counts = RACES_101326_CURRENT_RESULTS_716837 / COMPLETE_95712
 Race relative build / reproduction = EXIT_0_BOTH / FIVE_FILES_BYTE_AND_SHA256_EXACT / INPUT_DETAIL_AND_YEAR_GRADE_COUNTS_MATCH
 Race relative purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
 STAT-35-PLAYER-HISTORY-01 = DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_AWAITING_REVIEW
+PR #73 = OPEN_NOT_MERGED_AWAITING_RE_REVIEW / UNCOMMITTED_REVIEW_FIX
+Player history code = PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW / MEETING_CONTEXT_ROW_ADOPTION_AND_TARGET_IDENTITY_SEPARATED
 Player history = 101326_RACES_716837_RESULTS / 2436_PLAYERS / 241464_PLAYER_MEETING_CLASS_GROUPS / 235725_NUMERICAL_GROUPS
 Player history full valid windows = N3_640112_N6_573435_N12_457715_TARGET_RESULT_ROWS
 Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS / NO_IDENTITY_CONFLICT_OR_UNRESOLVED_EXTERNAL
-Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
-Player history tests = ARTISAN_2144_PASSED_9_EXISTING_SKIPPED_17677_PARENT_ASSERTIONS / 17_ISOLATED_128M_CASES
+Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
+Player history tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / 17_ISOLATED_128M_CASES_PRESERVED
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Player history next = REVIEW_STAT35_PLAYER_HISTORY_RESULT / NO_PREDICTION_USE_OR_WINDOW_OPTIMIZATION
+Player history next = REVIEW_PR73_IDENTITY_SCOPE_FIX_AND_PLAYER_HISTORY_RESULT / NO_PREDICTION_USE_OR_WINDOW_OPTIMIZATION
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review PR #73's identity-scope fix only (REVIEW_PR73_IDENTITY_SCOPE_FIX_AND_PLAYER_HISTORY_RESULT). PR #73 remains unmerged and awaits re-review, not approval. Existing branch feature/stat35-player-history-01, start/end HEAD 4e95ddb1009feb5cf14fc22035d67fefe9979c65; remote main stays baac9c113d8a61061d7e5f8bd2b7cd391d091c54. Meetings now retains identified-row means in mixed groups; unconfirmed-only groups cannot establish attendance, while identified missing times remain null slots. Builder blocks only unidentified target rows and counts their actual emitted state. Genuine context/boundary/overlap rules are unchanged. Eight regression cases added; old-code minimal fixture failed as expected. Final focused 41 passes/734 assertions; ordinary Artisan once: 2,152 passes, nine existing skips, zero failures/errors, 18,129 parent assertions. All 17 independent 128M and 17 high-parent cases passed. New fixed-input build/reproduction once each: exit0, 178.394141/175.937277 seconds, each peak33,554,432 bytes. Streaming comparisons verified old four data files unchanged and new six artifacts byte/SHA-exact, independent counts and all historical end dates. Actual counts remain 101,326 races/716,837 rows, 2,436 external IDs/241,464 groups/235,725 numerical groups, trend573,435/null143,402. New manifest/COMPLETE hashes record only Meetings/Builder code changes, not copied old hashes. Evidence: /home/shinya/neo-keirin-artifacts/stat35-player-history-01/pr73-review-fix-20260927-210230-b2d48a1f/. Preserve old records, FINAL_RESULT_DESCRIPTIVE_ONLY, EVENT_DATE_BACKFILLED_FINAL_RESULTS, historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, C1, 2026 freeze and incomplete STAT-35/37. No production DB, upstream rebuild/export, Raw/HTTP, migration/backfill, training/evaluation or 2026 race access. Additional changes remain uncommitted for re-review; no automatic next phase.
+
+Previous handoff (v1.36 initial generation, superseded by the Next paragraph above):
 Review STAT-35-PLAYER-HISTORY-01 only (REVIEW_STAT35_PLAYER_HISTORY_RESULT). PR #72 is merged and reviewed. New branch feature/stat35-player-history-01 starts at baac9c113d8a61061d7e5f8bd2b7cd391d091c54. Fixed input/results were verified and read without another export or old relative build. All 101,326 races and 716,837 result rows are retained; 2,436 identified players, 241,464 player-meeting-class groups, 235,725 numerical groups, 573,435 trend rows. Preserve UNKNOWN class, null slots, boundary and ambiguous-order reasons. Six artifacts reproduced byte/SHA-exact; independent counts and historical end-date checks passed. Both 512M builds exited 0 with peak 33,554,432 bytes. Normal php artisan test: 2,144 passes, nine existing PostgreSQL-only skips, zero failures/errors, 17,677 parent assertions. Existing 16 plus one new independent 128M test and all high-parent cases passed; new case processes 108,000 rows at peak 48,758,784 bytes. Evidence: stat35-player-history-01/run-20260927-072445-4FJxV4. No production DB, old real generation, Raw/HTTP, Migration/backfill, learning, prediction evaluation or 2026 race access. Maintain FINAL_RESULT_DESCRIPTIVE_ONLY, EVENT_DATE_BACKFILLED_FINAL_RESULTS, historical_as_of_available=false, prediction_use=NOT_AUTHORIZED, points=null, C1 and old experiment decisions. Windows are descriptive candidates, not optimized features. STAT-35/37 and structure/weather/line/opponent adjustment remain incomplete. Changes are uncommitted for review. No automatic next phase.
 
 Previous handoff (v1.35 historical record, superseded by the Next paragraph above):
