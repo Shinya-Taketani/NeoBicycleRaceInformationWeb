@@ -33,6 +33,7 @@ final class MemoryLimitedTestProcess
         'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e07BoundedMemoryTest::test_two_thousand_nine_rider_predictions_metric_spools_and_bootstrap_are_bounded',
         'Tests\\Unit\\Domain\\Keirin\\Backtest\\Bt03e08BoundedMemoryTest::test_two_thousand_nine_rider_decisions_and_bootstrap_stay_below_128m',
         'Tests\\Feature\\AgariPlayerHistoryCommandTest::test_large_streamed_history_generation_in_independent_128m_process',
+        'Tests\\Feature\\AgariC1InputTest::test_streamed_input_generation_in_independent_128m_process',
     ];
 
     public static function delegate(string $case): bool
