@@ -2989,6 +2989,15 @@ manifest SHA `0e68d6adbcddc03fa8ab7b10904f2e0388cec32cc88a0ebe89a20db274f4dd71`�
 次はコードと不足証拠のレビューだけ。DB再取得/対象結果fallback/学習/性能評価/2026/LIVEへ進まない。
 historical_as_of_available=false、C1固定、旧pilot保留とE08不採用、STAT35/37全体未完を維持。
 
+### PR #75 接続・競合判定レビュー修正
+
+同じPR branch、開始HEAD `05fd969d850ddde2e80f3016647d3bccdcbb94e9` で限定修正。
+固定C1 history.targetのseal/7項目対応、確認済みcontext manifest pin、本人/開催/class別の有効性、
+キー順非依存比較、本人競合とレース文脈競合の出走単位和集合を検証する。版は `STAT35-C1-INPUT-v2-PR75-CONTEXT-VERIFICATION`。
+実本人/class証拠の確認済みリストは空で未接続を維持。人工検証だけを行い、上記14ファイル一致・実行hashは旧v1の記録。
+実生成/全NULL再現、本番DB/HTTP/Migration/学習/評価/2026参照は行わない。詳細・テスト結果は[実装記録](stat35-c1-input-01.md)のPR #75節。
+これは同じPRのレビュー修正であり、新しい設計・実行許可ではない。旧成果物を保持し未コミットで再レビューを待つ。
+
 ---
 
 # 16. BT-04 — Final Frozen Holdout Evaluation

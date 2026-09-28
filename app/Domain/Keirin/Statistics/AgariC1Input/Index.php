@@ -27,6 +27,7 @@ final class Index
             CREATE INDEX past ON history(external,class,ends,starts);
             CREATE UNIQUE INDEX series_meeting ON history(external,class,meeting);
             CREATE TABLE contexts(entry INTEGER PRIMARY KEY, body TEXT, duplicate INTEGER NOT NULL DEFAULT 0, conflict INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE targets(entry INTEGER PRIMARY KEY, year INTEGER, body TEXT);
             CREATE TABLE races(id INTEGER PRIMARY KEY);
             CREATE TABLE entries(id INTEGER PRIMARY KEY);');
     }
@@ -35,6 +36,29 @@ final class Index
     {
         $put = $this->db->prepare('INSERT INTO history VALUES (?,?,?,?,?,?,?)');
         $this->db->beginTransaction();
+        $targetPut = $this->db->prepare('INSERT INTO targets VALUES (?,?,?)');
+        foreach (Contract::YEARS as $year) {
+            $count = 0;
+            foreach (Artifacts::lines($source['c1'].'/history-'.$year.'.jsonl') as $row) {
+                $target = [];
+                // Deliberately project target metadata only, never aggregate/cache/result values.
+                foreach (['race_id', 'entry_id', 'bike', 'race_date', 'meeting_id', 'meeting_start', 'meeting_end'] as $field) {
+                    if (! is_array($row['target'] ?? null) || ! array_key_exists($field, $row['target'])) {
+                        throw new RuntimeException('Missing fixed C1 target field.');
+                    }
+                    $target[$field] = $row['target'][$field];
+                }
+                if (! Contract::id($target['race_id']) || ! Contract::id($target['entry_id']) || ! Contract::id($target['bike'])
+                    || $target['bike'] > 9 || ! Contract::date($target['race_date']) || (int) substr($target['race_date'], 0, 4) !== $year) {
+                    throw new RuntimeException('Invalid fixed C1 target identity/date.');
+                }
+                $targetPut->execute([$target['entry_id'], $year, Files::canonical($target)]);
+                $count++;
+            }
+            if ($count !== $source['expected_targets'][$year]) {
+                throw new RuntimeException('C1 target manifest row count mismatch.');
+            }
+        }
         foreach (Artifacts::lines($source['history'].'/player-meetings.jsonl') as $row) {
             if (($row['source'] ?? null) !== 'keirin_jp' || ($row['measurement_definition_id'] ?? null) !== Contract::DEFINITION
                 || ! is_bool($row['history_context_eligible'] ?? null) || ! is_string($row['id'] ?? null)
@@ -61,7 +85,8 @@ final class Index
         if ($source['context'] !== null) {
             $put = $this->db->prepare('INSERT INTO contexts(entry,body) VALUES (?,?) ON CONFLICT(entry) DO UPDATE SET duplicate=1, conflict=MAX(conflict,body<>excluded.body)');
             foreach (Artifacts::lines($source['context'].'/entry-context.jsonl') as $row) {
-                Contract::keys($row, ['source', 'external_player_id', 'race_id', 'entry_id', 'bike', 'race_date', 'meeting', 'race_type', 'observed_at', 'source_record_id']);
+                $fields = ['source', 'external_player_id', 'race_id', 'entry_id', 'bike', 'race_date', 'meeting', 'race_type', 'observed_at', 'source_record_id'];
+                Contract::keys($row, $fields);
                 Contract::keys($row['meeting'], ['meeting_id', 'starts_on', 'ends_on']);
                 if ($row['source'] !== 'keirin_jp' || ! Contract::id($row['race_id']) || ! Contract::id($row['entry_id'])
                     || ! Contract::id($row['bike']) || $row['bike'] > 9 || ! Contract::date($row['race_date'])
@@ -73,6 +98,9 @@ final class Index
                         || ! preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})\z/', $row['observed_at'])))) {
                     throw new RuntimeException('Invalid context evidence schema.');
                 }
+                // Object member order is not evidence of a conflicting record.
+                $row = array_replace(array_fill_keys($fields, null), $row);
+                $row['meeting'] = ['meeting_id' => $row['meeting']['meeting_id'], 'starts_on' => $row['meeting']['starts_on'], 'ends_on' => $row['meeting']['ends_on']];
                 $put->execute([$row['entry_id'], Files::canonical($row)]);
             }
         }
@@ -81,11 +109,19 @@ final class Index
 
     public function context(array $race, array $entry): array
     {
+        $get = $this->db->prepare('SELECT year,body FROM targets WHERE entry=?');
+        $get->execute([$entry['id']]);
+        $fixed = $get->fetch();
+        $target = $fixed ? json_decode($fixed['body'], true, flags: JSON_THROW_ON_ERROR) : null;
+        if ($target === null || $target['race_id'] !== $race['race_id'] || $target['bike'] !== $entry['bike'] || $fixed['year'] !== $race['year']) {
+            throw new RuntimeException('Fixed C1 target/input identity mismatch.');
+        }
         $get = $this->db->prepare('SELECT * FROM contexts WHERE entry=?');
         $get->execute([$entry['id']]);
         $row = $get->fetch();
         if (! $row) {
-            return ['reasons' => ['MISSING_IDENTITY_CONTEXT_EVIDENCE'], 'evidence' => null];
+            return ['reasons' => ['MISSING_IDENTITY_CONTEXT_EVIDENCE'], 'evidence' => null, 'target' => $target,
+                'validity' => ['identity' => false, 'meeting' => false, 'class' => false]];
         }
         $c = json_decode($row['body'], true, flags: JSON_THROW_ON_ERROR);
         $reasons = [];
@@ -95,7 +131,9 @@ final class Index
         if ($row['conflict']) {
             $reasons[] = 'CONTEXT_IDENTITY_CONFLICT';
         }
-        if ($c['race_id'] !== $race['race_id'] || $c['bike'] !== $entry['bike'] || (int) substr($c['race_date'], 0, 4) !== $race['year']) {
+        $associated = $c['race_id'] === $target['race_id']
+            && $c['entry_id'] === $target['entry_id'] && $c['bike'] === $target['bike'];
+        if (! $associated) {
             $reasons[] = 'CONTEXT_IDENTITY_CONFLICT';
         }
         if (! self::external($c['external_player_id'])) {
@@ -106,27 +144,37 @@ final class Index
             || $m['starts_on'] > $c['race_date'] || $m['ends_on'] < $c['race_date']) {
             $reasons[] = 'INVALID_MEETING_CONTEXT';
         }
+        $targetMatches = $c['race_date'] === $target['race_date'] && $m['meeting_id'] === $target['meeting_id']
+            && $m['starts_on'] === $target['meeting_start'] && $m['ends_on'] === $target['meeting_end'];
+        if (! $targetMatches) {
+            $reasons[] = 'CONTEXT_TARGET_MISMATCH';
+        }
+        $meetingValid = $associated && ! $row['duplicate'] && $targetMatches && ! in_array('INVALID_MEETING_CONTEXT', $reasons, true);
         $class = Classification::raceClass($c['race_type']);
         if ($class === 'UNKNOWN') {
             $reasons[] = 'UNKNOWN_RACE_CLASS';
         }
 
-        return ['reasons' => $reasons, 'evidence' => $c, 'class' => $class];
+        return ['reasons' => array_values(array_unique($reasons)), 'evidence' => $c, 'class' => $class, 'target' => $target,
+            'validity' => ['identity' => $associated && ! $row['duplicate'] && $targetMatches && self::external($c['external_player_id']),
+                'meeting' => $meetingValid, 'class' => $meetingValid && $class !== 'UNKNOWN']];
     }
 
     public function calculate(array $context): array
     {
         $c = $context['evidence'];
+        $target = $context['target'];
+        $cutoff = Contract::date($target['meeting_start']) ? $target['meeting_start'] : null;
         $reasons = $context['reasons'];
         $candidates = [];
         if ($reasons === []) {
             $q = $this->db->prepare('SELECT body FROM history WHERE external=? AND class=? AND ends<? AND meeting<>? ORDER BY ends DESC,starts DESC,id LIMIT 13');
-            $q->execute([$c['external_player_id'], $context['class'], $c['meeting']['starts_on'], $c['meeting']['meeting_id']]);
+            $q->execute([$c['external_player_id'], $context['class'], $cutoff, $target['meeting_id']]);
             while ($row = $q->fetch()) {
                 $candidates[] = json_decode($row['body'], true, flags: JSON_THROW_ON_ERROR);
             }
         }
-        $window = History::calculate($candidates, $c['meeting']['starts_on'] ?? null, '2022-01-01', $reasons)['windows'][6];
+        $window = History::calculate($candidates, $cutoff, '2022-01-01', $reasons)['windows'][6];
         $value = self::number($window['mean']);
         $reason = $window['blocking_reasons'] !== [] ? $window['blocking_reasons']
             : ($value === null ? [$window['observed_meetings'] === 0 ? 'NO_OBSERVED_HISTORY' : 'NO_VALID_HISTORY'] : []);

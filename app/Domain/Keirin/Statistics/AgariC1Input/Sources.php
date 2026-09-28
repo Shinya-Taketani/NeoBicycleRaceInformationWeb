@@ -14,7 +14,8 @@ final class Sources
         'history' => ['bytes' => 12049, 'sha256' => '844440cb08b06b0e69195a6384689bc545e63806ff85237ca36a81f5dd08507e'],
     ];
 
-    public function __construct(private readonly array $pins = self::PINS) {}
+    // No real identity/class bundle has been reviewed yet. Runtime self-seals cannot establish trust.
+    public function __construct(private readonly array $pins = self::PINS, private readonly array $reviewedContextPins = []) {}
 
     public function open(string $c1, string $history, ?string $context): array
     {
@@ -31,6 +32,12 @@ final class Sources
         }
         foreach (Contract::YEARS as $year) {
             $add($c1.'/inputs-'.$year.'.jsonl', $input['manifests'][$year]['inputs']);
+            $add($c1.'/history-'.$year.'.jsonl', $input['manifests'][$year]['history']);
+            foreach (['inputs', 'history'] as $kind) {
+                if (! is_int($input['manifests'][$year][$kind]['rows'] ?? null) || $input['manifests'][$year][$kind]['rows'] < 0) {
+                    throw new RuntimeException('Invalid C1 manifest row count.');
+                }
+            }
         }
         $add($history.'/manifest.json', $this->pins['history']);
         $complete = Files::json($history.'/COMPLETE.json');
@@ -44,7 +51,12 @@ final class Sources
         }
         $add($history.'/player-meetings.jsonl', $hist['files']['player-meetings.jsonl']);
         if ($context !== null) {
+            $identity = Files::identity($context.'/manifest.json');
+            if (! in_array($identity, $this->reviewedContextPins, true)) {
+                throw new RuntimeException('Unverified target context evidence.');
+            }
             $seal = Files::json($context.'/COMPLETE.json');
+            Files::same($identity, $seal, 'reviewed context completion');
             $add($context.'/manifest.json', $seal);
             $add($context.'/COMPLETE.json', Files::identity($context.'/COMPLETE.json'));
             $manifest = Files::json($context.'/manifest.json');
@@ -57,7 +69,8 @@ final class Sources
         }
 
         return ['c1' => $c1, 'history' => $history, 'context' => $context, 'seals' => $seals,
-            'expected_rows' => array_map(fn ($v) => $v['inputs']['rows'], $input['manifests'])];
+            'expected_rows' => array_map(fn ($v) => $v['inputs']['rows'], $input['manifests']),
+            'expected_targets' => array_map(fn ($v) => $v['history']['rows'], $input['manifests'])];
     }
 
     public static function verify(array $source): void

@@ -156,3 +156,27 @@ php /home/shinya/neo-keirin-artifacts/stat35-c1-input-01/run-20260929-IDHDYP/run
 内部ID/result_id/対象結果/最新プロフィールによる補完をしない。全NULLを追加効果0や性能FAILと報告しない。
 本番DB接続/書込み、Raw取得、Migration、旧生成、実学習/予測/評価、2026実レース参照は0。
 未コミットでコード/診断のレビュー待ち。commit/push/PR操作・自動次工程なし。
+
+## PR #75 接続・競合判定のレビュー修正
+
+開始HEAD `05fd969d850ddde2e80f3016647d3bccdcbb94e9`、同じPR branchで開始時clean。
+上記v1の実生成・14ファイル一致・hash・件数は当時の記録として保持し、修正後の実行結果へ読み替えない。
+今回の版は `STAT35-C1-INPUT-v2-PR75-CONTEXT-VERIFICATION`。旧C1/履歴計算・共通canonical/hash仕様は不変。
+
+- 固定C1 manifestのsealで年別`history-YYYY.jsonl`を開始/終了照合し、targetのrace_id/entry_id/bike/race_date/meeting_id/meeting_start/meeting_endだけをSQLite索引へ投影する。targetの集合・件数とC1入力を照合し、contextとの日付・開催期間不一致は値を公開しない。aggregate/cache/内部player_id/結果値を接続に使用しない。
+- contextはoriginやsource_record_idの自己申告・自己sealだけでは受理しない。保存元とfield対応を確認済みのbundleに限定するため、manifestのbytes/SHAを呼出側の固定trust anchorと照合する。既定の確認済みリストは空、CLIから追加不可。人工Fixtureだけに独立したテスト用pinを渡す。実資料の本人/class根拠未確認は未解決のまま。
+- 本人・開催・classの有効性を分離。帰属不一致・重複証拠を他出走者の本人競合へ伝播させず、不明class・不正開催を無条件にレース矛盾へ数えない。meetingは固定順scalarで比較し、objectのキー順だけを矛盾としない。本人未解決でも独立に確認できる開催/classの真の矛盾は全体ブロックする。
+- `conflicting_context`はCONTEXT_IDENTITY_CONFLICTとCONFLICTING_RACE_CONTEXTの和集合に属する出走数。両方ある出走も1件だけ。理由別null_reasonsは非排他的なまま、年別/全体/監査行を照合する。
+
+修正前の回帰19ケースは8成功/11失敗（145 assertions）。同年内の日付・開催の誤受理、自己申告証拠、
+キー順、正常行の巻き添え、競合件数漏れを検出した。修正後の同ケースを含めて検証し、旧テストの削除・緩和・skip追加はしない。
+本番DB/HTTP/Raw/Migration/学習/性能評価/2026実データ参照はなし。旧実入力・成果物は上書きせず、全NULL診断の全量再生成もしない。
+
+検証: 最初の修正後は対象72件/570 assertions、履歴・独立メモリhelperを含む関連156件/1,583親assertions、
+通常全体2,225成功/既存9skip/18,726親assertionsが成功。その後、配列型の不正開始日によるTypeErrorを
+追加回帰で検出（7件中1 error）。履歴cutoffと窓計算の境界を固定target側へ統一し、正常行の維持を確認した。
+最終PHPで対象**73件/582 assertions成功**（既存35から38ケース追加、既存の正常行assertionも強化）。
+通常`php artisan test`を最終コードで実行し、**全2,235件中2,226成功・既存PostgreSQL専用9skip・失敗/エラー0、18,738親assertions、exit0、159.637秒**。
+全体のテスト選択・順序・設定ファイルは変更なし。process限定でtesting/SQLite `:memory:`、空DB認証、存在しないconfig cacheを指定。
+既存18件の独立128M経路と高ピーク親下回帰を維持し、C1ケースは100MiB超入力/11,000レース/55,000出走に固定target索引を追加して成功。
+変更PHP6本の`php -l`・当該6本だけの`./vendor/bin/pint --test`・`git diff --check`成功。新規skip、Fixture縮小、閾値緩和なし。

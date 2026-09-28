@@ -194,19 +194,339 @@ final class AgariC1InputTest extends TestCase
             'duplicate' => $contexts[] = $contexts[0],
             'same_person' => $contexts[1]['external_player_id'] = $contexts[0]['external_player_id'],
             'meeting' => $contexts[0]['meeting']['starts_on'] = null,
+            'meeting_type' => $contexts[0]['meeting']['starts_on'] = [],
         };
-        $source = F::bundle($this->root, [$race], contexts: $contexts);
+        $source = F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts);
         $this->build($source);
         $rows = iterator_to_array(Artifacts::lines($this->root.'/out/audit-2024.jsonl'));
         $this->assertCount(5, $rows);
         $this->assertContains($reason, $rows[0]['reasons']);
         $this->assertNull($rows[0]['float']);
+        foreach (array_slice($rows, $kind === 'same_person' ? 2 : 1) as $healthy) {
+            $this->assertSame([], $healthy['reasons']);
+            $this->assertSame(0.333333333333, $healthy['float']);
+        }
+    }
+
+    #[DataProvider('targetMismatches')]
+    public function test_context_must_match_fixed_c1_target(string $field): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+        foreach ($contexts as &$context) {
+            match ($field) {
+                'race_id' => $context['race_id'] = 99,
+                'entry_id' => $context['entry_id'] += 100,
+                'bike' => $context['bike'] = 9,
+                'race_date' => $context['race_date'] = '2024-08-02',
+                'meeting_id' => $context['meeting']['meeting_id'] = 99,
+                'meeting_start' => $context['meeting']['starts_on'] = '2024-07-31',
+                'meeting_end' => $context['meeting']['ends_on'] = '2024-08-04',
+            };
+        }
+        unset($context);
+        $summary = $this->build(F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts));
+        $this->assertSame(0, $summary['totals']['connected']);
+        $this->assertSame(0, $summary['totals']['numeric']);
+        foreach (Artifacts::lines($this->root.'/out/audit-2024.jsonl') as $row) {
+            $this->assertNull($row['float']);
+            $this->assertNotEmpty($row['reasons']);
+            $this->assertSame([], $row['window']['meetings']);
+        }
+    }
+
+    public static function targetMismatches(): array
+    {
+        return array_map(fn ($v) => [$v], ['race_id', 'entry_id', 'bike', 'race_date', 'meeting_id', 'meeting_start', 'meeting_end']);
+    }
+
+    public function test_self_sealed_context_without_reviewed_evidence_is_rejected_before_publication(): void
+    {
+        F::bundle($this->root);
+        $source = new Sources(['c1' => Files::identity($this->root.'/c1/manifest.json'),
+            'history' => Files::identity($this->root.'/history/manifest.json')]);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unverified target context evidence');
+        try {
+            $this->build($source);
+        } finally {
+            $this->assertDirectoryDoesNotExist($this->root.'/out');
+        }
+    }
+
+    public function test_meeting_key_order_does_not_change_values_or_decisions(): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+        $source = F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts);
+        $summary = $this->build($source);
+        mkdir($this->root.'/reordered');
+        $contexts[0]['meeting'] = array_reverse($contexts[0]['meeting'], true);
+        $other = $this->root.'/reordered';
+        $s = F::bundle($other, [$race], $this->allPlayerMeetings(), $contexts);
+        $this->assertSame($summary, (new Builder($s))->build($other.'/c1', $other.'/history', $other.'/out', $other.'/context'));
+        $this->assertSame(Files::identity($this->root.'/out/stat35-2024.jsonl'), Files::identity($other.'/out/stat35-2024.jsonl'));
+        $this->assertSame(Files::json($this->root.'/out/invariance.json'), Files::json($other.'/out/invariance.json'));
+        $a = iterator_to_array(Artifacts::lines($this->root.'/out/audit-2024.jsonl'));
+        $b = iterator_to_array(Artifacts::lines($other.'/out/audit-2024.jsonl'));
+        $this->assertSame(array_column($a, 'reasons'), array_column($b, 'reasons'));
+    }
+
+    public function test_wrong_affiliation_cannot_create_another_entries_identity_conflict(): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+        $contexts[0]['race_id'] = 999;
+        $contexts[0]['external_player_id'] = $contexts[1]['external_player_id'];
+        $this->build(F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts));
+        $rows = iterator_to_array(Artifacts::lines($this->root.'/out/audit-2024.jsonl'));
+        $this->assertContains('CONTEXT_IDENTITY_CONFLICT', $rows[0]['reasons']);
+        foreach (array_slice($rows, 1) as $healthy) {
+            $this->assertSame([], $healthy['reasons']);
+            $this->assertSame(0.333333333333, $healthy['float']);
+        }
+    }
+
+    #[DataProvider('conflictKinds')]
+    public function test_conflict_counts_match_yearly_and_total_audit_union(string $kind): void
+    {
+        $races = [F::race(2024, 1), F::race(2025, 2)];
+        $contexts = [];
+        foreach ($races as $race) {
+            $rows = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+            if ($kind !== 'identity') {
+                $rows[0]['race_type'] = 'A級予選';
+            }
+            if ($kind !== 'race') {
+                $rows[1]['external_player_id'] = $rows[0]['external_player_id'];
+            }
+            array_push($contexts, ...$rows);
+        }
+        $summary = $this->build(F::bundle($this->root, $races, $this->allPlayerMeetings(), $contexts));
+        $expected = $kind === 'identity' ? 2 : 5;
+        foreach ([2024, 2025] as $year) {
+            $rows = iterator_to_array(Artifacts::lines($this->root.'/out/audit-'.$year.'.jsonl'));
+            $conflicts = array_filter($rows, fn ($r) => array_intersect($r['reasons'], ['CONTEXT_IDENTITY_CONFLICT', 'CONFLICTING_RACE_CONTEXT']) !== []);
+            $this->assertCount($expected, $conflicts);
+            $this->assertSame(count($conflicts), $summary['years'][$year]['conflicting_context']);
+            foreach ($conflicts as $row) {
+                $this->assertNull($row['float']);
+            }
+            $this->assertSame($kind === 'identity' ? 0 : 5, $summary['years'][$year]['null_reasons']['CONFLICTING_RACE_CONTEXT'] ?? 0);
+            $this->assertSame($kind === 'race' ? 0 : 2, $summary['years'][$year]['null_reasons']['CONTEXT_IDENTITY_CONFLICT'] ?? 0);
+        }
+        $this->assertSame(2 * $expected, $summary['totals']['conflicting_context']);
+    }
+
+    public static function conflictKinds(): array
+    {
+        return [['identity'], ['race'], ['both']];
+    }
+
+    #[DataProvider('meetingFields')]
+    public function test_single_target_mismatch_does_not_poison_valid_peers(string $field): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+        if ($field === 'race_date') {
+            $contexts[0][$field] = '2024-08-02';
+        } else {
+            $contexts[0]['meeting'][$field] = match ($field) {
+                'meeting_id' => 999,
+                'starts_on' => '2024-07-31',
+                'ends_on' => '2024-08-04',
+            };
+        }
+        $contexts[0]['external_player_id'] = $contexts[1]['external_player_id'];
+        $contexts[0]['race_type'] = 'A級予選';
+        $summary = $this->build(F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts));
+        $this->assertSame(4, $summary['totals']['numeric']);
+        $rows = iterator_to_array(Artifacts::lines($this->root.'/out/audit-2024.jsonl'));
+        $this->assertContains('CONTEXT_TARGET_MISMATCH', $rows[0]['reasons']);
+        $this->assertNull($rows[0]['float']);
+        $this->assertSame([], $rows[0]['window']['meetings']);
+        foreach (array_slice($rows, 1) as $healthy) {
+            $this->assertSame([], $healthy['reasons']);
+            $this->assertSame(0.333333333333, $healthy['float']);
+        }
+    }
+
+    public static function meetingFields(): array
+    {
+        return [['race_date'], ['meeting_id'], ['starts_on'], ['ends_on']];
+    }
+
+    #[DataProvider('meetingFields')]
+    public function test_true_meeting_conflict_between_individually_verified_targets_blocks_race(string $field): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+        $target = F::target($race, $race['entries'][0]);
+        if ($field === 'race_date') {
+            $contexts[0][$field] = $target[$field] = '2024-08-02';
+        } else {
+            $targetField = ['meeting_id' => 'meeting_id', 'starts_on' => 'meeting_start', 'ends_on' => 'meeting_end'][$field];
+            $contexts[0]['meeting'][$field] = $target[$targetField] = match ($field) {
+                'meeting_id' => 999,
+                'starts_on' => '2024-07-31',
+                'ends_on' => '2024-08-04',
+            };
+        }
+        $source = F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts, [11 => $target]);
+        $summary = $this->build($source);
+        $this->assertSame(5, $summary['totals']['conflicting_context']);
+        foreach (Artifacts::lines($this->root.'/out/audit-2024.jsonl') as $row) {
+            $this->assertTrue($row['context']['validity']['meeting']);
+            $this->assertSame(['CONFLICTING_RACE_CONTEXT'], $row['reasons']);
+            $this->assertNull($row['float']);
+        }
+    }
+
+    public function test_unresolved_person_does_not_hide_verified_class_conflict(): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+        $contexts[0]['external_player_id'] = null;
+        $contexts[0]['race_type'] = 'A級予選';
+        $summary = $this->build(F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts));
+        $this->assertSame(5, $summary['totals']['conflicting_context']);
+        $this->assertSame(0, $summary['totals']['numeric']);
+        $rows = iterator_to_array(Artifacts::lines($this->root.'/out/audit-2024.jsonl'));
+        $this->assertFalse($rows[0]['context']['validity']['identity']);
+        $this->assertTrue($rows[0]['context']['validity']['class']);
+        $this->assertContains('CONFLICTING_RACE_CONTEXT', $rows[1]['reasons']);
+    }
+
+    public function test_reordered_identical_duplicate_is_not_an_identity_conflict(): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($e) => F::context($race, $e), $race['entries']);
+        $copy = array_reverse($contexts[0], true);
+        $copy['meeting'] = array_reverse($copy['meeting'], true);
+        $contexts[] = $copy;
+        $summary = $this->build(F::bundle($this->root, [$race], $this->allPlayerMeetings(), $contexts));
+        $this->assertSame(1, $summary['totals']['duplicate_context']);
+        $this->assertSame(0, $summary['totals']['conflicting_context']);
+        $this->assertSame(4, $summary['totals']['numeric']);
+        $rows = iterator_to_array(Artifacts::lines($this->root.'/out/audit-2024.jsonl'));
+        $this->assertSame(['DUPLICATE_CONTEXT'], $rows[0]['reasons']);
+    }
+
+    #[DataProvider('evidenceFields')]
+    public function test_resealing_identity_and_class_changes_cannot_bypass_reviewed_pin(string $field, string $value): void
+    {
+        $source = F::bundle($this->root);
+        $file = $this->root.'/context/entry-context.jsonl';
+        $rows = iterator_to_array(Artifacts::lines($file));
+        $rows[0][$field] = $value;
+        file_put_contents($file, implode('', array_map(fn ($r) => Files::canonical($r)."\n", $rows)));
+        $manifest = Files::json($this->root.'/context/manifest.json');
+        $manifest['files']['entry-context.jsonl'] = Files::identity($file);
+        file_put_contents($this->root.'/context/manifest.json', Files::canonical($manifest)."\n");
+        file_put_contents($this->root.'/context/COMPLETE.json', Files::canonical(Files::identity($this->root.'/context/manifest.json'))."\n");
+        $this->expectExceptionMessage('Unverified target context evidence');
+        try {
+            $this->build($source);
+        } finally {
+            $this->assertDirectoryDoesNotExist($this->root.'/out');
+        }
+    }
+
+    public static function evidenceFields(): array
+    {
+        return [['external_player_id', '999999'], ['race_type', 'A級予選'], ['source_record_id', 'self-declared-record']];
+    }
+
+    public function test_fixed_target_file_tamper_is_rejected_at_open_and_end(): void
+    {
+        $source = F::bundle($this->root);
+        $opened = $source->open($this->root.'/c1', $this->root.'/history', $this->root.'/context');
+        $path = $this->root.'/c1/history-2024.jsonl';
+        file_put_contents($path, str_replace('2024-08-01', '2024-08-02', file_get_contents($path)));
+        foreach (['open', 'end'] as $phase) {
+            try {
+                $phase === 'open' ? $this->build($source) : Sources::verify($opened);
+                $this->fail('Fixed target drift accepted at '.$phase);
+            } catch (RuntimeException) {
+                $this->assertDirectoryDoesNotExist($this->root.'/out');
+            }
+        }
+    }
+
+    #[DataProvider('badTargetSources')]
+    public function test_fixed_target_source_must_cover_c1_exactly(string $case): void
+    {
+        F::bundle($this->root, [F::race()]);
+        $file = $this->root.'/c1/history-2024.jsonl';
+        $rows = iterator_to_array(Artifacts::lines($file));
+        match ($case) {
+            'race' => $rows[0]['target']['race_id'] = 999,
+            'entry' => $rows[0]['target']['entry_id'] = 999,
+            'bike' => $rows[0]['target']['bike'] = 9,
+            'year' => $rows[0]['target']['race_date'] = '2023-08-01',
+            'missing_field' => $rows[0]['target'] = array_diff_key($rows[0]['target'], ['meeting_end' => true]),
+            'extra' => $rows[] = array_replace($rows[0], ['target' => array_replace($rows[0]['target'], ['entry_id' => 999])]),
+            'duplicate' => $rows[] = $rows[0],
+            'missing' => array_pop($rows),
+            'count' => null,
+        };
+        file_put_contents($file, implode('', array_map(fn ($r) => Files::canonical($r)."\n", $rows)));
+        $manifest = Files::json($this->root.'/c1/manifest.json');
+        $manifest['manifests'][2024]['history'] = ['rows' => count($rows) + (int) ($case === 'count'), ...Files::identity($file)];
+        file_put_contents($this->root.'/c1/manifest.json', Files::canonical($manifest)."\n");
+        $this->expectException(RuntimeException::class);
+        try {
+            $this->build(F::sources($this->root));
+        } finally {
+            $this->assertFileDoesNotExist($this->root.'/out/COMPLETE.json');
+            $this->assertFileDoesNotExist($this->root.'/out/DIAGNOSTIC.json');
+            $this->assertFileExists($this->root.'/out/FAILED.json');
+        }
+    }
+
+    public static function badTargetSources(): array
+    {
+        return array_map(fn ($v) => [$v], ['race', 'entry', 'bike', 'year', 'missing_field', 'extra', 'duplicate', 'missing', 'count']);
+    }
+
+    public function test_non_target_history_values_are_not_used_for_connection_or_extra_input(): void
+    {
+        $source = F::bundle($this->root);
+        $this->build($source);
+        foreach (Contract::YEARS as $year) {
+            $file = $this->root.'/c1/history-'.$year.'.jsonl';
+            $rows = iterator_to_array(Artifacts::lines($file));
+            foreach ($rows as &$row) {
+                $row['aggregate'] = ['values' => [null, null, null, null], 'status' => 'UNTRUSTED', 'rank' => 99];
+                $row['cache_key'] = 'not-an-identity-source';
+                $row['source_sha256'] = 'ignored';
+                $row['target']['player_id'] = 999999;
+                $row['target']['input_as_of'] = null;
+            }
+            unset($row);
+            file_put_contents($file, implode('', array_map(fn ($r) => Files::canonical($r)."\n", $rows)));
+        }
+        $manifest = Files::json($this->root.'/c1/manifest.json');
+        foreach (Contract::YEARS as $year) {
+            $manifest['manifests'][$year]['history'] = ['rows' => 5, ...Files::identity($this->root.'/c1/history-'.$year.'.jsonl')];
+        }
+        file_put_contents($this->root.'/c1/manifest.json', Files::canonical($manifest)."\n");
+        (new Builder(F::sources($this->root)))->build($this->root.'/c1', $this->root.'/history', $this->root.'/changed', $this->root.'/context');
+        foreach (Contract::YEARS as $year) {
+            $this->assertSame(Files::identity($this->root.'/out/stat35-'.$year.'.jsonl'), Files::identity($this->root.'/changed/stat35-'.$year.'.jsonl'));
+            $a = iterator_to_array(Artifacts::lines($this->root.'/out/audit-'.$year.'.jsonl'));
+            $b = iterator_to_array(Artifacts::lines($this->root.'/changed/audit-'.$year.'.jsonl'));
+            $this->assertSame(array_column($a, 'context'), array_column($b, 'context'));
+            $this->assertSame(['race_id', 'entry_id', 'bike', 'race_date', 'meeting_id', 'meeting_start', 'meeting_end'], array_keys($b[0]['context']['target']));
+        }
+        $this->assertSame(Files::json($this->root.'/out/invariance.json'), Files::json($this->root.'/changed/invariance.json'));
     }
 
     public static function badContexts(): array
     {
         return [['external', 'UNRESOLVED_EXTERNAL_ID'], ['class', 'UNKNOWN_RACE_CLASS'], ['bike', 'CONTEXT_IDENTITY_CONFLICT'],
-            ['duplicate', 'DUPLICATE_CONTEXT'], ['same_person', 'CONTEXT_IDENTITY_CONFLICT'], ['meeting', 'INVALID_MEETING_CONTEXT']];
+            ['duplicate', 'DUPLICATE_CONTEXT'], ['same_person', 'CONTEXT_IDENTITY_CONFLICT'], ['meeting', 'INVALID_MEETING_CONTEXT'],
+            ['meeting_type', 'INVALID_MEETING_CONTEXT']];
     }
 
     public function test_missing_evidence_and_empty_input_are_diagnostics_not_success(): void
@@ -359,6 +679,16 @@ final class AgariC1InputTest extends TestCase
         $seal = Artifacts::write($this->root.'/c1', 'inputs-2022.jsonl', $rows());
         $m = Files::json($this->root.'/c1/manifest.json');
         $m['manifests'][2022]['inputs'] = ['rows' => 11000, ...$seal];
+        unlink($this->root.'/c1/history-2022.jsonl');
+        $targets = function () {
+            for ($i = 1; $i <= 11000; $i++) {
+                $race = F::race(2022, $i);
+                foreach ($race['entries'] as $entry) {
+                    yield Files::canonical(['target' => F::target($race, $entry)])."\n";
+                }
+            }
+        };
+        $m['manifests'][2022]['history'] = ['rows' => 55000, ...Artifacts::write($this->root.'/c1', 'history-2022.jsonl', $targets())];
         file_put_contents($this->root.'/c1/manifest.json', Files::canonical($m)."\n");
         $source = new Sources(['c1' => Files::identity($this->root.'/c1/manifest.json'), 'history' => Files::identity($this->root.'/history/manifest.json')]);
         $this->assertGreaterThan(100 * 1024 * 1024, $seal['bytes']);
@@ -373,5 +703,10 @@ final class AgariC1InputTest extends TestCase
     private function build(Sources $source): array
     {
         return (new Builder($source))->build($this->root.'/c1', $this->root.'/history', $this->root.'/out', $this->root.'/context');
+    }
+
+    private function allPlayerMeetings(): array
+    {
+        return array_map(fn ($i) => F::meeting(external: sprintf('%06d', $i)), range(1, 5));
     }
 }

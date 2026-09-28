@@ -14,7 +14,7 @@ use RuntimeException;
 
 final class Contract
 {
-    public const VERSION = 'STAT35-C1-INPUT-v1';
+    public const VERSION = 'STAT35-C1-INPUT-v2-PR75-CONTEXT-VERIFICATION';
 
     public const C1_VERSION = 'TACTICAL-HISTORY-01-120D-PRE-MEETING-v2';
 

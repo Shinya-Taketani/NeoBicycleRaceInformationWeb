@@ -48,7 +48,16 @@ final class AgariC1InputFixture
             'meeting_percentile_mean' => $value === null ? null : Exact::value(BigRational::of($value))];
     }
 
-    public static function bundle(string $root, ?array $races = null, ?array $meetings = null, ?array $contexts = null): Sources
+    public static function target(array $race, array $entry): array
+    {
+        $c = self::context($race, $entry);
+
+        return ['race_id' => $c['race_id'], 'race_date' => $c['race_date'], 'meeting_id' => $c['meeting']['meeting_id'],
+            'meeting_start' => $c['meeting']['starts_on'], 'meeting_end' => $c['meeting']['ends_on'],
+            'entry_id' => $c['entry_id'], 'bike' => $c['bike'], 'player_id' => null, 'input_as_of' => null, 'feature_input_hash' => 'synthetic'];
+    }
+
+    public static function bundle(string $root, ?array $races = null, ?array $meetings = null, ?array $contexts = null, array $targets = []): Sources
     {
         foreach (['c1', 'history', 'context'] as $dir) {
             mkdir($root.'/'.$dir, 0700);
@@ -59,6 +68,14 @@ final class AgariC1InputFixture
             $rows = array_values(array_filter($races, fn ($r) => $r['year'] === $year));
             $years[$year] = ['inputs' => ['rows' => count($rows), ...Artifacts::write($root.'/c1', 'inputs-'.$year.'.jsonl',
                 array_map(fn ($r) => Files::canonical($r)."\n", $rows))]];
+            $history = [];
+            foreach ($rows as $r) {
+                foreach ($r['entries'] as $entry) {
+                    $history[] = Files::canonical(['target' => $targets[$entry['id']] ?? self::target($r, $entry),
+                        'cache_key' => null, 'source_sha256' => null, 'aggregate' => ['values' => [9, 8, 7, 6]]])."\n";
+                }
+            }
+            $years[$year]['history'] = ['rows' => count($history), ...Artifacts::write($root.'/c1', 'history-'.$year.'.jsonl', $history)];
         }
         Artifacts::json($root.'/c1', 'manifest.json', ['calculation_version' => Contract::C1_VERSION, 'manifests' => $years]);
         $seal = Artifacts::write($root.'/history', 'player-meetings.jsonl', array_map(fn ($r) => Files::canonical($r)."\n", $meetings ?? [self::meeting()]));
@@ -77,6 +94,13 @@ final class AgariC1InputFixture
         Artifacts::publish($root.'/context', ['version' => Contract::CONTEXT_VERSION, 'origin' => 'SAVED_ENTRY_AND_MEETING_METADATA',
             'historical_as_of_available' => false, 'files' => ['entry-context.jsonl' => $seal]]);
 
-        return new Sources(['c1' => Files::identity($root.'/c1/manifest.json'), 'history' => Files::identity($root.'/history/manifest.json')]);
+        return self::sources($root);
+    }
+
+    public static function sources(string $root): Sources
+    {
+        // Test-only trust anchor for explicitly constructed synthetic evidence, never runtime discovery.
+        return new Sources(['c1' => Files::identity($root.'/c1/manifest.json'), 'history' => Files::identity($root.'/history/manifest.json')],
+            [Files::identity($root.'/context/manifest.json')]);
     }
 }

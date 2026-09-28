@@ -49,26 +49,30 @@ final class Builder
                     $raceInsert->execute([$race['race_id']]);
                     $input->row($race);
                     hash_update($nonResult, Files::canonical($race)."\n");
-                    $contexts = $external = $raceContexts = [];
+                    $contexts = $external = $raceMeetings = $raceClasses = [];
                     foreach ($race['entries'] as $entry) {
                         $entryInsert->execute([$entry['id']]);
                         $ctx = $index->context($race, $entry);
                         $contexts[] = $ctx;
-                        if ($ctx['evidence'] !== null) {
-                            $raceContexts[Files::canonical([$ctx['evidence']['meeting'], $ctx['evidence']['race_date'], $ctx['class']])] = true;
+                        if ($ctx['validity']['meeting']) {
+                            $m = $ctx['evidence']['meeting'];
+                            $raceMeetings[Files::canonical([$m['meeting_id'], $m['starts_on'], $m['ends_on'], $ctx['evidence']['race_date']])] = true;
+                        }
+                        if ($ctx['validity']['class']) {
+                            $raceClasses[$ctx['class']] = true;
                         }
                         $id = $ctx['evidence']['external_player_id'] ?? null;
-                        if (Index::external($id)) {
+                        if ($ctx['validity']['identity']) {
                             $external[$id] = ($external[$id] ?? 0) + 1;
                         }
                     }
                     $extra = [];
                     foreach ($race['entries'] as $i => $entry) {
                         $ctx = $contexts[$i];
-                        if (count($raceContexts) > 1) {
+                        if (count($raceMeetings) > 1 || count($raceClasses) > 1) {
                             $ctx['reasons'][] = 'CONFLICTING_RACE_CONTEXT';
                         }
-                        if (($external[$ctx['evidence']['external_player_id'] ?? ''] ?? 0) > 1) {
+                        if ($ctx['validity']['identity'] && ($external[$ctx['evidence']['external_player_id']] ?? 0) > 1) {
                             $ctx['reasons'][] = 'CONTEXT_IDENTITY_CONFLICT';
                         }
                         $ctx['reasons'] = array_values(array_unique($ctx['reasons']));
@@ -78,7 +82,7 @@ final class Builder
                         $counts['entries']++;
                         $counts[$ctx['reasons'] === [] ? 'connected' : 'unmatched']++;
                         $counts['duplicate_context'] += (int) in_array('DUPLICATE_CONTEXT', $ctx['reasons'], true);
-                        $counts['conflicting_context'] += (int) in_array('CONTEXT_IDENTITY_CONFLICT', $ctx['reasons'], true);
+                        $counts['conflicting_context'] += (int) (array_intersect(['CONTEXT_IDENTITY_CONFLICT', 'CONFLICTING_RACE_CONTEXT'], $ctx['reasons']) !== []);
                         $counts[$result['value'] === null ? 'null' : 'numeric']++;
                         foreach ($result['reasons'] as $reason) {
                             $counts['null_reasons'][$reason] = ($counts['null_reasons'][$reason] ?? 0) + 1;
@@ -90,6 +94,8 @@ final class Builder
                             'context' => $ctx, 'context_source' => $context === null ? null : [
                                 'path' => $context.'/entry-context.jsonl', 'seal' => $source['seals'][$context.'/entry-context.jsonl'],
                                 'fields' => ['external_player_id', 'meeting', 'race_type', 'observed_at', 'source_record_id']],
+                            'target_source' => ['path' => $c1.'/history-'.$year.'.jsonl',
+                                'seal' => $source['seals'][$c1.'/history-'.$year.'.jsonl'], 'fields' => array_keys($ctx['target'])],
                             'timing' => 'HISTORICAL_PUBLICATION_NOT_GUARANTEED', 'reasons' => $result['reasons'],
                             'window' => $result['window'], 'float' => $result['value']]);
                     }
@@ -101,6 +107,9 @@ final class Builder
                 $index->db->commit();
                 if ($counts['races'] !== $source['expected_rows'][$year]) {
                     throw new RuntimeException('C1 manifest row count mismatch.');
+                }
+                if ($counts['entries'] !== $source['expected_targets'][$year]) {
+                    throw new RuntimeException('C1 target/input entry count mismatch.');
                 }
                 $files['c1-'.$year.'.jsonl'] = $input->finish();
                 $files['stat35-'.$year.'.jsonl'] = $sidecar->finish();
