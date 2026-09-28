@@ -1,5 +1,10 @@
 # STAT-35-PLAYER-HISTORY-01
 
+現在状態注記（2026-09-28）: PR #73はMERGED。実装マージと過去の記述統計生成/再現成功を引き継ぐ。
+全成果物受入の明示的な判定記録は未確認であり、予測利用の承認ではない。
+以下の初回/修正時の未マージ・未コミット・レビュー待ちは当時の記録。数値・生成時code identity・hash・試験結果は変更しない。
+現在の許可は[次用途仕様案](stat35-next-use-design-01.md)のdocs-only作成とレビューのみ。現行disclosureは維持する。
+
 Version: `STAT35-PLAYER-HISTORY-v1`. Start main: `baac9c113d8a61061d7e5f8bd2b7cd391d091c54`.
 PR #72 is merged and reviewed by the current user instruction. Previous relative-generation and memory-test records remain unchanged.
 
@@ -235,3 +240,20 @@ No old code hashes were copied over the new identities. The old data, manifest, 
 No production DB connection/write, export or upstream relative rebuild, Raw/HTTP, migration/backfill/backup, training/evaluation or
 2026 real-race access. The frozen descriptive restrictions above, C1 and incomplete STAT-35/37 remain unchanged.
 Only re-review is next; no fetch/add/commit/push/PR operation/merge or automatic next phase.
+
+## マージ後の工程同期 / 2026-09-28
+
+[PR #73](https://github.com/Shinya-Taketani/NeoBicycleRaceInformationWeb/pull/73)のGitHub状態MERGED、
+head `3a18de5bb08dd7f83cd8e35b176ce58dc7e49893`、merge/main `f0834202fcac19919bfa4b8dce0ef9043a457a0a`、
+merged_at `2026-09-27T21:33:48Z`（2026-09-28 06:33:48 JST）を確認した。
+取得したreviewsは旧headへのCOMMENTEDで、reviewDecisionは空。現headの明示的APPROVEDや全成果物受入の
+**判定記録未確認**を、修正未完了・実行失敗とは区別する。上記の修正・人工試験・固定入力生成/再現の成功記録を維持する。
+今回それらを再レビュー・再実行・再ハッシュしておらず、2,152成功/9skip等を今回の結果として報告しない。
+
+ユーザーの今回限定指示に基づき、現在工程をSTAT-35-NEXT-USE-DESIGN-01へ進める。
+[仕様案](stat35-next-use-design-01.md)はDRAFT_AWAITING_REVIEWであり、既存C1を維持した将来development比較の案に限る。
+結果行ベースの本人/文脈を固定C1出走集合へ接続する根拠、窓/統計量の部分集合、欠損・数値変換・比較Gateは未承認。
+モデル入力への直接転用・窓最適化・実装・DB接続・2026利用を許可しない。
+元のSTAT35-PLAYER-HISTORY-v1、FINAL_RESULT_DESCRIPTIVE_ONLY、EVENT_DATE_BACKFILLED_FINAL_RESULTS、
+historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=nullをそのまま維持する。
+工程正本は[MASTER PLAN](statistical-engine-master-plan.md) v1.37。次は仕様案と対象範囲表の文書レビューだけ。
