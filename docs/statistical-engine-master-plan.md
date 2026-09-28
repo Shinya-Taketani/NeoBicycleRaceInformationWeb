@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.37
+- Version: 1.38
 - Created: 2026-08-23
-- Updated: 2026-09-28
+- Updated: 2026-09-29
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `f0834202fcac19919bfa4b8dce0ef9043a457a0a`
-- Current review: STAT-35-NEXT-USE-DESIGN-01 / `DRAFT_AWAITING_REVIEW`。PR #73はMERGED、全成果物受入の明示的判定記録は未確認
-- Current code: `PR73_IDENTITY_SCOPE_FIX_MERGED`（行の本人識別と開催全体の対応条件を分離、今回コード変更なし）
-- Prior execution record: 修正版生成/再現各1回、新旧4データファイル不変・修正版6成果物完全一致。今回再実行なし
-- Prior tests record: `ISOLATED_MEMORY_CHECKS_AND_ARTISAN_FULL_SUITE_PASS`（既存17件維持、通常全体2,152成功・既存9skip・18,129親assertions）。今回未実行（文書変更のみ）
+- Remote `main` at last update: `029309f2cb0434348a53cd30b74d0419d2f8b6d2`
+- Current review: STAT-35-C1-INPUT-01 / `CODE_VERIFIED_MAPPING_BLOCKED_DIAGNOSTIC_REPRODUCED_AWAITING_REVIEW`。PR #74は設計案保存としてMERGED、今回許可は入力準備だけ
+- Current code: 独立Source Projector/Validator・本人/開催/class adapter・6開催mean sidecarを追加。旧C1/STAT35計算は不変
+- Current execution record: 99,669レース/706,051出走を保持。本人接続証拠不足で追加値全NULL、診断生成/再現各1回・14ファイルとmanifest一致。利用可能な入力生成成功ではない
+- Current tests record: 関連119成功/1,136 assertions、通常全体2,188成功/既存9skip/18,279親assertions、独立128M18件（既存17保持）。旧工程の記録は15.45に保持
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,12 +171,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_NEXT_USE_DESIGN_DOCUMENTED_AWAITING_REVIEW
+current_engine_state: STAT35_C1_INPUT_CODE_VERIFIED_MAPPING_BLOCKED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_NEXT_USE_DESIGN_AND_SCOPE
+next_allowed_action: REVIEW_STAT35_C1_INPUT_CODE_AND_MISSING_CONTEXT_EVIDENCE
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-NEXT-USE-DESIGN-01
-remote_main: f0834202fcac19919bfa4b8dce0ef9043a457a0a
+current_phase: STAT-35-C1-INPUT-01
+remote_main: 029309f2cb0434348a53cd30b74d0419d2f8b6d2
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -187,11 +187,19 @@ pr70_status: MERGED_REVIEW_COMPLETED
 pr71_status: MERGED_REVIEW_COMPLETED
 pr72_status: MERGED_REVIEW_COMPLETED
 pr73_status: MERGED
+pr74_status: MERGED_DESIGN_DOCUMENTATION
 pr73_head: 3a18de5bb08dd7f83cd8e35b176ce58dc7e49893
 pr73_merged_at: '2026-09-27T21:33:48Z'
 pr73_artifact_acceptance_record: 判定記録未確認
-stat35_next_use_design_01: DRAFT_AWAITING_REVIEW
-stat35_next_use_design_01_scope: DOCS_ONLY_NO_IMPLEMENTATION_OR_EXECUTION_AUTHORIZATION
+stat35_next_use_design_01: MERGED_DESIGN_DRAFT_INPUT_SCOPE_ADOPTED_ONLY
+stat35_next_use_design_01_scope: ORIGINAL_DRAFT_PRESERVED_INPUT_PREPARATION_ONLY_NOW_AUTHORIZED
+stat35_c1_input_01: CODE_VERIFIED_MAPPING_BLOCKED_DIAGNOSTIC_REPRODUCED_AWAITING_REVIEW
+stat35_c1_input_01_subset: MEAN6_PARTIAL_WINDOW_RATIONAL_DECIMAL12_HALF_EVEN_FLOAT_SIDECAR
+stat35_c1_input_01_counts: RACES_99669_ENTRIES_706051_CONNECTED_0_NUMERIC_0_NULL_706051
+stat35_c1_input_01_reason: MISSING_IDENTITY_CONTEXT_EVIDENCE
+stat35_c1_input_01_input_ready: false
+stat35_c1_input_01_performance: NOT_EVALUATED
+stat35_c1_input_01_production_access: 0
 stat35_player_history_01_code: PR73_IDENTITY_SCOPE_FIX_MERGED
 stat35_player_history_01_execution: DESCRIPTIVE_PLAYER_HISTORY_GENERATED_REPRODUCED_PRIOR_RECORD_PRESERVED
 stat35_player_history_01_prior_review_state: PR73_IDENTITY_SCOPE_FIX_VERIFIED_AWAITING_REVIEW
@@ -690,7 +698,8 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-37-TRACK-CONTEXT-02 | 公式資料一巡・v2出典/期間追加・offline coverage比較 | REVIEW_COMPLETED_PR71_MERGED | 部分的拡充のレビュー完了。42場89観測版、距離14/10,660（+11）、期間不明10,646・競合/後退0という前工程記録を維持。歴史網羅未完了 |
 | STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | MERGED_REVIEW_COMPLETED_PR72 | 101,326レース/716,837行、5成果物一致と16件独立128M修正のレビュー完了。旧失敗・成功は15.44へ保持。実export/旧build再実行なし |
 | STAT-35-PLAYER-HISTORY-01 | 選手×開催×classの相対値履歴・3/6/12開催窓 | PR73_IDENTITY_SCOPE_FIX_MERGED / PRIOR_DESCRIPTIVE_GENERATION_REPRODUCED | PR #73 MERGED。修正版生成/再現成功、新旧4データ不変・新6成果物一致等は15.45の過去記録。全成果物受入の判定記録未確認。窓最適化・予測利用未許可 |
-| STAT-35-NEXT-USE-DESIGN-01 | 工程同期・C1追加効果の次用途仕様案・46 STAT/6エンジン索引 | STAT35_NEXT_USE_DESIGN_DOCUMENTED_AWAITING_REVIEW | DRAFT_AWAITING_REVIEW。文書だけ。実装/学習/評価/DB/2026未許可、次は仕様案と範囲のレビュー |
+| STAT-35-NEXT-USE-DESIGN-01 | 工程同期・C1追加効果の次用途仕様案・46 STAT/6エンジン索引 | MERGED_DESIGN_DRAFT_INPUT_SCOPE_ADOPTED_ONLY | PR74で設計案保存完了。今回の入力準備だけ別途許可、比較案/Gate/学習/評価/DB/2026は未承認 |
+| STAT-35-C1-INPUT-01 | 固定C1への6観測開催mean入力準備 | CODE_VERIFIED_MAPPING_BLOCKED_DIAGNOSTIC_REPRODUCED_AWAITING_REVIEW | PR74マージ後の限定入力準備。全706,051出走を維持、本人証拠不足で全NULL。学習/比較Gate/2026/LIVE未許可 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -2954,6 +2963,43 @@ EVENT_DATE_BACKFILLED_FINAL_RESULTS、historical_as_of_available=false、points=
 
 ---
 
+## 15.47 STAT-35-C1-INPUT-01 / 2026-09-29
+
+PR #74のマージ済み設計案を保持し、最新指示で今回の独立入力実装・人工試験・保存資料による生成/再現のみ許可。
+clean main/origin `029309f2cb0434348a53cd30b74d0419d2f8b6d2`から`feature/stat35-c1-input-01`を作成。
+旧C1 solver/モデル/Loader、旧AgariPlayerHistory、DB/Raw/2026/正式成果物は変更しない。
+
+[実装記録](stat35-c1-input-01.md): 既知2022/2023 trainingのlabels/rank/statusを非利用で隔離し、
+outcome-free C1＋mean6 sidecarを別版保存。本人/開催/class証拠、NULL観測枠、部分窓、厳密過去境界、窓外重複、
+分数→12桁HalfEven→floatを監査。対象結果/内部IDだけの本人fallbackは使わない。
+2024/2025評価labelsは未参照。2022/2023原本の結果列同居ファイルは物理的に読んだが、分類/接続/計算には使用しない。
+
+人工35件を含む関連119成功/1,136親assertions。通常`php artisan test`を最終PHPで1回実行:
+全2,197件中2,188成功、既存PostgreSQL専用9skip、失敗0、18,279親assertions。Pint限定/変更PHP11本構文成功。
+独立128M登録は18件、既存17件を維持。新規100MiB超・11,000レース/55,000出走の子はpeak44,564,480 bytes。
+
+固定資料を各1回生成・独立再現し、exit0、18.687463/19.187037秒、両peak31,457,280 bytes。
+99,669レース/706,051出走を保持したが、対象entryの観測外部IDとclassを裏付ける結果非依存資料が未確認。
+接続0・有効追加値0、全NULLの理由MISSING_IDENTITY_CONTEXT_EVIDENCE。EMPTYや性能FAILとは別の診断で、
+DIAGNOSTIC.jsonのみを作成。未提供資料中の重複/矛盾が0と確認できたわけではない。
+14データ/監査ファイルとmanifest一致、C1集合/順序/型/非結果値不変。旧history生成・学習・予測・評価は再実行なし。
+
+証跡: `/home/shinya/neo-keirin-artifacts/stat35-c1-input-01/run-20260929-IDHDYP/`。
+manifest SHA `0e68d6adbcddc03fa8ab7b10904f2e0388cec32cc88a0ebe89a20db274f4dd71`。
+次はコードと不足証拠のレビューだけ。DB再取得/対象結果fallback/学習/性能評価/2026/LIVEへ進まない。
+historical_as_of_available=false、C1固定、旧pilot保留とE08不採用、STAT35/37全体未完を維持。
+
+### PR #75 接続・競合判定レビュー修正
+
+同じPR branch、開始HEAD `05fd969d850ddde2e80f3016647d3bccdcbb94e9` で限定修正。
+固定C1 history.targetのseal/7項目対応、確認済みcontext manifest pin、本人/開催/class別の有効性、
+キー順非依存比較、本人競合とレース文脈競合の出走単位和集合を検証する。版は `STAT35-C1-INPUT-v2-PR75-CONTEXT-VERIFICATION`。
+実本人/class証拠の確認済みリストは空で未接続を維持。人工検証だけを行い、上記14ファイル一致・実行hashは旧v1の記録。
+実生成/全NULL再現、本番DB/HTTP/Migration/学習/評価/2026参照は行わない。詳細・テスト結果は[実装記録](stat35-c1-input-01.md)のPR #75節。
+これは同じPRのレビュー修正であり、新しい設計・実行許可ではない。旧成果物を保持し未コミットで再レビューを待つ。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3255,6 +3301,7 @@ run 6は正式完了済み。
 | #71 | STAT-35/37 track context v2・部分的歴史構造拡充 | MERGED / レビュー完了 |
 | #72 | STAT-35 race-relative・レビュー修正・hermetic memory completion | MERGED_REVIEW_COMPLETED |
 | #73 | STAT-35 player-history・本人識別scopeレビュー修正 | MERGED / head 3a18de5bb08dd7f83cd8e35b176ce58dc7e49893 / merge f0834202fcac19919bfa4b8dce0ef9043a457a0a / 2026-09-28 06:33:48 JST。全成果物受入の判定記録未確認 |
+| #74 | STAT-35 next-use設計案・工程同期 | MERGED / merge 029309f2cb0434348a53cd30b74d0419d2f8b6d2。設計案保存の完了であり学習/Gate/2026の承認ではない |
 
 Current remote `main` at the v1.2 update:
 
@@ -3364,6 +3411,24 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.38 / 2026-09-29
+
+```yaml
+document_version: 1.38
+updated_at: 2026-09-29
+remote_main_sha: 029309f2cb0434348a53cd30b74d0419d2f8b6d2
+phase_changed: STAT-35-C1-INPUT-01
+related_pr: PR74_MERGED_DESIGN_DOCUMENTATION
+related_run: stat35-c1-input-01/run-20260929-IDHDYP
+decision: CODE_VERIFIED_MAPPING_BLOCKED_DIAGNOSTIC_REPRODUCED_AWAITING_REVIEW
+reason: User authorized input preparation; saved target identity evidence remains missing
+next: REVIEW_STAT35_C1_INPUT_CODE_AND_MISSING_CONTEXT_EVIDENCE
+```
+
+15.47の実績に合わせmetadata/現在地/工程表/引継ぎを同期。旧案の比較Gateやモデル利用まで承認済みにしない。
+新入力コード・人工検証は完成、実データ接続は未成立、全対象保持の診断生成/再現は完了、性能は未評価。
+過去文書/数値/状態/manifestを当時の記録として維持し、本番接続・既存成果物変更・2026参照は行わない。
 
 ## v1.37 / 2026-09-28
 
@@ -3927,9 +3992,11 @@ Remote `main`:
 
 ```text
 Current:
-Phase = STAT-35-NEXT-USE-DESIGN-01 / STAT35_NEXT_USE_DESIGN_DOCUMENTED_AWAITING_REVIEW
-Current main = f0834202fcac19919bfa4b8dce0ef9043a457a0a
-Draft = docs/stat35-next-use-design-01.md / DRAFT_AWAITING_REVIEW / DOCS_ONLY
+Phase = STAT-35-C1-INPUT-01 / CODE_VERIFIED_MAPPING_BLOCKED_DIAGNOSTIC_REPRODUCED_AWAITING_REVIEW
+Current main = 029309f2cb0434348a53cd30b74d0419d2f8b6d2 / PR74_MERGED
+Draft = docs/stat35-next-use-design-01.md / ORIGINAL_DRAFT_PRESERVED / INPUT_PREPARATION_ONLY_AUTHORIZED
+Current input record = docs/stat35-c1-input-01.md / 99669_RACES_706051_ENTRIES / ALL_NULL_MISSING_IDENTITY_CONTEXT_EVIDENCE
+Current input reproducibility = FOURTEEN_FILES_AND_MANIFEST_IDENTICAL / NOT_READY_FOR_COMPARISON
 BT-03E-01 engineering = COMPLETED
 BT-03E-01 coarse points = REJECTED
 BT-03E-02 engineering / development evaluation = COMPLETED
@@ -4030,15 +4097,18 @@ Player history = 101326_RACES_716837_RESULTS / 2436_PLAYERS / 241464_PLAYER_MEET
 Player history full valid windows = N3_640112_N6_573435_N12_457715_TARGET_RESULT_ROWS
 Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS / NO_IDENTITY_CONFLICT_OR_UNRESOLVED_EXTERNAL
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
-Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / 17_ISOLATED_128M_CASES_PRESERVED / NOT_RERUN
+Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = REVIEW_STAT35_NEXT_USE_DESIGN_AND_SCOPE / NO_PREDICTION_USE_OR_WINDOW_OPTIMIZATION
+Next allowed action = REVIEW_STAT35_C1_INPUT_CODE_AND_MISSING_CONTEXT_EVIDENCE / NO_TRAINING_EVALUATION_OR_WINDOW_OPTIMIZATION
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review STAT-35-C1-INPUT-01 code and its missing target-identity/context evidence. Input preparation alone was authorized after PR74 merge. The standalone implementation and tests passed; generation and reproduction each ran once, preserving 99,669 races/706,051 entries and all C1 non-outcome values/order. All added values are null because a saved result-independent observed external-player-ID/meeting/class mapping was not established. This is a sealed DIAGNOSTIC_ALL_NULL, not usable-input success, model training or performance failure. Ask for the concrete saved evidence or separately scoped acquisition authorization; do not use target results or internal IDs alone as fallback. Preserve old C1/STAT35 artifacts, historical_as_of_available=false, all existing holdout and model restrictions. No automatic next phase.
+
+Previous handoff (v1.37, historical docs-only authorization; input-preparation scope superseded by the Next paragraph above):
 Review docs/stat35-next-use-design-01.md and its scope tables only. The current user's instruction authorizes this docs-only draft after PR #73 merge, not implementation, training, prediction evaluation or production access. Resolve D1-D7: development-only disclosure, outcome-free identity/meeting/class mapping to the fixed C1 entrant universe, proposed mean6 subset, numeric/missing conversion, rolling past-history versus evaluation-label access, C1 paired comparison/Gate and separate execution acceptance. Preserve the fixed final C1 and old Outer outputs, STAT35 descriptive artifacts, unknown historical publication timing, old pilot/E08 decisions and 2026 freeze. Prior successful execution/test records are evidence citations, not checks run in this phase. Await document review without automatic next-stage execution.
 
 Previous handoff (v1.36 PR73 review fix before merge, historical record superseded by the Next paragraph above):
