@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.39
+- Version: 1.40
 - Created: 2026-08-23
-- Updated: 2026-09-29
+- Updated: 2026-09-30
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `e61f7c19dfd7b32d9a0ff1218fc068b7756b1fd5`
-- Current review: STAT-35-C1-CONTEXT-01 / `CANDIDATE_GENERATED_REPRODUCED_AWAITING_REVIEW`。PR #75はレビュー修正後MERGED
-- Current code: 固定C1対象の限定READ ONLY抽出とoffline context候補生成を分離。旧C1/STAT35計算・確認済みcontext許可リストは不変
-- Current execution record: 限定READ ONLY抽出1回・DB不要生成/再現完了。99,669レース/706,051出走、候補705,048・UNKNOWN class保留1,003。7ファイル/manifest一致。15.47の旧診断・hashを保持
-- Current tests record: 関連247成功/3,075 assertions、通常全体2,265成功/既存9skip/19,216親assertions、19件の独立128M/高ピーク親試験成功。詳細は[実装・実行記録](stat35-c1-context-01.md)
+- Remote `main` at last update: `2ec9fd6a4755dab2c59127494748eafa8f98a986`
+- Current review: STAT-35-C1-INPUT-02 / `INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW`。PR #76はレビュー後MERGED
+- Current code: 受入済みcandidateの固定pinだけを登録。C1/履歴/平均/欠損/schema/versionは不変
+- Current execution record: offline生成1回/独立再現1回成功。99,669レース/706,051出走、接続705,048・数値685,719・NULL20,332。保留1,003件の集合、C1不変、14ファイル/manifest一致。詳細は[実行記録](stat35-c1-input-02.md)。旧記録は保持
+- Current tests record: 関連159成功/1,834 assertions、通常全体2,270成功/既存9skip/19,255親assertions。19件の独立128M試験維持。変更PHP構文/限定Pint成功
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,12 +171,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_C1_CONTEXT_CANDIDATE_GENERATED_REPRODUCED_AWAITING_REVIEW
+current_engine_state: STAT35_C1_INPUT_02_INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_CONTEXT_CANDIDATE_EVIDENCE_AND_UNKNOWN_CLASS
+next_allowed_action: REVIEW_STAT35_C1_INPUT_02_GENERATED_INPUTS_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-C1-CONTEXT-01
-remote_main: e61f7c19dfd7b32d9a0ff1218fc068b7756b1fd5
+current_phase: STAT-35-C1-INPUT-02
+remote_main: 2ec9fd6a4755dab2c59127494748eafa8f98a986
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -189,11 +189,20 @@ pr72_status: MERGED_REVIEW_COMPLETED
 pr73_status: MERGED
 pr74_status: MERGED_DESIGN_DOCUMENTATION
 pr75_status: MERGED_REVIEW_COMPLETED
-stat35_c1_context_01: CANDIDATE_GENERATED_REPRODUCED_AWAITING_REVIEW
+pr76_status: MERGED_REVIEW_COMPLETED
+stat35_c1_input_02: INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW
+stat35_c1_input_02_scope: FIXED_CONTEXT_PIN_TESTS_OFFLINE_BUILD_ONCE_REPRODUCE_ONCE
+stat35_c1_input_02_counts: RACES_99669_ENTRIES_706051_CONNECTED_705048_NUMERIC_685719_NULL_20332
+stat35_c1_input_02_verification: C1_UNCHANGED_HELD_1003_SET_MATCH_FOURTEEN_FILES_AND_MANIFEST_IDENTICAL
+stat35_c1_input_02_historical_as_of_available: false
+stat35_c1_input_02_training_evaluation_2026_live: NOT_AUTHORIZED
+stat35_c1_context_01: PR76_MERGED_FIXED_CANDIDATE_ACCEPTED_FOR_INPUT_PREPARATION
 stat35_c1_context_01_scope: FIXED_C1_2022_2025_ENTRY_RACE_DAY_MEETING_METADATA_ONLY
-stat35_c1_context_01_acceptance: REVIEW_PENDING_NOT_ALLOWLISTED
+stat35_c1_context_01_acceptance: FIXED_248_BYTE_CANDIDATE_ONLY_SAVED_METADATA_RECONSTRUCTION
 stat35_c1_context_01_historical_as_of_available: false
-stat35_c1_context_01_writes_mean6_training_evaluation_2026: NOT_AUTHORIZED
+stat35_c1_context_01_prior_review_pending: PRESERVED_IN_ORIGINAL_ARTIFACTS
+stat35_c1_context_01_mean6: AUTHORIZED_ONLY_IN_STAT35_C1_INPUT_02
+stat35_c1_context_01_writes_training_evaluation_2026: NOT_AUTHORIZED
 stat35_c1_context_01_counts: RACES_99669_ENTRIES_706051_CANDIDATES_705048_HELD_UNKNOWN_CLASS_1003
 stat35_c1_context_01_production_reads: ONE_READ_ONLY_REPEATABLE_READ_SNAPSHOT
 stat35_c1_context_01_production_writes: 0
@@ -502,7 +511,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- 現在の許可はSTAT-35-C1-CONTEXT-01の実装/試験、固定C1対象の4テーブル許可列READ ONLY抽出1回、保存抽出からの候補生成/独立再現だけ。15.47のDB未許可は当時の記録。候補はREVIEW_PENDINGで、許可リスト登録・実mean6生成・DB書込み・学習/評価・2026/LIVEへ拡張しない。
+- STAT-35-C1-INPUT-02で許可された固定candidate pin登録・人工試験・既存offline生成1回/独立再現1回・集合照合は完了し、次は生成入力レビューだけ。現在保存値の再構成として限定受入し、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断は書き換えない。DB/HTTP/Raw、context再抽出/再生成、学習/予測/評価/2026/LIVEは許可しない。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
 - `unfrozen_contracts`と全体`final_score_formula`の未確定は統計エンジン全体/将来統合の範囲。既存C1最終fitのlambda=0.1・係数・bin・manifestは固定済みで、再び未決定にはしない。旧E02のalpha/3-channelを後続C1へ適用しない。
 - BT-03E-01の **historical-forward scoring基盤実装自体は完成** している。
@@ -711,8 +720,9 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | MERGED_REVIEW_COMPLETED_PR72 | 101,326レース/716,837行、5成果物一致と16件独立128M修正のレビュー完了。旧失敗・成功は15.44へ保持。実export/旧build再実行なし |
 | STAT-35-PLAYER-HISTORY-01 | 選手×開催×classの相対値履歴・3/6/12開催窓 | PR73_IDENTITY_SCOPE_FIX_MERGED / PRIOR_DESCRIPTIVE_GENERATION_REPRODUCED | PR #73 MERGED。修正版生成/再現成功、新旧4データ不変・新6成果物一致等は15.45の過去記録。全成果物受入の判定記録未確認。窓最適化・予測利用未許可 |
 | STAT-35-NEXT-USE-DESIGN-01 | 工程同期・C1追加効果の次用途仕様案・46 STAT/6エンジン索引 | MERGED_DESIGN_DRAFT_INPUT_SCOPE_ADOPTED_ONLY | PR74で設計案保存完了。今回の入力準備だけ別途許可、比較案/Gate/学習/評価/DB/2026は未承認 |
-| STAT-35-C1-INPUT-01 | 固定C1への6観測開催mean入力準備 | PR75_CODE_REVIEW_MERGED_PRIOR_DIAGNOSTIC_PRESERVED | 15.47の全706,051出走・本人証拠不足の全NULL診断を保持。確認済みcontextリストは空。旧処理再実行なし |
-| STAT-35-C1-CONTEXT-01 | 固定対象と出走表由来メタデータの照合候補 | CANDIDATE_GENERATED_REPRODUCED_AWAITING_REVIEW | 99,669レース/706,051出走、候補705,048・UNKNOWN class保留1,003、7ファイル/manifest一致。候補受入/mean6/予測利用は未許可 |
+| STAT-35-C1-INPUT-01 | 固定C1への6観測開催mean入力準備 | PR75_CODE_REVIEW_MERGED_PRIOR_DIAGNOSTIC_PRESERVED | 15.47の全706,051出走・本人証拠不足の全NULL診断と当時の空allowlistを保持。旧処理再実行なし |
+| STAT-35-C1-CONTEXT-01 | 固定対象と出走表由来メタデータの照合候補 | PR76_MERGED_FIXED_CANDIDATE_ACCEPTED_FOR_INPUT_PREPARATION | 705,048候補だけ限定受入、UNKNOWN class保留1,003と原本REVIEW_PENDINGを維持。再抽出/再生成なし |
+| STAT-35-C1-INPUT-02 | 受入済みcontext登録・既存mean6生成/独立再現 | INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW | 接続705,048・数値685,719・NULL20,332、保留1,003集合一致、14ファイル/manifest一致。計算不変、学習/性能評価未実施 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -3039,6 +3049,26 @@ mapping manifest SHA `5facd83259a5b2b147115ff1632632a6f7a11f96e07f9f4d3078286743
 
 ---
 
+## 15.49 STAT-35-C1-INPUT-02 / 2026-09-30
+
+PR #76はレビュー後MERGED。clean mainとfetch後origin/mainは `2ec9fd6a4755dab2c59127494748eafa8f98a986`。
+専用 `feature/stat35-c1-input-02` で、指定candidate manifest（248 bytes / SHA-256
+`7800bc94ed7a1d89e6bf1aee5a3bbd22d3d979dea01d511d4133214a08981268`）だけを明示的に受け入れる。
+外側mapping manifestは監査照合に使い、allowlistへ登録しない。原本のREVIEW_PENDING/COMPLETE/hashは保持。
+現在保存された出走表情報の再構成であり、observed_at=null・historical_as_of_available=false。
+今回のみ既存固定資料からmean6入力生成1回・独立再現1回・集合/値/保留照合を許可する。
+Contract版・C1/history pin・計算方式・欠損・クラス分類は不変。新規コードidentityで登録変更を追跡する。
+DB/HTTP/Raw/再抽出/旧診断再生成/学習/係数選択/順位予測/評価/2026/LIVEは行わない。
+生成1回/別ディレクトリ再現1回ともexit0、各peak30MiB。全99,669レース/706,051出走を保持し、
+context接続705,048、数値685,719、NULL20,332。未接続1,003件は旧UNKNOWN_RACE_CLASS保留と年/race/entry/bike集合一致。
+C1集合・順序・非結果値/型不変、14ファイルとmanifest一致、source終端検査成功。重複/競合0。
+生成/再現manifest SHA-256: `7f4356b93f90203dc727dc95d6215a8d8ce3f44869c4441c3981087ff1099c26`。
+関連159成功/1,834 assertions、通常全体2,270成功/既存9skip/19,255親assertions、変更PHP構文/限定Pint成功。
+実行root: `/home/shinya/neo-keirin-artifacts/stat35-c1-input-02/run-20260930-054458-8739da4b/`。
+詳細は [stat35-c1-input-02.md](stat35-c1-input-02.md)。入力準備完了であり性能未評価。未コミットの生成入力レビュー待ちで停止する。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3342,6 +3372,7 @@ run 6は正式完了済み。
 | #73 | STAT-35 player-history・本人識別scopeレビュー修正 | MERGED / head 3a18de5bb08dd7f83cd8e35b176ce58dc7e49893 / merge f0834202fcac19919bfa4b8dce0ef9043a457a0a / 2026-09-28 06:33:48 JST。全成果物受入の判定記録未確認 |
 | #74 | STAT-35 next-use設計案・工程同期 | MERGED / merge 029309f2cb0434348a53cd30b74d0419d2f8b6d2。設計案保存の完了であり学習/Gate/2026の承認ではない |
 | #75 | STAT-35 C1 input・接続証拠/競合判定レビュー修正 | MERGED / merge e61f7c19dfd7b32d9a0ff1218fc068b7756b1fd5。旧診断は保持、今回context候補の受入とは別 |
+| #76 | STAT-35 C1 context・固定対象出走表対応 | MERGED_REVIEW_COMPLETED / merge 2ec9fd6a4755dab2c59127494748eafa8f98a986。今回の固定candidate限定受入は15.49 |
 
 Current remote `main` at the v1.2 update:
 
@@ -3412,7 +3443,7 @@ scoring_result: REJECTED_FOR_ADOPTION
 |---|---|---|
 | Goal 1 入賞影響項目 | PARTIAL / current 12 substantially evaluated | 全STAT-01～46では未完 |
 | Goal 2 順位影響項目 | PARTIAL / current 12 rank-boundary evidence available | exact orderはscoring評価で継続 |
-| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。FINAL-01の最終C1とPR #57/#58の接続・照合レビューは完了。固定C1は維持し、今回はSTAT-35次用途の文書案のみ。旧開催グレード/選手級班分析は保持。モデル変更・正式LIVE採用・2026は未許可。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
+| Goal 3 score / parameter決定 | NOT_COMPLETED / DEVELOPMENT_GATE_PASSED | TACTICAL-HISTORY-01 v2はC0/C1の学習・比較・再現性確認と成果物レビューを完了し、開発評価Gateを通過。FINAL-01の最終C1とPR #57/#58の接続・照合レビューは完了。固定C1は維持し、今回のSTAT-35追加は入力生成/再現までで性能未評価。旧開催グレード/選手級班分析は保持。モデル変更・正式LIVE採用・2026は未許可。E08の不採用と旧TACTICAL-PILOT-01の保留を維持 |
 | Goal 4 holdout精度 | BLOCKED | final scoring freeze前 |
 | Goal 5 live精度 | BLOCKED | Goal 4後 |
 
@@ -3451,6 +3482,14 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.40 / 2026-09-30
+
+PR #76マージと開始main `2ec9fd6a4755dab2c59127494748eafa8f98a986`を反映。
+STAT-35-C1-INPUT-02として固定candidate pinの限定受入、既存mean6生成1回/独立再現1回だけを今回指示で許可。
+接続705,048・数値685,719・NULL20,332、保留1,003集合照合、C1不変、14ファイル/manifest再現一致を確認。
+旧REVIEW_PENDING/全NULL診断/実行hashは当時の記録として保持。次は生成入力レビューのみ。
+履歴計算・旧C1・historical_as_of_available=false・2026凍結・予測利用禁止は不変。実績は15.49と専用文書へ記録。
 
 ## v1.39 / 2026-09-29
 
@@ -4038,13 +4077,15 @@ Remote `main`:
 
 ```text
 Current:
-Phase = STAT-35-C1-CONTEXT-01 / CANDIDATE_GENERATED_REPRODUCED_AWAITING_REVIEW
-Current main = e61f7c19dfd7b32d9a0ff1218fc068b7756b1fd5 / PR75_REVIEW_COMPLETED_MERGED
+Phase = STAT-35-C1-INPUT-02 / INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW
+Current main = 2ec9fd6a4755dab2c59127494748eafa8f98a986 / PR76_REVIEW_COMPLETED_MERGED
 Draft = docs/stat35-next-use-design-01.md / ORIGINAL_DRAFT_PRESERVED / INPUT_PREPARATION_ONLY_AUTHORIZED
 Prior input diagnostic record = docs/stat35-c1-input-01.md / 99669_RACES_706051_ENTRIES / ALL_NULL_MISSING_IDENTITY_CONTEXT_EVIDENCE
 Prior input diagnostic reproducibility = FOURTEEN_FILES_AND_MANIFEST_IDENTICAL / NOT_RERUN
-Current context record = docs/stat35-c1-context-01.md / CANDIDATES_705048_HELD_1003 / REVIEW_PENDING_NOT_ALLOWLISTED
+Current context record = docs/stat35-c1-context-01.md / CANDIDATES_705048_HELD_1003 / FIXED_CANDIDATE_ONLY_ACCEPTED_FOR_INPUT_PREPARATION / ORIGINAL_REVIEW_PENDING_UNCHANGED
 Current context reproducibility = SEVEN_FILES_AND_MANIFEST_IDENTICAL / ONE_READ_ONLY_EXTRACTION_NO_DB_RECONNECT
+Current input record = docs/stat35-c1-input-02.md / ENTRIES_706051_CONNECTED_705048_NUMERIC_685719_NULL_20332
+Current input reproducibility = FOURTEEN_FILES_AND_MANIFEST_IDENTICAL / C1_UNCHANGED / HELD_1003_SET_VERIFIED / OFFLINE_ONLY
 BT-03E-01 engineering = COMPLETED
 BT-03E-01 coarse points = REJECTED
 BT-03E-02 engineering / development evaluation = COMPLETED
@@ -4147,13 +4188,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = REVIEW_STAT35_C1_INPUT_CODE_AND_MISSING_CONTEXT_EVIDENCE / NO_TRAINING_EVALUATION_OR_WINDOW_OPTIMIZATION
+Next allowed action = REVIEW_STAT35_C1_INPUT_02_GENERATED_INPUTS_ONLY / NO_TRAINING_EVALUATION_OR_WINDOW_OPTIMIZATION
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review STAT-35-C1-INPUT-02 generated inputs only. The fixed 248-byte candidate pin is registered; synthetic/full tests and one offline build/independent reproduction completed. All 706,051 entries remain: connected 705,048, numeric 685,719, NULL 20,332. Missing context matches the prior 1,003 UNKNOWN_RACE_CLASS holds by year/race/entry/bike. C1 values/types/order are unchanged; fourteen files and manifest match. Preserve all old artifacts and calculation contracts, historical_as_of_available=false, C1 and 2026 freeze. Input preparation is not performance improvement. No database/HTTP/context regeneration/training/prediction/evaluation. See docs/stat35-c1-input-02.md; no automatic next phase.
+
+Previous handoff (v1.39, historical context-only scope; fixed candidate acceptance and one input build/reproduction now authorized only in 15.49):
 Review STAT-35-C1-CONTEXT-01 mapping evidence and UNKNOWN class handling only. Single scoped READ ONLY extraction, offline build and independent reproduction completed: 99,669 races/706,051 entries; all saved identities/meetings matched, 705,048 candidates, 1,003 held for UNKNOWN_RACE_CLASS. Seven files and manifest match, source/code end integrity verified. Keep REVIEW_PENDING, historical_as_of_available=false and the empty reviewedContextPins. No re-extraction, mean6 generation, training, evaluation, production writes or 2026 access is authorized. Preserve the old all-NULL diagnostic as a prior record. See docs/stat35-c1-context-01.md; stop for review without an automatic next phase.
 
 Previous handoff (v1.38, historical input-only scope; superseded only by the explicitly authorized context extraction):

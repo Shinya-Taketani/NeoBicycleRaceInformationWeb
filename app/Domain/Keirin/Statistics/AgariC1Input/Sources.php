@@ -14,8 +14,12 @@ final class Sources
         'history' => ['bytes' => 12049, 'sha256' => '844440cb08b06b0e69195a6384689bc545e63806ff85237ca36a81f5dd08507e'],
     ];
 
-    // No real identity/class bundle has been reviewed yet. Runtime self-seals cannot establish trust.
-    public function __construct(private readonly array $pins = self::PINS, private readonly array $reviewedContextPins = []) {}
+    // Reviewed saved-metadata reconstruction, not evidence of historical publication timing.
+    public const REVIEWED_CONTEXT_PINS = [
+        ['bytes' => 248, 'sha256' => '7800bc94ed7a1d89e6bf1aee5a3bbd22d3d979dea01d511d4133214a08981268'],
+    ];
+
+    public function __construct(private readonly array $pins = self::PINS, private readonly array $reviewedContextPins = self::REVIEWED_CONTEXT_PINS) {}
 
     public function open(string $c1, string $history, ?string $context): array
     {
