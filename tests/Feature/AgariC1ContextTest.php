@@ -50,6 +50,9 @@ final class AgariC1ContextTest extends TestCase
 
     public function test_explicit_authorization_plan_offline_build_reproduction_and_not_auto_reviewed(): void
     {
+        $property = new \ReflectionProperty(Sources::class, 'reviewedContextPins');
+        $before = $property->getValue(new Sources);
+        $this->assertSame([['bytes' => 248, 'sha256' => '7800bc94ed7a1d89e6bf1aee5a3bbd22d3d979dea01d511d4133214a08981268']], $before);
         $this->artisan('keirin:stat35:c1-context', ['mode' => 'plan'])->assertSuccessful();
         $this->artisan('keirin:stat35:c1-context', ['mode' => 'extract', '--output-dir' => $this->root.'/unauthorized'])->assertFailed();
         $this->assertDirectoryDoesNotExist($this->root.'/unauthorized');
@@ -75,8 +78,10 @@ final class AgariC1ContextTest extends TestCase
         $this->assertSame('race_entries:1000011;races:100001;race_days:100001;race_meetings:100001', $rows[0]['source_record_id']);
         $this->assertSame(20, count(iterator_to_array(Artifacts::lines($this->root.'/out/mapping-audit.jsonl'))));
         $this->assertTrue(Files::json($this->root.'/repro/reproduction.json')['identical']);
-        $sources = new Sources;
-        $this->assertSame([], (new \ReflectionProperty($sources, 'reviewedContextPins'))->getValue($sources));
+        $this->assertSame($before, $property->getValue(new Sources));
+        $this->assertSame($before, $property->getValue($this->app->make(Sources::class)));
+        $this->assertSame(Sources::REVIEWED_CONTEXT_PINS, $before);
+        $this->assertNotContains(Files::identity($this->root.'/out/candidate/manifest.json'), $before);
     }
 
     #[DataProvider('individualFailures')]

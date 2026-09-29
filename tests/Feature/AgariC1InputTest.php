@@ -42,6 +42,87 @@ final class AgariC1InputTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_default_and_container_sources_use_only_the_explicitly_reviewed_candidate_pin(): void
+    {
+        $expected = [['bytes' => 248, 'sha256' => '7800bc94ed7a1d89e6bf1aee5a3bbd22d3d979dea01d511d4133214a08981268']];
+        $this->assertSame($expected, Sources::REVIEWED_CONTEXT_PINS);
+        $property = new \ReflectionProperty(Sources::class, 'reviewedContextPins');
+        $this->assertSame($expected, $property->getValue(new Sources));
+        $this->assertSame($expected, $property->getValue($this->app->make(Sources::class)));
+        $builderSource = (new \ReflectionProperty(Builder::class, 'sources'))->getValue($this->app->make(Builder::class));
+        $this->assertSame($expected, $property->getValue($builderSource));
+        $this->assertSame([], $property->getValue(new Sources(reviewedContextPins: [])));
+    }
+
+    public function test_explicit_empty_allowlist_rejects_self_sealed_context_before_publication(): void
+    {
+        F::bundle($this->root);
+        $source = new Sources(['c1' => Files::identity($this->root.'/c1/manifest.json'),
+            'history' => Files::identity($this->root.'/history/manifest.json')], []);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unverified target context evidence');
+        try {
+            $this->build($source);
+        } finally {
+            $this->assertDirectoryDoesNotExist($this->root.'/out');
+        }
+    }
+
+    #[DataProvider('trustedContextCorruptions')]
+    public function test_trusted_synthetic_pin_still_requires_body_and_completion_integrity(string $file): void
+    {
+        $source = F::bundle($this->root);
+        $path = $this->root.'/context/'.$file;
+        $bytes = file_get_contents($path);
+        $changed = $file === 'entry-context.jsonl'
+            ? str_replace('000001', '999999', $bytes)
+            : str_replace('"bytes":', '"bytes":9', $bytes);
+        $this->assertNotSame($bytes, $changed);
+        file_put_contents($path, $changed);
+        $this->expectException(RuntimeException::class);
+        try {
+            $this->build($source);
+        } finally {
+            $this->assertDirectoryDoesNotExist($this->root.'/out');
+        }
+    }
+
+    public static function trustedContextCorruptions(): array
+    {
+        return [['entry-context.jsonl'], ['COMPLETE.json']];
+    }
+
+    public function test_partial_context_reproduces_without_conflating_connection_numeric_zero_and_null(): void
+    {
+        $race = F::race();
+        $contexts = array_map(fn ($entry) => F::context($race, $entry), array_slice($race['entries'], 0, 4));
+        $source = F::bundle($this->root, [$race], [F::meeting(),
+            F::meeting(102, null, external: '000002'), F::meeting(103, '0', external: '000003')], $contexts);
+        $summary = $this->build($source);
+        $this->assertSame('INPUTS_PREPARED', $summary['status']);
+        $this->assertSame(5, $summary['totals']['entries']);
+        $this->assertSame(4, $summary['totals']['connected']);
+        $this->assertSame(1, $summary['totals']['unmatched']);
+        $this->assertSame(2, $summary['totals']['numeric']);
+        $this->assertSame(3, $summary['totals']['null']);
+        $rows = iterator_to_array(Artifacts::lines($this->root.'/out/audit-2024.jsonl'));
+        $this->assertSame([11, 12, 13, 14, 15], array_column($rows, 'entry_id'));
+        $this->assertSame([0.333333333333, null, 0.0, null, null], array_column($rows, 'float'));
+        $this->assertSame([[], ['NO_VALID_HISTORY'], [], ['NO_OBSERVED_HISTORY'], ['MISSING_IDENTITY_CONTEXT_EVIDENCE']], array_column($rows, 'reasons'));
+        $this->assertSame(['MISSING_IDENTITY_CONTEXT_EVIDENCE' => 1, 'NO_OBSERVED_HISTORY' => 1, 'NO_VALID_HISTORY' => 1],
+            $summary['years'][2024]['null_reasons']);
+        $this->assertSame(SourceProjector::project($race, 2024, Contract::C1_VERSION),
+            iterator_to_array(Artifacts::lines($this->root.'/out/c1-2024.jsonl'))[0]);
+        $reproduced = (new Builder($source))->build($this->root.'/c1', $this->root.'/history', $this->root.'/repro',
+            $this->root.'/context', $this->root.'/out');
+        $this->assertSame($summary, $reproduced);
+        $published = Builder::published($this->root.'/out');
+        $this->assertCount(14, $published['files']);
+        $this->assertSame($published, Builder::published($this->root.'/repro'));
+        $this->assertSame(Files::identity($this->root.'/out/manifest.json'), Files::identity($this->root.'/repro/manifest.json'));
+        $this->assertTrue(Files::json($this->root.'/repro/reproduction.json')['identical']);
+    }
+
     public function test_command_build_reproduce_preserves_c1_and_leading_zero_identity_without_db_http(): void
     {
         $source = F::bundle($this->root);
