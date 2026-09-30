@@ -1,6 +1,6 @@
 # STAT-36-OBSERVATION-01
 
-> PR #80修正: 現コードは署名専用正規化v2。以下の実データ件数・16成果物一致・manifestは旧v1の履歴であり、今回再実行していない。v2の人工検証は末尾に分離して記録する。
+> PR #80修正: 現コードはページ判定v3・署名専用正規化v2。以下の実データ件数・16成果物一致・manifestは旧v1の履歴であり、今回再実行していない。v2/v3の人工検証は末尾に分離して記録する。
 
 ## 範囲
 
@@ -218,3 +218,50 @@ redは旧コード2失敗、green/relatedは修正後の人工検証。full-suit
 既存900,049行の誤集計有無は今回は未確認。旧実測0という記録もv2で再確認した値ではない。
 実Raw build/reproduce、旧監査、DB/HTTP、学習/評価、2026実データ参照は実施していない。
 旧成果物に触れず、未コミットのレビュー修正として提出する。
+
+## PR #80追加: ページ表示フラグと結果fieldの分離（人工検証のみ）
+
+開始HEAD: `17bf9f186cb74bda4a4f773433c51723143277ee`、同branch継続、開始worktree clean。
+観測契約は `STAT36-OBSERVATION-v3-DISPLAY-ONLY`、ページ契約は `STAT36-PAGE-STATE-v3-EXPLICIT-DISPLAY-FLAG`。
+DisplaySignature本体・署名契約 `STAT36-DISPLAY-SIGNATURE-v2-SORTED-OBJECT-KEYS` は変更しない。
+
+`result_display_flag` に `presence / raw / type / state / source_pointer` を保存する。
+presenceはMISSING / NULL / PRESENT。typeはMISSING / null / bool / int / float / string / array / object。
+STAT-36専用PageJsonでJSONのobject/array・float/intを区別し、原値を保持する。
+候補表示行の読込・署名、共通EmbeddedJsonExtractor / Files::canonical / RawReaderは変更しない。
+
+|tyakujyunDispFlg（型も厳密一致）|state|
+|---|---|
+|true、1、"1"|RESULT_DISPLAY|
+|false、0、"0"|RESULT_UNPUBLISHED|
+|欠落、null、空文字、未知文字列、上記以外の数値・型|RESULT_DISPLAY_UNKNOWN|
+
+true系の根拠は既存RaceLiveResultParser::booleanの明示対応、false系は観測v1/v2の明示対応。
+truthy/falsyや文字列trim、"true"/"false"、float 1.0/0.0等への拡張はしない。
+`result_state` はMISSING / NULL / EMPTY_ARRAY / ROWS / UNSUPPORTED_RESULT_SCHEMA。
+既存 `result_presence` も保持し、行ありはVALUE、非配列の空文字はBLANKとして別記する。
+空結果だけではフラグ判定を未掲載へ上書きしない。非中止・schema対応時のpage_statusはフラグstateと同じ。
+台帳 `parsed_page_status` は `ledger_page_status` として保持し、中止は従来のCANCELLED_EMPTY /
+CANCELLED_PARTIAL_OR_NONEMPTYを維持する。未知フラグも中止と別軸に記録する。
+結果schema非対応は既存UNSUPPORTED_RESULT_SCHEMAの保留経路。構文不正JSON・Raw/hash不一致は引き続き致命的エラー。
+
+未知フラグはissuesにもRESULT_DISPLAY_UNKNOWNを残し、行ありなら観測行を保持する。
+import-auditと各観測行にページ契約版・フラグ・結果状態を保存する。
+coverageのresult_display_states / result_flag_presence / result_flag_types / result_states / result_presenceはimport単位。
+各軸の合計をimportsへ照合し、表示Sの観測・本人対応・startの意味とは混ぜない。
+start_acquired=NULL / UNKNOWN_POSITION_DEFINITION / prediction_use=NOT_AUTHORIZEDは不変。
+
+旧コードで「true+空結果→未掲載」「未知フラグ+行あり→表示」の人工2ケースが失敗し、修正後成功。
+新規110ケースで21フラグ状態×4結果状態、中止16組合せ、非対応schema、JSON破損、原型保持を確認。
+人工87 import / 110観測行の監査・coverageを照合し、うち未知フラグ63 importを保持。
+同じ候補表示の署名v2は変化せず、人工bundleの独立再現manifestも一致した。
+関連307 tests / 4,960 assertions（128M）、変更PHP6件の構文・限定Pint成功。
+最終PHPコードの通常 `php artisan test --colors=never` は2,511 passed / 9既存skipped / 23,961 assertions、exit0。
+2026-10-01 07:45:06〜07:48:12 JST、186.710040秒。新規skip・既存テスト削除/緩和なし。
+
+証跡: `/home/shinya/neo-keirin-artifacts/stat36-observation-01/pr80-page-state-fix-20261001-tPCnpb/`。
+red-regressionsは旧コード2失敗、focused-green / related-finalは人工検証。
+初期テストヘルパー名衝突・テスト側JSON読込の型消失はテスト側で修正し、失敗ログも別保存した。
+旧900,049行への今回の影響件数は未計測・未確認。旧v1の件数・16成果物一致・manifest/hashを変更せず、
+今回のv3結果へ読み替えない。v2/v3で実Raw全量build/reproduce・旧監査は実施していない。
+本番DB/HTTP、学習・評価、2026実データ参照なし。commit/push/mergeせずレビュー待ちで停止する。

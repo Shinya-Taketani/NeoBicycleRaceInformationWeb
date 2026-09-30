@@ -8,7 +8,9 @@ use App\Domain\Keirin\Audit\Stat35DataReadiness\Contract as Audit;
 
 final class Contract
 {
-    public const VERSION = 'STAT36-OBSERVATION-v2-DISPLAY-ONLY';
+    public const VERSION = 'STAT36-OBSERVATION-v3-DISPLAY-ONLY';
+
+    public const PAGE_STATE_VERSION = 'STAT36-PAGE-STATE-v3-EXPLICIT-DISPLAY-FLAG';
 
     public const ROOT = '/home/shinya/neo-keirin-artifacts/stat36-observation-01';
 
@@ -29,6 +31,20 @@ final class Contract
             'display_marker_literal' => 'S', 'literal_policy' => 'EXACT_STRING_NO_ALIASES_NO_SUBSTRING',
             'display_signature_version' => DisplaySignature::VERSION,
             'display_signature_policy' => 'SORT_OBJECT_KEYS_ONLY_KEEP_LIST_ORDER_PRESENCE_TYPES_AND_CONTENT',
+            'page_state_version' => self::PAGE_STATE_VERSION,
+            'result_display_flag' => [
+                'source_pointer' => 'PJ0326.tyakujyunDispFlg',
+                'display_values' => [true, 1, '1'], 'display_state' => 'RESULT_DISPLAY',
+                'unpublished_values' => [false, 0, '0'], 'unpublished_state' => 'RESULT_UNPUBLISHED',
+                'other_state' => 'RESULT_DISPLAY_UNKNOWN', 'comparison' => 'STRICT_TYPE_AND_VALUE_NO_COERCION',
+                'presence' => ['MISSING', 'NULL', 'PRESENT'],
+                'type' => ['MISSING', 'null', 'bool', 'int', 'float', 'string', 'array', 'object'],
+                'evidence' => 'RaceLiveResultParser::boolean explicit true/1/string-1; observation v1/v2 explicit false/0/string-0. No additional aliases.',
+            ],
+            'result_states' => ['MISSING', 'NULL', 'EMPTY_ARRAY', 'ROWS', 'UNSUPPORTED_RESULT_SCHEMA'],
+            'page_status_policy' => 'UNSUPPORTED_RESULT_SCHEMA_HOLD_ELSE_LEDGER_CANCELLED_EMPTY_OR_PARTIAL_OR_NONEMPTY_ELSE_FLAG_STATE',
+            'empty_result_policy' => 'DO_NOT_OVERRIDE_DISPLAY_FLAG_STATE',
+            'unknown_flag_policy' => 'KEEP_ROWS_AND_EVIDENCE_IN_IMPORT_AUDIT_OBSERVATIONS_AND_COVERAGE',
             'definition_status' => 'UNKNOWN_POSITION_DEFINITION',
             'start_acquired' => null, 'confirmed_start_absence_rule' => null,
             'display_evidence' => 'Stored result header is 個人状況; tbody is empty; rendering JavaScript is external and not captured by the accepted ledger.',

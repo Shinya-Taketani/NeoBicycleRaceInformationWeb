@@ -84,6 +84,8 @@ final class Builder
             $years[$year] = ['ledger_races' => 0, 'races_without_import' => 0, 'unique_races_with_import' => 0,
                 'imports' => 0, 'observation_rows' => 0, 'unresolved_rows' => 0, 'confirmed_start_values' => 0,
                 'formats' => [], 'page_statuses' => [], 'display_states' => [], 'identity_states' => [],
+                'result_display_states' => [], 'result_flag_presence' => [], 'result_flag_types' => [],
+                'result_states' => [], 'result_presence' => [],
                 'field_presence' => [], 'marker_counts_per_import' => ['ZERO' => 0, 'ONE' => 0, 'MULTIPLE' => 0, 'UNMEASURABLE' => 0]];
         }
         foreach (['source-references.jsonl', 'import-audit.jsonl'] as $name) {
@@ -118,6 +120,11 @@ final class Builder
                 $writers['import-audit.jsonl']->append($audit);
                 $this->increment($y['formats'], $page['format']);
                 $this->increment($y['page_statuses'], $page['page_status']);
+                $this->increment($y['result_display_states'], $page['result_display_flag']['state']);
+                $this->increment($y['result_flag_presence'], $page['result_display_flag']['presence']);
+                $this->increment($y['result_flag_types'], $page['result_display_flag']['type']);
+                $this->increment($y['result_states'], $page['result_state']);
+                $this->increment($y['result_presence'], $page['result_presence']);
                 $count = $page['display_s_count'];
                 $y['marker_counts_per_import'][$count === null ? 'UNMEASURABLE' : ($count === 0 ? 'ZERO' : ($count === 1 ? 'ONE' : 'MULTIPLE'))]++;
                 if ($page['rows'] === []) {
@@ -135,6 +142,9 @@ final class Builder
                     $signature = DisplaySignature::hash($row);
                     $index->entry($year, $race['race_id'], $row, $signature);
                     $observation = $provenance + $row + ['page_status' => $page['page_status'], 'page_issues' => $page['issues'],
+                        'page_state_version' => $page['page_state_version'], 'ledger_page_status' => $page['ledger_page_status'],
+                        'result_display_flag' => $page['result_display_flag'],
+                        'result_state' => $page['result_state'], 'result_presence' => $page['result_presence'],
                         'format' => $page['format'], 'header_signature' => $page['header_signature'],
                         'interpretation_status' => 'UNKNOWN_POSITION_DEFINITION', 'initial_position_status' => 'MISSING_INITIAL_POSITION',
                         'revision_key' => $race['race_id'].':'.($row['bike_number'] ?? 'unresolved-'.$row['row_index']),
@@ -168,6 +178,12 @@ final class Builder
             if (array_sum($y['page_statuses']) !== $y['imports'] || array_sum($y['display_states']) !== $y['observation_rows']
                 || $y['ledger_races'] !== $y['races_without_import'] + $y['unique_races_with_import']) {
                 throw new RuntimeException('Observation accounting failed.');
+            }
+            foreach (['result_display_states', 'result_flag_presence', 'result_flag_types', 'result_states', 'result_presence'] as $key) {
+                if (array_sum($y[$key]) !== $y['imports']) {
+                    throw new RuntimeException('Page evidence accounting failed: '.$key);
+                }
+                ksort($y[$key], SORT_STRING);
             }
             foreach (['formats', 'page_statuses', 'display_states', 'identity_states', 'field_presence'] as $key) {
                 ksort($y[$key], SORT_STRING);

@@ -48,16 +48,36 @@ final class Parser
         $schema = $tables->count() === 1 && $tables->filter('thead tr')->count() === 1
             && $actual === $expected && $tables->filter('tbody tr')->count() === 0;
         $format = $schema ? 'PJ0326_NAMED_OBJECT_EMPTY_BODY_12_HEADERS' : 'UNSUPPORTED_DISPLAY_SCHEMA';
-        $rawRows = $page['tyakujyunItemSubData'] ?? null;
-        $resultPresence = $this->presence($page, 'tyakujyunItemSubData');
-        if ($rawRows !== null && (! is_array($rawRows) || ! array_is_list($rawRows))) {
-            return $this->emptyPage($format, 'UNSUPPORTED_RESULT_SCHEMA', $resultPresence, $headers, $identity);
+        $typedPage = PageJson::extract($crawler);
+        $flagPresent = array_key_exists('tyakujyunDispFlg', $typedPage);
+        $flag = $typedPage['tyakujyunDispFlg'] ?? null;
+        $displayState = in_array($flag, [true, 1, '1'], true) ? 'RESULT_DISPLAY'
+            : (in_array($flag, [false, 0, '0'], true) ? 'RESULT_UNPUBLISHED' : 'RESULT_DISPLAY_UNKNOWN');
+        $typedRows = $typedPage['tyakujyunItemSubData'] ?? null;
+        $resultPresence = $this->presence($typedPage, 'tyakujyunItemSubData');
+        $resultState = match (true) {
+            $resultPresence === 'MISSING', $resultPresence === 'NULL' => $resultPresence,
+            ! is_array($typedRows) => 'UNSUPPORTED_RESULT_SCHEMA',
+            $typedRows === [] => 'EMPTY_ARRAY',
+            default => 'ROWS',
+        };
+        $pageEvidence = ['page_state_version' => Contract::PAGE_STATE_VERSION,
+            'ledger_page_status' => $import['parsed_page_status'] ?? null,
+            'result_display_flag' => ['presence' => ! $flagPresent ? 'MISSING' : ($flag === null ? 'NULL' : 'PRESENT'),
+                'raw' => $flag, 'type' => ! $flagPresent ? 'MISSING' : (is_object($flag) ? 'object' : get_debug_type($flag)),
+                'state' => $displayState, 'source_pointer' => 'PJ0326.tyakujyunDispFlg'],
+            'result_presence' => $resultPresence, 'result_state' => $resultState];
+        if ($displayState === 'RESULT_DISPLAY_UNKNOWN') {
+            $identity[] = 'RESULT_DISPLAY_UNKNOWN';
         }
-        $pageState = ($import['parsed_page_status'] ?? null) === 'CANCELLED' ? 'CANCELLED'
-            : (in_array($page['tyakujyunDispFlg'] ?? null, [false, 0, '0'], true) ? 'RESULT_UNPUBLISHED' : 'RESULT_DISPLAY');
-        if ($rawRows === null || $rawRows === []) {
-            return $this->emptyPage($format, $pageState === 'CANCELLED' ? 'CANCELLED_EMPTY' : 'RESULT_UNPUBLISHED', $resultPresence, $headers, $identity);
+        if ($resultState === 'UNSUPPORTED_RESULT_SCHEMA') {
+            return $this->emptyPage($format, 'UNSUPPORTED_RESULT_SCHEMA', $pageEvidence, $headers, $identity);
         }
+        $pageState = $pageEvidence['ledger_page_status'] === 'CANCELLED' ? 'CANCELLED' : $displayState;
+        if ($resultState !== 'ROWS') {
+            return $this->emptyPage($format, $pageState === 'CANCELLED' ? 'CANCELLED_EMPTY' : $pageState, $pageEvidence, $headers, $identity);
+        }
+        $rawRows = $page['tyakujyunItemSubData'];
         $entryMap = [];
         foreach ($entries as $entry) {
             $entryMap[$entry['bike_number']] = $entry;
@@ -133,8 +153,8 @@ final class Parser
             $pageFlags[] = 'MULTIPLE_S_DISPLAYS_UNINTERPRETED';
         }
 
-        return ['format' => $format, 'page_status' => $pageState === 'CANCELLED' ? 'CANCELLED_PARTIAL_OR_NONEMPTY' : $pageState,
-            'result_presence' => $resultPresence, 'header_signature' => hash('sha256', Files::canonical($headers)),
+        return $pageEvidence + ['format' => $format, 'page_status' => $pageState === 'CANCELLED' ? 'CANCELLED_PARTIAL_OR_NONEMPTY' : $pageState,
+            'header_signature' => hash('sha256', Files::canonical($headers)),
             'issues' => $pageFlags, 'display_s_count' => $measurable ? $markers : null,
             'rows' => $rows, 'source_update_text' => is_string($page['lastUpdateTime'] ?? null) ? $page['lastUpdateTime'] : null];
     }
@@ -201,9 +221,9 @@ final class Parser
         };
     }
 
-    private function emptyPage(string $format, string $status, string $presence, array $headers, array $issues): array
+    private function emptyPage(string $format, string $status, array $pageEvidence, array $headers, array $issues): array
     {
-        return ['format' => $format, 'page_status' => $status, 'result_presence' => $presence,
+        return $pageEvidence + ['format' => $format, 'page_status' => $status,
             'header_signature' => hash('sha256', Files::canonical($headers)), 'issues' => $issues,
             'display_s_count' => null, 'rows' => [], 'source_update_text' => null];
     }

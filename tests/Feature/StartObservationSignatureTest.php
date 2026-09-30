@@ -166,7 +166,7 @@ class StartObservationSignatureTest extends TestCase
     {
         [$first, $second] = self::orderOnlyRows();
         [, $rows] = $this->buildPair($first, $second);
-        $this->assertSame('STAT36-OBSERVATION-v2-DISPLAY-ONLY', Contract::VERSION);
+        $this->assertSame('STAT36-OBSERVATION-v3-DISPLAY-ONLY', Contract::VERSION);
         $this->assertSame(Contract::VERSION, Files::json($this->root.'/result/manifest.json')['version']);
         $this->assertSame(DisplaySignature::VERSION, Files::json($this->root.'/result/contract.json')['display_signature_version']);
         foreach ($rows as $row) {
