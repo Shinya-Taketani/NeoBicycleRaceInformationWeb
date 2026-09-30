@@ -132,17 +132,14 @@ final class Builder
                     foreach ($row['fields'] as $field => $value) {
                         $this->increment($y['field_presence'], $field.':'.$value['presence']);
                     }
-                    $semantic = [];
-                    foreach ($row['fields'] as $field => $value) {
-                        $semantic[$field] = ['presence' => $value['presence'], 'raw' => $value['raw']];
-                    }
-                    $signature = hash('sha256', Files::canonical([$row['external_player_id'], $semantic]));
+                    $signature = DisplaySignature::hash($row);
                     $index->entry($year, $race['race_id'], $row, $signature);
                     $observation = $provenance + $row + ['page_status' => $page['page_status'], 'page_issues' => $page['issues'],
                         'format' => $page['format'], 'header_signature' => $page['header_signature'],
                         'interpretation_status' => 'UNKNOWN_POSITION_DEFINITION', 'initial_position_status' => 'MISSING_INITIAL_POSITION',
                         'revision_key' => $race['race_id'].':'.($row['bike_number'] ?? 'unresolved-'.$row['row_index']),
-                        'display_signature' => $signature, 'historical_as_of_available' => false, 'prediction_use' => 'NOT_AUTHORIZED', 'points' => null];
+                        'display_signature' => $signature, 'display_signature_version' => DisplaySignature::VERSION,
+                        'historical_as_of_available' => false, 'prediction_use' => 'NOT_AUTHORIZED', 'points' => null];
                     $writers['observations-'.$year.'.jsonl']->append($observation);
                     $writers['unresolved-'.$year.'.jsonl']->append(['unit' => 'OBSERVATION', 'import_id' => $import['import_id'],
                         'race_id' => $race['race_id'], 'row_index' => $row['row_index'], 'bike_number' => $row['bike_number'],

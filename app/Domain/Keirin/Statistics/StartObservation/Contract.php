@@ -8,7 +8,7 @@ use App\Domain\Keirin\Audit\Stat35DataReadiness\Contract as Audit;
 
 final class Contract
 {
-    public const VERSION = 'STAT36-OBSERVATION-v1-DISPLAY-ONLY';
+    public const VERSION = 'STAT36-OBSERVATION-v2-DISPLAY-ONLY';
 
     public const ROOT = '/home/shinya/neo-keirin-artifacts/stat36-observation-01';
 
@@ -27,6 +27,8 @@ final class Contract
             'ledger_contract' => Audit::VERSION, 'headers' => Audit::HEADERS,
             'fields' => self::FIELDS, 'display_marker_path' => 'PJ0326.tyakujyunItemSubData[].kojinStateItemSubData[].kojinState',
             'display_marker_literal' => 'S', 'literal_policy' => 'EXACT_STRING_NO_ALIASES_NO_SUBSTRING',
+            'display_signature_version' => DisplaySignature::VERSION,
+            'display_signature_policy' => 'SORT_OBJECT_KEYS_ONLY_KEEP_LIST_ORDER_PRESENCE_TYPES_AND_CONTENT',
             'definition_status' => 'UNKNOWN_POSITION_DEFINITION',
             'start_acquired' => null, 'confirmed_start_absence_rule' => null,
             'display_evidence' => 'Stored result header is 個人状況; tbody is empty; rendering JavaScript is external and not captured by the accepted ledger.',

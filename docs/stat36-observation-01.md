@@ -1,5 +1,7 @@
 # STAT-36-OBSERVATION-01
 
+> PR #80修正: 現コードは署名専用正規化v2。以下の実データ件数・16成果物一致・manifestは旧v1の履歴であり、今回再実行していない。v2の人工検証は末尾に分離して記録する。
+
 ## 範囲
 
 開始main/origin・開始HEAD: `04429ec9a2df9a56fc37d57cd15f8dd1b6371411`。PR #79はレビュー後マージ済み。
@@ -188,3 +190,31 @@ RUNの実在する絶対パス:
 全件historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=nullを維持する。
 DB/HTTP、2026レース、学習/予測/評価/CI/Gate、migration/backfill実行0。
 旧成果物・旧hash・既存C1・STAT35比較診断の記録を保持。未コミットのコード/生成結果レビュー待ち。
+
+## PR #80: 署名のキー順正規化（人工検証のみ）
+
+開始/終了HEAD: `7cd7971bcc442feea92c198b7e9e863a0f08de64`、branch `feature/stat36-observation-01`、開始worktree clean。
+旧実装では個人状況objectのキー順だけで署名が異なり、2importの複数表示版数が1になることを人工統合2ケースで再現した。
+専用DisplaySignatureで署名用コピーのobjectキーだけを再帰的にSORT_STRING順へ固定する。
+listの順序・要素数、field欠落/NULL/空文字/空配列、数値/文字列/真偽値の型、文字列内容は保持する。
+数値キーobjectもJSON listへ変換しない。外部IDとpresence/rawを版識別子付きで署名化し、source pointerは署名に混ぜない。
+Parserの観測原値・キー順、元Raw、original/converted hash、pointerは変更しない。
+共通Files::canonical、RawReader、Index、production Parser、C1、STAT35計算は変更していない。
+
+観測契約: `STAT36-OBSERVATION-v2-DISPLAY-ONLY`。
+署名契約: `STAT36-DISPLAY-SIGNATURE-v2-SORTED-OBJECT-KEYS`。
+生成するcontractと各観測行にdisplay_signature_versionを記録する。
+旧v1 manifest/hash/版は書き換えず、v1とv2を同じ署名仕様として比較・再現したとは扱わない。
+start_acquired=NULL、UNKNOWN_POSITION_DEFINITIONと予測利用禁止は不変。新しい意味付けはない。
+
+回帰42ケースを追加。旧コードで2失敗したキー順差は修正後成功し、10観測/2importは保持、複数表示版0を確認。
+kojinState/kojinStateClass/BH/inLineJyuniの実値変更・list順変更は別署名/複数表示版1になる。
+5箇所の欠落/NULL/空文字/空配列の全30組合せ、型、空白、nested object、原値不変、版記録を確認。
+新規42回帰、関連197 tests/2275 assertions、通常全体2401 passed/9既存skipped/21274 assertions、exit0。変更PHP4件の構文・限定Pint成功。
+通常全体は最終PHPコードで1回、2026-10-01 07:07:28〜07:10:33 JST、185.201350秒。新規skip・既存テスト緩和なし。
+
+証跡: `/home/shinya/neo-keirin-artifacts/stat36-observation-01/pr80-review-fix-20261001-nm9E2U/`。
+redは旧コード2失敗、green/relatedは修正後の人工検証。full-suiteとpintの実行記録も別保存。
+既存900,049行の誤集計有無は今回は未確認。旧実測0という記録もv2で再確認した値ではない。
+実Raw build/reproduce、旧監査、DB/HTTP、学習/評価、2026実データ参照は実施していない。
+旧成果物に触れず、未コミットのレビュー修正として提出する。
