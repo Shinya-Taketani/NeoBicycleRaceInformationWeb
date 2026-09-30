@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.42
+- Version: 1.43
 - Created: 2026-08-23
-- Updated: 2026-09-30
+- Updated: 2026-10-01
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `d2ac7b6e2a9a75d4cb503fb269900dc626e1276e`
-- Current review: STAT-35-C1-DIAGNOSTIC-01 / COMPLETED_REPRODUCED_AWAITING_REVIEW。PR #78はレビュー後MERGED
-- Current code: 保存済みOuter C1/C2のPrimary変化・bin係数・utility寄与を独立診断。旧モデル/solver/Layout/Gateは変更なし
-- Current execution record: 50,078レース/356,209出走の診断build/reproduce完了、14成果物/manifest一致。source21/code35不変、utility exact、既存寄与/率一致。COMPARE-01追加Gate NOT_PASSED、C1維持・C2正式採用なし
-- Current tests record: 関連105 tests/567 assertions、通常全体2320 passed/9既存skipped/19689 assertions。限定Pint/変更PHP12ファイル構文成功。[診断記録](stat35-c1-diagnostic-01.md)
+- Remote `main` at last update: `04429ec9a2df9a56fc37d57cd15f8dd1b6371411`
+- Current review: STAT-36-OBSERVATION-01 / DISPLAY_OBSERVATIONS_REPRODUCED_START_SEMANTICS_UNCONFIRMED_AWAITING_REVIEW。PR #79はレビュー後MERGED
+- Current code: 固定PR64台帳の2022-2025 Rawから全import版の表示観測をoffline抽出。production Parser/DTO/Repository、C1、旧モデル/solver/Gateは変更なし
+- Current execution record: 127,121 import / 101,297 Rawありレース / 900,049観測行を生成・独立再現。全start_acquired=NULL、初手位置未取得。COMPARE-01追加Gate NOT_PASSED、C1維持・C2正式採用なし。15.52参照
+- Current tests record: 関連155 tests/886 assertions、通常全体2359 passed/9既存skipped/19883 assertions。限定Pint/新規PHP9ファイル構文成功。[観測記録](stat36-observation-01.md)
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,12 +171,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_C1_DIAGNOSTIC_01_COMPLETED_REPRODUCED_AWAITING_REVIEW
+current_engine_state: STAT36_OBSERVATION_01_DISPLAY_REPRODUCED_START_SEMANTICS_UNCONFIRMED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_C1_DIAGNOSTIC_01_CODE_AND_RESULTS_ONLY
+next_allowed_action: REVIEW_STAT36_OBSERVATION_01_CODE_AND_DISPLAY_EVIDENCE_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-C1-DIAGNOSTIC-01
-remote_main: d2ac7b6e2a9a75d4cb503fb269900dc626e1276e
+current_phase: STAT-36-OBSERVATION-01
+remote_main: 04429ec9a2df9a56fc37d57cd15f8dd1b6371411
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -192,7 +192,17 @@ pr75_status: MERGED_REVIEW_COMPLETED
 pr76_status: MERGED_REVIEW_COMPLETED
 pr77_status: MERGED_REVIEW_COMPLETED
 pr78_status: MERGED_REVIEW_COMPLETED
-stat35_c1_diagnostic_01: COMPLETED_REPRODUCED_AWAITING_REVIEW
+pr79_status: MERGED_REVIEW_COMPLETED
+stat36_observation_01: DISPLAY_REPRODUCED_START_SEMANTICS_UNCONFIRMED_AWAITING_REVIEW
+stat36_observation_01_scope: FIXED_PR64_LEDGER_2022_2025_RAW_OFFLINE_ALL_IMPORT_VERSIONS_ONLY
+stat36_observation_01_counts: IMPORTS_127121_RAW_RACES_101297_ROWS_900049_NO_IMPORT_RACES_29
+stat36_observation_01_start_acquired: ALL_NULL_UNKNOWN_POSITION_DEFINITION
+stat36_observation_01_initial_position: MISSING_INITIAL_POSITION
+stat36_observation_01_historical_as_of_available: false
+stat36_observation_01_prediction_use: NOT_AUTHORIZED
+stat36_observation_01_points: null
+stat36_observation_01_manifest: d3aba9fb2374fe17c4f360cbd74b9b7738bfbb794a3c751e30ed551d7868ae1b
+stat35_c1_diagnostic_01: PR79_MERGED_REVIEW_COMPLETED
 stat35_c1_diagnostic_01_scope: POST_HOC_DESCRIPTIVE_DIAGNOSTIC_SAVED_OUTER_2024_2025_ONLY
 stat35_c1_diagnostic_01_integrity: RACES_50078_ENTRIES_356209_UTILITY_EXACT_SOURCE21_CODE35_UNCHANGED_FOURTEEN_FILES_IDENTICAL
 stat35_c1_diagnostic_01_manifest: 304d2329df00ff17de383352ec45b01522430cb9181c2e13c399f531b8d451f9
@@ -526,7 +536,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。COMPARE-01はPR #78レビュー/マージ完了、追加Gate未達・C1維持。今回の限定事後診断は生成/独立再現完了、次は診断コード・結果レビューのみ。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。追加試行、DB/HTTP/Raw、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
+- STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。COMPARE-01はPR #78レビュー/マージ完了、追加Gate未達・C1維持。限定事後診断はPR #79レビュー/マージ完了。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。今回のSTAT-36固定台帳2022-2025 Raw読取り/観測生成1回/独立再現1回だけを15.52で許可し完了。次は表示観測コード・根拠レビューのみ。DB/HTTP、追加試行、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
 - `unfrozen_contracts`と全体`final_score_formula`の未確定は統計エンジン全体/将来統合の範囲。既存C1最終fitのlambda=0.1・係数・bin・manifestは固定済みで、再び未決定にはしない。旧E02のalpha/3-channelを後続C1へ適用しない。
 - BT-03E-01の **historical-forward scoring基盤実装自体は完成** している。
@@ -739,7 +749,8 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-C1-CONTEXT-01 | 固定対象と出走表由来メタデータの照合候補 | PR76_MERGED_FIXED_CANDIDATE_ACCEPTED_FOR_INPUT_PREPARATION | 705,048候補だけ限定受入、UNKNOWN class保留1,003と原本REVIEW_PENDINGを維持。再抽出/再生成なし |
 | STAT-35-C1-INPUT-02 | 受入済みcontext登録・既存mean6生成/独立再現 | PR77_MERGED_FIXED_INPUT_ACCEPTED | 接続705,048・数値685,719・NULL20,332、保留1,003集合一致、14ファイル/manifest一致。過去実行記録は不変 |
 | STAT-35-C1-COMPARE-01 | 固定mean6 C2対保存Outer C1 | PR78_MERGED_REVIEW_COMPLETED / INCREMENTAL_GATE_NOT_PASSED | C2だけ初回/独立再現、76ファイル一致。Hit@3差CI下限が0以下。旧C1保持、追加試行/2026/正式採用なし |
-| STAT-35-C1-DIAGNOSTIC-01 | 保存モデル・予測の的中変化とutility寄与 | COMPLETED_REPRODUCED_AWAITING_REVIEW | 50,078レース/356,209出走を保持、14成果物/manifest一致。事後診断のみ、新規学習・予測・CI/Gateなし。15.51参照 |
+| STAT-35-C1-DIAGNOSTIC-01 | 保存モデル・予測の的中変化とutility寄与 | PR79_MERGED_REVIEW_COMPLETED | 50,078レース/356,209出走を保持、14成果物/manifest一致。事後診断のみ、新規学習・予測・CI/Gateなし。15.51参照 |
+| STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | DISPLAY_REPRODUCED_START_SEMANTICS_UNCONFIRMED_AWAITING_REVIEW | 127,121版/900,049行、start_acquiredは全NULL。初手位置・予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -3136,6 +3147,31 @@ STAT35直接寄与と既存16項目再学習差を分離したが、的中増減
 
 ---
 
+## 15.52 STAT-36-OBSERVATION-01 / 2026-10-01
+
+PR #79はレビュー後MERGED。clean main/origin・開始HEADは `04429ec9a2df9a56fc37d57cd15f8dd1b6371411`。
+新branch `feature/stat36-observation-01` で、最新ユーザー指示の固定PR64台帳内2022-2025 Raw読取り・観測生成1回・独立再現1回を実施。
+前工程のRaw禁止は当時の診断範囲として残し、今回の限定許可を別記する。DB/HTTP/2026レースへ拡張しない。
+固定manifest `bd7ea209724bb1848ad4a44b1c9930bb0a5bb9c23806b0183eb0c6c07f9710a1` とLOCKED、両台帳・sidecarを検証。
+専用Command `keirin:stat36:observations plan/build/reproduce`。production Parser/DTO/Repositoryは変更しない。
+PJ0326のBH / inLineJyuni / 個人状況を原値・JSON pointer付きで保存。HTMLのH/B・個人状況見出しは確認したが、
+外部表示JavaScriptとS/空欄の意味は未確認。全start_acquired=NULL、UNKNOWN_POSITION_DEFINITION。
+台帳101,326レース中Rawあり101,297、importなし29。127,121版/900,049観測、unique対応出走716,880。
+候補field完全一致S 0、空配列751,160、意味不明空表示135,036、落車棄権/失格のみ8,801、未知表現5,052。
+中止空結果65版・中止非空48版を保持。表示0件をスタート取得0件へ読み替えない。
+build/reproduce各1回、exit0、405.279369/388.389617秒、両peak33,554,432 bytes（512M設定）。
+16成果物とmanifestがサイズ/SHA-256一致。出力だけの独立照合も全行件数・用途制限に一致。
+manifest: `d3aba9fb2374fe17c4f360cbd74b9b7738bfbb794a3c751e30ed551d7868ae1b`。
+証跡: `/home/shinya/neo-keirin-artifacts/stat36-observation-01/run-20261001-PWIOV1BU/` のresult/reproduction/各実行ログ。
+初手位置はMISSING_INITIAL_POSITION、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points=null。
+表示観測の生成・再現成功と、意味確定済みSTAT36基盤の成立を区別する。全STAT36完成・予測利用可能とはしない。
+旧C2追加Gate NOT_PASSED、C1維持、STAT35比較/診断完了を保持。学習・予測・評価・CI/Gateは実行しない。
+関連155 tests/886 assertions、通常全体2359 passed/9既存skipped/19883 assertions。新規39ケースと独立128M大容量試験成功。
+限定Pint/新規PHP9ファイル構文成功。詳細と具体例は [stat36-observation-01.md](stat36-observation-01.md)。
+未コミットのコード・表示根拠レビュー待ちで終了。追加取得/履歴窓/予測接続など次工程へ自動移行しない。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3442,6 +3478,7 @@ run 6は正式完了済み。
 | #76 | STAT-35 C1 context・固定対象出走表対応 | MERGED_REVIEW_COMPLETED / merge 2ec9fd6a4755dab2c59127494748eafa8f98a986。今回の固定candidate限定受入は15.49 |
 | #77 | STAT-35 C1 input-02・固定mean6入力生成と独立再現 | MERGED_REVIEW_COMPLETED / merge b8596e3bc621703eadd89fba42101be8b70dde23。限定development比較許可と実績は15.50 |
 | #78 | STAT-35 C1 compare-01・固定mean6 C2比較 | MERGED_REVIEW_COMPLETED / merge d2ac7b6e2a9a75d4cb503fb269900dc626e1276e。追加Gate NOT_PASSED、C1維持。限定診断は15.51 |
+| #79 | STAT-35 C1 diagnostic-01・保存モデル/予測の事後診断 | MERGED_REVIEW_COMPLETED / main 04429ec9a2df9a56fc37d57cd15f8dd1b6371411。旧実績15.51を保持。今回の表示観測は15.52 |
 
 Current remote `main` at the v1.2 update:
 
@@ -3551,6 +3588,13 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.43 / 2026-10-01
+
+PR #79レビュー/マージ完了、開始main `04429ec9a2df9a56fc37d57cd15f8dd1b6371411` を反映。
+STAT-36固定台帳Rawの限定読取り・表示観測生成/独立再現完了を現在地・工程表・引継ぎへ同期。
+Sの意味未確認・全start値NULL・初手位置未取得を明示し、STAT36全体完成/予測利用とはしない。
+旧STAT35 mean6候補C2の追加Gate未達、C1維持、旧実行記録と2026凍結は保持。詳細15.52。
 
 ## v1.42 / 2026-09-30
 
@@ -4160,8 +4204,11 @@ Remote `main`:
 
 ```text
 Current:
-Phase = STAT-35-C1-DIAGNOSTIC-01 / COMPLETED_REPRODUCED_AWAITING_REVIEW
-Current main = d2ac7b6e2a9a75d4cb503fb269900dc626e1276e / PR78_REVIEW_COMPLETED_MERGED
+Phase = STAT-36-OBSERVATION-01 / DISPLAY_REPRODUCED_START_SEMANTICS_UNCONFIRMED_AWAITING_REVIEW
+Current main = 04429ec9a2df9a56fc37d57cd15f8dd1b6371411 / PR79_REVIEW_COMPLETED_MERGED
+STAT36 = FIXED_PR64_LEDGER_2022_2025 / IMPORTS_127121_RACES_101297_ROWS_900049 / ALL_START_VALUES_NULL
+STAT36 limits = UNKNOWN_POSITION_DEFINITION / MISSING_INITIAL_POSITION / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
+STAT36 manifest = d3aba9fb2374fe17c4f360cbd74b9b7738bfbb794a3c751e30ed551d7868ae1b / INDEPENDENT_RAW_REPRODUCTION
 Diagnostic = POST_HOC_DESCRIPTIVE_ONLY / RACES_50078_ENTRIES_356209 / FOURTEEN_FILES_AND_MANIFEST_IDENTICAL / SOURCE21_CODE35_UNCHANGED
 Diagnostic manifest = 304d2329df00ff17de383352ec45b01522430cb9181c2e13c399f531b8d451f9 / UTILITY_EXACT / NO_NEW_GATE_OR_ADOPTION
 Draft = docs/stat35-next-use-design-01.md / ORIGINAL_DRAFT_PRESERVED / FIXED_COMPARE_01_SCOPE_ONLY_AUTHORIZED
@@ -4277,13 +4324,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = REVIEW_STAT35_C1_DIAGNOSTIC_01_CODE_AND_RESULTS_ONLY / NO_ADDITIONAL_EXECUTION_OR_EXPLORATION
+Next allowed action = REVIEW_STAT36_OBSERVATION_01_CODE_AND_DISPLAY_EVIDENCE_ONLY / NO_ADDITIONAL_EXECUTION_OR_EXPLORATION
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review STAT-36-OBSERVATION-01 code and saved display evidence only. One build and one independent Raw reproduction preserve all accepted 2022-2025 import versions. Generation success does not establish start semantics: all start_acquired values remain null, and initial position is unavailable. No prediction use, inferred positions, scoring or next-phase execution is authorized. Preserve C1, C2 incremental Gate NOT_PASSED, old artifacts and the closed 2026 holdout. See docs/stat36-observation-01.md.
+
+Previous handoff (v1.42, diagnostic completed; PR79 reviewed and merged):
 Review STAT-35-C1-DIAGNOSTIC-01 code and results only. One build and one independent reproduction retained all 50,078 races/356,209 entries; 14 files and manifest match, saved utilities are exact and prior contributions/unrounded rates agree. This is post-hoc descriptive diagnosis, not a new independent evaluation or causal explanation. Preserve C1, the C2-C1 NOT_PASSED decision, historical_as_of_available=false and the closed 2026 holdout. No additional execution, DB/HTTP/Raw, retraining, predictions, new CI/Gate or automatic next phase. See docs/stat35-c1-diagnostic-01.md.
 
 Previous handoff (v1.41, comparison completed; PR78 reviewed and merged):
