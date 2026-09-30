@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.40
+- Version: 1.41
 - Created: 2026-08-23
 - Updated: 2026-09-30
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `2ec9fd6a4755dab2c59127494748eafa8f98a986`
-- Current review: STAT-35-C1-INPUT-02 / `INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW`。PR #76はレビュー後MERGED
-- Current code: 受入済みcandidateの固定pinだけを登録。C1/履歴/平均/欠損/schema/versionは不変
-- Current execution record: offline生成1回/独立再現1回成功。99,669レース/706,051出走、接続705,048・数値685,719・NULL20,332。保留1,003件の集合、C1不変、14ファイル/manifest一致。詳細は[実行記録](stat35-c1-input-02.md)。旧記録は保持
-- Current tests record: 関連159成功/1,834 assertions、通常全体2,270成功/既存9skip/19,255親assertions。19件の独立128M試験維持。変更PHP構文/限定Pint成功
+- Remote `main` at last update: `b8596e3bc621703eadd89fba42101be8b70dde23`
+- Current review: STAT-35-C1-COMPARE-01 / COMPLETED_REPRODUCED_INCREMENTAL_GATE_NOT_PASSED_AWAITING_REVIEW。PR #77はレビュー後MERGED
+- Current code: 旧C1を変更せず、固定INPUT-02 mean6を追加した独立17項目C2とoffline教師開放経路を実装
+- Current execution record: 実C2初回/独立再学習・比較完了、各76ファイル一致。追加Gate NOT_PASSED（Hit@3優越性未達）、補助STAT01 Gate PASS。旧C1再学習0、正式採用なし
+- Current tests record: 関連132 tests/856 assertions、通常全体2288 passed/9既存skipped/19449 assertions、限定Pint/変更PHP構文成功。[比較記録](stat35-c1-compare-01.md)
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,12 +171,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT35_C1_INPUT_02_INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW
+current_engine_state: STAT35_C1_COMPARE_01_COMPLETED_REPRODUCED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: REVIEW_STAT35_C1_INPUT_02_GENERATED_INPUTS_ONLY
+next_allowed_action: REVIEW_STAT35_C1_COMPARE_01_CODE_AND_RESULTS_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-35-C1-INPUT-02
-remote_main: 2ec9fd6a4755dab2c59127494748eafa8f98a986
+current_phase: STAT-35-C1-COMPARE-01
+remote_main: b8596e3bc621703eadd89fba42101be8b70dde23
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -190,12 +190,22 @@ pr73_status: MERGED
 pr74_status: MERGED_DESIGN_DOCUMENTATION
 pr75_status: MERGED_REVIEW_COMPLETED
 pr76_status: MERGED_REVIEW_COMPLETED
-stat35_c1_input_02: INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW
+pr77_status: MERGED_REVIEW_COMPLETED
+stat35_c1_compare_01: COMPLETED_REPRODUCED_INCREMENTAL_GATE_NOT_PASSED_AWAITING_REVIEW
+stat35_c1_compare_01_scope: FIXED_MEAN6_C2_ONLY_TWO_INDEPENDENT_DEVELOPMENT_RUNS_SAVED_OUTER_C1_BASELINE
+stat35_c1_compare_01_source: INPUT02_MANIFEST_7f4356b93f90203dc727dc95d6215a8d8ce3f44869c4441c3981087ff1099c26
+stat35_c1_compare_01_integrity: SOURCE_39_CODE_354_UNCHANGED_BOTH_RUNS_76_FILES_IDENTICAL_C1_RETRAINING_0
+stat35_c1_compare_01_incremental_gate: NOT_PASSED_HIT3_CI_LOWER_NOT_POSITIVE
+stat35_c1_compare_01_stat01_gate: PASS_NOT_AN_ADOPTION_AUTHORIZATION
+stat35_c1_compare_01_manifest: 8fc40000c93bbc604caac37cf21e60519f26f28c4e77cf9284fa31403f5487c8
+stat35_c1_compare_01_historical_as_of_available: false
+stat35_c1_compare_01_formal_adoption: NOT_AUTHORIZED
+stat35_c1_input_02: PR77_MERGED_INPUTS_ACCEPTED_FOR_LIMITED_COMPARE_01_ONLY
 stat35_c1_input_02_scope: FIXED_CONTEXT_PIN_TESTS_OFFLINE_BUILD_ONCE_REPRODUCE_ONCE
 stat35_c1_input_02_counts: RACES_99669_ENTRIES_706051_CONNECTED_705048_NUMERIC_685719_NULL_20332
 stat35_c1_input_02_verification: C1_UNCHANGED_HELD_1003_SET_MATCH_FOURTEEN_FILES_AND_MANIFEST_IDENTICAL
 stat35_c1_input_02_historical_as_of_available: false
-stat35_c1_input_02_training_evaluation_2026_live: NOT_AUTHORIZED
+stat35_c1_input_02_training_evaluation_2026_live: ORIGINAL_PROHIBITION_PRESERVED_COMPARE_01_FIXED_DEVELOPMENT_EXCEPTION_ONLY_NO_2026_OR_LIVE
 stat35_c1_context_01: PR76_MERGED_FIXED_CANDIDATE_ACCEPTED_FOR_INPUT_PREPARATION
 stat35_c1_context_01_scope: FIXED_C1_2022_2025_ENTRY_RACE_DAY_MEETING_METADATA_ONLY
 stat35_c1_context_01_acceptance: FIXED_248_BYTE_CANDIDATE_ONLY_SAVED_METADATA_RECONSTRUCTION
@@ -511,7 +521,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- STAT-35-C1-INPUT-02で許可された固定candidate pin登録・人工試験・既存offline生成1回/独立再現1回・集合照合は完了し、次は生成入力レビューだけ。現在保存値の再構成として限定受入し、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断は書き換えない。DB/HTTP/Raw、context再抽出/再生成、学習/予測/評価/2026/LIVEは許可しない。
+- STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。最新指示で限定許可されたCOMPARE-01のC2学習/予測/比較/独立再現は完了、追加Gate未達で次はレビューのみ。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。追加試行、DB/HTTP/Raw、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
 - `unfrozen_contracts`と全体`final_score_formula`の未確定は統計エンジン全体/将来統合の範囲。既存C1最終fitのlambda=0.1・係数・bin・manifestは固定済みで、再び未決定にはしない。旧E02のalpha/3-channelを後続C1へ適用しない。
 - BT-03E-01の **historical-forward scoring基盤実装自体は完成** している。
@@ -719,10 +729,11 @@ BT-03E-02以降で利用する場合は、
 | STAT-35-37-TRACK-CONTEXT-02 | 公式資料一巡・v2出典/期間追加・offline coverage比較 | REVIEW_COMPLETED_PR71_MERGED | 部分的拡充のレビュー完了。42場89観測版、距離14/10,660（+11）、期間不明10,646・競合/後退0という前工程記録を維持。歴史網羅未完了 |
 | STAT-35-RACE-RELATIVE-01 | 保存済みagariの同一レース内相対値・v2未補正速度 | MERGED_REVIEW_COMPLETED_PR72 | 101,326レース/716,837行、5成果物一致と16件独立128M修正のレビュー完了。旧失敗・成功は15.44へ保持。実export/旧build再実行なし |
 | STAT-35-PLAYER-HISTORY-01 | 選手×開催×classの相対値履歴・3/6/12開催窓 | PR73_IDENTITY_SCOPE_FIX_MERGED / PRIOR_DESCRIPTIVE_GENERATION_REPRODUCED | PR #73 MERGED。修正版生成/再現成功、新旧4データ不変・新6成果物一致等は15.45の過去記録。全成果物受入の判定記録未確認。窓最適化・予測利用未許可 |
-| STAT-35-NEXT-USE-DESIGN-01 | 工程同期・C1追加効果の次用途仕様案・46 STAT/6エンジン索引 | MERGED_DESIGN_DRAFT_INPUT_SCOPE_ADOPTED_ONLY | PR74で設計案保存完了。今回の入力準備だけ別途許可、比較案/Gate/学習/評価/DB/2026は未承認 |
+| STAT-35-NEXT-USE-DESIGN-01 | 工程同期・C1追加効果の次用途仕様案・46 STAT/6エンジン索引 | MERGED_DESIGN_DRAFT_LIMITED_COMPARE_SCOPE_ADOPTED | PR74当時は設計案保存・入力準備のみ。今回の固定mean6限定比較条件だけ15.50で採用・実行済み。追加探索/DB/2026/正式採用は未承認 |
 | STAT-35-C1-INPUT-01 | 固定C1への6観測開催mean入力準備 | PR75_CODE_REVIEW_MERGED_PRIOR_DIAGNOSTIC_PRESERVED | 15.47の全706,051出走・本人証拠不足の全NULL診断と当時の空allowlistを保持。旧処理再実行なし |
 | STAT-35-C1-CONTEXT-01 | 固定対象と出走表由来メタデータの照合候補 | PR76_MERGED_FIXED_CANDIDATE_ACCEPTED_FOR_INPUT_PREPARATION | 705,048候補だけ限定受入、UNKNOWN class保留1,003と原本REVIEW_PENDINGを維持。再抽出/再生成なし |
-| STAT-35-C1-INPUT-02 | 受入済みcontext登録・既存mean6生成/独立再現 | INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW | 接続705,048・数値685,719・NULL20,332、保留1,003集合一致、14ファイル/manifest一致。計算不変、学習/性能評価未実施 |
+| STAT-35-C1-INPUT-02 | 受入済みcontext登録・既存mean6生成/独立再現 | PR77_MERGED_FIXED_INPUT_ACCEPTED | 接続705,048・数値685,719・NULL20,332、保留1,003集合一致、14ファイル/manifest一致。過去実行記録は不変 |
+| STAT-35-C1-COMPARE-01 | 固定mean6 C2対保存Outer C1 | COMPLETED_REPRODUCED / INCREMENTAL_GATE_NOT_PASSED / REVIEW_PENDING | C2だけ初回/独立再現、76ファイル一致。Hit@3差CI下限が0以下。旧C1保持、追加試行/2026/正式採用なし |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
 
@@ -3069,6 +3080,34 @@ C1集合・順序・非結果値/型不変、14ファイルとmanifest一致、s
 
 ---
 
+## 15.50 STAT-35-C1-COMPARE-01 / 2026-09-30
+
+PR #77はレビュー後MERGED、開始clean main/originは `b8596e3bc621703eadd89fba42101be8b70dde23`。
+新branch `feature/stat35-c1-compare-01`。今回の最新指示だけで、受入済み固定INPUT-02を使う
+C2=旧C1入力+stat35_mean6の限定development学習/予測/評価/独立再現を許可する。
+旧C1 Outer run-01だけを比較基準にし、旧C1再学習・全期間最終モデル流用はしない。
+200 accepted updates/収束閾値/lambda grid/One-SE/decoder/metric/paired bootstrap/Gateは継承。
+NULLは非active、0は有効、cohort/順序/型は固定。原本の旧利用制限表示と生成時sealは変更しない。
+Outer教師は双方の予測seal・集合照合後に開放。性能集計は両Outer予測固定後。
+DB/HTTP/Raw/入力再生成/2026/LIVE/正式モデル置換は禁止。独立再現を追加標本にしない。
+実装・検証・実行結果は [stat35-c1-compare-01.md](stat35-c1-compare-01.md)へ記録する。
+技術成立、性能Gate、正式採用を区別し、条件を緩めた自動再試行をしない。
+
+実行は2026-09-30 06:58:22〜11:59:43 JST、終了0、18,080.739秒、peak 33,554,432 bytes。
+Inner A/Bとも収束lambda=1/0.1、他6候補は非収束除外。両Outer選択0.1、全3順位収束。
+初回/独立再現のモデル・bin/support・選択・診断・予測・寄与・CIを含む各76ファイルが一致。
+固定入力99,669レース/706,051出走（数値685,719、NULL20,332）と順序/型を維持。
+保存C1 forward一致・再学習0。source 39ファイル/code 354ファイルの終了時不変性を確認。
+C2-C1の年等重み差は1着+0.109753 pp、2着+0.071849 pp、3着+0.043463 pp、Hit@3+0.071916 pp。
+Hit@3差95%CIは[-0.003468,+0.144852] pp。追加Gateは非劣性/年別条件/integrity成功、優越性未達でNOT_PASSED。
+補助C2-STAT01 GateはPASS / GO_TO_FREEZEという既存判定値だが、今回の正式freeze/採用許可ではない。
+保存rootは `/home/shinya/neo-keirin-artifacts/stat35-c1-compare-01/run-20260929-215427-3b1776ba`。
+result manifest SHAは `8fc40000c93bbc604caac37cf21e60519f26f28c4e77cf9284fa31403f5487c8`。
+関連132 tests/856 assertions、全体2288 passed/9既存skipped/19449 assertions、限定Pint/構文成功。
+技術成立と性能追加効果を分離し、未コミットのコード・結果レビュー待ちで停止。追加探索・正式採用へ進まない。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3373,6 +3412,7 @@ run 6は正式完了済み。
 | #74 | STAT-35 next-use設計案・工程同期 | MERGED / merge 029309f2cb0434348a53cd30b74d0419d2f8b6d2。設計案保存の完了であり学習/Gate/2026の承認ではない |
 | #75 | STAT-35 C1 input・接続証拠/競合判定レビュー修正 | MERGED / merge e61f7c19dfd7b32d9a0ff1218fc068b7756b1fd5。旧診断は保持、今回context候補の受入とは別 |
 | #76 | STAT-35 C1 context・固定対象出走表対応 | MERGED_REVIEW_COMPLETED / merge 2ec9fd6a4755dab2c59127494748eafa8f98a986。今回の固定candidate限定受入は15.49 |
+| #77 | STAT-35 C1 input-02・固定mean6入力生成と独立再現 | MERGED_REVIEW_COMPLETED / merge b8596e3bc621703eadd89fba42101be8b70dde23。限定development比較許可と実績は15.50 |
 
 Current remote `main` at the v1.2 update:
 
@@ -3482,6 +3522,14 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.41 / 2026-09-30
+
+PR #77マージと開始main `b8596e3bc621703eadd89fba42101be8b70dde23` を反映。
+STAT-35-C1-COMPARE-01の固定INPUT-02限定development許可を現在地/工程表/引継ぎへ同期。
+旧入力・C1・生成時hashを保持し、今回の独立実装と実行記録を分離する。詳細15.50。
+初回/独立C2学習・比較・再現が技術成立。追加Gate NOT_PASSED、補助STAT01 Gate PASS、正式採用なし。
+次はコード/結果レビューのみ。旧INPUT-02生成/再現の実行hashを今回コードへ読み替えない。
 
 ## v1.40 / 2026-09-30
 
@@ -4077,15 +4125,19 @@ Remote `main`:
 
 ```text
 Current:
-Phase = STAT-35-C1-INPUT-02 / INPUTS_PREPARED_REPRODUCED_AWAITING_REVIEW
-Current main = 2ec9fd6a4755dab2c59127494748eafa8f98a986 / PR76_REVIEW_COMPLETED_MERGED
-Draft = docs/stat35-next-use-design-01.md / ORIGINAL_DRAFT_PRESERVED / INPUT_PREPARATION_ONLY_AUTHORIZED
+Phase = STAT-35-C1-COMPARE-01 / COMPLETED_REPRODUCED_INCREMENTAL_GATE_NOT_PASSED_AWAITING_REVIEW
+Current main = b8596e3bc621703eadd89fba42101be8b70dde23 / PR77_REVIEW_COMPLETED_MERGED
+Draft = docs/stat35-next-use-design-01.md / ORIGINAL_DRAFT_PRESERVED / FIXED_COMPARE_01_SCOPE_ONLY_AUTHORIZED
 Prior input diagnostic record = docs/stat35-c1-input-01.md / 99669_RACES_706051_ENTRIES / ALL_NULL_MISSING_IDENTITY_CONTEXT_EVIDENCE
 Prior input diagnostic reproducibility = FOURTEEN_FILES_AND_MANIFEST_IDENTICAL / NOT_RERUN
 Current context record = docs/stat35-c1-context-01.md / CANDIDATES_705048_HELD_1003 / FIXED_CANDIDATE_ONLY_ACCEPTED_FOR_INPUT_PREPARATION / ORIGINAL_REVIEW_PENDING_UNCHANGED
 Current context reproducibility = SEVEN_FILES_AND_MANIFEST_IDENTICAL / ONE_READ_ONLY_EXTRACTION_NO_DB_RECONNECT
 Current input record = docs/stat35-c1-input-02.md / ENTRIES_706051_CONNECTED_705048_NUMERIC_685719_NULL_20332
 Current input reproducibility = FOURTEEN_FILES_AND_MANIFEST_IDENTICAL / C1_UNCHANGED / HELD_1003_SET_VERIFIED / OFFLINE_ONLY
+Current comparison = C2_ONLY_TWO_INDEPENDENT_RUNS / LAMBDA_0.1_BOTH_OUTERS / 76_FILES_PER_RUN_IDENTICAL / C1_RETRAINING_0
+Current comparison integrity = SOURCE_39_CODE_354_UNCHANGED / INPUT_COHORT_NULL_TYPES_ORDER_PRESERVED
+Current comparison result = C2_MINUS_C1_GATE_NOT_PASSED_HIT3_SUPERIORITY / C2_MINUS_STAT01_GATE_PASS / NOT_ADOPTED
+Current comparison manifest = 8fc40000c93bbc604caac37cf21e60519f26f28c4e77cf9284fa31403f5487c8
 BT-03E-01 engineering = COMPLETED
 BT-03E-01 coarse points = REJECTED
 BT-03E-02 engineering / development evaluation = COMPLETED
@@ -4188,13 +4240,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = REVIEW_STAT35_C1_INPUT_02_GENERATED_INPUTS_ONLY / NO_TRAINING_EVALUATION_OR_WINDOW_OPTIMIZATION
+Next allowed action = REVIEW_STAT35_C1_COMPARE_01_CODE_AND_RESULTS_ONLY / NO_ADDITIONAL_EXECUTION_OR_EXPLORATION
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review STAT-35-C1-COMPARE-01 code and results only. C2 initial and independent training/prediction/evaluation completed; 76 files per run match and source/code integrity passed. The C2-C1 incremental Gate did not pass because the Hit@3 delta CI lower bound is not positive; the auxiliary STAT01 Gate passed, which is not adoption authorization. Preserve saved Outer C1, old artifacts and historical_as_of_available=false. No additional trials, DB/HTTP/Raw, input regeneration, C1 retraining, final model replacement or 2026/LIVE. See docs/stat35-c1-compare-01.md; stop for review without an automatic next phase.
+
+Previous handoff (v1.40, input preparation completed; PR77 merged and fixed comparison now authorized only in 15.50):
 Review STAT-35-C1-INPUT-02 generated inputs only. The fixed 248-byte candidate pin is registered; synthetic/full tests and one offline build/independent reproduction completed. All 706,051 entries remain: connected 705,048, numeric 685,719, NULL 20,332. Missing context matches the prior 1,003 UNKNOWN_RACE_CLASS holds by year/race/entry/bike. C1 values/types/order are unchanged; fourteen files and manifest match. Preserve all old artifacts and calculation contracts, historical_as_of_available=false, C1 and 2026 freeze. Input preparation is not performance improvement. No database/HTTP/context regeneration/training/prediction/evaluation. See docs/stat35-c1-input-02.md; no automatic next phase.
 
 Previous handoff (v1.39, historical context-only scope; fixed candidate acceptance and one input build/reproduction now authorized only in 15.49):
