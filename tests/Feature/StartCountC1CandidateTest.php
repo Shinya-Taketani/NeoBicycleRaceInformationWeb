@@ -9,6 +9,7 @@ use App\Domain\Keirin\Statistics\AgariRaceRelative\Artifacts;
 use App\Domain\Keirin\Statistics\StartCountC1Candidate\Builder;
 use App\Domain\Keirin\Statistics\StartCountC1Candidate\Bundle;
 use App\Domain\Keirin\Statistics\StartCountC1Candidate\Contract;
+use App\Domain\Keirin\Statistics\StartCountC1Candidate\Rows;
 use App\Domain\Keirin\Statistics\StartCountC1Candidate\Sources;
 use App\Domain\Keirin\Statistics\StartCountC1Candidate\Timing;
 use Illuminate\Support\Facades\DB;
@@ -431,10 +432,27 @@ class StartCountC1CandidateTest extends TestCase
         F::bundle($this->root);
         $path = $this->root.'/snapshots/unresolved-2024.jsonl';
         file_put_contents($path, Files::canonical(['race' => ['race_id' => 300001, 'race_date' => '2024-08-01'],
-            'reason' => 'NO_PJ0315_CANDIDATE', 'actual_rank' => 1]).'\\n');
+            'reason' => 'NO_PJ0315_CANDIDATE', 'actual_rank' => 1])."\n");
         $source = F::reseal($this->root, 'snapshots', 'unresolved-2024.jsonl');
         $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unexpected object fields.');
         (new Builder($source))->build($this->root.'/build');
+    }
+
+    public function test_valid_unresolved_control_accepts_expected_fields(): void
+    {
+        Rows::unresolved(
+            ['race' => ['race_id' => 300001, 'race_date' => '2024-08-01'], 'reason' => 'NO_PJ0315_CANDIDATE'], 2024);
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_literal_newline_is_rejected_before_unresolved_field_validation(): void
+    {
+        $path = $this->root.'/malformed.jsonl';
+        file_put_contents($path, Files::canonical(['race' => ['race_id' => 300001, 'race_date' => '2024-08-01'],
+            'reason' => 'NO_PJ0315_CANDIDATE']).'\\n');
+        $this->expectExceptionMessage('Truncated or oversized JSONL row.');
+        iterator_to_array(Artifacts::lines($path));
     }
 
     public function test_plan_without_source_db_http_raw_or_training(): void
