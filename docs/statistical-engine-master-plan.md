@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.48
+- Version: 1.49
 - Created: 2026-08-23
 - Updated: 2026-10-03
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `89544d70eb1c6e74f24ff0dcb2a2d5e76cb4a5f7`
-- Current review: PR #84レビュー後MERGED。STAT-01-C1-SCORE-GAP-01の実学習・比較・独立再現完了、今回方式不採用・C1維持、コード/結果レビュー待ち
-- Current code: 独立Stat01C1ScoreGapComparison、固定C1全出走raw平均との差だけを追加。旧C1/STAT35/S/Dモデル・原資料・契約は不変
-- Current execution record: execute1回/独立2run/76意味ファイル一致、主Gate NOT_PASSED・C1維持、補助STAT01 FAIL / REDESIGN_REQUIRED。manifest 214ba0fa…、15.57参照。旧D/S/mean6の実績は保持
-- Current tests record: 関連128M 279 passed/2466 assertions、通常全体2728 passed/9既存skip/25681 assertions、変更PHP19構文/限定Pint成功。[score gap記録](stat01-c1-score-gap-01.md)参照。旧試験/実測値は保持
+- Remote `main` at last update: `db94280fbab7434ccf34043dcef40b6deb7401df`
+- Current review: PR85マージ済み。C1-STAT10-ABLATION-01の実学習・比較・独立再現完了、主Gate未達・C1維持。未コミットのコード/結果レビュー待ち
+- Current code: 独立C1Stat10Ablation、原16項目検証後の名前付き15項目投影。旧C1/STAT35/S/D/gapコード・モデル・原資料は不変
+- Current execution record: execute1回/独立2run/実列挙76意味ファイル一致、主Gate NOT_PASSED、補助STAT01 PASS。manifest 671bbcd9…、15.58参照。旧15.57/P3未解決は保持
+- Current tests record: 関連128M322 passed/2910 assertions、通常全体2771 passed/9既存skip/26125 assertions、変更PHP19構文/限定Pint成功。旧試験/実測値は各工程の当時の記録として保持
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,12 +171,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT01_C1_SCORE_GAP_01_COMPLETED_AWAITING_REVIEW
+current_engine_state: C1_STAT10_ABLATION_01_COMPLETED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: STAT01_C1_SCORE_GAP_01_CODE_AND_RESULTS_REVIEW_ONLY
+next_allowed_action: C1_STAT10_ABLATION_01_RESULT_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-01-C1-SCORE-GAP-01
-remote_main: 89544d70eb1c6e74f24ff0dcb2a2d5e76cb4a5f7
+current_phase: C1-STAT10-ABLATION-01
+remote_main: db94280fbab7434ccf34043dcef40b6deb7401df
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -198,11 +198,25 @@ pr81_status: MERGED_REVIEW_COMPLETED
 pr82_status: MERGED
 pr83_status: MERGED_REVIEW_COMPLETED
 pr84_status: MERGED_REVIEW_COMPLETED
-stat01_c1_score_gap_01: COMPLETED_DEVELOPMENT_COMPARISON_AWAITING_REVIEW
+pr85_status: MERGED_REVIEW_COMPLETED_P3_RESIDUAL_UNRESOLVED
+c1_stat10_ablation_01: COMPLETED_DEVELOPMENT_COMPARISON_AWAITING_REVIEW
+c1_stat10_ablation_01_candidate: C1_MINUS_STAT10
+c1_stat10_ablation_01_performance: INCREMENTAL_GATE_NOT_PASSED
+c1_stat10_ablation_01_decision: NOT_ADOPTED_RETAIN_C1_AWAITING_REVIEW
+c1_stat10_ablation_01_stat01_aux_gate: PASS
+c1_stat10_ablation_01_reproduction: SEVENTY_SIX_ENUMERATED_SEMANTIC_FILES_IDENTICAL
+c1_stat10_ablation_01_c1_retraining_count: 0
+c1_stat10_ablation_01_manifest_sha256: 671bbcd97463123076846c4dcd6f7273e6e6aa0d9da8dabba1dc205ef2dca339
+c1_stat10_ablation_01_historical_as_of_available: false
+c1_stat10_ablation_01_formal_adoption: false
+c1_stat10_ablation_01_live_use_authorized: false
+c1_stat10_ablation_01_points: null
+c1_stat10_ablation_01_2026_access: FORBIDDEN
+stat01_c1_score_gap_01: COMPLETED_PR85_MERGED_NOT_ADOPTED
 stat01_c1_score_gap_01_scope: FIXED_C1_ALL_ENTRANT_RAW_CENTERED_GAP_ONLY_TWO_INDEPENDENT_DEVELOPMENT_RUNS
 stat01_c1_score_gap_01_model_version: STAT01-C1-SCORE-GAP-SEQUENTIAL-POSITION-v1
 stat01_c1_score_gap_01_incremental_gate: NOT_PASSED
-stat01_c1_score_gap_01_decision: NOT_ADOPTED_RETAIN_C1_AWAITING_REVIEW
+stat01_c1_score_gap_01_decision: NOT_ADOPTED_RETAIN_C1
 stat01_c1_score_gap_01_stat01_aux_gate: FAIL_REDESIGN_REQUIRED
 stat01_c1_score_gap_01_reproduction: SEVENTY_SIX_SEMANTIC_FILES_IDENTICAL
 stat01_c1_score_gap_01_c1_retraining_count: 0
@@ -515,6 +529,7 @@ completed_phases:
   - STAT-36-C1-COMPARE-01_PR83_REVIEW_MERGE_NOT_ADOPTED
   - STAT-17-C1-COMPARE-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
   - STAT-01-C1-SCORE-GAP-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
+  - C1-STAT10-ABLATION-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -608,7 +623,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- PR #84はレビュー後マージ済み。今回のSTAT-01-C1-SCORE-GAP-01も実学習・比較・独立2run/76意味ファイル一致まで完了。主Gateは非劣性/年別/優越未達のNOT_PASSEDで今回方式不採用・C1維持、補助STAT01もFAIL / REDESIGN_REQUIRED。次はコード/結果レビューのみ。旧STAT17/S/mean6の結果は保持し、同条件再試行・正式採用/LIVE/2026へ進まない。15.56/15.57参照。
+- PR #85はレビュー後マージ済み。C1-STAT10-ABLATION-01の15項目実学習・比較・独立2run/実列挙76意味ファイル一致まで完了。主Gateは非劣性/年別/優越未達のNOT_PASSEDで今回方式不採用・C1維持、補助STAT01 PASSを採用根拠へ代用しない。次はコード/結果レビューのみ。旧score gap/STAT17/S/mean6の結果とscore gap P3残件を保持し、同条件再試行・次ablation・正式置換/LIVE/2026へ進まない。15.57/15.58参照。
 
 - STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。COMPARE-01はPR #78レビュー/マージ完了、追加Gate未達・C1維持。限定事後診断はPR #79レビュー/マージ完了。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。15.52当時のSTAT-36固定台帳2022-2025 Raw読取り/観測生成1回/独立再現1回だけの許可と完了は過去記録。今回の別候補工程は15.54に記録する。DB/HTTP、追加試行、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
@@ -828,7 +843,8 @@ BT-03E-02以降で利用する場合は、
 | STAT-36-C1-CANDIDATE-01 | 固定C1への表示S候補接続 | PR82_MERGED_GENERAL_TRAINING_NOT_AUTHORIZED | 706,051出走全数数値、15成果物/manifest一致。原契約は不変、別契約の今回比較限定許可は15.55、当時の生成実績は15.54 |
 | STAT-36-C1-COMPARE-01 | 固定表示SのC1追加development比較 | PR83_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 独立2run/76成果物一致、選択0.1/0.1、追加Gate未達・C1維持、補助STAT01 PASS。旧C1再学習0、時点UNKNOWN/正式採用/LIVE/2026禁止、15.55参照 |
 | STAT-17-C1-COMPARE-01 | 固定C1 history4由来多様性指数の追加比較 | PR84_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 17項目/旧Outer C1基準/独立2run・76意味ファイル一致。追加Gate優越未達・C1維持、補助STAT01 PASS。15.56参照、旧S/mean6再試行なし |
-| STAT-01-C1-SCORE-GAP-01 | 固定C1全出走raw平均との差の追加比較 | COMPLETED_AWAITING_REVIEW_NOT_ADOPTED | 独立2run/76意味ファイル一致、選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 FAIL。旧Outer C1再学習0・2026禁止。15.57参照 |
+| STAT-01-C1-SCORE-GAP-01 | 固定C1全出走raw平均との差の追加比較 | PR85_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 独立2run/76意味ファイル一致、選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 FAIL。旧Outer C1再学習0・2026禁止。P3残差未解決。15.57参照 |
+| C1-STAT10-ABLATION-01 | 固定C1からSTAT-10だけ除く15項目再学習比較 | COMPLETED_AWAITING_REVIEW_NOT_ADOPTED | 原16項目厳密照合・99669レース/706051出走維持。独立2run/実列挙76意味ファイル一致、旧C1再学習0。選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 PASS。15.58参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3384,6 +3400,32 @@ manifest `214ba0fa3a144b7053457c5ad2d123e874256d0f34927a04700ce74186dc9ee1`、CO
 
 ---
 
+## 15.58 C1-STAT10-ABLATION-01 / 2026-10-03
+
+PR85マージ、clean main/origin `db94280fbab7434ccf34043dcef40b6deb7401df`から専用branchを作成。
+最新指示によりSTAT-10だけ除去した15項目の人工検証・新規学習・Outer24/25比較・独立2runを限定許可。
+原12+4を共有Validator/固定source/教師と照合後、名前付きmapで投影する。旧C1はforward照合のみ再学習0。
+数値定数/grid/One-SE/decoder/paired bootstrap/追加Gateは不変。M/G/edgeは除外後構造から算出。
+旧S/D/mean6/gap不採用と当時のhash/数値は保持。PR85 P3（全同小数得点gapのbinary64残差）は未解決、
+将来再利用前の対応事項。今回gap不使用でコード/版/成果物を変更せず旧比較も再実行しない。
+詳細・今回の測定結果は [専用記録](c1-stat10-ablation-01.md)。DB/HTTP/Raw/2026/LIVE/正式置換なし。
+STAT10要件・集計器の恒久廃止ではなく、使用済みdevelopment corpus内の限定モデル比較。
+
+1 executeで独立2run完了、実列挙76意味ファイルが一致。全99669レース/706051出走を保持し、
+残る15値/型/順序・原16資料照合成功。旧Outer C1 forward一致/再学習0、source33/code355の開始終了不変。
+両年選択0.1、Inner A収束1/0.1、Inner B収束1/0.1/0.01、共通適格1/0.1を使用。
+Inner A/B・Outer24はM126/G15/edge107、Outer25はM127/G15/edge108。
+年等重み候補-C1差pp（95%CI）:1着 -0.081213 [-0.213322,+0.052774]、
+2着 +0.048438 [-0.119022,+0.221927]、3着 +0.035865 [-0.119662,+0.198496]、
+位置Hit@3 -0.001083 [-0.104312,+0.100788]。
+主Gate NOT_PASSED:1着CI下限による非劣性、2025 Hit@3負差による年別安定性、Hit@3優越が未達。
+integrityは成立、補助STAT01 Gate PASS。今回の15項目方式を採用せずC1維持、STAT10不要とは断定しない。
+manifest `671bbcd97463123076846c4dcd6f7273e6e6aa0d9da8dabba1dc205ef2dca339`。
+成果物 `/home/shinya/neo-keirin-artifacts/c1-stat10-ablation-01/run-20261003-065046-66fb55f5/result`。
+新規43/444、関連128M322/2910、通常全体1回2771 passed/26125 assertions/既存9 skipped。
+変更PHP19構文/限定Pint/diff検査成功。512M実行exit0、peak32MiB、4時間39分25秒、stderr空。
+未コミットで結果レビュー待ち。正式置換/次ablation/2026/LIVEは未承認、historical_as_of_available=false。
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3800,6 +3842,15 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.49 / 2026-10-03
+
+PR85マージとmain/origin db94280fbab7434ccf34043dcef40b6deb7401dfを同期。
+最新指示のC1-STAT10-ABLATION-01だけを限定許可。旧不採用・成果物とP3残件を保持。
+1 execute/独立2runの実学習・比較・再現完了、主Gate未達・C1維持。実列挙76意味ファイル一致。
+15.58/専用記録へ実測値を保存し、次の許可行為を結果レビューだけへ更新。
+原16項目検証・15項目投影・専用モデル・人工検証・独立2run実行を同一工程に記録する。
+正式採用/2026/LIVE/自動的な次項目探索は禁止。
 
 ## v1.48 / 2026-10-03
 
@@ -4448,8 +4499,11 @@ Remote `main`:
 
 ```text
 Current:
-Phase = STAT-01-C1-SCORE-GAP-01 / COMPLETED_AWAITING_REVIEW_NOT_ADOPTED / PR84_MERGED
-Current main = 89544d70eb1c6e74f24ff0dcb2a2d5e76cb4a5f7 / PR84_MERGED
+Phase = C1-STAT10-ABLATION-01 / COMPLETED_DEVELOPMENT_COMPARISON_AWAITING_REVIEW / PR85_MERGED
+Current main = db94280fbab7434ccf34043dcef40b6deb7401df / PR85_MERGED
+STAT10 ablation = ORIGINAL16_VALIDATED_THEN_NAMED15_PROJECTION / OLD_OUTER_C1_RETRAINING_0 / COMPLETED_ONE_EXECUTE_TWO_INDEPENDENT_RUNS / SEE_15.58
+STAT10 ablation result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_PASS / SEVENTY_SIX_ENUMERATED_SEMANTIC_FILES_IDENTICAL / MANIFEST_671bbcd97463123076846c4dcd6f7273e6e6aa0d9da8dabba1dc205ef2dca339
+Score gap P3 = EQUAL_DECIMAL_SCORE_BINARY64_RESIDUAL_UNRESOLVED / NOT_USED_OR_FIXED_HERE
 Score gap = FIXED_C1_ALL_ENTRANT_RAW_MINUS_MEAN_ONLY / OLD_C1_RETRAINING_0 / SEE_15.57
 Score gap result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_FAIL / SEVENTY_SIX_SEMANTIC_FILES_IDENTICAL / MANIFEST_214ba0fa3a144b7053457c5ad2d123e874256d0f34927a04700ce74186dc9ee1
 STAT17 compare = FIXED_C1_HISTORY4_DIVERSITY_ONLY / COMPLETED_ONE_EXECUTE_TWO_INDEPENDENT_RUNS / OLD_C1_RETRAINING_0 / SEE_15.56
@@ -4577,13 +4631,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = STAT01_C1_SCORE_GAP_01_CODE_AND_RESULTS_REVIEW_ONLY
+Next allowed action = C1_STAT10_ABLATION_01_RESULT_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review C1-STAT10-ABLATION-01 code and completed development comparison only. One execute completed two independent candidate fits/predictions/evaluations; 76 enumerated semantic files match and source/code integrity passed. Incremental Gate NOT_PASSED because non-inferiority, temporal and superiority conditions were unmet: retain C1 and do not adopt this fixed 15-feature model. STAT01 auxiliary PASS is not incremental approval. Do not conclude permanent STAT10 rejection. No same-condition retries, other-STAT ablation, old-negative retries, C1 retraining, formula/grid/threshold changes, DB/HTTP/Raw/2026, formal replacement or LIVE. Preserve unresolved score-gap P3; see 15.58 and docs/c1-stat10-ablation-01.md. Stop uncommitted for review.
+
+Previous handoff (v1.48, PR85 merged; score gap results/artifacts unchanged and P3 unresolved):
 Review STAT-01-C1-SCORE-GAP-01 code and completed development comparison only. One execute completed two independent fits/predictions/evaluations; 76 semantic files match and source/code integrity passed. Incremental Gate NOT_PASSED because non-inferiority, temporal and superiority conditions were unmet: retain C1 and do not adopt this fixed addition. STAT01 auxiliary Gate also FAIL / REDESIGN_REQUIRED. No same-condition retries, S/mean6/D retries, C1 retraining, formula/grid/threshold search, DB/HTTP/Raw, 2026, formal adoption or LIVE. See 15.57 and docs/stat01-c1-score-gap-01.md; stop for review without an automatic next phase.
 
 Previous handoff (v1.47, PR84 now reviewed/merged; D result and artifacts unchanged):
