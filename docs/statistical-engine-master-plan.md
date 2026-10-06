@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.49
+- Version: 1.50
 - Created: 2026-08-23
-- Updated: 2026-10-03
+- Updated: 2026-10-06
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `db94280fbab7434ccf34043dcef40b6deb7401df`
-- Current review: PR85マージ済み。C1-STAT10-ABLATION-01の実学習・比較・独立再現完了、主Gate未達・C1維持。未コミットのコード/結果レビュー待ち
-- Current code: 独立C1Stat10Ablation、原16項目検証後の名前付き15項目投影。旧C1/STAT35/S/D/gapコード・モデル・原資料は不変
-- Current execution record: execute1回/独立2run/実列挙76意味ファイル一致、主Gate NOT_PASSED、補助STAT01 PASS。manifest 671bbcd9…、15.58参照。旧15.57/P3未解決は保持
-- Current tests record: 関連128M322 passed/2910 assertions、通常全体2771 passed/9既存skip/26125 assertions、変更PHP19構文/限定Pint成功。旧試験/実測値は各工程の当時の記録として保持
+- Remote `main` at last update: `f20947aa028b0a3f4efe3838ee0a0bbf355b1b22`
+- Current review: PR86レビュー後マージ済み。STAT-39-C1-FIELD-BIKE-01主Gate未達・不採用・元C1維持、未コミットのコード/結果レビュー待ち
+- Current code: 元16項目を維持する専用17項目経路と追加カテゴリbin。共有bin/solver/旧C1・旧成果物は不変
+- Current execution record: 1 execute/独立2run完了、実列挙78意味ファイル一致・基準C1再学習0・source/code不変。manifest 9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77。旧15.58/15.57/P3未解決は保持
+- Current tests record: 最終関連128M 379 passed/3700 assertions、通常全体1回2828 passed/26915 assertions/既存9 skipped。PHP21構文・限定Pint成功、独立128M/>100MiB試験peak10MiB/exit0
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,12 +171,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: C1_STAT10_ABLATION_01_COMPLETED_AWAITING_REVIEW
+current_engine_state: STAT39_C1_FIELD_BIKE_01_COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_STAT10_ABLATION_01_RESULT_REVIEW_ONLY
+next_allowed_action: STAT39_C1_FIELD_BIKE_01_CODE_AND_RESULT_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: C1-STAT10-ABLATION-01
-remote_main: db94280fbab7434ccf34043dcef40b6deb7401df
+current_phase: STAT-39-C1-FIELD-BIKE-01
+remote_main: f20947aa028b0a3f4efe3838ee0a0bbf355b1b22
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -199,10 +199,25 @@ pr82_status: MERGED
 pr83_status: MERGED_REVIEW_COMPLETED
 pr84_status: MERGED_REVIEW_COMPLETED
 pr85_status: MERGED_REVIEW_COMPLETED_P3_RESIDUAL_UNRESOLVED
-c1_stat10_ablation_01: COMPLETED_DEVELOPMENT_COMPARISON_AWAITING_REVIEW
+pr86_status: MERGED_REVIEW_COMPLETED
+stat39_c1_field_bike_01: COMPLETED_ONE_EXECUTE_TWO_INDEPENDENT_RUNS_AWAITING_REVIEW
+stat39_c1_field_bike_01_scope: ORIGINAL16_PLUS_TRAINING_LOCAL_CARD_COUNT_BIKE_CATEGORY_ONLY
+stat39_c1_field_bike_01_candidate: C1_PLUS_FIELD_BIKE
+stat39_c1_field_bike_01_incremental_gate: NOT_PASSED
+stat39_c1_field_bike_01_decision: NOT_ADOPTED_RETAIN_C1
+stat39_c1_field_bike_01_stat01_aux_gate: PASS
+stat39_c1_field_bike_01_reproduction: SEVENTY_EIGHT_ENUMERATED_SEMANTIC_FILES_IDENTICAL
+stat39_c1_field_bike_01_c1_retraining_count: 0
+stat39_c1_field_bike_01_manifest_sha256: 9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77
+stat39_c1_field_bike_01_historical_as_of_available: false
+stat39_c1_field_bike_01_formal_adoption: false
+stat39_c1_field_bike_01_live_use_authorized: false
+stat39_c1_field_bike_01_points: null
+stat39_c1_field_bike_01_2026_access: FORBIDDEN
+c1_stat10_ablation_01: COMPLETED_PR86_MERGED_NOT_ADOPTED
 c1_stat10_ablation_01_candidate: C1_MINUS_STAT10
 c1_stat10_ablation_01_performance: INCREMENTAL_GATE_NOT_PASSED
-c1_stat10_ablation_01_decision: NOT_ADOPTED_RETAIN_C1_AWAITING_REVIEW
+c1_stat10_ablation_01_decision: NOT_ADOPTED_RETAIN_C1
 c1_stat10_ablation_01_stat01_aux_gate: PASS
 c1_stat10_ablation_01_reproduction: SEVENTY_SIX_ENUMERATED_SEMANTIC_FILES_IDENTICAL
 c1_stat10_ablation_01_c1_retraining_count: 0
@@ -530,6 +545,7 @@ completed_phases:
   - STAT-17-C1-COMPARE-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
   - STAT-01-C1-SCORE-GAP-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
   - C1-STAT10-ABLATION-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
+  - STAT-39-C1-FIELD-BIKE-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -623,7 +639,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- PR #85はレビュー後マージ済み。C1-STAT10-ABLATION-01の15項目実学習・比較・独立2run/実列挙76意味ファイル一致まで完了。主Gateは非劣性/年別/優越未達のNOT_PASSEDで今回方式不採用・C1維持、補助STAT01 PASSを採用根拠へ代用しない。次はコード/結果レビューのみ。旧score gap/STAT17/S/mean6の結果とscore gap P3残件を保持し、同条件再試行・次ablation・正式置換/LIVE/2026へ進まない。15.57/15.58参照。
+- PR #86はレビュー後マージ済み。STAT10除外不採用・C1維持、旧実測/76意味ファイル一致は15.58に保持。STAT-39-C1-FIELD-BIKE-01は元16項目＋人数×車番カテゴリの人工検証・1 execute/独立2run実学習/比較/再現が完了。主Gate未達・今回方式不採用・C1維持、補助STAT01 PASSは代用しない。実列挙78意味ファイル一致、source/code不変、未コミットのコード/結果レビューだけ許可。旧不採用/P3残件・正式置換/LIVE/2026禁止を保持。15.59参照。
 
 - STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。COMPARE-01はPR #78レビュー/マージ完了、追加Gate未達・C1維持。限定事後診断はPR #79レビュー/マージ完了。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。15.52当時のSTAT-36固定台帳2022-2025 Raw読取り/観測生成1回/独立再現1回だけの許可と完了は過去記録。今回の別候補工程は15.54に記録する。DB/HTTP、追加試行、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
@@ -844,7 +860,8 @@ BT-03E-02以降で利用する場合は、
 | STAT-36-C1-COMPARE-01 | 固定表示SのC1追加development比較 | PR83_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 独立2run/76成果物一致、選択0.1/0.1、追加Gate未達・C1維持、補助STAT01 PASS。旧C1再学習0、時点UNKNOWN/正式採用/LIVE/2026禁止、15.55参照 |
 | STAT-17-C1-COMPARE-01 | 固定C1 history4由来多様性指数の追加比較 | PR84_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 17項目/旧Outer C1基準/独立2run・76意味ファイル一致。追加Gate優越未達・C1維持、補助STAT01 PASS。15.56参照、旧S/mean6再試行なし |
 | STAT-01-C1-SCORE-GAP-01 | 固定C1全出走raw平均との差の追加比較 | PR85_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 独立2run/76意味ファイル一致、選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 FAIL。旧Outer C1再学習0・2026禁止。P3残差未解決。15.57参照 |
-| C1-STAT10-ABLATION-01 | 固定C1からSTAT-10だけ除く15項目再学習比較 | COMPLETED_AWAITING_REVIEW_NOT_ADOPTED | 原16項目厳密照合・99669レース/706051出走維持。独立2run/実列挙76意味ファイル一致、旧C1再学習0。選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 PASS。15.58参照 |
+| C1-STAT10-ABLATION-01 | 固定C1からSTAT-10だけ除く15項目再学習比較 | PR86_MERGED_NOT_ADOPTED | 原16項目厳密照合・99669レース/706051出走維持。独立2run/実列挙76意味ファイル一致、旧C1再学習0。選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 PASS。15.58参照 |
+| STAT-39-C1-FIELD-BIKE-01 | 元16項目＋出走表人数×車番カテゴリ | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 固定2束・17項目・観測35カテゴリ。主Gate未達/元C1維持、補助STAT01 PASS。独立2run/78意味ファイル一致、正式採用/LIVE/2026禁止。15.59参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3426,6 +3443,33 @@ manifest `671bbcd97463123076846c4dcd6f7273e6e6aa0d9da8dabba1dc205ef2dca339`。
 変更PHP19構文/限定Pint/diff検査成功。512M実行exit0、peak32MiB、4時間39分25秒、stderr空。
 未コミットで結果レビュー待ち。正式置換/次ablation/2026/LIVEは未承認、historical_as_of_available=false。
 
+## 15.59 STAT-39-C1-FIELD-BIKE-01 / 2026-10-06
+
+PR86レビュー後マージ済み、開始main/origin `f20947aa028b0a3f4efe3838ee0a0bbf355b1b22`。
+STAT10除外不採用・C1維持を保持。ユーザーの最新指示により固定2束での元16項目＋
+出走表人数×車番カテゴリ17項目モデルの人工検証・学習・Outer24/25比較・独立再現を限定許可する。
+Nは出走表人数5–9、Bは元車番1–9で欠番を再採番しない。専用binは学習観測の正supportだけ、
+最大schema45/固定順CATEGORY/smoothnessなし。元16bin・共有高cardinality制限・solver/grid/Gateは不変。
+旧Outer C1はforward照合のみ再学習0、教師開放は両モデルの予測seal/順序確認後。
+詳細契約・人工検証・実測結果は [専用記録](stat39-c1-field-bike-01.md)。
+1 execute/独立2runが完了、全99,669レース/706,051出走と元16値/型/順序を維持。
+年別/fold別観測カテゴリ35、学習support合計170835/349842/528931、検証/Outer未学習0。
+Inner A/Bの共通適格候補はlambda=1、Outer24/25の全3順位refitが収束。
+M/G/数値edgeはInner A/B・Outer24が171/17/116、Outer25が172/17/117、追加group edge0。
+
+主Gate NOT_PASSED: 非劣性=false、年別条件=false、Hit3優越=false、integrity=true。
+年等重み候補−C1の差/95%CI (pp): 1着 -0.7166 [-0.9548,-0.4843]、
+2着 +0.2925 [-0.0308,+0.6047]、3着 -0.8733 [-1.2041,-0.5650]、Hit3 -0.4389 [-0.6336,-0.2544]。
+補助STAT01 Gate PASSを主Gateへ代用せず、今回方式は不採用・元C1維持。
+独立78意味ファイルのサイズ/SHA一致、基準C1 forward一致/再学習0、source33/code356 START/END不変。
+manifest SHA `9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77`。
+成果物: `/home/shinya/neo-keirin-artifacts/stat39-c1-field-bike-01/run-20261005-214221-c370ee05/result/`。
+実行512M: 2026-10-06 06:48:32–10:46:05 JST、14253.197839秒、peak34MiB、exit0/stderr0。
+最終関連379/3700、全体1回2828/26915/既存9skip、21PHP構文/限定Pint成功。
+独立128M人工試験113,450,000bytes/peak10MiB/exit0は、実処理512Mとは分けて記録する。
+未コミットのコード/結果レビュー待ち。旧15.58等のhash・件数・不採用とscore gap P3残件を保持。
+historical_as_of_available=false、正式置換/LIVE/2026/DB/HTTP/Raw・旧不採用再試行禁止。
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3842,6 +3886,16 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.50 / 2026-10-06
+
+PR86レビュー後マージ済み、main/origin f20947aa028b0a3f4efe3838ee0a0bbf355b1b22を同期。
+STAT10除外方式不採用・C1維持は保持し、最新指示のSTAT-39-C1-FIELD-BIKE-01だけを限定許可。
+原16値/順序/全対象の厳密照合後に出走表人数×車番カテゴリを追加する17項目経路。
+専用学習観測カテゴリbin、固定solver/Gate、人工検証・独立2run実学習/比較/再現を同一工程で実施する。
+1 execute内の独立2run完了、主Gate未達・今回方式不採用/元C1維持、実列挙78意味ファイル一致。
+実測値・収束/選択・件数/支持・実行/検証証跡を15.59と専用記録へ保存し、次はコード/結果レビューだけ。
+旧不採用・成果物・score gap P3残件を維持。正式置換/LIVE/2026/自動次工程は禁止。
 
 ## v1.49 / 2026-10-03
 
@@ -4499,8 +4553,11 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-STAT10-ABLATION-01 / COMPLETED_DEVELOPMENT_COMPARISON_AWAITING_REVIEW / PR85_MERGED
-Current main = db94280fbab7434ccf34043dcef40b6deb7401df / PR85_MERGED
+Phase = STAT-39-C1-FIELD-BIKE-01 / COMPLETED_NOT_ADOPTED_AWAITING_REVIEW / PR86_MERGED
+Current main = f20947aa028b0a3f4efe3838ee0a0bbf355b1b22 / PR86_MERGED
+Field/bike result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_PASS / SEVENTY_EIGHT_ENUMERATED_SEMANTIC_FILES_IDENTICAL / OLD_OUTER_C1_RETRAINING_0
+Field/bike manifest = 9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77 / INPUT_RACES_99669_ENTRIES_706051 / OBSERVED_CATEGORIES_35 / VALIDATION_OUTER_UNSEEN_0
+Field/bike next = CODE_AND_RESULT_REVIEW_ONLY / NO_FURTHER_IMPLEMENTATION_OR_EXECUTION_AUTHORIZED / SEE_15.59
 STAT10 ablation = ORIGINAL16_VALIDATED_THEN_NAMED15_PROJECTION / OLD_OUTER_C1_RETRAINING_0 / COMPLETED_ONE_EXECUTE_TWO_INDEPENDENT_RUNS / SEE_15.58
 STAT10 ablation result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_PASS / SEVENTY_SIX_ENUMERATED_SEMANTIC_FILES_IDENTICAL / MANIFEST_671bbcd97463123076846c4dcd6f7273e6e6aa0d9da8dabba1dc205ef2dca339
 Score gap P3 = EQUAL_DECIMAL_SCORE_BINARY64_RESIDUAL_UNRESOLVED / NOT_USED_OR_FIXED_HERE
@@ -4631,13 +4688,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_STAT10_ABLATION_01_RESULT_REVIEW_ONLY
+Next allowed action = STAT39_C1_FIELD_BIKE_01_CODE_AND_RESULT_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the completed STAT-39-C1-FIELD-BIKE-01 code/results: the fixed original16-plus-category approach did not pass the incremental Gate; retain C1. One execute/two independent runs reproduced 78 enumerated semantic files, observed 35 training categories, kept all original values/cohorts, and used baseline C1 forward-only/retraining0. Preserve temporal teacher release, source/code seals, old negative artifacts, unresolved score-gap P3, forbidden DB/HTTP/Raw/2026/LIVE/formal replacement. See 15.59 and docs/stat39-c1-field-bike-01.md; stop uncommitted for review, without repeated execution or further experiments.
+
+Previous handoff (v1.49, PR86 now reviewed/merged; STAT10 result and artifacts unchanged):
 Review C1-STAT10-ABLATION-01 code and completed development comparison only. One execute completed two independent candidate fits/predictions/evaluations; 76 enumerated semantic files match and source/code integrity passed. Incremental Gate NOT_PASSED because non-inferiority, temporal and superiority conditions were unmet: retain C1 and do not adopt this fixed 15-feature model. STAT01 auxiliary PASS is not incremental approval. Do not conclude permanent STAT10 rejection. No same-condition retries, other-STAT ablation, old-negative retries, C1 retraining, formula/grid/threshold changes, DB/HTTP/Raw/2026, formal replacement or LIVE. Preserve unresolved score-gap P3; see 15.58 and docs/c1-stat10-ablation-01.md. Stop uncommitted for review.
 
 Previous handoff (v1.48, PR85 merged; score gap results/artifacts unchanged and P3 unresolved):
