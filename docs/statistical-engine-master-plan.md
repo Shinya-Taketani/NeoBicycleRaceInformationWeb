@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.50
+- Version: 1.51
 - Created: 2026-08-23
-- Updated: 2026-10-06
+- Updated: 2026-10-07
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `f20947aa028b0a3f4efe3838ee0a0bbf355b1b22`
-- Current review: PR86レビュー後マージ済み。STAT-39-C1-FIELD-BIKE-01主Gate未達・不採用・元C1維持、未コミットのコード/結果レビュー待ち
-- Current code: 元16項目を維持する専用17項目経路と追加カテゴリbin。共有bin/solver/旧C1・旧成果物は不変
-- Current execution record: 1 execute/独立2run完了、実列挙78意味ファイル一致・基準C1再学習0・source/code不変。manifest 9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77。旧15.58/15.57/P3未解決は保持
-- Current tests record: 最終関連128M 379 passed/3700 assertions、通常全体1回2828 passed/26915 assertions/既存9 skipped。PHP21構文・限定Pint成功、独立128M/>100MiB試験peak10MiB/exit0
+- Remote `main` at last update: `634d5743e148b6a44de53040466213829d62aee1`
+- Current review: PR87レビュー後マージ済み。今回C1-POSITION-LAMBDA-01のコード/否定結果レビュー待ち。元C1維持
+- Current code: 元16項目・一順位の数値処理を維持し、順位別収束候補/One-SEとT2223学習pool再利用を専用実装。旧契約は不変
+- Current execution record: 今回1 execute/独立2run/108位置候補試行/116意味ファイル一致。主Gate未達、全順位lambda0.1、旧C1と係数/予測一致。旧STAT39記録は15.59に保持
+- Current tests record: 今回52/434・関連430/4129成功、最終通常全体2880 passed/27349 assertions/既存9 skipped、19PHP構文/限定Pint成功。旧記録は再測定へ読み替えない
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,12 +171,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: STAT39_C1_FIELD_BIKE_01_COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+current_engine_state: C1_POSITION_LAMBDA_01_COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: STAT39_C1_FIELD_BIKE_01_CODE_AND_RESULT_REVIEW_ONLY
+next_allowed_action: C1_POSITION_LAMBDA_01_CODE_AND_RESULT_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: STAT-39-C1-FIELD-BIKE-01
-remote_main: f20947aa028b0a3f4efe3838ee0a0bbf355b1b22
+current_phase: C1-POSITION-LAMBDA-01
+remote_main: 634d5743e148b6a44de53040466213829d62aee1
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -200,7 +200,24 @@ pr83_status: MERGED_REVIEW_COMPLETED
 pr84_status: MERGED_REVIEW_COMPLETED
 pr85_status: MERGED_REVIEW_COMPLETED_P3_RESIDUAL_UNRESOLVED
 pr86_status: MERGED_REVIEW_COMPLETED
-stat39_c1_field_bike_01: COMPLETED_ONE_EXECUTE_TWO_INDEPENDENT_RUNS_AWAITING_REVIEW
+pr87_status: MERGED_REVIEW_COMPLETED
+c1_position_lambda_01: COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+c1_position_lambda_01_contract_exception: PER_POSITION_ONE_SE_YEAR_EQUAL_AND_PER_POSITION_CONVERGENCE_PATH_ONLY
+c1_position_lambda_01_incremental_gate: NOT_PASSED_SUPERIORITY_UNMET
+c1_position_lambda_01_decision: NOT_ADOPTED_RETAIN_C1
+c1_position_lambda_01_selected_lambda_all_positions_and_years: 0.1
+c1_position_lambda_01_c1_coefficient_and_prediction_difference: EXACTLY_ZERO
+c1_position_lambda_01_stat01_aux_gate: PASS
+c1_position_lambda_01_reproduction: ONE_HUNDRED_SIXTEEN_ENUMERATED_SEMANTIC_FILES_IDENTICAL
+c1_position_lambda_01_position_lambda_trials: 108
+c1_position_lambda_01_c1_retraining_count: 0
+c1_position_lambda_01_manifest_sha256: ee0c20e19f41673d0d68d47c439e04e928587ebd7dd7af774e20bf07f15961c4
+c1_position_lambda_01_formal_adoption: false
+c1_position_lambda_01_historical_as_of_available: false
+c1_position_lambda_01_live_use_authorized: false
+c1_position_lambda_01_points: null
+c1_position_lambda_01_2026_access: FORBIDDEN
+stat39_c1_field_bike_01: COMPLETED_PR87_MERGED_NOT_ADOPTED
 stat39_c1_field_bike_01_scope: ORIGINAL16_PLUS_TRAINING_LOCAL_CARD_COUNT_BIKE_CATEGORY_ONLY
 stat39_c1_field_bike_01_candidate: C1_PLUS_FIELD_BIKE
 stat39_c1_field_bike_01_incremental_gate: NOT_PASSED
@@ -546,6 +563,7 @@ completed_phases:
   - STAT-01-C1-SCORE-GAP-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
   - C1-STAT10-ABLATION-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
   - STAT-39-C1-FIELD-BIKE-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
+  - C1-POSITION-LAMBDA-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -639,7 +657,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- PR #86はレビュー後マージ済み。STAT10除外不採用・C1維持、旧実測/76意味ファイル一致は15.58に保持。STAT-39-C1-FIELD-BIKE-01は元16項目＋人数×車番カテゴリの人工検証・1 execute/独立2run実学習/比較/再現が完了。主Gate未達・今回方式不採用・C1維持、補助STAT01 PASSは代用しない。実列挙78意味ファイル一致、source/code不変、未コミットのコード/結果レビューだけ許可。旧不採用/P3残件・正式置換/LIVE/2026禁止を保持。15.59参照。
+- PR #87はレビュー後マージ済み。人数×車番方式不採用・元C1維持、旧78意味ファイル/実測は15.59に保持。今回C1-POSITION-LAMBDA-01は元16項目・順位別lambdaの1 execute/独立2run/108試行を完了、116意味ファイル一致。全順位lambda0.1・旧C1と係数/予測/4主指標一致、主GateのHit@3優越のみ未達、今回方式不採用・C1維持。旧共有lambda契約は変更せず今回専用例外のみ。次は未コミットのコード/結果レビューだけ、追加実行は許可しない。旧不採用/P3残件・正式置換/LIVE/2026禁止を保持。15.60参照。
 
 - STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。COMPARE-01はPR #78レビュー/マージ完了、追加Gate未達・C1維持。限定事後診断はPR #79レビュー/マージ完了。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。15.52当時のSTAT-36固定台帳2022-2025 Raw読取り/観測生成1回/独立再現1回だけの許可と完了は過去記録。今回の別候補工程は15.54に記録する。DB/HTTP、追加試行、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
@@ -861,7 +879,8 @@ BT-03E-02以降で利用する場合は、
 | STAT-17-C1-COMPARE-01 | 固定C1 history4由来多様性指数の追加比較 | PR84_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 17項目/旧Outer C1基準/独立2run・76意味ファイル一致。追加Gate優越未達・C1維持、補助STAT01 PASS。15.56参照、旧S/mean6再試行なし |
 | STAT-01-C1-SCORE-GAP-01 | 固定C1全出走raw平均との差の追加比較 | PR85_MERGED_REVIEW_COMPLETED_NOT_ADOPTED | 独立2run/76意味ファイル一致、選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 FAIL。旧Outer C1再学習0・2026禁止。P3残差未解決。15.57参照 |
 | C1-STAT10-ABLATION-01 | 固定C1からSTAT-10だけ除く15項目再学習比較 | PR86_MERGED_NOT_ADOPTED | 原16項目厳密照合・99669レース/706051出走維持。独立2run/実列挙76意味ファイル一致、旧C1再学習0。選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 PASS。15.58参照 |
-| STAT-39-C1-FIELD-BIKE-01 | 元16項目＋出走表人数×車番カテゴリ | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 固定2束・17項目・観測35カテゴリ。主Gate未達/元C1維持、補助STAT01 PASS。独立2run/78意味ファイル一致、正式採用/LIVE/2026禁止。15.59参照 |
+| STAT-39-C1-FIELD-BIKE-01 | 元16項目＋出走表人数×車番カテゴリ | COMPLETED_PR87_MERGED_NOT_ADOPTED | 固定2束・17項目・観測35カテゴリ。主Gate未達/元C1維持、補助STAT01 PASS。独立2run/78意味ファイル一致、正式採用/LIVE/2026禁止。15.59参照 |
+| C1-POSITION-LAMBDA-01 | 元16項目・順位別lambda選択 | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 全順位0.1、旧C1と係数/予測一致、主Gate優越未達。独立116意味ファイル一致、次はコード/結果レビューだけ。15.60/専用記録参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3470,6 +3489,28 @@ manifest SHA `9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77`�
 未コミットのコード/結果レビュー待ち。旧15.58等のhash・件数・不採用とscore gap P3残件を保持。
 historical_as_of_available=false、正式置換/LIVE/2026/DB/HTTP/Raw・旧不採用再試行禁止。
 
+## 15.60 C1-POSITION-LAMBDA-01 / 2026-10-07
+
+PR87レビュー後マージ済み、開始main/origin `634d5743e148b6a44de53040466213829d62aee1`。
+人数×車番方式不採用・元C1維持は保持。今回専用モデルだけ共有lambdaから順位別One-SE/
+同順位収束pathへ変更。元16値/型/順序/raw/anchor/全99,669レース・706,051出走と旧数値処理を維持。
+1 execute内の独立2runが完了。各run T22/T2223/T2224試行24/24/6、合計108（収束44/非収束64）。
+T2223は各run一度だけfitしOuter2024/Inner Bへ再利用、新規fit0。run間cache共有0、基準C1再学習0。
+Outer24/25は全順位最小loss/選択lambda0.1。保存旧C1と係数strict一致・最大差0、予測byte/SHA一致。
+年別4主指標候補-C1差すべて0pp、年等重み差/95%CIもすべて0/[0,0]pp。
+主Gate NOT_PASSED:非劣性=true、年別条件=true、integrity=true、Hit@3 CI下限0による優越=false。
+今回方式は不採用・元C1維持。補助STAT01 PASSは既存C1の成績差であり、今回の追加改善ではない。
+実列挙116意味ファイルのsize/SHA独立一致、source33/code356 START/END不変、manifest/COMPLETE成功。
+manifest `ee0c20e19f41673d0d68d47c439e04e928587ebd7dd7af774e20bf07f15961c4`。
+成果物 `/home/shinya/neo-keirin-artifacts/c1-position-lambda-01/run-20261006-214301-bd2607dd/result/`。
+512M実行は2026-10-07 06:55:03～14:40:39 JST、27936.119241秒、peak34MiB、exit0/stderr0。
+独立128M人工streaming113,450,000bytes/50,000races/250,000entries/peak10MiB/exit0とは別測定。
+今回52/434・関連430/4129、最終通常全体2880 passed/27349 assertions/既存9 skipped、
+変更PHP19構文/限定Pint/plan/diff検査成功。初回全体の出力照合失敗証跡も保持。
+詳細の年別分子/分母/率、選択loss/SE/閾値と共有ZIPは [専用記録](c1-position-lambda-01.md)。
+次はコード/否定結果レビューだけ。正式置換/LIVE/2026/DB/HTTP/Raw、追加試行は未承認。
+historical_as_of_available=false、formal_adoption=false、points=null。旧否定結果とscore gap P3残件は保持。
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3886,6 +3927,18 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.51 / 2026-10-07
+
+PR87のレビュー後マージ（main `634d5743e148b6a44de53040466213829d62aee1`）を同期。
+人数×車番方式不採用・元C1維持、15.59の実測と旧成果物は保持する。
+最新指示でC1-POSITION-LAMBDA-01のみ限定許可。元16値/数値処理/旧共有lambda契約を維持し、
+専用モデルだけPER_POSITION_ONE_SE_YEAR_EQUALと同順位収束pathへ変更する。
+T2223はrun内一度だけfitしOuter2024/Inner Bへ再利用、教師開放と2独立runを必須とする。
+1 execute/独立2runが完了、108試行/116意味ファイル一致、source/code不変。
+全順位0.1・旧C1と係数/予測一致、主GateのHit@3優越未達で今回方式不採用・元C1維持。
+実測・最終検証を15.60へ記録し、次はコード/否定結果レビューだけ。
+詳細はdocs/c1-position-lambda-01.md。正式採用/LIVE/2026/DB/Raw/HTTPは禁止のまま。
 
 ## v1.50 / 2026-10-06
 
@@ -4553,11 +4606,14 @@ Remote `main`:
 
 ```text
 Current:
-Phase = STAT-39-C1-FIELD-BIKE-01 / COMPLETED_NOT_ADOPTED_AWAITING_REVIEW / PR86_MERGED
-Current main = f20947aa028b0a3f4efe3838ee0a0bbf355b1b22 / PR86_MERGED
+Phase = C1-POSITION-LAMBDA-01 / COMPLETED_NOT_ADOPTED_AWAITING_REVIEW / PR87_MERGED
+Current main = 634d5743e148b6a44de53040466213829d62aee1 / PR87_MERGED
 Field/bike result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_PASS / SEVENTY_EIGHT_ENUMERATED_SEMANTIC_FILES_IDENTICAL / OLD_OUTER_C1_RETRAINING_0
 Field/bike manifest = 9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77 / INPUT_RACES_99669_ENTRIES_706051 / OBSERVED_CATEGORIES_35 / VALIDATION_OUTER_UNSEEN_0
-Field/bike next = CODE_AND_RESULT_REVIEW_ONLY / NO_FURTHER_IMPLEMENTATION_OR_EXECUTION_AUTHORIZED / SEE_15.59
+Field/bike next = PR87_MERGED_NOT_ADOPTED_RETAIN_C1 / HISTORICAL_RECORD_15.59
+Position lambda result = INCREMENTAL_GATE_NOT_PASSED_SUPERIORITY_UNMET_RETAIN_C1 / ALL_POSITIONS_BOTH_OUTER_LAMBDA_0.1 / COEFFICIENTS_PREDICTIONS_EXACTLY_C1 / INDEPENDENT_116_SEMANTIC_FILES_IDENTICAL / BASELINE_RETRAINING_0
+Position lambda manifest = ee0c20e19f41673d0d68d47c439e04e928587ebd7dd7af774e20bf07f15961c4 / ORIGINAL16_RACES_99669_ENTRIES_706051 / TRIALS_108
+Position lambda next = CODE_AND_RESULT_REVIEW_ONLY / NO_REPEAT_EXECUTION / NO_OLD_CONTRACT_GLOBAL_UNFREEZE / SEE_15.60_AND_docs/c1-position-lambda-01.md
 STAT10 ablation = ORIGINAL16_VALIDATED_THEN_NAMED15_PROJECTION / OLD_OUTER_C1_RETRAINING_0 / COMPLETED_ONE_EXECUTE_TWO_INDEPENDENT_RUNS / SEE_15.58
 STAT10 ablation result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_PASS / SEVENTY_SIX_ENUMERATED_SEMANTIC_FILES_IDENTICAL / MANIFEST_671bbcd97463123076846c4dcd6f7273e6e6aa0d9da8dabba1dc205ef2dca339
 Score gap P3 = EQUAL_DECIMAL_SCORE_BINARY64_RESIDUAL_UNRESOLVED / NOT_USED_OR_FIXED_HERE
@@ -4688,13 +4744,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = STAT39_C1_FIELD_BIKE_01_CODE_AND_RESULT_REVIEW_ONLY
+Next allowed action = C1_POSITION_LAMBDA_01_CODE_AND_RESULT_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the completed C1-POSITION-LAMBDA-01 code and negative development result: one execute/two independent runs, 108 position-lambda trials, 116 enumerated semantic files identical, all original sixteen values/cohorts preserved, T2223 fit once per run and baseline C1 retraining0. Both Outer years selected lambda0.1 for all positions; coefficients and predictions exactly equal saved C1, all four primary deltas/CI zero. Incremental Gate NOT_PASSED because strict Hit@3 superiority is unmet; retain C1. STAT01 auxiliary PASS is not an additional improvement or incremental approval. Source/code start/end and integrity passed. Preserve all old contracts/artifacts/negative results and unresolved score-gap P3; no repeat execution, automatic adoption, DB/HTTP/Raw/2026/LIVE or further implementation. See 15.60 and docs/c1-position-lambda-01.md; stop uncommitted for review.
+
+Previous handoff (v1.50, superseded only by the authorized comparison above):
 Review only the completed STAT-39-C1-FIELD-BIKE-01 code/results: the fixed original16-plus-category approach did not pass the incremental Gate; retain C1. One execute/two independent runs reproduced 78 enumerated semantic files, observed 35 training categories, kept all original values/cohorts, and used baseline C1 forward-only/retraining0. Preserve temporal teacher release, source/code seals, old negative artifacts, unresolved score-gap P3, forbidden DB/HTTP/Raw/2026/LIVE/formal replacement. See 15.59 and docs/stat39-c1-field-bike-01.md; stop uncommitted for review, without repeated execution or further experiments.
 
 Previous handoff (v1.49, PR86 now reviewed/merged; STAT10 result and artifacts unchanged):
