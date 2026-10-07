@@ -74,6 +74,8 @@
 
 ガールズ競輪を検出した場合は、無理に男子用Parserへ通さず、`SKIPPED_UNSUPPORTED_CATEGORY` 等の明示的な状態で記録します。将来拡張できるDB構造にはしておきます。
 
+上記は初期スクレイピング範囲です。最新のユーザー承認と `docs/statistical-engine-master-plan.md` に従う限定development実験は、承認された入力・工程だけを対象にできます。今回の `C1-MARGINAL-P23-DECODER-01` は保存C1確率のdecoder比較のみで、学習0回です。この例外は正式採用、LIVE、2026実データ参照、占術、市場利用の包括的な許可ではありません。
+
 ---
 
 ## 5. 実装原則
