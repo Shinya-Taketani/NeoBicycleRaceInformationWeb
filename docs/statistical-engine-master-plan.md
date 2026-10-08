@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.53
+- Version: 1.54
 - Created: 2026-08-23
 - Updated: 2026-10-08
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `85c411960241749d3285c72543f06a96d01bf05c`
-- Current review: PR88レビュー後マージ済み。今回C1-MARGINAL-P23-DECODER-01のコード/否定結果レビュー待ち。元C1維持
-- Current code: 固定C1確率を既存E06/E05へ接続する検証・実行経路。P1/Supporting固定、学習0回、旧decoder/モデル/契約は不変
-- Current execution record: 今回1 execute/独立再読込み2run/11意味ファイル一致、学習0/P1変更0。P2低下・P3増加・Hit@3小幅増、主Gate非劣性/優越未達で不採用。旧116ファイル実績は15.60に保持
-- Current tests record: 専用49/372・関連270/1551成功（128MB）、最終通常全体2929 passed/27721 assertions/既存9 skipped、9PHP構文/限定Pint/plan成功。旧記録は保持
+- Remote `main` at last update: `05eb5c63316128d19eab2da378ceca2c55990383`
+- Current review: PR89/90マージ済み。C1-P23-NONDECREASING-MARGINAL-01比較・独立再現完了、主Gate優越未達で不採用・元C1維持。未コミットのコード/結果レビュー待ち
+- Current code: 保存元C1を照合し、P1固定・P2/P3成分別非低下の全pair探索を追加。学習/旧decoder変更なし
+- Current execution record: 1 execute/独立2run、P1変更/的中差0、P2的中+21・P3+37・Hit@3位置+59、両成分確率低下0。主Gate優越未達、学習0、12意味ファイル一致、source23/code44不変（15.63）
+- Current tests record: 専用62/851・関連348/2806（128M）、通常全体1回3045 passed/29208 assertions/既存9 skipped。変更PHP7件構文・限定Pint成功
+- Previous execution/tests record (PR90): P1/P2変更0、P3的中+39、Hit@3位置+40、主Gate優越未達、学習0、独立12意味ファイル一致。専用54/636・関連232/1319、全体2983/28357/既存9 skipped（15.62の過去実績）
 - Remote state at creation: PR #40 merged
 - Local repository state at creation: user reported that the merged `main` had **not yet been pulled locally**
 - Purpose: 統計エンジンの工程・確定事項・禁止事項・監査根拠・次工程を一元管理し、ChatGPT / Codex / 人手レビュー間の工程ずれを防止する
@@ -171,15 +172,34 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: C1_P12_FIXED_MARGINAL_P3_01_COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+current_engine_state: C1_P23_NONDECREASING_MARGINAL_01_COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_P12_FIXED_MARGINAL_P3_01_CODE_AND_RESULT_REVIEW_ONLY
+next_allowed_action: REVIEW_C1_P23_NONDECREASING_MARGINAL_COMPARISON_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: C1-P12-FIXED-MARGINAL-P3-01
-remote_main: 85c411960241749d3285c72543f06a96d01bf05c
-pr89_status: REVIEW_COMPLETED_OPEN_UNMERGED
+current_phase: C1-P23-NONDECREASING-MARGINAL-01
+remote_main: 05eb5c63316128d19eab2da378ceca2c55990383
+pr89_status: MERGED_REVIEW_COMPLETED
+pr90_status: MERGED_REVIEW_COMPLETED
 pr89_dependency_head: 6637b04994ef952bf7dfff65f6caa8ef06afbd14
-c1_p12_fixed_marginal_p3_01: COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+c1_p23_nondecreasing_marginal_01: COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+c1_p23_nondecreasing_marginal_01_incremental_gate: NOT_PASSED_SUPERIORITY_UNMET
+c1_p23_nondecreasing_marginal_01_decision: NOT_ADOPTED_RETAIN_C1
+c1_p23_nondecreasing_marginal_01_P1_changes: 0
+c1_p23_nondecreasing_marginal_01_P2_changes: 736
+c1_p23_nondecreasing_marginal_01_P3_changes: 2359
+c1_p23_nondecreasing_marginal_01_P2_hit_net: 21
+c1_p23_nondecreasing_marginal_01_P3_hit_net: 37
+c1_p23_nondecreasing_marginal_01_Hit3_position_net: 59
+c1_p23_nondecreasing_marginal_01_component_probability_declines: 0
+c1_p23_nondecreasing_marginal_01_reproduction: TWELVE_ENUMERATED_SEMANTIC_FILES_IDENTICAL
+c1_p23_nondecreasing_marginal_01_manifest_sha256: c970ec8f92ffbd05a5f3630d1633adee8f17ba3dc3429ad3b1f905a07ac9a918
+c1_p23_nondecreasing_marginal_01_training_count: 0
+c1_p23_nondecreasing_marginal_01_historical_as_of_available: false
+c1_p23_nondecreasing_marginal_01_formal_adoption: false
+c1_p23_nondecreasing_marginal_01_live_use_authorized: false
+c1_p23_nondecreasing_marginal_01_points: null
+c1_p23_nondecreasing_marginal_01_2026_access: FORBIDDEN
+c1_p12_fixed_marginal_p3_01: COMPLETED_PR90_MERGED_NOT_ADOPTED
 c1_p12_fixed_marginal_p3_01_incremental_gate: NOT_PASSED_SUPERIORITY_UNMET
 c1_p12_fixed_marginal_p3_01_decision: NOT_ADOPTED_RETAIN_C1
 c1_p12_fixed_marginal_p3_01_P1_changes: 0
@@ -220,7 +240,7 @@ pr85_status: MERGED_REVIEW_COMPLETED_P3_RESIDUAL_UNRESOLVED
 pr86_status: MERGED_REVIEW_COMPLETED
 pr87_status: MERGED_REVIEW_COMPLETED
 pr88_status: MERGED_REVIEW_COMPLETED
-c1_marginal_p23_decoder_01: COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+c1_marginal_p23_decoder_01: COMPLETED_PR89_MERGED_NOT_ADOPTED
 c1_marginal_p23_decoder_01_incremental_gate: NOT_PASSED_NON_INFERIORITY_SUPERIORITY_UNMET
 c1_marginal_p23_decoder_01_decision: NOT_ADOPTED_RETAIN_C1
 c1_marginal_p23_decoder_01_stat01_aux_gate: PASS
@@ -599,6 +619,8 @@ completed_phases:
   - STAT-39-C1-FIELD-BIKE-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
   - C1-POSITION-LAMBDA-01_DEVELOPMENT_COMPARISON_AND_INDEPENDENT_REPRODUCTION
   - C1-MARGINAL-P23-DECODER-01_FIXED_MODEL_COMPARISON_AND_INDEPENDENT_DECODE_EVALUATION
+  - C1-P12-FIXED-MARGINAL-P3-01_FIXED_MODEL_COMPARISON_AND_INDEPENDENT_DECODE_EVALUATION
+  - C1-P23-NONDECREASING-MARGINAL-01_FIXED_MODEL_COMPARISON_AND_INDEPENDENT_DECODE_EVALUATION
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -692,7 +714,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- PR #88はマージ済み、PR89はレビュー済みheadからの依存・OPEN/未マージ。15.60/15.61の旧結果は保持。今回P1/P2固定P3比較は1 execute/独立再読込み2run/12意味ファイル一致、学習0/Supporting不変。P3+39/Hit@3+40だが主Gate優越未達で不採用・C1維持。次は未コミットのコード/結果レビューだけ。旧否定結果/P3残件、正式置換/LIVE/2026/DB/HTTP/Raw禁止を保持。15.62/専用記録参照。
+- PR89/90はマージ済み。15.60/15.61/15.62の旧結果と当時の未マージ記録は保持。今回成分別非低下pair比較は1 execute/独立再読込み2run/12意味ファイル一致、学習0/P1固定/Supporting不変。P2+21・P3+37・Hit@3位置+59だが主Gate優越未達で不採用・元C1維持。2024年P2は5件悪化し、確率非低下は実測非低下を保証しない。次は未コミットのコード/結果レビューだけ。旧否定結果/P3残件、正式置換/LIVE/2026/DB/HTTP/Raw禁止を保持。15.63/専用記録参照。
 
 - STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。COMPARE-01はPR #78レビュー/マージ完了、追加Gate未達・C1維持。限定事後診断はPR #79レビュー/マージ完了。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。15.52当時のSTAT-36固定台帳2022-2025 Raw読取り/観測生成1回/独立再現1回だけの許可と完了は過去記録。今回の別候補工程は15.54に記録する。DB/HTTP、追加試行、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
@@ -916,8 +938,9 @@ BT-03E-02以降で利用する場合は、
 | C1-STAT10-ABLATION-01 | 固定C1からSTAT-10だけ除く15項目再学習比較 | PR86_MERGED_NOT_ADOPTED | 原16項目厳密照合・99669レース/706051出走維持。独立2run/実列挙76意味ファイル一致、旧C1再学習0。選択0.1/0.1、主Gate非劣性/年別/優越未達・C1維持、補助STAT01 PASS。15.58参照 |
 | STAT-39-C1-FIELD-BIKE-01 | 元16項目＋出走表人数×車番カテゴリ | COMPLETED_PR87_MERGED_NOT_ADOPTED | 固定2束・17項目・観測35カテゴリ。主Gate未達/元C1維持、補助STAT01 PASS。独立2run/78意味ファイル一致、正式採用/LIVE/2026禁止。15.59参照 |
 | C1-POSITION-LAMBDA-01 | 元16項目・順位別lambda選択 | COMPLETED_PR88_MERGED_NOT_ADOPTED | 全順位0.1、旧C1と係数/予測一致、主Gate優越未達。旧独立116意味ファイル一致は15.60に保持 |
-| C1-MARGINAL-P23-DECODER-01 | 保存C1固定確率・P1固定の周辺P2/P3選択比較 | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 主Gate非劣性/優越未達、C1維持。学習0/P1変更0/Supporting不変、11意味ファイル独立一致。15.61参照 |
-| C1-P12-FIXED-MARGINAL-P3-01 | 元C1のP1/P2を固定し保存無条件P3だけ再選択 | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 主Gate優越未達、C1維持。学習0/P1P2変更0、12意味ファイル独立一致。15.62参照 |
+| C1-MARGINAL-P23-DECODER-01 | 保存C1固定確率・P1固定の周辺P2/P3選択比較 | COMPLETED_PR89_MERGED_NOT_ADOPTED | 主Gate非劣性/優越未達、C1維持。学習0/P1変更0/Supporting不変、11意味ファイル独立一致。15.61参照 |
+| C1-P12-FIXED-MARGINAL-P3-01 | 元C1のP1/P2を固定し保存無条件P3だけ再選択 | COMPLETED_PR90_MERGED_NOT_ADOPTED | 主Gate優越未達、C1維持。学習0/P1P2変更0、12意味ファイル独立一致。15.62参照 |
+| C1-P23-NONDECREASING-MARGINAL-01 | 元C1のP1固定・P2/P3各周辺確率非低下の全pair最大化 | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 主Gate優越未達、元C1維持。P2+21/P3+37/Hit@3位置+59、確率低下0だが2024P2悪化。学習0/12意味ファイル一致。15.63参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3600,6 +3623,37 @@ manifest `bafa4696af468e5cb345f62f42c8d21c3e6cd6d0c75ae92a0b3833c397fd62ca`。
 PR89は終了時にもOPEN/未マージ・同head/base。後続PRは依存baseに注意する。
 詳細は [専用記録](c1-p12-fixed-marginal-p3-01.md)。次は未コミットのコード/結果レビューだけ。
 
+## 15.63 C1-P23-NONDECREASING-MARGINAL-01 / 2026-10-08
+
+開始clean main/originは `05eb5c63316128d19eab2da378ceca2c55990383`、PR89/90はMERGED。
+旧15.61/15.62の未マージ・実行・検証記録は当時の履歴として保持する。
+新branch `feature/c1-p23-nondecreasing-marginal-01` で保存元C1のP1固定、
+P2/P3各周辺確率を下げない全順序pairのP2+P3最大を比較する。元pair同率最大は維持。
+旧二方式の契約・コード・成果物rootはこの成分別制約の実施を示さず、今回rootは開始時未作成。
+既存Sources/Reader/baseline/Evaluation/paired bootstrap/Gateを再利用し、学習0。
+両年seal/不変検査後に正解開放、独立原資料再読込み2run、START/END・公開前検証を要求する。
+今回は実装・人工検証・限定2024/2025比較だけを許可。2026/LIVE/正式置換、DB/HTTP/Rawは禁止。
+旧不採用・score gap P3未解決、historical_as_of_available=false、points=nullを保持。
+1 execute内の独立2runで50,078race/356,209出走を比較し、12意味ファイルが一致。
+2024/2025のP1変更0、P2変更350/386、P3変更1160/1199。両成分確率低下0。
+的中純増減はP2 -5/+26、P3 +18/+19、Hit@3位置 +13/+46。
+年等重み差（pp）はP1=0、P2 +0.042616、P3 +0.074266、Hit@3 +0.039739。
+主Gate NOT_PASSED: Hit@3 CI下限は率 `-2.1549951877694178e-6` で厳密>0を満たさない。
+non_inferiority/temporal/integrity成立、補助STAT01 PASSだが主採用の代用にしない。
+不採用・元C1維持。Primary完全順序一致は1195→1186 /25040、1179→1177 /24663。
+Supporting全指標不変。Hit@3適格内P3差+38と全P3差+37を区別し、適格P2/P3和=Hit@3差を検証。
+全pair1,587,598、制約適合53,437、除外1,534,161。参照S順序は全件成立。
+source23/code44 START/END・公開前検証済み、学習0、元モデル/入力/確率は不変。
+2026-10-08 12:51:37～12:56:17 JST、279.6818759441376秒、exit0、peak32MiB（128M）。
+専用62/851・関連348/2806成功（128M）、最終通常全体1回3045 passed/29208 assertions/既存9 skipped。
+変更PHP7件構文・限定Pint成功。新規skipなし。
+証跡: `/home/shinya/neo-keirin-artifacts/c1-p23-nondecreasing-marginal-01/run-20261008-uUZqYlrV/`。
+manifest: `c970ec8f92ffbd05a5f3630d1633adee8f17ba3dc3429ad3b1f905a07ac9a918`。
+次はコード・不採用結果のレビューのみ。追加試行/正式置換/LIVE/2026へ自動移行しない。
+詳細契約・今回の実行状態は [c1-p23-nondecreasing-marginal-01.md](c1-p23-nondecreasing-marginal-01.md)。
+
+---
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -4016,6 +4070,18 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.54 / 2026-10-08
+
+PR89/90 MERGED、main `05eb5c63316128d19eab2da378ceca2c55990383` へ現在状態を同期。
+冒頭の旧PR89実行・テスト表示を直近PR90の過去実績と分離した。
+今回の限定成分別非低下pair比較を許可、仕様は15.63。旧結果/未マージ当時の履歴は保持。
+学習0・P1固定・両年seal後の評価・元bootstrap/Gate・独立再読込みを要求する。
+2026/LIVE/他blocked工程の解禁なし。1 execute/独立2run/12意味ファイル一致が完了。
+P2+21・P3+37・Hit@3位置+59、年等重みHit@3 +0.039739ppだがCI下限負のため主Gate優越未達。
+確率低下0でも2024P2実測は-5であり、不採用・元C1維持。source23/code44不変、学習0。
+専用62/851・関連348/2806・最終通常全体3045/29208/既存9 skipped、構文/限定Pint成功。
+今回と旧PR90の実績を分離し、未コミットのコード/結果レビュー待ちへ同期した。
 
 ## v1.53 / 2026-10-08
 
@@ -4715,12 +4781,15 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-P12-FIXED-MARGINAL-P3-01 / COMPLETED_NOT_ADOPTED_AWAITING_REVIEW / PR89_OPEN_UNMERGED_DEPENDENCY
-Current main = 85c411960241749d3285c72543f06a96d01bf05c / PR88_MERGED
+Phase = C1-P23-NONDECREASING-MARGINAL-01 / COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+Current main = 05eb5c63316128d19eab2da378ceca2c55990383 / PR89_PR90_MERGED
+Nondecreasing P23 = ORIGINAL_C1_P1_FIXED / BOTH_MARGINAL_COMPONENTS_NONDECREASING / GLOBAL_PAIR_MAXIMUM / ORIGINAL_EXACT_MAX_RETAINED / SEE_15.63
+Nondecreasing P23 result = INCREMENTAL_GATE_NOT_PASSED_SUPERIORITY_UNMET_RETAIN_C1 / P1_CHANGES_AND_HIT_DELTA_0 / P2_HITS_PLUS21_P3_HITS_PLUS37_HIT3_POSITIONS_PLUS59 / COMPONENT_PROBABILITY_DECLINES_0 / TRAINING_0
+Nondecreasing P23 reproduction = TWELVE_ENUMERATED_SEMANTIC_FILES_IDENTICAL / SOURCE23_CODE44_START_END_UNCHANGED / MANIFEST_c970ec8f92ffbd05a5f3630d1633adee8f17ba3dc3429ad3b1f905a07ac9a918
 Fixed P12 P3 = ORIGINAL_C1_E06_P1_P2_SUPPORTING_UNCHANGED / UNCONDITIONAL_P3_EXACT_MAXIMUM / KEEP_ORIGINAL_EXACT_MAX / DEDICATED_TIE_v1 / SEE_15.62
 Fixed P12 P3 result = INCREMENTAL_GATE_NOT_PASSED_SUPERIORITY_UNMET_RETAIN_C1 / P1_P2_CHANGES_0 / P3_HITS_PLUS39_HIT3_POSITIONS_PLUS40_DIFFERENT_ELIGIBILITY / TRAINING_0
 Fixed P12 P3 reproduction = TWELVE_ENUMERATED_SEMANTIC_FILES_IDENTICAL / SOURCE23_CODE42_START_END_UNCHANGED / MANIFEST_bafa4696af468e5cb345f62f42c8d21c3e6cd6d0c75ae92a0b3833c397fd62ca
-Dependency PR89 = REVIEW_COMPLETED_OPEN_UNMERGED / HEAD_6637b04994ef952bf7dfff65f6caa8ef06afbd14 / KEEP_PRIOR_RESULT_AND_ARTIFACTS
+Dependency PR89 = MERGED_REVIEW_COMPLETED / HEAD_6637b04994ef952bf7dfff65f6caa8ef06afbd14 / KEEP_PRIOR_RESULT_AND_ARTIFACTS
 Field/bike result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_PASS / SEVENTY_EIGHT_ENUMERATED_SEMANTIC_FILES_IDENTICAL / OLD_OUTER_C1_RETRAINING_0
 Field/bike manifest = 9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77 / INPUT_RACES_99669_ENTRIES_706051 / OBSERVED_CATEGORIES_35 / VALIDATION_OUTER_UNSEEN_0
 Field/bike next = PR87_MERGED_NOT_ADOPTED_RETAIN_C1 / HISTORICAL_RECORD_15.59
@@ -4860,13 +4929,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_P12_FIXED_MARGINAL_P3_01_CODE_AND_RESULT_REVIEW_ONLY
+Next allowed action = REVIEW_C1_P23_NONDECREASING_MARGINAL_COMPARISON_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the completed C1-P23-NONDECREASING-MARGINAL-01 implementation and negative adoption decision. One execute/two independent reread runs, twelve enumerated semantic files identical, source23/code44 unchanged, learning0/P1 changes0/original probabilities and Supporting unchanged. P2/P3 component probabilities never decrease, but actual 2024 P2 hits decline by5. Total P2 hits +21, P3 +37, Hit3 positions +59; year-equal Hit3 +0.039739pp with paired CI lower -0.00021549951877694178pp fails strict superiority. Main Gate NOT_PASSED, retain original C1; STAT01 auxiliary PASS is not incremental approval. PR89/90 merged at main 05eb5c63316128d19eab2da378ceca2c55990383. Preserve historical records/old artifacts and score-gap P3. See 15.63 and docs/c1-p23-nondecreasing-marginal-01.md. No repeat execute, altered constraints, further experiment, learning, DB/HTTP/Raw/2026/formal replacement/LIVE. Stop uncommitted for review; no automatic next phase.
+
+Previous handoff (v1.53, historical PR89-open state; PR89/90 now merged):
 Review only the completed C1-P12-FIXED-MARGINAL-P3-01 code and result. One execute/two independent source-reread runs, twelve semantic files identical; source23/code42 unchanged, learning0, original P1/P2/probabilities/Supporting unchanged. P3 hits +39 versus Hit3 positions +40 are different eligible populations; per-race fixed P1/P2 contributions and Hit3-eligible P3 equality passed. Year-equal P3 +0.078280pp, Hit3 +0.026838pp; main Gate NOT_PASSED because superiority CI lower is not positive. Do not adopt; retain original C1. STAT01 auxiliary PASS is not incremental approval. PR89 reviewed dependency head 6637b04994ef952bf7dfff65f6caa8ef06afbd14 remains OPEN/unmerged, main 85c411960241749d3285c72543f06a96d01bf05c; use the appropriate dependency base for a future PR. Preserve old +112/+83 records, negative artifacts/score-gap P3 and closed2026. No repeat execution, training, DB/HTTP/Raw/2026/formal replacement/LIVE or next experiment. See 15.62 and docs/c1-p12-fixed-marginal-p3-01.md. Stop uncommitted for review.
 
 Previous handoff (v1.52, superseded only by the limited policy comparison above; PR89 OPEN/unmerged):
