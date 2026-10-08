@@ -1,7 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.52
+- Version: 1.53
 - Created: 2026-08-23
 - Updated: 2026-10-08
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
@@ -171,12 +171,30 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: C1_MARGINAL_P23_DECODER_01_COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+current_engine_state: C1_P12_FIXED_MARGINAL_P3_01_COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_MARGINAL_P23_DECODER_01_CODE_AND_RESULT_REVIEW_ONLY
+next_allowed_action: C1_P12_FIXED_MARGINAL_P3_01_CODE_AND_RESULT_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED
-current_phase: C1-MARGINAL-P23-DECODER-01
+current_phase: C1-P12-FIXED-MARGINAL-P3-01
 remote_main: 85c411960241749d3285c72543f06a96d01bf05c
+pr89_status: REVIEW_COMPLETED_OPEN_UNMERGED
+pr89_dependency_head: 6637b04994ef952bf7dfff65f6caa8ef06afbd14
+c1_p12_fixed_marginal_p3_01: COMPLETED_NOT_ADOPTED_AWAITING_REVIEW
+c1_p12_fixed_marginal_p3_01_incremental_gate: NOT_PASSED_SUPERIORITY_UNMET
+c1_p12_fixed_marginal_p3_01_decision: NOT_ADOPTED_RETAIN_C1
+c1_p12_fixed_marginal_p3_01_P1_changes: 0
+c1_p12_fixed_marginal_p3_01_P2_changes: 0
+c1_p12_fixed_marginal_p3_01_P3_changes: 2366
+c1_p12_fixed_marginal_p3_01_P3_hit_net: 39
+c1_p12_fixed_marginal_p3_01_Hit3_position_net: 40
+c1_p12_fixed_marginal_p3_01_reproduction: TWELVE_ENUMERATED_SEMANTIC_FILES_IDENTICAL
+c1_p12_fixed_marginal_p3_01_manifest_sha256: bafa4696af468e5cb345f62f42c8d21c3e6cd6d0c75ae92a0b3833c397fd62ca
+c1_p12_fixed_marginal_p3_01_training_count: 0
+c1_p12_fixed_marginal_p3_01_historical_as_of_available: false
+c1_p12_fixed_marginal_p3_01_formal_adoption: false
+c1_p12_fixed_marginal_p3_01_live_use_authorized: false
+c1_p12_fixed_marginal_p3_01_points: null
+c1_p12_fixed_marginal_p3_01_2026_access: FORBIDDEN
 pr64_status: MERGED
 pr65_status: MERGED
 pr66_status: MERGED
@@ -674,7 +692,7 @@ holdout_status:
 
 ## 5.1 意味
 
-- PR #88はレビュー後マージ済み。順位別lambda方式不採用・元C1維持、旧108試行/116意味ファイル/実測は15.60に保持。今回C1-MARGINAL-P23-DECODER-01は1 execute/独立再読込み2runを完了、11意味ファイル一致。学習0/P1変更0/Supporting不変、主Gate非劣性/優越未達で今回方式不採用・現行C1維持。次は未コミットのコード/結果レビューだけ。旧7否定結果/P3残件・正式置換/LIVE/2026/DB/HTTP/Raw禁止を保持。15.61/専用記録参照。
+- PR #88はマージ済み、PR89はレビュー済みheadからの依存・OPEN/未マージ。15.60/15.61の旧結果は保持。今回P1/P2固定P3比較は1 execute/独立再読込み2run/12意味ファイル一致、学習0/Supporting不変。P3+39/Hit@3+40だが主Gate優越未達で不採用・C1維持。次は未コミットのコード/結果レビューだけ。旧否定結果/P3残件、正式置換/LIVE/2026/DB/HTTP/Raw禁止を保持。15.62/専用記録参照。
 
 - STAT-35-C1-INPUT-02はPR #77マージ・固定入力受入済み。COMPARE-01はPR #78レビュー/マージ完了、追加Gate未達・C1維持。限定事後診断はPR #79レビュー/マージ完了。現在保存値の再構成、observed_at=null/historical_as_of_available=false、保留1,003件を維持。原本REVIEW_PENDING・旧全NULL診断・旧未承認表示を書き換えない。15.52当時のSTAT-36固定台帳2022-2025 Raw読取り/観測生成1回/独立再現1回だけの許可と完了は過去記録。今回の別候補工程は15.54に記録する。DB/HTTP、追加試行、context/mean6再生成、旧C1再学習、2026/LIVE、正式採用は禁止。
 - PR #73のマージ、過去の修正/実生成/再現/テスト記録、全成果物受入の判定記録未確認を分離する。未確認を修正失敗へ戻さず、15.45とv1.36は当時の履歴として維持する。上記件数・テスト値は過去引用で、今回の再測定ではない。
@@ -899,6 +917,7 @@ BT-03E-02以降で利用する場合は、
 | STAT-39-C1-FIELD-BIKE-01 | 元16項目＋出走表人数×車番カテゴリ | COMPLETED_PR87_MERGED_NOT_ADOPTED | 固定2束・17項目・観測35カテゴリ。主Gate未達/元C1維持、補助STAT01 PASS。独立2run/78意味ファイル一致、正式採用/LIVE/2026禁止。15.59参照 |
 | C1-POSITION-LAMBDA-01 | 元16項目・順位別lambda選択 | COMPLETED_PR88_MERGED_NOT_ADOPTED | 全順位0.1、旧C1と係数/予測一致、主Gate優越未達。旧独立116意味ファイル一致は15.60に保持 |
 | C1-MARGINAL-P23-DECODER-01 | 保存C1固定確率・P1固定の周辺P2/P3選択比較 | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 主Gate非劣性/優越未達、C1維持。学習0/P1変更0/Supporting不変、11意味ファイル独立一致。15.61参照 |
+| C1-P12-FIXED-MARGINAL-P3-01 | 元C1のP1/P2を固定し保存無条件P3だけ再選択 | COMPLETED_NOT_ADOPTED_AWAITING_REVIEW | 主Gate優越未達、C1維持。学習0/P1P2変更0、12意味ファイル独立一致。15.62参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3551,6 +3570,36 @@ manifest `3e3a3f59bf841e661303e44bf625f5497d20443a24a3a3faba7308989d3c80de`。
 9PHP構文/限定Pint/plan成功。次はコード/否定結果レビューだけ、旧実績を今回へ読み替えない。
 詳細は [専用記録](c1-marginal-p23-decoder-01.md)。次工程/正式置換/LIVE/2026を自動解禁しない。
 
+## 15.62 C1-P12-FIXED-MARGINAL-P3-01 / 2026-10-08
+
+最新ユーザー承認は元Outer C1のP1/P2を固定したP3-only decoder比較。
+PR89はユーザー指定レビュー済みhead `6637b04994ef952bf7dfff65f6caa8ef06afbd14`、GitHub OPEN/未マージを確認。
+origin/main `85c411960241749d3285c72543f06a96d01bf05c` に依存commitは未包含。
+cleanな依存headから `feature/c1-p12-fixed-marginal-p3-01` を作成、既存branch/mainを編集しない。
+保存された元E06 decision検証後、P1/P2を除いた無条件P3の厳密最大を選ぶ。
+元P3が同率最大なら維持し、それ以外の最大tieは専用SHA契約で選択する。
+原probabilities/model/Supporting、旧Evaluator/CI/Gateは固定。PR89候補をbaselineにしない。
+1 execute内の独立再読込み2run、両年seal/P1P2検証後labels開放、Hit@3適格内P3差等式を必須とする。
+今回限定の実装/人工テスト/2024・2025比較を許可し、旧review-only記録だけを停止理由にしない。
+旧15.61の+112/+83、不採用、score gap P3残件は過去記録として保持する。
+学習0・DB/HTTP/Raw/2026/正式置換/LIVEは禁止、historical_as_of_available=false・points=null。
+1 execute/独立再読込み2runが完了。2024/2025全25,212/24,866race・179,089/177,120出走を維持。
+P1/P2選択・的中分子/分母/率は全レースと年別で完全一致、測定された差/CIは0/[0,0]。
+P3変更1,163/1,203、同率最大維持/hash選択0/0。P3的中純増19/20、全体+39。
+Hit@3適格内P3純増19/21は各レース/合計で位置純増19/21と一致、全体+40。母集団の違いを保持。
+年等重みの候補-C1差:1着0、2着0、3着+0.078280、Hit@3+0.026838pp。
+95%CI pp:1/2着[0,0]、3着[-0.026545,+0.190674]、Hit@3[-0.008136,+0.064433]。
+主Gate `NOT_PASSED`:非劣性/年別条件/integrity=true、優越=false。今回方式不採用、元C1維持。
+補助STAT01 `PASS / GO_TO_FREEZE` は主Gateの代用・正式採用ではない。
+12意味ファイルのsize/SHA独立一致、source23/code42 START/END・公開前・manifest/COMPLETE検証成功。
+manifest `bafa4696af468e5cb345f62f42c8d21c3e6cd6d0c75ae92a0b3833c397fd62ca`。
+成果物 `/home/shinya/neo-keirin-artifacts/c1-p12-fixed-marginal-p3-01/run-20261008-001334-8728deef/result/`。
+128M実行2026-10-08 09:20:32～09:25:04 JST、272.767078秒、peak32MiB、exit0/stderr空。
+専用54/636・関連232/1319（128M）、最終通常全体1回2983 passed/28357 assertions/既存9 skipped。
+変更9PHP構文/限定Pint/128M plan成功。旧実績を今回へ読み替えず、学習器は実データで呼んでいない。
+PR89は終了時にもOPEN/未マージ・同head/base。後続PRは依存baseに注意する。
+詳細は [専用記録](c1-p12-fixed-marginal-p3-01.md)。次は未コミットのコード/結果レビューだけ。
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -3967,6 +4016,15 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.53 / 2026-10-08
+
+最新承認のC1-P12-FIXED-MARGINAL-P3-01を限定許可。PR89レビュー済みと未マージを分離。
+同依存headから新branchを作成、元P1/P2固定・保存無条件P3最大・専用tie契約だけを追加。
+学習0/旧C1保持/両年seal後結果開放/既存paired CI・主Gate/独立再読込みを要求する。
+旧結果やmanifestを今回へ転記せず、正式置換/LIVE/2026を解禁しない。実行状態は15.62参照。
+1 execute/独立2run/12意味ファイル一致が完了。P3+39・Hit@3+40は別適格母集団で検証。
+主Gate優越未達で今回方式不採用・元C1維持、次はコード/否定結果レビューのみ。
 
 ## v1.52 / 2026-10-08
 
@@ -4657,8 +4715,12 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-MARGINAL-P23-DECODER-01 / COMPLETED_NOT_ADOPTED_AWAITING_REVIEW / PR88_MERGED
+Phase = C1-P12-FIXED-MARGINAL-P3-01 / COMPLETED_NOT_ADOPTED_AWAITING_REVIEW / PR89_OPEN_UNMERGED_DEPENDENCY
 Current main = 85c411960241749d3285c72543f06a96d01bf05c / PR88_MERGED
+Fixed P12 P3 = ORIGINAL_C1_E06_P1_P2_SUPPORTING_UNCHANGED / UNCONDITIONAL_P3_EXACT_MAXIMUM / KEEP_ORIGINAL_EXACT_MAX / DEDICATED_TIE_v1 / SEE_15.62
+Fixed P12 P3 result = INCREMENTAL_GATE_NOT_PASSED_SUPERIORITY_UNMET_RETAIN_C1 / P1_P2_CHANGES_0 / P3_HITS_PLUS39_HIT3_POSITIONS_PLUS40_DIFFERENT_ELIGIBILITY / TRAINING_0
+Fixed P12 P3 reproduction = TWELVE_ENUMERATED_SEMANTIC_FILES_IDENTICAL / SOURCE23_CODE42_START_END_UNCHANGED / MANIFEST_bafa4696af468e5cb345f62f42c8d21c3e6cd6d0c75ae92a0b3833c397fd62ca
+Dependency PR89 = REVIEW_COMPLETED_OPEN_UNMERGED / HEAD_6637b04994ef952bf7dfff65f6caa8ef06afbd14 / KEEP_PRIOR_RESULT_AND_ARTIFACTS
 Field/bike result = INCREMENTAL_GATE_NOT_PASSED_NON_INFERIORITY_TEMPORAL_SUPERIORITY_UNMET_RETAIN_C1 / STAT01_AUX_PASS / SEVENTY_EIGHT_ENUMERATED_SEMANTIC_FILES_IDENTICAL / OLD_OUTER_C1_RETRAINING_0
 Field/bike manifest = 9df0ecc2723c5eb2eac9bf1529152ab4defdf68d3acc2d123f115cb4e95d8d77 / INPUT_RACES_99669_ENTRIES_706051 / OBSERVED_CATEGORIES_35 / VALIDATION_OUTER_UNSEEN_0
 Field/bike next = PR87_MERGED_NOT_ADOPTED_RETAIN_C1 / HISTORICAL_RECORD_15.59
@@ -4798,13 +4860,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_MARGINAL_P23_DECODER_01_CODE_AND_RESULT_REVIEW_ONLY
+Next allowed action = C1_P12_FIXED_MARGINAL_P3_01_CODE_AND_RESULT_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Further production writes / further implementation = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the completed C1-P12-FIXED-MARGINAL-P3-01 code and result. One execute/two independent source-reread runs, twelve semantic files identical; source23/code42 unchanged, learning0, original P1/P2/probabilities/Supporting unchanged. P3 hits +39 versus Hit3 positions +40 are different eligible populations; per-race fixed P1/P2 contributions and Hit3-eligible P3 equality passed. Year-equal P3 +0.078280pp, Hit3 +0.026838pp; main Gate NOT_PASSED because superiority CI lower is not positive. Do not adopt; retain original C1. STAT01 auxiliary PASS is not incremental approval. PR89 reviewed dependency head 6637b04994ef952bf7dfff65f6caa8ef06afbd14 remains OPEN/unmerged, main 85c411960241749d3285c72543f06a96d01bf05c; use the appropriate dependency base for a future PR. Preserve old +112/+83 records, negative artifacts/score-gap P3 and closed2026. No repeat execution, training, DB/HTTP/Raw/2026/formal replacement/LIVE or next experiment. See 15.62 and docs/c1-p12-fixed-marginal-p3-01.md. Stop uncommitted for review.
+
+Previous handoff (v1.52, superseded only by the limited policy comparison above; PR89 OPEN/unmerged):
 Review only the completed C1-MARGINAL-P23-DECODER-01 code and negative development result: one execute/two independent source-reread decode/evaluation runs, eleven enumerated semantic files identical, 50078 races/356209 entries, source23/code38 unchanged, learning0/P1 changes0/supporting unchanged. Year-equal P2 -0.058305pp, P3 +0.224848pp, Hit@3 +0.055662pp. Main Gate NOT_PASSED because P2 non-inferiority and Hit@3 superiority CI limits were unmet; do not adopt, retain existing C1 decisions. Auxiliary STAT01 PASS is not incremental approval. Do not equate model expected gain with actual improvement. Preserve old contracts/artifacts/seven negative results and unresolved score-gap P3. No repeat execution, DB/HTTP/Raw/2026/LIVE/formal replacement or further experiments; stop uncommitted for review. See 15.61 and docs/c1-marginal-p23-decoder-01.md.
 
 Previous handoff (v1.50, superseded only by the authorized comparison above):

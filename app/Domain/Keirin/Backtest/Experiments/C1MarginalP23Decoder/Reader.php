@@ -20,6 +20,11 @@ final class Reader
 
     public function decisions(array $source, int $year, string $indexPath, array &$audit): Generator
     {
+        yield from $this->decisionsUsing($source, $year, $indexPath, $audit, $this->decoder->decode(...));
+    }
+
+    public function decisionsUsing(array $source, int $year, string $indexPath, array &$audit, callable $decode): Generator
+    {
         self::year($year);
         $db = new PDO('sqlite:'.$indexPath);
         $db->exec('PRAGMA cache_size=-1024');
@@ -41,7 +46,7 @@ final class Reader
                 if (! $predictions->valid()) {
                     throw new RuntimeException('Missing saved prediction race.');
                 }
-                $row = $this->decoder->decode($input, $predictions->current());
+                $row = $decode($input, $predictions->current());
                 $row['source_row'] = $i + 1;
                 $row['model_sha256'] = $source['seals'][$source['paths'][$year]['model']]['sha256'];
                 foreach ([1, 2, 3] as $position) {

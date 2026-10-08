@@ -18,16 +18,8 @@ final class Decoder
 
     public function decode(array $input, array $saved): array
     {
-        InputContract::keys($saved, ['probabilities', 'decision']);
+        $original = $this->baseline($input, $saved);
         $race = $saved['probabilities'];
-        $this->probabilities($input, $race);
-        $original = $saved['decision'];
-        $verified = $this->conditioned->decode($race);
-        // These are source-run audit fields, not decoder mathematics.
-        $verified['reconstruction_verified'] = false;
-        $verified['prediction_origin'] = 'EXPERIMENTAL_REFIT';
-        InputContract::keys($original, array_keys($verified));
-        Files::same($verified, $original, 'saved E06 decision');
         $candidate = $this->marginal->decode($race);
         if ($candidate['primary_position_1_bike'] !== $original['primary_position_1_bike']) {
             throw new RuntimeException('P1 invariant violated.');
@@ -54,6 +46,22 @@ final class Decoder
             'baseline' => $original, 'candidate' => $candidate,
             'marginal_score_old' => $oldScore, 'marginal_score_new' => $newScore,
             'model_expected_gain' => $newScore - $oldScore];
+    }
+
+    public function baseline(array $input, array $saved): array
+    {
+        InputContract::keys($saved, ['probabilities', 'decision']);
+        $race = $saved['probabilities'];
+        $this->probabilities($input, $race);
+        $original = $saved['decision'];
+        $verified = $this->conditioned->decode($race);
+        // These are source-run audit fields, not decoder mathematics.
+        $verified['reconstruction_verified'] = false;
+        $verified['prediction_origin'] = 'EXPERIMENTAL_REFIT';
+        InputContract::keys($original, array_keys($verified));
+        Files::same($verified, $original, 'saved E06 decision');
+
+        return $original;
     }
 
     private function probabilities(array $input, array $race): void

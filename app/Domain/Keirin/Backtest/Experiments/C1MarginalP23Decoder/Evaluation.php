@@ -19,7 +19,7 @@ final class Evaluation
     public function __construct(private readonly Reader $reader, private readonly Bt03e05MetricEvaluator $metrics,
         private readonly Bt03e05PairedBootstrap $bootstrap, private readonly Bt03e05AcceptanceGate $gate) {}
 
-    public function evaluate(array $source, array $paths, string $directory): array
+    public function evaluate(array $source, array $paths, string $directory, ?callable $check = null): array
     {
         $outer = $spools = $changes = [];
         foreach ([2024, 2025] as $year) {
@@ -31,7 +31,7 @@ final class Evaluation
                 'P3' => ['both_hit' => 0, 'C1_only' => 0, 'candidate_only' => 0, 'both_miss' => 0, 'excluded' => 0],
                 'Hit3' => ['improved_races' => 0, 'worsened_races' => 0, 'equal_races' => 0, 'excluded_races' => 0,
                     'C1_correct_positions' => 0, 'candidate_correct_positions' => 0]];
-            JsonlArtifact::write($directory.'/contributions-'.$year.'.jsonl', $this->rows($source, $paths, $year, $summaries, $spools, $changes[$year]));
+            JsonlArtifact::write($directory.'/contributions-'.$year.'.jsonl', $this->rows($source, $paths, $year, $summaries, $spools, $changes[$year], $check));
             foreach ($summaries as $name => $data) {
                 if (min($data['denominators']) <= 0) {
                     throw new RuntimeException('Zero evaluation denominator: NOT_EVALUATED.');
@@ -60,7 +60,7 @@ final class Evaluation
             'stat01_gate' => $this->gate->evaluate($result['outer']['CANDIDATE-STAT01'], $result['intervals']['CANDIDATE-STAT01'], $integrity)];
     }
 
-    private function rows(array $source, array $paths, int $year, array &$summaries, array $spools, array &$changes): Generator
+    private function rows(array $source, array $paths, int $year, array &$summaries, array $spools, array &$changes, ?callable $check): Generator
     {
         $decisions = JsonlArtifact::read($paths[$year]);
         $decisions->rewind();
@@ -82,6 +82,9 @@ final class Evaluation
                 if ($first['candidate'][$metric]['denominator'] !== $second['candidate'][$metric]['denominator']) {
                     throw new RuntimeException('Paired denominators disagreed.');
                 }
+            }
+            if ($check !== null) {
+                $check($context, $row, $comparisons);
             }
             foreach ($comparisons as $name => $comparison) {
                 $this->metrics->add($summaries[$name], $comparison);
