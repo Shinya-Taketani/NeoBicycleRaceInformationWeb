@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.59
+- Version: 1.60
 - Created: 2026-08-23
 - Updated: 2026-10-10
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
 - Remote `main` at last update: `c9fdc3d72292b7c7af83f8d67fba7cdc84affd89`
-- Current review: PR93 MERGED_REVIEW_COMPLETED。C1-STAT35-COMPOSITION-REQUEST-01の依頼単位create/show/reuse/reproduce技術確認レビュー待ち
-- Current code: 新しい依頼専用namespace/CLI、固定公開v3 packageと既存Forwardを再利用。旧モデル側96ファイル・provider/bootstrap/composer/vendor・旧pipeline不変
-- Current execution record: COMPOSITION_REQUEST_FLOW_VERIFIED_AWAITING_REVIEW。先行選択した2025の10レースcreate/show/REUSED/独立再現/保存予測厳密照合が各10、再学習/repackage/性能評価0、15.66参照
-- Current tests record: 専用128M 47/166、PR93関連128M 107/546、最終通常全体1回3243 passed/30247 assertions/既存9 skipped/319.894秒/exit0。7変更PHP構文・限定Pint・diff成功、新規skip/削除/緩和0
+- Current review: PR94の保存予測内部整合P2修正結果レビュー待ち。PR93 MERGED_REVIEW_COMPLETEDは維持
+- Current code: 依頼側PredictionVerifierをStore共通検証へ接続。保存utilityの既存確率計算器/E06検算のみ、Forward・旧モデル側96ファイル・provider/bootstrap/composer/vendor・旧pipeline不変
+- Current execution record: SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW。旧10show/新ID10create/show/REUSED/reproduce/予測bytes-SHA一致、学習/repackage/性能評価0、15.66.1参照
+- Current tests record: PHPUnit本体128M専用119/987・関連270/1860、最終通常全体1回3315 passed/31068 assertions/既存9 skipped/328.270秒/exit0。変更PHP3構文・限定Pint・diff成功、新規skip/削除/緩和0
+- Previous execution/tests record (PR94初版): 専用47/166・関連107/546、全体3243 passed/30247 assertions/既存9 skipped/319.894秒/exit0。旧store10依頼は保持、初版の記録は15.66へ保持
 - Previous execution/tests record (PR93 v3): 固定元参照32/旧v2証跡72/runtime96不変、通常/移設全24866予測byte一致。3196 passed/30081 assertions/既存9 skipped、公開65/390・関連184/815、7変更PHP構文/Pint/diff成功（15.65.2の当時の記録）
 - Previous execution/tests record (PR93 v2): 固定元32/runtime code95、artifact c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f、全24866通常/移設予測一致。3164 passed/29847 assertions/既存9 skipped、公開33/156・関連184/815、11変更PHP構文/Pint成功（15.65.1の当時の記録）
 - Previous execution/tests record (PR93 v1): execute1回/独立2run/新4path・8試行、C2 lambda0.1、37意味ファイル/source117/code93/全2025予測一致。通常全体3131 passed/29691 assertions/既存9 skipped、関連187/904、15変更PHP構文/限定Pint成功（15.65の当時の記録）
@@ -177,19 +178,21 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: COMPOSITION_REQUEST_FLOW_VERIFIED_AWAITING_REVIEW
+current_engine_state: SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_STAT35_COMPOSITION_REQUEST_01_RESULT_REVIEW_ONLY
+next_allowed_action: PR94_SAVED_PREDICTION_VALIDATION_FIX_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
 current_phase: C1-STAT35-COMPOSITION-REQUEST-01
 remote_main: c9fdc3d72292b7c7af83f8d67fba7cdc84affd89
 pr93_status: MERGED_REVIEW_COMPLETED
-c1_stat35_composition_request_01: COMPOSITION_REQUEST_FLOW_VERIFIED_AWAITING_REVIEW
+c1_stat35_composition_request_01: SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW
+c1_stat35_composition_request_01_saved_verification: EXISTING_CALCULATOR_AND_E06_STRICT_OUTPUT_MATCH
+c1_stat35_composition_request_01_saved_only: MODEL_INPUT_EXTRACTION_FORWARD_ZERO_WITH_SAVED_VALUE_MATH
 c1_stat35_composition_request_01_mode: DEVELOPMENT_FEATURE_SNAPSHOT_REPLAY
 c1_stat35_composition_request_01_created_shown_reused_reproduced_reference_equal: EACH_TEN
 c1_stat35_composition_request_01_model_code_files_unchanged: 96
 c1_stat35_composition_request_01_training_repackage_count: ZERO_BOTH
-c1_stat35_composition_request_01_performance: NOT_PERFORMED_REQUEST_FLOW_TECHNICAL_VERIFICATION_ONLY
+c1_stat35_composition_request_01_performance: NOT_PERFORMED_SAVED_PREDICTION_VALIDATION_FIX_ONLY
 c1_stat35_composition_request_01_historical_as_of_available: false
 c1_stat35_composition_request_01_formal_adoption: false
 c1_stat35_composition_request_01_formal_freeze: false
@@ -1006,7 +1009,7 @@ BT-03E-02以降で利用する場合は、
 | C1-P23-NONDECREASING-MARGINAL-01 | 元C1のP1固定・P2/P3各周辺確率非低下の全pair最大化 | COMPLETED_PR91_MERGED_NOT_ADOPTED | 主Gate優越未達、元C1維持。P2+21/P3+37/Hit@3位置+59、確率低下0だが2024P2悪化。学習0/12意味ファイル一致。15.63参照 |
 | C1-STAT35-P1-COMPOSITION-01 | 保存C2 U1＋元C1 U2/U3の一つの逐次分布とE06 | COMPLETED_DEVELOPMENT_GATE_PASSED_PR92_MERGED | P1+55既知C2照合/P2+26/P3+4/Hit3位置+81、2025P3−4・Primary完全一致合計−4。主Gate通過、学習0/16意味ファイル一致。正式C1維持、15.64参照 |
 | C1-STAT35-COMPOSITION-FINAL-01 | 保存構成候補の公開修正・再パッケージ・特徴量予測 | MERGED_REVIEW_COMPLETED_PR93 | REPACKAGE専用v3の配置後receiptで未公開移設を拒否。FIT/予測v2保護は維持。旧4path/8試行/37一致・全2025照合・公開v2/v3実績は過去記録、15.65.2参照 |
-| C1-STAT35-COMPOSITION-REQUEST-01 | 固定入力のレース指定・依頼保存・参照・再利用・再現 | COMPOSITION_REQUEST_FLOW_VERIFIED_AWAITING_REVIEW | 2025の10レースで5種類の技術確認各10成功。旧モデルコード96不変、学習/repackage/性能評価0、15.66参照 |
+| C1-STAT35-COMPOSITION-REQUEST-01 | 固定入力のレース指定・依頼保存・参照・再利用・再現 | SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW | PR94 P2修正・再seal不正拒否。旧10show/新10技術操作/予測bytes-SHA一致、旧244ファイル・モデルコード96不変、学習/repackage/性能評価0、15.66.1参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3847,6 +3850,35 @@ store `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/request-
 historical_as_of_available=false、adoption/freeze/LIVE=false、points=null、2026禁止。DB/HTTP/Raw/Migration/OOF/bootstrap/採用Gate0。
 未対応DB入力生成/Web/未来発走前利用/LIVEへ自動移行しない。未コミットで今回結果のレビューだけを待つ。
 
+### 15.66.1 PR94 保存確率・decision検証修正 / 2026-10-10
+
+開始clean HEAD/origin feature `eb867724136f4ceb8885ce6ce320f03f0385d629`、同じfeature/c1-stat35-composition-request-01を継続。
+人工依頼のコピーで、予測/sidecar/manifest/COMPLETEまで再sealした全ゼロ確率・誤Primaryが修正前に受理される2失敗を確認。
+依頼側PredictionVerifierをStore::verifyへ接続し、公開前/show/REUSED/reproduceで同じ内容検証を行う。
+既存seal/対象/出走者/原値対応を保持し、構造・有限数値・実際の順位別補償和/既存許容幅・Top2Top3を検査。
+保存utilityだけを既存ProbabilityCalculatorへ投影し全probabilitiesを厳密一致、検算済み確率を既存E06へ渡し全decisionを厳密一致。
+MAP/log/順位/診断/Supporting/Q2Q3/hash/tieを比較除外しない。修復/再正規化/丸めなし、正常underflow0は許可する。
+検証仕様SAVED-PREDICTION-SEMANTIC-VALIDATION-v1は依頼側code identityで識別。依頼v1/inventory/Contract::plan保存内容は変更0。
+show/REUSEDは保存値の数学的検算あり、モデル読込み/年別再抽出/Forward呼出し0。全資料の任意偽造への真正性証明ではない。
+ProbabilityCalculator/E06/Forward/Publication/共有Files/モデル側96コードは変更0。
+旧10showと新ID10create/show/REUSED/reproduceが全exit0。新predictionは対応する旧依頼と各rows1/bytes/SHA厳密一致。
+独立128M/open_basedirをrepo+store、再現だけpackage追加へ限定。Package/Predictor/Forward解決拒否下の実CLI show/REUSEDも成功。
+旧createのCONFLICT/旧reproduceのcode不一致を保持。旧store全244（旧ZIP含む）・package全9・入力3seal・モデル側96 START/END不変。
+2026-10-10 06:41:20～06:41:35 JST、15.263747931秒、各128M/最大peak34MiB/driver26MiB。
+新store: `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/request-store-01-pr94-validation-fix-20261010-064120-1bb292ad/`。
+証跡: `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/pr94-saved-prediction-validation-20261010-064120-1bb292ad/`。
+37750実Primary2/1/6、新manifest5590 bytes/SHA `bac8508b995c24e73ede87bc82c38456ae205d0571f29885318e788b27d1c05d`。
+verification.json SHA `0f3cf55f9b68a2633b2d7546f2a4118b7ebb6e7edf82fca374dd0421609696db`。
+PHPUnit本体128M専用119/987（5.404秒）・関連270/1860（53.678秒）成功。再seal不正66ケース（JSON指数1e999/-1e999の非有限値含む）をService show/create/reproduceとCLI show/createで拒否し不変を確認。
+指数2ケース追加前の全体3313 passed/31042 assertionsは途中検証として別記録し、最終結果へ転記しない。
+正常Forward/5～9車/欠番/逆順ID/NULL0/同率/微小差/極端utility/条件付きP3、公開前FAILED/plan非解決/既存排他・独立128M回帰を維持。
+変更PHP3構文・限定Pint・diff成功。最終PHP通常全体1回3324 tests/3315 passed/31068 assertions/既存9 skipped、328.270秒/exit0。
+全体親peak未計測、独立128M実CLI最大34MiBと混同しない。新規skip/削除/保護緩和0。
+今回性能NOT_PERFORMED_SAVED_PREDICTION_VALIDATION_FIX_ONLY。実データ学習/λ選択/repackage/DB/HTTP/Raw/2026/性能評価0。
+historical_as_of_available=false、adoption/freeze/LIVE=false、points=null。次はPR94の修正結果レビューだけ、未コミットで停止。
+旧15.66の47/166・107/546・全体3243/30247/319.894秒は初版当時の記録で、今回値へ読み替えない。
+詳細は docs/c1-stat35-composition-request-01.md。
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -4266,6 +4298,14 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.60 / 2026-10-10
+
+PR94 P2の保存確率・decision内部整合検証と技術再検証だけを15.66.1へ記録。
+保存utilityの既存計算器検算/E06全体厳密照合を追加し、旧依頼形式/モデル側96コードは不変。
+旧10show/新ID10操作/予測bytes-SHA一致、旧244ファイル・package・入力不変。実学習/repackage/性能評価0。
+冒頭/現在地/工程表/引継ぎをSAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEWへ同期し、次はPR94修正結果レビューだけ。
+旧v1.59/15.66の実行/テスト値は当時の記録として維持。採用/freeze/LIVE/2026/次工程は開放しない。
 
 ## v1.59 / 2026-10-10
 
@@ -5013,13 +5053,15 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-STAT35-COMPOSITION-REQUEST-01 / COMPOSITION_REQUEST_FLOW_VERIFIED_AWAITING_REVIEW
+Phase = C1-STAT35-COMPOSITION-REQUEST-01 / SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW / PR94_REVIEW_FIX
 Current main = c9fdc3d72292b7c7af83f8d67fba7cdc84affd89 / PR93_MERGED_REVIEW_COMPLETED
 Composition request = CONTRACT_V1 / FIXED_2025_FEATURE_INPUT / NORMAL_V3_PACKAGE_LOAD_AND_EXISTING_FORWARD / CREATE_SHOW_REUSED_REPRODUCE
-Composition request verification = TEN_CREATED_TEN_SHOWN_TEN_REUSED_TEN_REPRODUCED_TEN_REFERENCE_EQUAL / 37750_PRIMARY_2_1_6 / ORIGINAL_CODE96_AND_MODEL_INPUT_PREDICTION_HASHES_UNCHANGED
+Composition request verification = RESEALED_INVALID_CONTENT_REJECTED / EXISTING_CALCULATOR_AND_E06_FULL_STRICT_MATCH / OLD_TEN_SHOWN_NEW_TEN_OPERATIONS_PREDICTION_BYTE_EXACT / 37750_PRIMARY_2_1_6 / ORIGINAL_CODE96_AND_MODEL_INPUT_HASHES_UNCHANGED
 Composition request isolation = SAVED_ONLY_SHOW_REUSED / REPRODUCE_WITH_PACKAGE_ONLY / RESTRICTED_SEPARATE_PHP_128M / ANNUAL_OLD_SOURCE_REFERENCE_INACCESSIBLE
-Composition request store = request-store-01-20261010-053237-4be690a5 / SEE_15.66_AND_DOCS_COMPOSITION_REQUEST
-Composition request performance = NOT_PERFORMED_REQUEST_FLOW_TECHNICAL_VERIFICATION_ONLY / REAL_TRAINING_0_REPACKAGE_0 / HISTORICAL_AS_OF_FALSE_ADOPTION_FREEZE_LIVE_FALSE_POINTS_NULL_2026_FORBIDDEN
+Composition request saved verification = SAVED_VALUE_MATH_YES / MODEL_LOAD_FEATURE_REEXTRACTION_FORWARD_ZERO_FOR_SHOW_REUSED / NO_REPAIR_OR_IDENTITY_BYPASS
+Composition request store = request-store-01-pr94-validation-fix-20261010-064120-1bb292ad / SEE_15.66.1_AND_DOCS_COMPOSITION_REQUEST
+Composition request old store = request-store-01-20261010-053237-4be690a5 / ALL_244_FILES_UNCHANGED / HISTORICAL_15.66
+Composition request performance = NOT_PERFORMED_SAVED_PREDICTION_VALIDATION_FIX_ONLY / REAL_TRAINING_0_REPACKAGE_0 / HISTORICAL_AS_OF_FALSE_ADOPTION_FREEZE_LIVE_FALSE_POINTS_NULL_2026_FORBIDDEN
 Final composition publication = REPACKAGE_V3_PREPARED_PLACEMENT_THEN_RELEASE_RECEIPT / FIT_PREDICTION_V2_UNCHANGED / REAL_RETRAINING_0 / SEE_15.65.2
 Final composition reproduction = PUBLIC_AND_MOVED_2025_24866_BYTE_EXACT / SOURCE32_OLD_V2_FILES72_RUNTIME_CODE96_UNCHANGED / NORMAL_PUBLIC_LOAD_AND_RESTRICTED_SEPARATE_CLI / EXIT0
 Final composition package = pr93-repackage-commit-fix-20261009-e91a7f3c/package/artifact.json / SHA256_75f793599687da3f6a946db6500921463df496144e6844e97a8c019a458a3de9 / RECEIPT_SHA256_d0ddc8bbe9e04e812f467c967fec765e8943e660fa224b7abdbe10bbcb084755 / PR93_MERGED_REVIEW_COMPLETED_DEVELOPMENT_ONLY
@@ -5177,14 +5219,17 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_STAT35_COMPOSITION_REQUEST_01_RESULT_REVIEW_ONLY
+Next allowed action = PR94_SAVED_PREDICTION_VALIDATION_FIX_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Production writes / implementation beyond this limited final-composition phase = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review only C1-STAT35-COMPOSITION-REQUEST-01: fixed 2025 feature snapshot, accepted v3 package and unchanged Forward/E06; ten requests created/shown/reused/reproduced/reference-matched, all exit0 with separate 128M processes and saved-only reads. Original model code96/package/receipt/parents/input/prior predictions unchanged; real training/repackage/performance evaluation0. Keep unknown historical timing, formal adoption/freeze/LIVE=false, points=null and2026 closed. No DB/HTTP/Raw/another phase. See15.66 and docs/c1-stat35-composition-request-01.md. Stop uncommitted for review.
+Review only PR94 saved-prediction validation fix: resealed invalid probabilities/decisions rejected before publication and in show/REUSED/reproduce; existing calculator/E06 mathematical verification uses saved utility only, not model/annual/Forward for saved reads. Old ten requests readable and all244 old-store files unchanged; new ten requests created/shown/reused/reproduced with prediction bytes/SHA identical, all exit0 in separate128M processes. Model code96/package/input unchanged; real training/repackage/performance evaluation0. Keep unknown historical timing, adoption/freeze/LIVE=false, points=null and2026 closed. No DB/HTTP/Raw/another phase. See15.66.1 and docs/c1-stat35-composition-request-01.md. Stop uncommitted for review.
+
+Previous handoff (v1.59, PR94 initial request flow):
+Ten requests created/shown/reused/reproduced/reference-matched; original model code96/package/receipt/parents/input/prior predictions unchanged. Dedicated47/166, related107/546, full3243/30247/existing9skip were that phase's results. Old request_code/manifests/success evidence stay byte-exact; current show verifies their saved semantics, not a rewrite to current code. See15.66.
 
 Previous handoff (v1.58, PR93 review-pending then; now MERGED_REVIEW_COMPLETED):
 PREPARED content, no-replace placement, then postplacement RELEASE_COMMITTED receipt; unpublished copies rejected, committed portable normal load/CLI accepted. One pinned repackage, training0, source32/old-v2-files72/runtime96 unchanged; normal/moved24866 predictions byte-exact. Full3196/30081/existing9skip, publication65/390 and related184/815 were that phase's results, not this request run. Preserve old v1/v2/v3 hashes and final-fit37/source117/code93/3131/v2-3164 records. See15.65.2.

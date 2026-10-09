@@ -4,7 +4,7 @@
 
 2026-10-10。開始main/origin `c9fdc3d72292b7c7af83f8d67fba7cdc84affd89`、PR93 `MERGED_REVIEW_COMPLETED`。
 branch `feature/c1-stat35-composition-request-01`。
-状態 `COMPOSITION_REQUEST_FLOW_VERIFIED_AWAITING_REVIEW`。次は今回結果のレビューだけ。
+状態 `SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW`。次はPR94の修正結果レビューだけ。
 依頼契約 `C1-STAT35-COMPOSITION-REQUEST-01-v1`。
 
 P1は固定最終C2、P2/P3は固定最終C1。既存Forward/確率計算/E06 decoderをそのまま呼ぶ。
@@ -14,7 +14,8 @@ P1は固定最終C2、P2/P3は固定最終C1。既存Forward/確率計算/E06 de
 
 用途 `DEVELOPMENT_FEATURE_SNAPSHOT_REPLAY`、historical_as_of_available=false、
 formal_adoption/formal_freeze/live_use_authorized=false、points=null、2026_access=FORBIDDEN。
-性能 `NOT_PERFORMED_REQUEST_FLOW_TECHNICAL_VERIFICATION_ONLY`。
+今回の性能評価 `NOT_PERFORMED_SAVED_PREDICTION_VALIDATION_FIX_ONLY`。
+保存済みuse/Contract::plan()の旧性能ラベル・依頼版・inventoryは互換性のため変更しない。
 保存完了は発走前予測済み、正式freeze、LIVE、精度向上を意味しない。
 未知のinput_as_of/observed_atはNULL。選手名・開催名・日付をDBやIDから補完しない。
 
@@ -69,7 +70,7 @@ winner条件付きQ2/Q3は保存decisionとして区別し、Supportingも保存
 保存Forward出力と厳密一致、package/code END検証、元依頼一式不変を確認。元年別/学習source/照合予測不要。
 別stageへの推論成果物保存はせずstdoutに再現結果を出す。
 
-## 実行済みCLI
+## 初版の実行済みCLI（過去記録）
 
 作業場所 `/var/www/NeoBicycleRaceInformationWeb`。以下のstoreは実在し、40操作すべてexit0。
 環境DB/HTTPはCommand内でprocess-localに拒否。SQLite一時spoolだけを使う。
@@ -113,7 +114,7 @@ Primary: **1着車番2 / 2着車番1 / 3着車番6**。既存2025予測と厳密
 | 6 | 268983 | 8.554510 | 13.003883 | 19.908735 |
 | 7 | 268984 | 0.567787 | 1.519605 | 2.936593 |
 
-## テストと未対応
+## 初版のテストと未対応（過去記録）
 
 専用47件/166 assertionsが128Mで成功。100MiB超人工年別入力を独立128M PHPでactual createまで実行。
 全員抽出・5～9車・欠番・非単調・NULL/0・後方破損/重複/結果field/2026・厳密Forward・
@@ -128,3 +129,57 @@ review/final-checks.jsonにテスト結果、changes.patchに未コミットの�
 未対応: DBからの新入力生成、Web/API、scheduler、未来発走前利用可否、LIVE、正式採用/freeze。
 今回は精度評価ではない。既知のscore-gap P3/E08否定/旧pilot保留等は維持。
 既存学習/成功run/失敗証拠/公開成果物を変更しない。commit/push/PR操作なし、レビュー待ちで停止する。
+
+## PR94 保存予測の内部整合性検証 / 2026-10-10
+
+開始clean HEAD/origin feature `eb867724136f4ceb8885ce6ce320f03f0385d629`、同じPR branchを継続。
+初版のseal検証と各周辺確率の値域/Primary車番検査だけでは、予測本体・sidecar・manifest・COMPLETEを
+再sealした不正内容を受理した。人工依頼のコピーで全ゼロ確率/誤Primaryの修正前2失敗を確認した。
+
+`C1CompositionRequest/PredictionVerifier.php`をStore::verify()へ接続し、公開前/show/REUSED/reproduceに共通適用する。
+検証仕様 `SAVED-PREDICTION-SEMANTIC-VALIDATION-v1` は依頼側code identityで追跡し、保存版/形式は変えない。
+
+1. **ファイルseal**: inventory・本文/sidecar・manifest/COMPLETE・対象/出走者/原値対応の既存検査を維持。
+2. **確率内部整合**: 必須/未知field・型/有限値・0～1、実entriesの補償加算による各順位和と既存1e-12許容幅、Top2/Top3を検査。
+3. **utilityとの一致**: 保存順・型のまま必要fieldを投影し、既存ProbabilityCalculatorの全出力とFiles::same()で厳密比較。
+4. **decision整合**: 検算済み確率を既存E06へ渡し、Primary/Q2/Q3/目的値/hash/Supporting/tieを含む全出力を厳密比較。
+
+式・MAP・補償加算・decoder/tieを複製せず、丸め/再正規化/修復はしない。正常underflowの0も許可する。
+show/REUSEDは**保存値の数学的検算あり**、モデル読込み/特徴量再抽出/Forward呼出し0。
+保存内部の矛盾検出であり、任意権限で全資料を偽造する場合の真正性証明ではない。
+ProbabilityCalculator/E06/Forward/Publication/共有Files/モデル側96コードは変更0。
+
+### 修正後の固定10依頼
+
+対象37750/12542～12550を変更せず、旧10依頼のshowと新10件のcreate/show/REUSED/reproduceは全exit0。
+新ID `dev-composition-2025-r<ID>-validation-fix-01`、新store:
+`/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/request-store-01-pr94-validation-fix-20261010-064120-1bb292ad/`。
+新prediction.jsonlは対応する旧依頼と10件すべてrows=1・bytes/SHA厳密一致。
+旧依頼へのcreateのCONFLICT/旧reproduceのruntime code不一致を維持し、旧記録を書き換えない。
+独立128M PHPのopen_basedirはshow/REUSEDでrepo+各store、reproduceでrepo+新store+packageだけ。
+追加監視ではPackage/Predictor/Forwardを解決すると例外になる状態でも実CLI show/REUSEDが成功した。
+旧store全244ファイル（旧ZIP含む）・package全9ファイル・入力3seal・モデル側96コードSTART/END不変。
+最初のcreate前に新storeへログを置かず、検証証跡は合意root内の別ディレクトリへ保存した。
+
+実行06:41:20～06:41:35 JST、15.263747931秒、各128M/最大peak35,651,584 bytes（34MiB）、driver27,262,976 bytes（26MiB）。
+37750の実出力Primaryは2/1/6。新代表manifest5590 bytes、SHA
+`bac8508b995c24e73ede87bc82c38456ae205d0571f29885318e788b27d1c05d`。
+証跡:
+`/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/pr94-saved-prediction-validation-20261010-064120-1bb292ad/`。
+verification.json SHA `0f3cf55f9b68a2633b2d7546f2a4118b7ebb6e7edf82fca374dd0421609696db`。
+この配下に実argv/stdout/stderr/時間/peak/旧新照合・START/ENDと小型review ZIPを保存する。
+
+### 今回の回帰確認
+
+PHPUnit本体へ128Mを指定した専用119 tests/987 assertions（5.404秒）、関連270/1860（53.678秒）が成功。
+再seal不正66ケースを実Serviceのshow/create/reproduceとCLI show/createで拒否し、コピー/元依頼のbytes/SHA不変を確認。
+各順位和不正/偽invariants/合計維持入替え/誤Primary・pair・exact tie/log/Top2Top3/MAP/順位/診断/
+Q2Q3/hash/Supporting/欠落/未知field/文字列・bool・NULL・配列型、JSONの指数表記1e999/-1e999を含む。
+INF/-INF/NANの直接拒否も確認。指数2ケース追加前の全体3313 passed/31042 assertionsは途中検証として別記録し、最終結果へ転記しない。
+正常Forward、5～9車/欠番/逆順ID/NULL0、同率/微小差/極端utility/条件付きP3を受理。
+不正Predictorは公開前に拒否してFAILED stageを保持。planは検証器を解決しない。
+既存排他/atomic公開/END drift/postcommit warning/独立128M 100MiB超入力createを維持。
+変更PHP3構文・限定Pint・git diff --check成功。最終PHPで通常全体1回 `php artisan test` は3324 tests/
+3315 passed/31068 assertions/既存9 skipped、328.270秒/exit0。全体親processのpeakは未計測。
+独立128Mの実CLI最大34MiBと全体親processは別測定。新規skip/削除/保護緩和なし。
+実データ学習/λ選択/repackage/性能評価/DB/HTTP/Raw/2026は各0、次はPR94の修正結果レビューだけ。

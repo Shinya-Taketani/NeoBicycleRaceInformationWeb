@@ -140,6 +140,7 @@ final class Store
         $race = $inputs[0];
         $prediction = $predictions[0];
         self::withoutOutcomes($prediction);
+        app(PredictionVerifier::class)->verify($prediction);
         foreach ([$race, $prediction['probabilities'], $prediction['decision']] as $row) {
             if (($row['year'] ?? null) !== $request['year'] || ($row['race_id'] ?? null) !== $request['race_id']) {
                 throw new RuntimeException('Input / prediction target mismatch.');
