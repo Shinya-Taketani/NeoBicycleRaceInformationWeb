@@ -12,7 +12,7 @@ use RuntimeException;
 
 final class Package
 {
-    public function __construct(private readonly C1Loader $c1, private readonly C2Loader $c2) {}
+    public function __construct(private readonly C1Loader $c1, private readonly C2Loader $c2, private readonly LegacySource $legacy = new LegacySource) {}
 
     public function stage(string $c1Artifact, string $c2Directory, array $selection, string $output, array $provenance, string $owner = '.'): string
     {
@@ -69,7 +69,9 @@ final class Package
             Files::json(self::safe($publicationRoot, 'COMPLETE.json')), 'publication commit proof');
         $proof = Files::json($publicationRoot.'/publication.json');
         $relative = substr($artifact, strlen($publicationRoot) + 1);
-        if (($proof['version'] ?? null) !== Contract::PUBLICATION_VERSION || ($proof['state'] ?? null) !== 'COMMITTED'
+        $repackage = ($proof['kind'] ?? null) === 'REPACKAGE';
+        if (($proof['version'] ?? null) !== ($repackage ? Contract::REPACKAGE_PUBLICATION_VERSION : Contract::PUBLICATION_VERSION)
+            || ($proof['state'] ?? null) !== ($repackage ? 'PREPARED' : 'COMMITTED')
             || ! in_array($relative, $proof['packages'] ?? [], true)
             || ($proof['files'][$relative] ?? null) !== $model['seal']) {
             throw new RuntimeException('Package does not belong to this committed publication.');
@@ -87,7 +89,8 @@ final class Package
             if ($owner !== '.' || ($proof['evidence'] ?? null) !== ($model['artifact']['provenance']['repackage'] ?? null)) {
                 throw new RuntimeException('Invalid portable export proof.');
             }
-            Repackage::verifyEvidence($proof['evidence']);
+            $this->legacy->verifyEvidence($proof['evidence']);
+            Publication::verifyRepackageReceipt($publicationRoot);
             Files::same($proof['evidence']['legacy_generation_code'], $model['artifact']['generation_code'], 'preserved legacy generation code');
             Files::same($proof['evidence']['parent_files'], $model['artifact']['files'], 'byte-exact repackage parents');
         } elseif (($proof['kind'] ?? null) !== 'SYNTHETIC_EXPORT' || ! app()->environment('testing')
@@ -108,7 +111,7 @@ final class Package
         self::safe($root, 'artifact.json');
         $seal = Files::identity($artifact);
         $data = Files::json($artifact);
-        if (($data['publication_version'] ?? null) !== Contract::PUBLICATION_VERSION) {
+        if (! in_array($data['publication_version'] ?? null, [Contract::PUBLICATION_VERSION, Contract::REPACKAGE_PUBLICATION_VERSION], true)) {
             throw new RuntimeException('Package publication version unsupported; verified repackage required.');
         }
         Files::same(Contract::plan(), $data['contract'] ?? [], 'portable package contract');

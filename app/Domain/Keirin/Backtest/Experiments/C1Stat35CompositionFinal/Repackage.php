@@ -17,9 +17,7 @@ class Repackage
 
     public const REVIEW_HEAD = '69cf3ca0bccefa2df15fb4100904d2ac2dd9eec4';
 
-    private const C2_SHA = 'd1dbb706071a7dc25d4ea8fa0525ac685a8b68d6d09f3a43a980a70dc1334ea2';
-
-    public function __construct(private readonly Package $packages, private readonly Publication $publication) {}
+    public function __construct(private readonly Package $packages, private readonly Publication $publication, private readonly LegacySource $legacy = new LegacySource) {}
 
     public function run(string $source, string $output): array
     {
@@ -103,9 +101,13 @@ class Repackage
         $read[$execution] = Files::identity($execution);
         $code = Contract::code();
         $output = $this->publication->destination($output, [$source, $prediction]);
+        $kind = $this->publicationKind();
+        $version = $kind === 'REPACKAGE' ? Contract::REPACKAGE_PUBLICATION_VERSION : Contract::PUBLICATION_VERSION;
+        $publicationId = bin2hex(random_bytes(24));
         $lock = $this->publication->acquire($output);
         $stage = '';
         $completion = null;
+        $attempt = null;
         try {
             $stage = $this->publication->stage($output);
             foreach (['c1', 'c2'] as $directory) {
@@ -123,9 +125,10 @@ class Repackage
                 'legacy_reproduction' => $read[$source.'/reproduction.json'], 'legacy_execution' => $read[$execution],
                 'historical_semantic_file_count' => 37, 'historical_reproduction_identical' => true,
                 'parent_files' => $old['files'], 'source_start' => $read,
-                'publication_version' => Contract::PUBLICATION_VERSION, 'runtime_code' => $code,
+                'publication_version' => $version, 'publication_id' => $publicationId, 'runtime_code' => $code,
                 'retraining_count' => 0, 'performance_evaluation' => 'NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY'];
-            $old['publication_version'] = Contract::PUBLICATION_VERSION;
+            $old['publication_version'] = $version;
+            $old['publication_id'] = $publicationId;
             $old['publication_owner'] = '.';
             $old['publication_code'] = $code;
             $old['provenance']['repackage'] = $evidence;
@@ -136,7 +139,10 @@ class Repackage
             }
             $this->verifyCode($manifest['code']);
             Files::same($code, Contract::code(), 'repackage runtime code END');
-            $this->publication->seal($stage, $output, $this->publicationKind(), ['artifact.json'], $evidence);
+            if ($kind === 'REPACKAGE') {
+                $this->legacy->verifyEvidence($evidence);
+            }
+            $this->publication->seal($stage, $output, $kind, ['artifact.json'], $evidence);
             foreach ($read as $path => $seal) {
                 Files::verify($path, $seal);
             }
@@ -146,35 +152,35 @@ class Repackage
                 'read_files' => $read, 'retraining_count' => 0, 'performance_evaluation' => $evidence['performance_evaluation'],
                 'peak_memory_bytes' => memory_get_peak_usage(true)];
             $completion = Files::identity($stage.'/COMPLETE.json');
+            if ($kind === 'REPACKAGE') {
+                $attempt = $this->publication->repackageAttempt($stage, $output);
+            }
             $this->publication->commit($stage, $output);
+            if ($kind === 'REPACKAGE') {
+                $this->publication->releaseRepackage($output, $attempt);
+            }
 
             return $result;
         } catch (Throwable $e) {
-            if ($this->publication->wasCommitted($stage, $output, $completion)) {
+            $committed = $kind === 'REPACKAGE'
+                ? $this->publication->wasRepackageCommitted($stage, $output, $attempt)
+                : $this->publication->wasCommitted($stage, $output, $completion);
+            if ($committed) {
                 return $result + ['postcommit_warning' => $e->getMessage()];
             }
             $this->publication->failed($stage, $e);
+            if ($kind === 'REPACKAGE' && $this->publication->ownsRepackage($output, $attempt)) {
+                $this->publication->failed($output, $e);
+            }
             throw $e;
         } finally {
             fclose($lock);
         }
     }
 
-    public static function verifyEvidence(array $evidence): void
-    {
-        if (($evidence['source_root'] ?? null) !== self::SOURCE || ($evidence['root_manifest'] ?? null) !== self::MANIFEST
-            || ($evidence['legacy_contract'] ?? null) !== Contract::VERSION || ($evidence['historical_semantic_file_count'] ?? null) !== 37
-            || ($evidence['historical_reproduction_identical'] ?? null) !== true || ($evidence['retraining_count'] ?? null) !== 0
-            || ($evidence['parent_files']['c1/model.json']['sha256'] ?? null) !== Contract::C1_SHA
-            || ($evidence['parent_files']['c2/model.json']['sha256'] ?? null) !== self::C2_SHA) {
-            throw new RuntimeException('Portable export has no pinned legacy success provenance.');
-        }
-        Files::same(Contract::code(), $evidence['runtime_code'] ?? [], 'portable publication runtime');
-    }
-
     protected function sourcePin(): array
     {
-        return [self::SOURCE, self::MANIFEST];
+        return [$this->legacy->source, $this->legacy->manifest];
     }
 
     protected function publicationKind(): string

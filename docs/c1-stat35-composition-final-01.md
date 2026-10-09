@@ -179,3 +179,86 @@ C1/C2 modelは上記固定SHAのまま、layout/selectionもbyte不変。新た�
 性能は`NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY`。公開修正成功は精度改善ではない。
 用途/歴史的時点不明/未採用/未freeze/未LIVE/points=null/2026禁止は維持。業務DB・HTTP・Raw・Migration・正式pipeline置換・他工程は0回。
 最終小型review bundleは証跡rootの`PR93-publication-review-final.zip`。先のZIP/checksも保持し、最終差分と最終全体結果はreview-final/checks.jsonで識別する。
+
+## PR93 Repackage Commit Review Fix (v3)
+
+直前節は公開v2当時の記録として保持する。今回の開始branchは同じfeature、clean HEAD/origin feature
+`17e3e0e9d69e5fb0b7a8c9e600c354e0f95ded53`。数値生成/入力/decoder契約は変更しない。
+残存P2はREPACKAGEのCOMMITTED証拠を移動前にstageへ作っていたこと。
+実モデルの人工fixture・実REPACKAGE分岐でseal直後をSIGKILL（exit137）し、FAILEDなし/正式destinationなし/配置未呼出しを確認した。
+artifact/publication/COMPLETEを含む全ファイルをbyte不変コピーすると、修正前の通常load/公開CLIが受理した（predict exit0）。
+修正前証跡は今回rootの`before-fix/`に保存し、判定だけのmockやSYNTHETIC_EXPORTへのkind変更では代用していない。
+
+### Two-Phase Repackage Publication
+
+REPACKAGE専用契約は`C1-STAT35-COMPOSITION-REPACKAGE-PUBLICATION-v3`。
+FITと予測bundleは公開v2のroot所属/成功状態/atomic directory/flock/上書き禁止/公開後warningを維持する。
+
+| REPACKAGE状態 | 証拠と公開可否 |
+|---|---|
+| PREPARED | 新publication_idをartifactとpublicationへ固定。publicationのstateはPREPARED、COMPLETEは内容sealだけ。確定receiptの本文/完成ファイルはまだ生成しない。通常load拒否 |
+| 配置済み未公開 | lock保持下の同一filesystem・上書き禁止directory移動だけが完了。元stageのdev/inode、publication_id、artifact/prepared seal、正規化destinationで今回所有を照合。receiptなしでは通常load拒否 |
+| 公開確定 | 配置確認後、destination内で初めてreceiptを生成。完全書込み/fflush/fsync/JSON照合後、RELEASE_COMMITTED.jsonへ上書き禁止の原子的公開。ここが論理的確定点 |
+| 失敗・中断 | 確定前は未公開。catchが動けば今回所有と確認できる一式だけにFAILEDを保持。SIGKILLでもreceipt欠落で拒否。別実行のdestinationは変更しない |
+
+PREPARED側publication/COMPLETEを再書換えせず、receiptがv3/state=COMMITTED/publication_id、artifactとprepared publicationのbytes/SHA、runtime code SHA、配置履歴と配置後確定時刻を結び付ける。
+hash循環はない。REPACKAGEの成功例外判定も今回所有と有効receiptを必要とし、COMPLETEだけのwasCommittedへfallbackしない。
+公開確定後のSIGKILL/補助例外は成功物をFAILED化しない。自動承認・未公開directoryの復旧再利用・任意source承認CLIは追加していない。
+成功後のbyte不変移設は許可し、元の絶対destinationや旧sourceへのアクセスをload条件にしない。placementのdev/inodeは生成時の所有確認・履歴で、移設先のinode一致条件ではない。
+旧v2成果物を削除/更新しないが、旧COMPLETEだけで新しいREPACKAGE公開loadを通す互換fallbackはない。
+固定旧成功runの検査・旧公開7ファイルのreview Git blob照合・数値コード不変確認を維持し、新旧生成/公開コードを分離する。
+内部LegacySource DIは人工fixtureの実sealだけを差し替える。本番CLIの固定source/manifest/C1/C2 pinは変えない。
+
+### Current Technical Verification
+
+```bash
+FIX=/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/pr93-repackage-commit-fix-20261009-e91a7f3c
+SOURCE=/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/run-20261009-LE6Wit1O/result
+php -d memory_limit=128M artisan keirin:c1:stat35-composition-final repackage \
+  --source-result="$SOURCE" --output-dir="$FIX/package"
+php -d memory_limit=128M artisan keirin:c1:stat35-composition-predict \
+  --artifact="$FIX/package/artifact.json" --input="$SOURCE/verified-inputs/features-2025.jsonl" \
+  --output-dir="$FIX/predictions-2025"
+php -d memory_limit=128M -d "open_basedir=$PWD:$FIX/moved-check:/tmp" \
+  artisan keirin:c1:stat35-composition-predict \
+  --artifact="$FIX/moved-check/package/artifact.json" \
+  --input="$FIX/moved-check/features-2025.jsonl" --output-dir="$FIX/moved-check/predictions"
+```
+
+上記は各1回だけ実行済みのargvであり、既存出力へ再実行しない。
+新package/receipt/inputと必要sidecarをbyte不変コピーし、独立PHPの通常公開CLIで元source/教師/旧予測をopen_basedirから除外した。
+prepared fallbackは使わない。両新予測と旧成功予測は各24866行/218137295 bytes、
+SHA `cab188fad614e49c0d699fab38b71ea57ce3e902fc15d5aa2cfadd22cad23e23`で厳密一致。
+比較は推論後に独立streaming照合し、旧予測コピー・丸め・並べ替えはしていない。
+
+| 今回成果物（FIX配下） | bytes | SHA-256 |
+|---|---:|---|
+| package/artifact.json | 119032 | `75f793599687da3f6a946db6500921463df496144e6844e97a8c019a458a3de9` |
+| package/publication.json (PREPARED) | 54682 | `674c5d6ab84fbea556908d82767dfb4b8590b92e417c72978935e8fd2583f4e8` |
+| package/COMPLETE.json (content seal) | 105 | `3ebf582e6d4b83d20b613e0af57fd94beb9ca1f4b20f96b3d59d60d5dfcefa80` |
+| package/RELEASE_COMMITTED.json | 847 | `d0ddc8bbe9e04e812f467c967fec765e8943e660fa224b7abdbe10bbcb084755` |
+| predictions-2025/predictions.jsonl、moved-check/predictions/predictions.jsonl（各） | 218137295 | `cab188fad614e49c0d699fab38b71ea57ce3e902fc15d5aa2cfadd22cad23e23` |
+
+| 今回実行（128M、各1回） | 秒 | peak bytes | exit |
+|---|---:|---:|---:|
+| 固定旧成功runのv3 repackage | 0.616692066 | 35651584 | 0 |
+| 通常公開CLIの2025予測 | 8.709739208 | 33554432 | 0 |
+| 移設後の独立PHP通常公開CLI | 8.752781868 | 33554432 | 0 |
+
+旧実読取り32ファイル・旧v2証跡72ファイル・今回runtime code96のSTART/END不変。
+C1/C2 model、layout、selection、旧generation_codeはbyte不変。旧v2 artifactの118380 bytes/SHA
+`c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f`も過去成果物のまま保持する。
+実データ再学習/OOF/最終fit/λ選択/性能評価0回。人工fixtureの小規模学習とは区別する。
+
+新しい実REPACKAGE回帰32件/234 assertions、既存FIT/予測公開33件/156 assertions、合計65/390が128Mで成功。
+関連184/815も128Mで成功し、100MiB超入力の独立128M予測・既存結果field/2026/未知入力版拒否を維持する。
+4同期境界の実SIGKILL、byte不変コピー、書込み失敗/部分receipt/完成名競合、確定後warning、別試行receipt/未知版/型/改変、同一destination排他、既存file/dir/link保護と所有inode相違を検査した。
+初回証跡runnerのbootstrap/コピー親作成順と、テスト子プロセスのAPP_ENV継承による失敗証拠も保持。
+既存phpunit.xml環境を明示して解決し、production検査の緩和・既存テスト削除・新規skipで回避していない。
+最終PHPコードで通常全体を1回実行: 3196 passed/30081 assertions/既存9 skipped、310.387084961秒、exit0/stderr0。
+変更7 PHPの構文/限定Pint/git diff --checkも成功。全体テストのpeak memoryは未計測で、独立128M試験・実コマンドのpeakと混同しない。
+
+性能は`NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY`。公開修正は予測精度向上の確認ではない。
+用途`DEVELOPMENT_FINAL_MODEL_CANDIDATE_ONLY`、historical_as_of_available=false、adoption/freeze/LIVE=false、points=null、2026実データ禁止は不変。
+証跡はFIXの`logs/`、`before-fix/`、`review/verification.json`、小型共有ZIPは`PR93-repackage-commit-review.zip`。
+次はPR93の公開確定修正・技術再検証結果レビューだけ。未コミットで停止し、他のblocked工程を解除しない。

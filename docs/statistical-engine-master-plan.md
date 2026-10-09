@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.57
+- Version: 1.58
 - Created: 2026-08-23
 - Updated: 2026-10-09
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
 - Remote `main` at last update: `a5ea469cc331b009cfe048338584e211a02ff5c2`
-- Current review: PR93公開判定/原子的公開/競合保護の修正レビュー待ち。固定旧成功runの再パッケージと2025予測技術再検証だけを許可し、実データ再学習0回
-- Current code: 公開契約v2、root所属/完了証拠、destination flock/上書き禁止directory rename、固定成功run限定repackage。目的関数/solver/One-SE/係数/decoder/既定C1 pipelineは不変
-- Current execution record: REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW。固定元参照32/runtime code95 START-END不変、通常公開load/2025全24866/移設別PHP公開CLIは旧予測とbyte一致。今回性能評価なし、15.65.1参照
-- Current tests record: 最終PHP通常全体1回3164 passed/29847 assertions/既存9 skipped、公開33/156・128M関連184/815、11変更PHP構文/限定Pint/diff check成功。既存テスト削除/緩和/新規skipなし
+- Current review: PR93の未公開REPACKAGE移設迂回修正レビュー待ち。固定旧成功runのv3再パッケージと2025予測技術再検証だけを許可し、実データ再学習0回
+- Current code: REPACKAGE専用公開v3、PREPARED内容配置後にRELEASE_COMMITTED.jsonを生成・上書き禁止公開。FIT/予測bundle公開v2・root成功/atomic directory/flockを維持。数値/学習/decoder/固定pipeline不変
+- Current execution record: REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW。固定元参照32/旧v2証跡72/runtime code96 START-END不変、通常/移設別PHP公開CLI全24866予測byte一致。今回性能評価なし、15.65.2参照
+- Current tests record: 最終PHP通常全体1回3196 passed/30081 assertions/既存9 skipped、実REPACKAGE32/234＋既存公開33/156＝128M公開65/390、128M関連184/815、7変更PHP構文/限定Pint/diff check成功。既存テスト削除/緩和/新規skipなし
+- Previous execution/tests record (PR93 v2): 固定元32/runtime code95、artifact c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f、全24866通常/移設予測一致。3164 passed/29847 assertions/既存9 skipped、公開33/156・関連184/815、11変更PHP構文/Pint成功（15.65.1の当時の記録）
 - Previous execution/tests record (PR93 v1): execute1回/独立2run/新4path・8試行、C2 lambda0.1、37意味ファイル/source117/code93/全2025予測一致。通常全体3131 passed/29691 assertions/既存9 skipped、関連187/904、15変更PHP構文/限定Pint成功（15.65の当時の記録）
 - Previous execution/tests record (PR92): 50,078レース/356,209出走、P1+55/P2+26/P3+4/Hit3位置+81、主Gate PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY、学習0/独立16意味ファイル一致/source39/code46不変、359.236秒/peak32MiB/exit0。専用44/327・関連208/2129、通常全体3089 passed/29535 assertions/既存9 skipped（15.64の当時の記録）
 - Previous execution/tests record (PR91): P1変更/的中差0、P2+21/P3+37/Hit3+59、主Gate優越未達。学習0/12意味ファイル一致/source23/code44不変。専用62/851・関連348/2806、全体3045/29208/既存9 skipped（15.63）
@@ -177,7 +178,7 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 ```yaml
 current_engine_state: REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: PR93_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_REVIEW_ONLY
+next_allowed_action: PR93_REPACKAGE_COMMIT_FIX_AND_TECHNICAL_REVALIDATION_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
 current_phase: C1-STAT35-COMPOSITION-FINAL-01
 remote_main: a5ea469cc331b009cfe048338584e211a02ff5c2
@@ -190,12 +191,16 @@ c1_stat35_composition_final_01_prior_fit_candidate_attempts: 8
 c1_stat35_composition_final_01_selected_c2_lambda: 0.1
 c1_stat35_composition_final_01_prior_fit_reproduction: THIRTY_SEVEN_ENUMERATED_SEMANTIC_FILES_IDENTICAL
 c1_stat35_composition_final_01_prior_fit_manifest_sha256: ec525fd12b3b784af394032252c160bfcca4e7e833f8b565455c52ec2a2acad3
-c1_stat35_composition_final_01_publication_version: C1-STAT35-COMPOSITION-PUBLICATION-v2
+c1_stat35_composition_final_01_publication_version: C1-STAT35-COMPOSITION-REPACKAGE-PUBLICATION-v3
+c1_stat35_composition_final_01_fit_prediction_publication_version: C1-STAT35-COMPOSITION-PUBLICATION-v2
 c1_stat35_composition_final_01_review_retraining_count: 0
 c1_stat35_composition_final_01_review_source_files: 32
-c1_stat35_composition_final_01_review_runtime_code_files: 95
+c1_stat35_composition_final_01_review_runtime_code_files: 96
+c1_stat35_composition_final_01_review_old_v2_files_unchanged: 72
 c1_stat35_composition_final_01_review_reproduction: PUBLIC_AND_MOVED_2025_24866_PREDICTIONS_BYTE_EXACT
-c1_stat35_composition_final_01_review_artifact_sha256: c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f
+c1_stat35_composition_final_01_review_artifact_sha256: 75f793599687da3f6a946db6500921463df496144e6844e97a8c019a458a3de9
+c1_stat35_composition_final_01_review_receipt_sha256: d0ddc8bbe9e04e812f467c967fec765e8943e660fa224b7abdbe10bbcb084755
+c1_stat35_composition_final_01_prior_v2_artifact_sha256: c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f
 c1_stat35_composition_final_01_performance_evaluation: NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY
 c1_stat35_composition_final_01_purpose: DEVELOPMENT_FINAL_MODEL_CANDIDATE_ONLY
 c1_stat35_composition_final_01_historical_as_of_available: false
@@ -986,7 +991,7 @@ BT-03E-02以降で利用する場合は、
 | C1-P12-FIXED-MARGINAL-P3-01 | 元C1のP1/P2を固定し保存無条件P3だけ再選択 | COMPLETED_PR90_MERGED_NOT_ADOPTED | 主Gate優越未達、C1維持。学習0/P1P2変更0、12意味ファイル独立一致。15.62参照 |
 | C1-P23-NONDECREASING-MARGINAL-01 | 元C1のP1固定・P2/P3各周辺確率非低下の全pair最大化 | COMPLETED_PR91_MERGED_NOT_ADOPTED | 主Gate優越未達、元C1維持。P2+21/P3+37/Hit@3位置+59、確率低下0だが2024P2悪化。学習0/12意味ファイル一致。15.63参照 |
 | C1-STAT35-P1-COMPOSITION-01 | 保存C2 U1＋元C1 U2/U3の一つの逐次分布とE06 | COMPLETED_DEVELOPMENT_GATE_PASSED_PR92_MERGED | P1+55既知C2照合/P2+26/P3+4/Hit3位置+81、2025P3−4・Primary完全一致合計−4。主Gate通過、学習0/16意味ファイル一致。正式C1維持、15.64参照 |
-| C1-STAT35-COMPOSITION-FINAL-01 | 保存構成候補の公開修正・再パッケージ・特徴量予測 | REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW | PR93公開v2/root完了/atomic directory/flockを修正。再学習0、通常/移設CLI全2025予測byte一致。旧4path/8試行/37一致は過去実績、15.65.1参照 |
+| C1-STAT35-COMPOSITION-FINAL-01 | 保存構成候補の公開修正・再パッケージ・特徴量予測 | REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW | REPACKAGE専用v3の配置後receiptで未公開移設を拒否。FIT/予測v2保護は維持。再学習0、通常/移設CLI全2025予測byte一致。旧4path/8試行/37一致・公開v2実績は過去記録、15.65.2参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3776,6 +3781,32 @@ repackage1回、0.606095076秒/peak35651584 bytes/128M/exit0。新artifact118380
 現在 `REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW`、性能 `NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY`。精度改善、再学習成功、正式採用と読み替えない。
 DEVELOPMENT_FINAL_MODEL_CANDIDATE_ONLY、historical_as_of_available=false、adoption/freeze/LIVE=false、points=null、2026禁止を維持。業務DB/HTTP/Raw/Migration/旧成果物変更0。未コミットでPR93修正レビュー待ち、次工程へ進まない。
 
+### 15.65.2 PR93 REPACKAGE配置後公開確定 / 2026-10-09
+
+開始clean HEAD/origin feature `17e3e0e9d69e5fb0b7a8c9e600c354e0f95ded53`、同じPR branchを継続。main・旧v1/v2成果物を変更しない。
+残存P2は移動前にCOMMITTED証拠を作るため、FAILEDなしの未公開REPACKAGEをbyte不変移設すると公開扱いになったこと。
+人工の実モデル/実REPACKAGEをseal後SIGKILLして、正式destinationなし/配置未呼出し/全file bytes-SHA一致のコピーで修正前通常load/公開CLI受理を再現した。
+REPACKAGE専用 `C1-STAT35-COMPOSITION-REPACKAGE-PUBLICATION-v3` を追加。PREPAREDのpublication/COMPLETEは不変内容sealで、確定証拠の事前生成は禁止。
+lock保持下のsame-filesystem no-replace配置後、publication_id/artifact/prepared seal/正規化destination/dev-inodeで今回stage所有を確認。
+その後初めてreceiptを生成し、完全書込み/fflush/fsync/JSON検査後に `RELEASE_COMMITTED.json` を原子的・上書き禁止公開する。ここが公開確定点。
+配置のみ成功/receipt部分書込み/別試行/未知版/型/改変は公開load拒否。COMPLETE-only成功判定へ戻さない。確定後の補助例外ではFAILED化せずwarning。
+成功後のbyte不変移設は通常load/CLIで許可し、元destination/sourceを参照しない。未公開の自動承認/復旧再利用/allow-unpublishedは追加しない。
+FITと予測bundleの公開v2/root成功/atomic directory/flock/上書き防止/中断保護を保持。数値モデル/生成/入力/decoder、One-SE/λ/係数/bin/support/特徴量/E06は変更0。
+旧source固定pin・親モデル/旧成功run・旧公開7ファイルのreview Git blob・数値コード不変を検証。内部LegacySource DIは人工fixtureのみで、CLIの任意source承認はない。
+固定旧runからrepackage1回、0.616692066秒/128M/peak35651584 bytes/exit0。新artifact119032 bytes/SHA `75f793599687da3f6a946db6500921463df496144e6844e97a8c019a458a3de9`。
+PREPARED publication54682 bytes/SHA `674c5d6ab84fbea556908d82767dfb4b8590b92e417c72978935e8fd2583f4e8`、receipt847 bytes/SHA `d0ddc8bbe9e04e812f467c967fec765e8943e660fa224b7abdbe10bbcb084755`。
+通常公開predict1回8.709739208秒、移設独立PHP通常CLI1回8.752781868秒、両128M/peak33554432 bytes/exit0/stderr0。
+子PHPのopen_basedirで旧source/教師/旧予測を除外し、両新予測と旧予測は24866行/218137295 bytes/SHA `cab188fad614e49c0d699fab38b71ea57ce3e902fc15d5aa2cfadd22cad23e23`で厳密一致。
+モデル/layout/selection/旧generation_codeはbyte不変、旧実読取り32・旧v2証跡72・runtime code96 START/END一致。旧37意味ファイルの再学習再現を今回行ったとは扱わない。
+実REPACKAGE32件/234 assertions＋既存公開33/156＝128M公開65/390、関連184/815（独立128Mの100MiB超入力を含む）成功。
+最終PHP通常全体1回3196 passed/30081 assertions/既存9 skipped、310.387084961秒/exit0。7変更PHP構文/限定Pint/diff検査成功。全体peakは未計測。
+4境界の実SIGKILL・コピー・receipt生成失敗/部分/競合・確定後warning・別試行/改変・2実行排他・既存file/dir/link・所有inode不一致を検証。新規skip/緩和/削除0。
+初回runnerの初期化/コピー親作成/テスト環境継承による失敗ログも保持し、production検査を弱めず既存phpunit.xml環境へ合わせて検証した。
+証跡 `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/pr93-repackage-commit-fix-20261009-e91a7f3c/`、共有 `PR93-repackage-commit-review.zip`、seal/照合/argv/時間/exitはreview/logsへ保存。
+実データ再学習/OOF/最終fit/λ選択/性能評価0。状態REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW、性能NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY。
+DEVELOPMENT_FINAL_MODEL_CANDIDATE_ONLY、historical_as_of_available=false、adoption/freeze/LIVE=false、points=null、2026禁止を維持。DB/HTTP/Raw/Migration0。
+旧3131/3164テスト・旧4path/8試行/37一致/hashを当時の記録として残す。次はPR93の修正結果レビューだけで、未コミット停止・他blocked工程未解除。
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -4193,6 +4224,13 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.58 / 2026-10-09
+
+PR93の未公開REPACKAGE byte不変移設受理を、専用v3/PREPARED内容配置/配置後receipt確定の二段階公開で修正し15.65.2へ記録。
+実REPACKAGEの4中断境界/receipt失敗・対応/競合を人工回帰し、FIT/予測v2保護を維持。固定旧成功runの再パッケージ1回・通常/移設CLI各1回で全24866予測が旧本文と厳密一致。
+新artifact/receipt/source32/旧v2証跡72/runtime96、今回全体3196/30081/既存9skip・公開65/390・関連184/815を冒頭/現在地/工程表/引継ぎへ同期。
+旧v1/v2の学習・hash・テスト実績を保存し、新仕様へ書き換えない。実再学習0、性能評価/採用/freeze/LIVE/2026/他工程は開放しない。
 
 ## v1.57 / 2026-10-09
 
@@ -4928,9 +4966,10 @@ Remote `main`:
 Current:
 Phase = C1-STAT35-COMPOSITION-FINAL-01 / REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW
 Current main = a5ea469cc331b009cfe048338584e211a02ff5c2 / PR92_MERGED
-Final composition publication = V2_ROOT_COMMIT_PROOF_ATOMIC_DIRECTORY_FLOCK / PINNED_OLD_SUCCESS_REPACKAGE / REAL_RETRAINING_0 / SEE_15.65.1
-Final composition reproduction = PUBLIC_AND_MOVED_2025_24866_BYTE_EXACT / SOURCE32_RUNTIME_CODE95_UNCHANGED / NORMAL_PUBLIC_LOAD_AND_RESTRICTED_SEPARATE_CLI / EXIT0
-Final composition package = pr93-publication-fix-20261009-041410-cafd5508/package/artifact.json / SHA256_c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f / REVIEW_ONLY
+Final composition publication = REPACKAGE_V3_PREPARED_PLACEMENT_THEN_RELEASE_RECEIPT / FIT_PREDICTION_V2_UNCHANGED / REAL_RETRAINING_0 / SEE_15.65.2
+Final composition reproduction = PUBLIC_AND_MOVED_2025_24866_BYTE_EXACT / SOURCE32_OLD_V2_FILES72_RUNTIME_CODE96_UNCHANGED / NORMAL_PUBLIC_LOAD_AND_RESTRICTED_SEPARATE_CLI / EXIT0
+Final composition package = pr93-repackage-commit-fix-20261009-e91a7f3c/package/artifact.json / SHA256_75f793599687da3f6a946db6500921463df496144e6844e97a8c019a458a3de9 / RECEIPT_SHA256_d0ddc8bbe9e04e812f467c967fec765e8943e660fa224b7abdbe10bbcb084755 / REVIEW_ONLY
+Prior publication v2 = pr93-publication-fix-20261009-041410-cafd5508/package/artifact.json / SHA256_c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f / HISTORICAL_UNCHANGED_NO_COMPLETE_ONLY_LOAD_FALLBACK / SEE_15.65.1
 Final composition performance = NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY / NOT_FORMALLY_ADOPTED
 Prior final fit = FOUR_NEW_PATHS_EIGHT_CANDIDATE_ATTEMPTS / THREE_FOLD_ONE_SE_LAMBDA_0.1 / THIRTY_SEVEN_SEMANTIC_FILES_IDENTICAL / SOURCE117_CODE93 / ORIGINAL3131_TESTS / SEE_15.65
 Prior package = run-20261009-LE6Wit1O/result/run-01/package/artifact.json / SHA256_b2741d0d3ca60070c311b658061e174eb8ba52f6ea14b33b755971b48e9513c6 / HISTORICAL_V1_UNCHANGED
@@ -5084,14 +5123,17 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_STAT35_COMPOSITION_FINAL_01_RESULT_REVIEW_ONLY
+Next allowed action = PR93_REPACKAGE_COMMIT_FIX_AND_TECHNICAL_REVALIDATION_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Production writes / implementation beyond this limited final-composition phase = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review only PR93's publication fix and REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW evidence: one pinned repackage, real training0, old models/generation records unchanged, source32/runtime code95 END checks, public/moved separate128M CLI predictions of all24866 races byte-exact. Root commit proofs, atomic directory publication, no-overwrite flock/concurrency/interruption/failed-stage tests passed. Performance evaluation was not performed. Preserve the old final-fit37/source117/code93/3131-test records as historical, not newly rerun. No DB/HTTP/Raw/2026/formal replacement/freeze/LIVE/another phase. See15.65.1 and docs/c1-stat35-composition-final-01.md.
+Review only PR93's REPACKAGE commit repair and REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW evidence: PREPARED content, no-replace placement, then a postplacement RELEASE_COMMITTED receipt; uncommitted byte copies rejected, committed portable normal load/CLI accepted. One pinned repackage, real training0, source32/old-v2-files72/runtime96 unchanged; both new 24866 predictions byte-exact to the old output. FIT/prediction v2 locks/no-overwrite/atomic bundles preserved. Current full3196/30081/existing9skip, publication65/390 and related184/815 passed. Preserve old v1/v2 hashes, final-fit37/source117/code93/3131 and v2/3164 records as historical. No performance evaluation/DB/HTTP/Raw/2026/formal replacement/freeze/LIVE/another phase. See15.65.2 and docs/c1-stat35-composition-final-01.md.
+
+Previous handoff (v1.57, publication v2; superseded only for REPACKAGE release by v3 above):
+One pinned repackage, source32/runtime95 and normal/moved24866 predictions matched. Preserve c50d4f artifact, v2 evidence, 3164/29847 tests and33/156 publication cases unchanged. Old COMPLETE-only REPACKAGE proof is not a v3 public-load fallback. See15.65.1.
 
 Previous handoff (v1.56, original final fit; superseded only by PR93 publication repair above):
 One execute/two independent new final fits selected lambda0.1, enumerated37 semantic files/source117/code93 and all24866 public predictions matched. Preserve that completed training, old hashes and 3131-test record without rerunning or rewriting them. See15.65.
