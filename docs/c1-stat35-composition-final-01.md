@@ -2,6 +2,8 @@
 
 ## Scope
 
+以下の学習・旧実行実績はv1当時の記録。PR93の今回の許可は末尾の公開修正・固定成功runの再パッケージ・予測の技術再検証だけであり、実データ再学習は0回。
+
 PR92はレビュー後MERGED。開始main/origin `a5ea469cc331b009cfe048338584e211a02ff5c2`、作業branch `feature/c1-stat35-composition-final-01`。
 今回だけ新最終C2と固定最終C1の構成development候補を作る。C1最終再学習・旧OOF1/2再学習・旧Outer性能比較は0回。
 既存目的関数/solver/grid/200更新上限/収束閾値/One-SE/PR92確率/E06/固定pipelineは変更しない。
@@ -42,7 +44,7 @@ C1 model/artifactはbyte不変で内包。全pathは検証済み相対path、sym
 ```bash
 php -d memory_limit=128M artisan keirin:c1:stat35-composition-final plan
 php -d memory_limit=128M artisan keirin:c1:stat35-composition-final execute --output-dir="$RUN/result"
-php -d memory_limit=128M artisan keirin:c1:stat35-composition-predict --artifact=... --input=... --output=...
+php -d memory_limit=128M artisan keirin:c1:stat35-composition-predict --artifact=... --input=... --output-dir=...
 ```
 
 ## Execution Status
@@ -98,3 +100,82 @@ RUN=/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/run-2026100
 plan/execute/predict全stdout/stderr、開始終了/exit/runner hashは証跡の各 `log-*/execution.json` に保存。
 小型review bundleは契約・選択・fit診断・package目録・再現・ログ・差分を含め、学習本文/全予測JSONLを重複添付しない。
 未コミット結果レビュー待ち。正式置換/freeze/LIVE/2026/新性能評価/他工程は未実施・未承認。
+
+## PR93 Publication Review Fix
+
+開始branch `feature/c1-stat35-composition-final-01`、HEAD/origin feature `69cf3ca0bccefa2df15fb4100904d2ac2dd9eec4`、clean。mainは変更しない。
+P2-Aはroot完了前のpackage COMPLETEだけで公開loadできたこと、P2-Bは本体/manifest/COMPLETEの個別公開が失敗・競合時に部分出力を残したこと。
+旧HEADのPackage/Predictionを別PHPで実行し、未完了/FAILED root/移設packageの受理と、manifest/COMPLETE失敗後の公開本体残存を人工ケースで再現した。
+
+### Publication Contract
+
+| 項目 | 契約 |
+|---|---|
+| 学習生成契約 / 入力 / 数値モデル | FINAL-01-v1 / FEATURE-INPUT-v1 / STAT35-C2-SEQUENTIAL-POSITION-v1を維持 |
+| 今回の公開契約 | `C1-STAT35-COMPOSITION-PUBLICATION-v2` |
+| PREPARED | 内容検証/内部roundtripのみ。stageの完了sealだけでは公開扱いにしない |
+| COMMITTED | 所定destinationへ公開単位全体の上書き禁止renameが成功した状態 |
+| FAILED | 失敗stageと診断を保持。通常load/predictで拒否 |
+
+`Package::prepared()`は内部内容検査、`Package::load()`は公開root・所属・seal・完了状態を検証する別入口。
+FITのpackageは`publication_owner=../..`で成功rootに結び付き、rootの未完了/FAILED/rename失敗やpackage単体移設は公開loadできない。
+移設用REPACKAGEは固定旧成功rootだけを検証する専用経路で発行し、モデル・旧生成証跡・新公開証拠を内包する。任意旧artifact/APP_ENVによる旧検証skip/allow-unpublishedはない。
+内容artifact → `publication.json`（artifact所属/ファイルseal/旧成功証拠）→ `COMPLETE.json`（publication seal）の順で、循環hashを作らない。
+旧packageのgeneration_code/COMPLETE/modelを変更せず、新artifactでは旧generation_codeと今回のpublication_codeを分離する。
+
+予測は`--output-dir=<新規directory>`で次の一式を公開する。旧`--output`および両option指定は移行案内付きで拒否する。
+
+```text
+predictions.jsonl
+predictions.jsonl.manifest.json
+COMPLETE.json
+```
+
+root/入力/packageとの重複を作成前に検査し、正規化destinationの永続lock fileを`flock`で排他する。
+lock取得後も再確認し、同一filesystemの一意stageでEND検査/生成時seal/完了照合後、一度だけ上書き禁止renameする。
+GNU mv 9.7の`--no-copy --update=none-fail --no-target-directory`を使用し、cross-filesystem copy fallbackはしない。
+既存file/directory/symlink/dangling symlinkと競合相手の出力を保持する。lock fileを削除せず、プロセス中断でlockは解放される。
+公開前失敗はstageにFAILEDを残し、正式出力を作らない。再試行は新stageで行う。公開後の補助例外は成功bundleをFAILED化/再作成せず、成功状態とpostcommit_warningを返す。
+
+### Repackage And Technical Verification
+
+今回状態は`REPACKAGED_WITHOUT_RETRAINING_AWAITING_REVIEW`。
+証跡root: `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/pr93-publication-fix-20261009-041410-cafd5508/`。
+固定元は上記旧成功runのresultのみ。315523-byte root manifestの固定SHA/COMPLETE/status、旧37一致記録、両runのmodel/layout/selection、親seal、モデル診断、2025入力/旧予測seal、旧学習/公開コードと独立実行記録を検査した。
+旧成果物で今回実参照・START/END照合したのは32ファイル。旧37意味ファイル全体の再学習/再現、source117の旧監査を再実行したという意味ではない。
+旧直接code93の数値関連は現行と照合し、変更した公開7ファイルの旧版はreview HEADのGit blobで検証。今回runtime code95のENDは不変。
+repackage CLIはExperiment/Trainer/Optimizer/Selector/教師を解決・実行せず、固定入力や証拠の欠損時にrefitへfallbackしない。
+
+```bash
+FIX=/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/pr93-publication-fix-20261009-041410-cafd5508
+SOURCE=/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/run-20261009-LE6Wit1O/result
+php -d memory_limit=128M artisan keirin:c1:stat35-composition-final repackage \
+  --source-result="$SOURCE" --output-dir="$FIX/package"
+php -d memory_limit=128M artisan keirin:c1:stat35-composition-predict \
+  --artifact="$FIX/package/artifact.json" --input="$SOURCE/verified-inputs/features-2025.jsonl" \
+  --output-dir="$FIX/predictions-2025"
+```
+
+実argv/stdout/stderr/開始終了/exit/runner SHAは`logs/*/`、移設コピーと独立照合は`review/moved-copy.json`、`review/verification.json`。
+新package `package/artifact.json`: 118380 bytes、SHA `c50d4f5596d4d212f5b1f86111ebbe7a619e1c6b41ad0618207e604ea41a255f`。
+公開証拠 `package/publication.json`: 54275 bytes、SHA `ba0043a4388aee4afa7df3592603485aa69b0feadf27b4dbd860424c1242a517`。
+C1/C2 modelは上記固定SHAのまま、layout/selectionもbyte不変。新たなλ選択・OOF・最終fit・係数更新・decoder更新は0回。
+
+| 今回実行（128M、各1回） | 秒 | peak bytes | exit |
+|---|---:|---:|---:|
+| 固定成功run再パッケージ | 0.606095076 | 35651584 | 0 |
+| 通常公開CLIの2025全件予測 | 8.775000095 | 33554432 | 0 |
+| 移設後の独立PHP通常公開CLI予測 | 8.873772144 | 33554432 | 0 |
+
+移設bundleは`moved-check/package/`、入力もbyte不変コピーし、子PHPをrepository/moved-check/tmpだけのopen_basedirに制限した。元教師・旧予測・旧sourceは推論から参照できない。
+通常公開load/CLIを省略していない。両新予測と旧成功予測は各24866行/218137295 bytes、SHA `cab188fad614e49c0d699fab38b71ea57ce3e902fc15d5aa2cfadd22cad23e23` で厳密一致。
+比較は推論とは別のstreaming照合で行い、丸め/並べ替え/旧予測本文コピーはしていない。
+
+新公開回帰33件/156 assertions、128M関連184件/815 assertions、100MiB超の独立128M入力予測を含め成功。
+最終PHPの通常全体1回は3164 passed/29847 assertions/既存9 skipped、314.086462021秒、exit0。11変更PHPの構文/限定Pint/diff check成功。
+入力拒否の既存18ケースは、旧file不在assertを正式directory不在assertへ強化して18/36成功。補正前全体1回（同件数、314.382980108秒）はlogs/fullに保持し、補正後の最終全体はlogs/full-finalとして区別する。実データ処理は再実行していない。
+実書込み失敗、END drift、実rename競合、同一destinationの2子プロセス、公開直前/直後SIGKILL、失敗証拠保持と新stage再試行、旧証拠/モデル/選択/入力改変、学習器到達拒否を検証した。
+旧3131テスト/37意味ファイル/4path・8試行/旧hashは当時の記録を維持し、今回値へ読み替えない。
+性能は`NOT_PERFORMED_PUBLICATION_FIX_AND_TECHNICAL_REVALIDATION_ONLY`。公開修正成功は精度改善ではない。
+用途/歴史的時点不明/未採用/未freeze/未LIVE/points=null/2026禁止は維持。業務DB・HTTP・Raw・Migration・正式pipeline置換・他工程は0回。
+最終小型review bundleは証跡rootの`PR93-publication-review-final.zip`。先のZIP/checksも保持し、最終差分と最終全体結果はreview-final/checks.jsonで識別する。

@@ -6,6 +6,7 @@ namespace App\Console\Commands\Keirin;
 
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Contract;
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Experiment;
+use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Repackage;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -14,20 +15,23 @@ use Throwable;
 
 final class FinalC1Stat35CompositionCommand extends Command
 {
-    protected $signature = 'keirin:c1:stat35-composition-final {mode=plan} {--output-dir=}';
+    protected $signature = 'keirin:c1:stat35-composition-final {mode=plan} {--source-result=} {--output-dir=}';
 
     protected $description = 'Fit final development C2 twice and compose with byte-exact final C1.';
 
-    public function handle(Experiment $experiment): int
+    public function handle(): int
     {
         try {
             if ($this->argument('mode') === 'plan') {
                 $result = Contract::plan();
             } elseif ($this->argument('mode') === 'execute') {
                 self::denyExternalAccess();
-                $result = $experiment->execute((string) $this->option('output-dir'));
+                $result = app(Experiment::class)->execute((string) $this->option('output-dir'));
+            } elseif ($this->argument('mode') === 'repackage') {
+                self::denyExternalAccess();
+                $result = app(Repackage::class)->run((string) $this->option('source-result'), (string) $this->option('output-dir'));
             } else {
-                throw new RuntimeException('Use plan or execute.');
+                throw new RuntimeException('Use plan, execute, or pinned repackage.');
             }
             $this->line(json_encode($result + ['peak_memory_bytes' => memory_get_peak_usage(true)], JSON_THROW_ON_ERROR));
 

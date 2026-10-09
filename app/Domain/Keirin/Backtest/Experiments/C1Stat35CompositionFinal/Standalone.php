@@ -11,7 +11,7 @@ use Symfony\Component\Process\Process;
 
 final class Standalone
 {
-    public function verify(string $artifact, string $input, string $output): array
+    public function verify(string $artifact, string $input, string $output, bool $public = false): array
     {
         $script = <<<'PHP'
 require getcwd().'/vendor/autoload.php';
@@ -20,7 +20,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 Illuminate\Support\Facades\DB::swap(new class {public function __call($name, $args): never {throw new RuntimeException('Standalone DB forbidden.');}});
 Illuminate\Support\Facades\Http::fake(static fn () => throw new RuntimeException('Standalone HTTP forbidden.'));
 $package = $app->make(App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Package::class);
-$models = $package->load($argv[1], false);
+$models = $argv[4] === 'public' ? $package->load($argv[1]) : $package->prepared($argv[1]);
 $forward = $app->make(App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Forward::class);
 $rows = (function () use ($argv, $models, $forward) {
     foreach (App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Input::read($argv[2]) as $race) {
@@ -28,11 +28,11 @@ $rows = (function () use ($argv, $models, $forward) {
     }
 })();
 $seal = App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact::write($argv[3], $rows);
-$package->load($argv[1], false);
+$argv[4] === 'public' ? $package->load($argv[1]) : $package->prepared($argv[1]);
 echo json_encode(['seal'=>$seal,'pid'=>getmypid(),'memory_limit'=>ini_get('memory_limit'),'peak_bytes'=>memory_get_peak_usage(true)], JSON_THROW_ON_ERROR)."\n";
 PHP;
         $allowed = [base_path(), dirname($artifact), $input, $input.'.manifest.json', $input.'.input.json', dirname($output), sys_get_temp_dir()];
-        $argv = [PHP_BINARY, '-d', 'memory_limit=128M', '-d', 'open_basedir='.implode(PATH_SEPARATOR, $allowed), '-r', $script, $artifact, $input, $output];
+        $argv = [PHP_BINARY, '-d', 'memory_limit=128M', '-d', 'open_basedir='.implode(PATH_SEPARATOR, $allowed), '-r', $script, $artifact, $input, $output, $public ? 'public' : 'prepared'];
         $process = new Process($argv, base_path(), [
             'APP_ENV' => 'testing', 'APP_CONFIG_CACHE' => base_path('bootstrap/cache/composition-no-config.php'),
             'APP_ROUTES_CACHE' => base_path('bootstrap/cache/composition-no-routes.php'),

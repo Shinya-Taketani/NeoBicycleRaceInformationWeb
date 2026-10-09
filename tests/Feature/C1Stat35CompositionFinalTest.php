@@ -13,6 +13,7 @@ use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Input;
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Package;
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\PathTrainer;
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Prediction;
+use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Publication;
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Reuse;
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\Standalone;
 use App\Domain\Keirin\Backtest\Experiments\C1Stat35CompositionFinal\TrainingData;
@@ -111,8 +112,8 @@ class C1Stat35CompositionFinalTest extends TestCase
         $before = Files::json($root.'/run-01/composition-loaded.jsonl.manifest.json');
         $prediction = app(Prediction::class)->run($artifact, $input, $this->directory.'/public.jsonl');
         $this->assertSame($before, $prediction['predictions']);
-        $this->artisan('keirin:c1:stat35-composition-predict', ['--artifact' => $artifact, '--input' => $input, '--output' => $this->directory.'/cli.jsonl'])->assertSuccessful();
-        $this->assertSame($before, Files::json($this->directory.'/cli.jsonl.manifest.json'));
+        $this->artisan('keirin:c1:stat35-composition-predict', ['--artifact' => $artifact, '--input' => $input, '--output-dir' => $this->directory.'/cli'])->assertSuccessful();
+        $this->assertSame($before, Files::json($this->directory.'/cli/predictions.jsonl.manifest.json'));
         $this->assertFalse($result['contract']['use_restrictions']['formal_adoption']);
     }
 
@@ -359,8 +360,8 @@ class C1Stat35CompositionFinalTest extends TestCase
             app(Prediction::class)->run($artifact, $input, $this->directory.'/bad-output.jsonl');
             $this->fail('Bad public input accepted.');
         } catch (Throwable) {
-            $this->assertFileDoesNotExist($this->directory.'/bad-output.jsonl');
-            $this->assertFileDoesNotExist($this->directory.'/bad-output.jsonl.COMPLETE.json');
+            $this->assertDirectoryDoesNotExist($this->directory.'/bad-output.jsonl');
+            $this->assertFileDoesNotExist($this->directory.'/bad-output.jsonl/COMPLETE.json');
         }
     }
 
@@ -481,7 +482,7 @@ class C1Stat35CompositionFinalTest extends TestCase
         rename(dirname($artifact), $moved);
         $input = $this->directory.'/features.jsonl';
         Input::write($input, [Fixture::feature(100), Fixture::feature(2), Fixture::feature(67)]);
-        $isolated = app(Standalone::class)->verify($moved.'/artifact.json', $input, $this->directory.'/isolated.jsonl');
+        $isolated = app(Standalone::class)->verify($moved.'/artifact.json', $input, $this->directory.'/isolated.jsonl', public: true);
         $this->assertSame(0, $isolated['exit_code']);
         $this->assertSame('128M', $isolated['memory_limit']);
         $this->assertSame(3, $isolated['seal']['rows']);
@@ -520,10 +521,13 @@ PHP;
     private function package(): string
     {
         $c2 = dirname(self::$source['outer_c2'][2024]);
-        $path = app(Package::class)->stage(self::$source['c1_artifact'], $c2, ['lambda' => 1.0], $this->directory.'/package', Fixture::provenance(self::$source['c1_artifact']));
-        app(Package::class)->publish($path);
+        $destination = $this->directory.'/package';
+        $stage = $destination.'.inprogress-'.bin2hex(random_bytes(8));
+        app(Package::class)->stage(self::$source['c1_artifact'], $c2, ['lambda' => 1.0], $stage, Fixture::provenance(self::$source['c1_artifact']));
+        app(Publication::class)->seal($stage, $destination, 'SYNTHETIC_EXPORT', ['artifact.json']);
+        app(Publication::class)->commit($stage, $destination);
 
-        return $path;
+        return $destination.'/artifact.json';
     }
 
     private function execute(string $target, ?callable $hook = null): array

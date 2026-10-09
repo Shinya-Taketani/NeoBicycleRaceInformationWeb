@@ -20,7 +20,8 @@ final class Experiment
 {
     public function __construct(private readonly Sources $sources, private readonly Reuse $reuse, private readonly PathTrainer $paths,
         private readonly Trainer $trainer, private readonly Bt03e03OneSeSelector $selector, private readonly C1Loader $c1,
-        private readonly C2Loader $c2, private readonly Forward $forward, private readonly Package $packages, private readonly Standalone $standalone) {}
+        private readonly C2Loader $c2, private readonly Forward $forward, private readonly Package $packages, private readonly Standalone $standalone,
+        private readonly Publication $publication) {}
 
     public function execute(string $output, ?array $synthetic = null, ?callable $beforePublication = null): array
     {
@@ -37,7 +38,7 @@ final class Experiment
                 throw new RuntimeException('Final-fit source/output overlap.');
             }
         }
-        $destination = $parent.'/'.basename($output);
+        $destination = $this->publication->destination($output, array_keys($source['seals']));
         $root = realpath(Contract::ROOT);
         if ((! app()->environment('testing') || ! str_starts_with($destination, sys_get_temp_dir().'/'))
             && ($root === false || ! str_starts_with($destination, $root.'/'))) {
@@ -45,11 +46,13 @@ final class Experiment
         }
         OriginalSources::verify($source);
         $code = Contract::code();
-        $output = $destination.'.inprogress-'.bin2hex(random_bytes(8));
-        Files::directory($output);
-        Jsonl::json($output.'/frozen.json', ['source' => $source, 'code' => $code, 'contract' => Contract::plan()]);
+        $lock = $this->publication->acquire($destination);
+        $output = '';
+        $completion = null;
         $spools = [];
         try {
+            $output = $this->publication->stage($destination);
+            Jsonl::json($output.'/frozen.json', ['source' => $source, 'code' => $code, 'contract' => Contract::plan()]);
             $common = Files::directory($output.'/verified-inputs');
             $data = new TrainingData;
             $counts = [];
@@ -132,8 +135,8 @@ final class Experiment
                 $artifact = $this->packages->stage($source['c1_artifact'], $final, $selected, $dir.'/package',
                     ['c1_model_sha256' => Files::identity(dirname($source['c1_artifact']).'/model.json')['sha256'],
                         'reference_manifest_sha256' => Contract::REFERENCE_SHA, 'training_years' => [2022, 2023, 2024, 2025],
-                        'generation' => Contract::VERSION, 'source_seals' => array_values($source['seals'])]);
-                $package = $this->packages->load($artifact, false);
+                        'generation' => Contract::VERSION, 'source_seals' => array_values($source['seals'])], '../..');
+                $package = $this->packages->prepared($artifact);
                 $after = Jsonl::write($dir.'/composition-loaded.jsonl', (function () use ($common, $package): \Generator {
                     foreach (Input::read($common.'/features-2025.jsonl') as $race) {
                         yield $this->forward->predict($race, $package['c1'], $package['c2']);
@@ -182,9 +185,6 @@ final class Experiment
                 Files::verify($output.'/run-01/'.$name, $seal);
                 Files::verify($output.'/run-02/'.$name, $seal);
             }
-            foreach (['run-01', 'run-02'] as $run) {
-                $this->packages->publish($output.'/'.$run.'/package/artifact.json');
-            }
             $result = ['status' => 'FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW', 'contract' => Contract::plan(),
                 'cohorts' => $counts, 'result' => $results['run-01'], 'semantic_file_count' => count($first),
                 'new_fit_paths' => 4, 'candidate_attempts' => 2 * (count($results['run-01']['OOF3_fit_order']) + count($results['run-01']['final_fit_order'])),
@@ -198,15 +198,21 @@ final class Experiment
                 Files::verify($output.'/'.$name, $seal);
             }
             Jsonl::json($output.'/manifest.json', ['status' => $result['status'], 'contract' => Contract::plan(), 'source' => $source, 'code' => $code, 'files' => $files]);
-            Jsonl::json($output.'/COMPLETE.json', Files::identity($output.'/manifest.json'));
-            if (file_exists($destination) || is_link($destination) || ! rename($output, $destination)) {
-                throw new RuntimeException('Could not atomically publish verified final-fit directory.');
-            }
+            $this->publication->seal($output, $destination, 'FIT', ['run-01/package/artifact.json', 'run-02/package/artifact.json']);
+            OriginalSources::verify($source);
+            Files::same($code, Contract::code(), 'fit commit code');
+            $completion = Files::identity($output.'/COMPLETE.json');
+            $this->publication->commit($output, $destination);
 
             return $result;
         } catch (Throwable $e) {
-            Jsonl::json($output.'/FAILED.json', ['status' => 'FAILED_NOT_PUBLISHED', 'exception' => $e::class, 'error' => $e->getMessage(), 'performance' => null]);
+            if ($this->publication->wasCommitted($output, $destination, $completion)) {
+                return $result + ['postcommit_warning' => $e->getMessage()];
+            }
+            $this->publication->failed($output, $e);
             throw $e;
+        } finally {
+            fclose($lock);
         }
     }
 

@@ -14,7 +14,7 @@ final class Package
 {
     public function __construct(private readonly C1Loader $c1, private readonly C2Loader $c2) {}
 
-    public function stage(string $c1Artifact, string $c2Directory, array $selection, string $output, array $provenance): string
+    public function stage(string $c1Artifact, string $c2Directory, array $selection, string $output, array $provenance, string $owner = '.'): string
     {
         Files::directory($output);
         Files::directory($output.'/c1');
@@ -44,13 +44,62 @@ final class Package
         Jsonl::json($output.'/artifact.json', ['contract' => Contract::plan(), 'role' => 'FINAL_DEVELOPMENT_COMPOSITION_PACKAGE',
             'parents' => ['C1' => ['artifact' => 'c1/artifact.json', 'model' => 'c1/model.json', 'seal' => $files['c1/model.json']],
                 'C2' => ['model' => 'c2/model.json', 'layout' => 'c2/layout.json', 'selection' => 'c2/selection.json', 'seal' => $files['c2/model.json']]],
-            'files' => $files, 'generation_code' => Contract::code(), 'provenance' => $provenance]);
-        $this->load($output.'/artifact.json', false);
+            'files' => $files, 'generation_code' => Contract::code(), 'provenance' => $provenance,
+            'publication_version' => Contract::PUBLICATION_VERSION, 'publication_owner' => $owner]);
+        $this->prepared($output.'/artifact.json');
 
         return $output.'/artifact.json';
     }
 
-    public function load(string $artifact, bool $requirePublished = true): array
+    public function load(string $artifact): array
+    {
+        $model = $this->prepared($artifact);
+        $root = dirname($artifact);
+        $owner = $model['artifact']['publication_owner'];
+        if (! in_array($owner, ['.', '../..'], true)) {
+            throw new RuntimeException('Invalid package publication owner.');
+        }
+        $publicationRoot = $owner === '.' ? $root : dirname($root, 2);
+        foreach ([$root, $publicationRoot] as $path) {
+            if (str_contains($path, '.inprogress-') || file_exists($path.'/FAILED.json') || is_link($path.'/FAILED.json')) {
+                throw new RuntimeException('Prepared/failed package is not public.');
+            }
+        }
+        Files::same(Files::identity(self::safe($publicationRoot, 'publication.json')),
+            Files::json(self::safe($publicationRoot, 'COMPLETE.json')), 'publication commit proof');
+        $proof = Files::json($publicationRoot.'/publication.json');
+        $relative = substr($artifact, strlen($publicationRoot) + 1);
+        if (($proof['version'] ?? null) !== Contract::PUBLICATION_VERSION || ($proof['state'] ?? null) !== 'COMMITTED'
+            || ! in_array($relative, $proof['packages'] ?? [], true)
+            || ($proof['files'][$relative] ?? null) !== $model['seal']) {
+            throw new RuntimeException('Package does not belong to this committed publication.');
+        }
+        if (($proof['kind'] ?? null) === 'FIT') {
+            if ($proof['destination'] !== $publicationRoot || $owner !== '../..') {
+                throw new RuntimeException('Uncommitted or relocated fit root requires verified export.');
+            }
+            Files::verify(self::safe($publicationRoot, 'manifest.json'), $proof['files']['manifest.json'] ?? []);
+            $manifest = Files::json($publicationRoot.'/manifest.json');
+            if (($manifest['status'] ?? null) !== 'FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW') {
+                throw new RuntimeException('Fit publication root did not succeed.');
+            }
+        } elseif (($proof['kind'] ?? null) === 'REPACKAGE') {
+            if ($owner !== '.' || ($proof['evidence'] ?? null) !== ($model['artifact']['provenance']['repackage'] ?? null)) {
+                throw new RuntimeException('Invalid portable export proof.');
+            }
+            Repackage::verifyEvidence($proof['evidence']);
+            Files::same($proof['evidence']['legacy_generation_code'], $model['artifact']['generation_code'], 'preserved legacy generation code');
+            Files::same($proof['evidence']['parent_files'], $model['artifact']['files'], 'byte-exact repackage parents');
+        } elseif (($proof['kind'] ?? null) !== 'SYNTHETIC_EXPORT' || ! app()->environment('testing')
+            || ! str_starts_with($publicationRoot, sys_get_temp_dir().'/')) {
+            throw new RuntimeException('Unsupported publication kind.');
+        }
+
+        return $model;
+    }
+
+    /** Internal content roundtrip only; no public command calls this entry point. */
+    public function prepared(string $artifact): array
     {
         $root = realpath(dirname($artifact));
         if ($root === false || dirname($artifact) !== $root || basename($artifact) !== 'artifact.json') {
@@ -59,8 +108,8 @@ final class Package
         self::safe($root, 'artifact.json');
         $seal = Files::identity($artifact);
         $data = Files::json($artifact);
-        if ($requirePublished) {
-            Files::same(['artifact' => $seal, 'status' => 'FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW'], Files::json(self::safe($root, 'COMPLETE.json')), 'composition publication');
+        if (($data['publication_version'] ?? null) !== Contract::PUBLICATION_VERSION) {
+            throw new RuntimeException('Package publication version unsupported; verified repackage required.');
         }
         Files::same(Contract::plan(), $data['contract'] ?? [], 'portable package contract');
         if (($data['role'] ?? null) !== 'FINAL_DEVELOPMENT_COMPOSITION_PACKAGE'
@@ -72,7 +121,7 @@ final class Package
         foreach ($data['files'] as $path => $expected) {
             Files::verify(self::safe($root, $path), $expected);
         }
-        Files::same(Contract::code(), $data['generation_code'], 'package runtime implementation');
+        Files::same(Contract::code(), $data['publication_code'] ?? $data['generation_code'], 'package runtime implementation');
         $c1 = $this->c1->published($root.'/c1/artifact.json');
         $c2 = $this->c2->load($root.'/c2/model.json', $data['files']['c2/model.json']);
         $selection = Files::json($root.'/c2/selection.json');
@@ -90,13 +139,6 @@ final class Package
         Files::verify($artifact, $seal);
 
         return ['c1' => $c1, 'c2' => $c2, 'artifact' => $data, 'seal' => $seal];
-    }
-
-    public function publish(string $artifact): void
-    {
-        $this->load($artifact, false);
-        Jsonl::json(dirname($artifact).'/COMPLETE.json', ['artifact' => Files::identity($artifact), 'status' => 'FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW']);
-        $this->load($artifact);
     }
 
     public static function safe(string $root, string $relative): string

@@ -15,6 +15,8 @@ final class Contract
 
     public const INPUT_VERSION = 'C1-STAT35-COMPOSITION-FEATURE-INPUT-v1';
 
+    public const PUBLICATION_VERSION = 'C1-STAT35-COMPOSITION-PUBLICATION-v2';
+
     public const ROOT = '/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01';
 
     public const C1 = '/home/shinya/neo-keirin-artifacts/tactical-history-final-01-20260917-01/fit/run-01/final/artifact.json';
