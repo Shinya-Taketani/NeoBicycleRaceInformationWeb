@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.55
+- Version: 1.56
 - Created: 2026-08-23
-- Updated: 2026-10-08
+- Updated: 2026-10-09
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `f5cc8316b0deaa4bfb8b1e83ebd12417846b307b`
-- Current review: PR91レビュー後マージ済み。今回C1-STAT35-P1-COMPOSITION-01の比較・独立再現完了、開発主Gate通過。未コミットのレビュー待ち、正式採用なし
-- Current code: 保存C2のU1と元C1のU2/U3から一つの逐次順位分布を計算し、既存E06で選択。旧scorer/decoder/学習処理は変更なし
-- Current execution record: 50,078レース/356,209出走、元C1比P1+55/P2+26/P3+4/Hit3位置+81、主Gate PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY。2025P3−4/Primary完全順序一致合計−4、Supporting集合系の悪化も記録。学習0/独立16意味ファイル一致/source39/code46不変、359.236秒/peak32MiB/exit0（15.64）
-- Current tests record: 専用人工44 tests/327 assertions、関連208/2129成功（128M）。最終コードの通常全体1回3089 passed/29535 assertions/既存PostgreSQL限定9 skipped、限定Pint9PHP/構文9PHP成功、新規skipなし
+- Remote `main` at last update: `a5ea469cc331b009cfe048338584e211a02ff5c2`
+- Current review: PR92レビュー後MERGED。今回C1-STAT35-COMPOSITION-FINAL-01の限定最終development学習・パッケージ・技術検証だけを許可。正式採用なし
+- Current code: 既存数値クラスを再利用するC2最終学習adapterと、固定最終C1 P2/P3を組み合わせる特徴量入力予測。旧数値仕様・既定C1 pipelineは変更しない
+- Current execution record: FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW。execute1回/独立2run/新4path・8候補試行、C2最終lambda0.1、37意味ファイル一致/source117/code93 START-END不変。公開packageから2025全24866予測も一致。新性能評価なし、15.65参照
+- Current tests record: 最終数値コード通常全体1回3131 passed/29691 assertions/既存9 skipped、関連187/904、15変更PHP構文/限定Pint成功。既存テスト削除/緩和/新規skipなし
+- Previous execution/tests record (PR92): 50,078レース/356,209出走、P1+55/P2+26/P3+4/Hit3位置+81、主Gate PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY、学習0/独立16意味ファイル一致/source39/code46不変、359.236秒/peak32MiB/exit0。専用44/327・関連208/2129、通常全体3089 passed/29535 assertions/既存9 skipped（15.64の当時の記録）
 - Previous execution/tests record (PR91): P1変更/的中差0、P2+21/P3+37/Hit3+59、主Gate優越未達。学習0/12意味ファイル一致/source23/code44不変。専用62/851・関連348/2806、全体3045/29208/既存9 skipped（15.63）
 - Previous execution/tests record (PR90): P1/P2変更0、P3的中+39、Hit@3位置+40、主Gate優越未達、学習0、独立12意味ファイル一致。専用54/636・関連232/1319、全体2983/28357/既存9 skipped（15.62の過去実績）
 - Remote state at creation: PR #40 merged
@@ -173,14 +174,31 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: C1_STAT35_P1_COMPOSITION_01_COMPLETED_DEVELOPMENT_GATE_PASSED_AWAITING_REVIEW
+current_engine_state: FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_STAT35_P1_COMPOSITION_01_RESULT_REVIEW_ONLY
-next_implementation_phase: NOT_AUTHORIZED
-current_phase: C1-STAT35-P1-COMPOSITION-01
-remote_main: f5cc8316b0deaa4bfb8b1e83ebd12417846b307b
+next_allowed_action: C1_STAT35_COMPOSITION_FINAL_01_RESULT_REVIEW_ONLY
+next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
+current_phase: C1-STAT35-COMPOSITION-FINAL-01
+remote_main: a5ea469cc331b009cfe048338584e211a02ff5c2
+pr92_status: MERGED_REVIEW_COMPLETED
+c1_stat35_composition_final_01: FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW
+c1_stat35_composition_final_01_c1_retraining: FORBIDDEN
+c1_stat35_composition_final_01_new_fit_paths_max: 4
+c1_stat35_composition_final_01_new_fit_paths_actual: 4
+c1_stat35_composition_final_01_candidate_attempts: 8
+c1_stat35_composition_final_01_selected_c2_lambda: 0.1
+c1_stat35_composition_final_01_reproduction: THIRTY_SEVEN_ENUMERATED_SEMANTIC_FILES_IDENTICAL
+c1_stat35_composition_final_01_manifest_sha256: ec525fd12b3b784af394032252c160bfcca4e7e833f8b565455c52ec2a2acad3
+c1_stat35_composition_final_01_performance_evaluation: NOT_PERFORMED_FINAL_FIT_AND_TECHNICAL_REPRODUCTION_ONLY
+c1_stat35_composition_final_01_purpose: DEVELOPMENT_FINAL_MODEL_CANDIDATE_ONLY
+c1_stat35_composition_final_01_historical_as_of_available: false
+c1_stat35_composition_final_01_formal_adoption: false
+c1_stat35_composition_final_01_formal_freeze: false
+c1_stat35_composition_final_01_live_use_authorized: false
+c1_stat35_composition_final_01_points: null
+c1_stat35_composition_final_01_2026_access: FORBIDDEN
 pr91_status: MERGED_REVIEW_COMPLETED
-c1_stat35_p1_composition_01: COMPLETED_DEVELOPMENT_GATE_PASSED_AWAITING_REVIEW
+c1_stat35_p1_composition_01: COMPLETED_DEVELOPMENT_GATE_PASSED_PR92_MERGED
 c1_stat35_p1_composition_01_incremental_gate: PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY
 c1_stat35_p1_composition_01_decision: DEVELOPMENT_ADOPTION_CANDIDATE_REVIEW_ONLY_RETAIN_FORMAL_C1
 c1_stat35_p1_composition_01_P1_hit_net: 55
@@ -960,7 +978,8 @@ BT-03E-02以降で利用する場合は、
 | C1-MARGINAL-P23-DECODER-01 | 保存C1固定確率・P1固定の周辺P2/P3選択比較 | COMPLETED_PR89_MERGED_NOT_ADOPTED | 主Gate非劣性/優越未達、C1維持。学習0/P1変更0/Supporting不変、11意味ファイル独立一致。15.61参照 |
 | C1-P12-FIXED-MARGINAL-P3-01 | 元C1のP1/P2を固定し保存無条件P3だけ再選択 | COMPLETED_PR90_MERGED_NOT_ADOPTED | 主Gate優越未達、C1維持。学習0/P1P2変更0、12意味ファイル独立一致。15.62参照 |
 | C1-P23-NONDECREASING-MARGINAL-01 | 元C1のP1固定・P2/P3各周辺確率非低下の全pair最大化 | COMPLETED_PR91_MERGED_NOT_ADOPTED | 主Gate優越未達、元C1維持。P2+21/P3+37/Hit@3位置+59、確率低下0だが2024P2悪化。学習0/12意味ファイル一致。15.63参照 |
-| C1-STAT35-P1-COMPOSITION-01 | 保存C2 U1＋元C1 U2/U3の一つの逐次分布とE06 | COMPLETED_DEVELOPMENT_GATE_PASSED_AWAITING_REVIEW | P1+55既知C2照合/P2+26/P3+4/Hit3位置+81、2025P3−4・Primary完全一致合計−4。主Gate通過、学習0/16意味ファイル一致。正式C1維持、15.64参照 |
+| C1-STAT35-P1-COMPOSITION-01 | 保存C2 U1＋元C1 U2/U3の一つの逐次分布とE06 | COMPLETED_DEVELOPMENT_GATE_PASSED_PR92_MERGED | P1+55既知C2照合/P2+26/P3+4/Hit3位置+81、2025P3−4・Primary完全一致合計−4。主Gate通過、学習0/16意味ファイル一致。正式C1維持、15.64参照 |
+| C1-STAT35-COMPOSITION-FINAL-01 | 新最終C2 P1＋既存最終C1 P2/P3の保存・特徴量予測 | FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW | PR92 MERGED。OOF1/2再利用・One-SE lambda0.1、新4path/8試行、独立37意味ファイル/全2025予測一致。新性能評価なし、15.65参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3706,6 +3725,31 @@ manifest `f1c1687aed2aa6cf9540c6f351e8017c240f096177e3206af775d936e3d92264`。
 限定Pint9PHP/構文9PHP成功。DB/HTTP/Raw/2026/旧比較再実行なし。旧実績は旧版当時の記録として保持。
 詳細は [専用記録](c1-stat35-p1-composition-01.md)。
 
+## 15.65 C1-STAT35-COMPOSITION-FINAL-01 / 2026-10-09
+
+PR92レビュー後MERGED、開始clean main/origin `a5ea469cc331b009cfe048338584e211a02ff5c2`。
+branch `feature/c1-stat35-composition-final-01`。今回だけC2のOOF3と2022～2025最終fitを独立2runで許可する。
+旧OOF1/2・C1最終fitは再実行しない。既存固定C1 lambda0.1/model hashを維持し、構成使用はC2 P1・C1 P2/P3だけ。
+保存OOF1/2共通適格集合からOOF3のstrong-to-weak連続prefixを導く。弱い省略候補は未学習として明記し、solver/grid/閾値/One-SEは変更しない。
+2025教師はOOF3候補seal後のvalidationだけに開放、選択後の最終fitは全4年を使用する。
+旧Outer 50,078レースとの特徴量forward照合、新C2保存前後、構成package読込前後、独立128M PHP予測、独立fitの意味一致を要求する。
+新package/feature inputだけで予測し、旧utility、教師、DB、HTTPを推論へ要求しない。公開前drift/不正入力は証跡を残して拒否する。
+保存先は `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/` の新run、旧成果物は読取りのみ。
+人工検証後のexecute1回内で独立2runを完了し、`FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW` として公開した。
+保存OOF1/2共通Kは0.1/1、OOF3順1→0.1、弱い6候補は未学習理由を保存。旧2fold/C1再学習0、新4path/8候補試行（各3順位）。
+両runの3fold One-SEはlambda0.1、loss1.5990314812506738/SE0.0018430178086091442/上限1.600874499059283で厳密一致。lambda1 loss1.6186141762872868は上限外。
+全4年99669レース/706051出走、C2は17項目/17 active groups/147 active coefficients/147 bins。最終3順位更新112/113/89で収束、既存200上限/閾値不変。
+新C2 model SHA `d1dbb706071a7dc25d4ea8fa0525ac685a8b68d6d09f3a43a980a70dc1334ea2`。旧C1 model `e3cc1f7f10af60bb22f97a2172ca52ef2c09a3393222ee46c25619de752d43a1` はbyte不変で内包。
+旧Outer全50078数学出力/Primary/Supporting、保存読込、独立PHP全2025の24866予測、独立最終fit/選択/bin/support/実列挙37意味ファイルが厳密一致。
+source117/code93 START-END、生成時seal/公開直前検査成功。2026-10-09 06:26:58〜08:48:20 JST、8482.426790383秒/128M/peak35651584 bytes/exit0。
+公開predictも08:49:09〜08:49:17 JST、8.612024083秒/128M/peak33554432 bytes/exit0。独立2子processは各peak27262976 bytes/exit0、元source参照をOSで制限。
+成果物 `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/run-20261009-LE6Wit1O/result`、manifest `ec525fd12b3b784af394032252c160bfcca4e7e833f8b565455c52ec2a2acad3`。
+package `run-01/package/artifact.json` SHA `b2741d0d3ca60070c311b658061e174eb8ba52f6ea14b33b755971b48e9513c6`、専用入力から新規予測し、旧予測コピーではない。
+最終PHP通常全体1回3131 passed/29691 assertions/既存PG限定9 skipped、関連187/904、15変更PHP構文/限定Pint成功。人工128M/100MiB超入力、拒否/終了時driftを確認、既存テスト緩和/削除/新規skipなし。
+今回の性能は `NOT_PERFORMED_FINAL_FIT_AND_TECHNICAL_REPRODUCTION_ONLY`。PR92の+55/+26/+4/+81は旧比較の外部参照であり今回の新精度測定ではない。
+`DEVELOPMENT_FINAL_MODEL_CANDIDATE_ONLY`、historical_as_of_available=false、formal_adoption/formal_freeze/live_use_authorized=false、points=null、2026禁止を維持。
+詳細は [専用記録](c1-stat35-composition-final-01.md)。正式モデル置換、LIVE、Web、DB、Raw、新規取得、他工程へ進まない。
+
 # 16. BT-04 — Final Frozen Holdout Evaluation
 
 ## 16.1 状態
@@ -4123,6 +4167,14 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.56 / 2026-10-09
+
+PR92レビュー完了/MERGEDと開始main `a5ea469cc331b009cfe048338584e211a02ff5c2` へ同期。
+最新ユーザー指示のC2最終development学習・固定最終C1再利用・portable構成package・特徴量予測だけを15.65に許可。
+PR92の性能/16意味ファイル/テストは旧実行記録として保持し、今回は新性能評価をしない。
+現在地/冒頭/工程表/引継ぎを同じ限定工程へ同期。他blocked工程・2026・正式採用・LIVEは解除しない。
+execute1回/独立2runの新最終C2/共有lambda0.1/portable構成/特徴量predictを完了、37意味ファイル/source117/code93/保存読込/別PHP一致を15.65へ記録。次は結果レビューだけ。
 
 ## v1.55 / 2026-10-08
 
@@ -4842,12 +4894,16 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-STAT35-P1-COMPOSITION-01 / COMPLETED_DEVELOPMENT_GATE_PASSED_AWAITING_REVIEW
-Current main = f5cc8316b0deaa4bfb8b1e83ebd12417846b307b / PR91_MERGED
-Composition = C2_U1_C1_U2_U3 / ONE_COHERENT_DISTRIBUTION / UNCHANGED_E06 / TRAINING_0 / SEE_15.64
-Composition main Gate = PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY / FORMAL_C1_RETAINED / NEXT_RESULT_REVIEW_ONLY
-Composition hit net = P1+55_KNOWN_C2/P2+26/P3+4/Hit3+81 / PRIMARY_EXACT_ORDER_NET_MINUS_4
-Composition reproducibility = 16_SEMANTIC_FILES_IDENTICAL / SOURCE39_CODE46_UNCHANGED / PEAK32MiB_EXIT0
+Phase = C1-STAT35-COMPOSITION-FINAL-01 / FINAL_COMPOSITION_FIT_REPRODUCED_AWAITING_REVIEW
+Current main = a5ea469cc331b009cfe048338584e211a02ff5c2 / PR92_MERGED
+Final composition = NEW_FINAL_C2_P1_EXISTING_FINAL_C1_P23 / THREE_FOLD_ONE_SE_LAMBDA_0.1 / FOUR_NEW_PATHS_EIGHT_CANDIDATE_ATTEMPTS / SEE_15.65
+Final composition reproduction = THIRTY_SEVEN_ENUMERATED_SEMANTIC_FILES_IDENTICAL / SOURCE117_CODE93_UNCHANGED / PUBLIC_PREDICT_24866_EXACT / PEAK34MiB_EXIT0
+Final composition package = run-20261009-LE6Wit1O/result/run-01/package/artifact.json / SHA256_b2741d0d3ca60070c311b658061e174eb8ba52f6ea14b33b755971b48e9513c6 / REVIEW_ONLY
+Final composition performance = NOT_PERFORMED_FINAL_FIT_AND_TECHNICAL_REPRODUCTION_ONLY / NOT_FORMALLY_ADOPTED
+Prior PR92 composition = C2_U1_C1_U2_U3 / ONE_COHERENT_DISTRIBUTION / UNCHANGED_E06 / TRAINING_0 / SEE_15.64
+Prior PR92 composition main Gate = PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY / PR92_MERGED / FORMAL_C1_RETAINED
+Prior PR92 composition hit net = P1+55_KNOWN_C2/P2+26/P3+4/Hit3+81 / PRIMARY_EXACT_ORDER_NET_MINUS_4
+Prior PR92 composition reproducibility = 16_SEMANTIC_FILES_IDENTICAL / SOURCE39_CODE46_UNCHANGED / PEAK32MiB_EXIT0
 Nondecreasing P23 = ORIGINAL_C1_P1_FIXED / BOTH_MARGINAL_COMPONENTS_NONDECREASING / GLOBAL_PAIR_MAXIMUM / ORIGINAL_EXACT_MAX_RETAINED / SEE_15.63
 Nondecreasing P23 result = INCREMENTAL_GATE_NOT_PASSED_SUPERIORITY_UNMET_RETAIN_C1 / P1_CHANGES_AND_HIT_DELTA_0 / P2_HITS_PLUS21_P3_HITS_PLUS37_HIT3_POSITIONS_PLUS59 / COMPONENT_PROBABILITY_DECLINES_0 / TRAINING_0
 Nondecreasing P23 reproduction = TWELVE_ENUMERATED_SEMANTIC_FILES_IDENTICAL / SOURCE23_CODE44_START_END_UNCHANGED / MANIFEST_c970ec8f92ffbd05a5f3630d1633adee8f17ba3dc3429ad3b1f905a07ac9a918
@@ -4994,14 +5050,17 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = FIXED_C1_C2_POSITION_UTILITY_COMPOSITION_COMPARISON_ONLY
+Next allowed action = C1_STAT35_COMPOSITION_FINAL_01_RESULT_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
-Further production writes / further implementation = NOT_AUTHORIZED
+Production writes / implementation beyond this limited final-composition phase = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-C1-STAT35-P1-COMPOSITION-01 completed with exact parent forward controls, unchanged E06, both years sealed before labels and 16 independently reproduced semantic files. P1+55 matches known C2; P2+26/P3+4/Hit3+81 are the new composition measurements. Main Gate PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY, but 2025P3−4, Primary exact order net−4 and Supporting set/coverage declines remain explicit. Only result/code review is next. Training/bin/lambda updates0; no PR91 nondecrease or PR90 fixed-P2 constraint. Preserve formal C1/C2/old negative records/score-gap P3. PR91 merged at main f5cc8316b0deaa4bfb8b1e83ebd12417846b307b. No DB/HTTP/Raw/2026/formal replacement/LIVE or other phase. See15.64 and docs/c1-stat35-p1-composition-01.md.
+Review only the completed C1-STAT35-COMPOSITION-FINAL-01 candidate: one execute/two independent new final fits, shared lambda0.1, 37 enumerated semantic files identical, source117/code93 unchanged, portable package and public feature-only prediction of all24866 races exact. C1/old OOF retraining0; no new performance evaluation. Do not repeat completed training or advance to DB/HTTP/Raw/2026/formal replacement/freeze/LIVE or another phase. See15.65 and docs/c1-stat35-composition-final-01.md.
+
+Previous handoff (v1.55; PR92 now reviewed and merged, old comparison unchanged):
+C1-STAT35-P1-COMPOSITION-01 completed with exact parent forward controls, unchanged E06, both years sealed before labels and 16 independently reproduced semantic files. P1+55 matches known C2; P2+26/P3+4/Hit3+81 are the composition measurements from that run. Main Gate PASS_DEVELOPMENT_INCREMENTAL_EFFECT_ONLY, but 2025P3−4, Primary exact order net−4 and Supporting set/coverage declines remain explicit. Training/bin/lambda updates0; no PR91 nondecrease or PR90 fixed-P2 constraint. Preserve formal C1/C2/old negative records/score-gap P3. See15.64 and docs/c1-stat35-p1-composition-01.md.
 
 Previous handoff (v1.54, historical PR91 review-pending state; PR91 now merged):
 Review only the completed C1-P23-NONDECREASING-MARGINAL-01 implementation and negative adoption decision. One execute/two independent reread runs, twelve enumerated semantic files identical, source23/code44 unchanged, learning0/P1 changes0/original probabilities and Supporting unchanged. P2/P3 component probabilities never decrease, but actual 2024 P2 hits decline by5. Total P2 hits +21, P3 +37, Hit3 positions +59; year-equal Hit3 +0.039739pp with paired CI lower -0.00021549951877694178pp fails strict superiority. Main Gate NOT_PASSED, retain original C1; STAT01 auxiliary PASS is not incremental approval. PR89/90 merged at main 05eb5c63316128d19eab2da378ceca2c55990383. Preserve historical records/old artifacts and score-gap P3. See 15.63 and docs/c1-p23-nondecreasing-marginal-01.md. No repeat execute, altered constraints, further experiment, learning, DB/HTTP/Raw/2026/formal replacement/LIVE. Stop uncommitted for review; no automatic next phase.
