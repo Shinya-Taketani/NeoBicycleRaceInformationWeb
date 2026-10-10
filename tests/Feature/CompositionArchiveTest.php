@@ -100,6 +100,29 @@ final class CompositionArchiveTest extends TestCase
         $this->assertNull(app(Reader::class)->read(null, 99999));
     }
 
+    public function test_fixed_result_link_is_hidden_when_disabled(): void
+    {
+        $this->build($this->sources());
+        config(['composition_result_view.enabled' => false]);
+
+        $this->local('/development/keirin/composition-archive/2025')
+            ->assertOk()
+            ->assertDontSee('href="/development/keirin/composition-results"', false)
+            ->assertSee('2025年アーカイブ');
+    }
+
+    public function test_fixed_result_link_is_shown_when_enabled(): void
+    {
+        $this->build($this->sources());
+        config(['composition_result_view.enabled' => true]);
+
+        $this->local('/development/keirin/composition-archive/2025')
+            ->assertOk()
+            ->assertSee('href="/development/keirin/composition-results"', false)
+            ->assertSee('固定10件の照合')
+            ->assertSee('2025年アーカイブ');
+    }
+
     public function test_outcomes_join_by_id_not_order_and_null_third_and_ties_keep_metric_denominators(): void
     {
         $data = $this->sources(3, 'outcomes');

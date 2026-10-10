@@ -3951,6 +3951,12 @@ IN_SAMPLE_SAVED_PREDICTION_ARCHIVE、historical_as_of/generalization/adoption/fr
 PR96の全体26 warnings詳細未確認・旧Fixture親tearDown例外時退避は未解決として保持。新Fixtureだけはfinallyで記録済みpathを退避する。
 詳細・実コマンド・再起動router・小型review ZIPは `docs/c1-stat35-composition-archive-01.md`。次は今回のコード/結果/画面レビューのみ。
 
+### PR97 P2リンク表示修正 / 2026-10-11
+
+年次一覧の固定10件リンクを `composition_result_view.enabled === true` の場合だけ表示。無効時非表示・有効時表示、現在地常時表示。設定既定値・起動方法・アクセス制御・生成版/pinは変更しない。
+追加HTTP2件のみを既存隔離/128Mで検証し、2 tests / 7 assertions、警告0、skip0、0.228秒（隔離起動込み0.403029秒）/exit0。限定Pint・変更PHP/Blade構文もexit0。実固定10件束へのアクセス確認は行わない。
+実アーカイブ再生成・学習・repackage・通常全体テストは各0回。旧実績・未調査警告は過去記録のまま保持。新ログは `pr97-link-review-20261010-205654-f7b27d1c`（専用文書に絶対パス）。次は修正差分のレビューのみ。
+
 ## 15.68 C1-STAT35-COMPOSITION-VIEW-01 / 2026-10-10
 
 PR95受入・マージ完了。開始main/ローカルorigin `40c76900c955dba2ab29d7f28eb96c4a14c43d14`、clean確認後 `feature/c1-stat35-composition-view-01` を作成。main直接編集なし。

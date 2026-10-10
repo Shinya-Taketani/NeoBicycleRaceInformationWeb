@@ -1,6 +1,11 @@
 @extends('development.composition-archive.layout')
 @section('content')
-<nav class="breadcrumb"><a href="/development/keirin/composition-results">固定10件の照合</a><span>2025年アーカイブ</span></nav>
+<nav class="breadcrumb">
+    @if(config('composition_result_view.enabled') === true)
+        <a href="/development/keirin/composition-results">固定10件の照合</a>
+    @endif
+    <span>2025年アーカイブ</span>
+</nav>
 <h2 class="archive-total">保存対象全{{ number_format($overview['matched']) }}レースの集計</h2>
 <section class="metrics" aria-label="保存対象全体の集計">
     @foreach($overview['metrics'] as $metric)

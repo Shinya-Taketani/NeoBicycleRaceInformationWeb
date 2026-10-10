@@ -126,3 +126,10 @@ Chrome/Node CDPで1440×1000と390×844の計12画面、各頁100/100/66件・�
 - 小型レビューZIP: `$REVIEW/C1-STAT35-COMPOSITION-ARCHIVE-01-review.zip`。差分/新規コード/契約/summary/代表記録/12画面/ログのみ。年次全データ、work.sqlite、モデル/.env/秘密情報は含めない。実在サイズ/SHAはreview-archive.jsonへ記録。
 
 次は今回のコード・結果・画面レビューのみ。未コミットで停止し、別工程・LIVE・2026へ進まない。
+
+## PR97 P2リンク表示修正 / 2026-10-11
+
+- 年次一覧の「固定10件の照合」は `composition_result_view.enabled === true` の場合だけ表示。無効時は非表示、現在地は常時表示。設定既定値・起動方法・アクセス制御・生成版・manifest pinは不変。
+- 既存隔離方法で追加HTTP2件だけをPHPUnit本体128Mで実行: 2 tests / 7 assertions、警告0、skip0、0.228秒（隔離起動を含む0.403029秒）、peak44.50MiB、exit0。有効側はリンク表示の確認であり、実固定10件束のアクセス確認ではない。
+- 変更テスト限定Pint・変更PHP/Blade構文はexit0。実アーカイブ再生成・学習・repackage・通常全体テストは各0回。上記旧検証実績を今回へ転用せず、未調査の旧警告を解消したとは扱わない。
+- 差分・実argv・stdout/stderr・JUnitログ: `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/pr97-link-review-20261010-205654-f7b27d1c/`。次はこの修正差分のレビューのみ。
