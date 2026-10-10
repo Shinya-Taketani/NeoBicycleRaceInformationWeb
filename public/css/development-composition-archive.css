@@ -1,0 +1,6 @@
+.archive-total { margin-top: 22px; }
+.archive-search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 22px; }
+.archive-search input { width: 180px; min-height: 38px; padding: 6px 10px; font: inherit; border: 1px solid #8a99a6; border-radius: 4px; }
+.archive-search button { min-height: 38px; padding: 6px 16px; background: #17679b; color: #fff; font: inherit; border: 1px solid #17679b; border-radius: 4px; cursor: pointer; }
+.archive-pagination { display: flex; justify-content: space-between; gap: 14px; margin: 16px 0; font-size: 14px; }
+.archive-pagination span { color: #66717c; }
