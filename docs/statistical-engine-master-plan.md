@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.63
+- Version: 1.64
 - Created: 2026-08-23
-- Updated: 2026-10-10
+- Updated: 2026-10-11
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `f1d3829bb38f40f1025353d7cbe3cdf06b3abbab`（今回のローカルorigin/main確認、fetchなし）
-- Current review: PR96受入・マージ完了。年次保存予測アーカイブのコード・結果・画面レビュー待ち
-- Current code: 年次専用streaming生成CLI・固定manifest閲覧Reader/Presenter・Controller・middleware・Blade/CSS/専用routerを追加。既存トップ/固定10件/モデル/依頼/照合のcode identity・provider/bootstrap/共通数値処理不変
-- Current execution record: COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW。2025保存予測24,866件/249頁/最終66件を新規1回生成。原予測全件・旧10件・全寄与再集約一致、原本なしHTTP/PC/mobile12画面・検索成功。学習/推論/repackage/DB/2026なし、15.69参照
-- Current tests record: 新規43/507・直接関連75/391、PHPUnit本体128M/exit0。変更PHP構文・限定Pint/diff確認。通常全体は今回未実行、PR96全体26 warnings詳細未確認・旧Fixture親tearDown退避残件は別管理
+- Remote `main` at last update: `1eed67740986aae7e52096a935b60015b32d7de1`（今回のローカルorigin/main確認、fetchなし）
+- Current review: PR97受入・マージ完了。限定的な閲覧系テスト環境整備の差分レビュー待ち
+- Current code: 既存HTTPテスト2クラスの人工rootへKernel起動前にコメントだけの.envを排他的新規作成。既存アプリ・設定・成果物・安全helper・tearDown不変
+- Current execution record: COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW。人工Fixtureのみ、通常全体/年次生成/実照合/学習/予測再生成/repackage/DB/2026なし、15.70参照
+- Current tests record: Artisan/CollisionでView26/151・Archive45/517を各1回、欠落.env/その他警告0・失敗/エラー/skip0・exit0。変更PHP2件構文・限定Pint成功。過去全71警告の本文/全環境は未確認
+- Previous execution/tests record (PR97): COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW当時の2025保存予測24,866件/249頁/最終66件、新規43/507・直接関連75/391/128M・全原予測/旧10件/寄与再集約一致・原本なしHTTP/12画面は15.69へ保持。後続ユーザー全体71 warnings/9 skipped/3386 passed/32078 assertionsは今回の限定実行と区別
 - Previous execution/tests record (PR96): 15.68のHTTP26/148・関連44/229・固定10件の隔離HTTPとPC/mobile6画面は当時の記録として保持
 - Previous execution/tests record (PR95): 15.67の限定再実装44/229・関連11/140・実照合/再現を当時の記録として保持。Codex終了後の3386 passed/31416 assertions/9 skipped/322.99秒は後続ユーザー実行記録で、今回Codex実行ではない
 - Previous execution/tests record (PR94修正): SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW当時の旧10show/新10操作・予測一致。専用119/987・関連270/1860、通常全体3315 passed/31068 assertions/既存9 skipped/328.270秒/exit0は15.66.1に保持
@@ -181,23 +182,27 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW
+current_engine_state: COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_STAT35_COMPOSITION_ARCHIVE_REVIEW_ONLY
+next_allowed_action: C1_COMPOSITION_TEST_ENV_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
-current_phase: C1-STAT35-COMPOSITION-ARCHIVE-01
-remote_main: f1d3829bb38f40f1025353d7cbe3cdf06b3abbab
+current_phase: C1-COMPOSITION-TEST-ENV-01
+remote_main: 1eed67740986aae7e52096a935b60015b32d7de1
 pr93_status: MERGED_REVIEW_COMPLETED
 pr94_status: MERGED_REVIEW_COMPLETED
 pr95_status: MERGED_REVIEW_COMPLETED
 pr96_status: MERGED_REVIEW_COMPLETED
-c1_stat35_composition_archive_01: COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW
+pr97_status: MERGED_REVIEW_COMPLETED
+c1_composition_test_env_01: COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW
+c1_composition_test_env_01_tests: ARTISAN_COLLISION_VIEW_26_151_ARCHIVE_45_517_EXIT0_WARNINGS0
+c1_composition_test_env_01_full_suite: NOT_RUN_PREVIOUS_71_WARNING_DETAILS_AND_ENVIRONMENT_UNCONFIRMED
+c1_stat35_composition_archive_01: MERGED_REVIEW_COMPLETED_PR97
 c1_stat35_composition_archive_01_count_pages: RACES_24866_PAGES_249_LAST_66
 c1_stat35_composition_archive_01_purpose: IN_SAMPLE_SAVED_PREDICTION_ARCHIVE
 c1_stat35_composition_archive_01_verification: ORIGINAL_PREDICTIONS_ALL_OLD10_AND_AGGREGATES_EXACT_HTTP_SAVED_ARCHIVE_ONLY
 c1_stat35_composition_archive_01_training_inference_repackage_db_2026: NOT_PERFORMED
 c1_stat35_composition_archive_01_gate_ci_bootstrap: NOT_RUN
-c1_stat35_composition_archive_01_next: CODE_RESULT_SCREEN_REVIEW_ONLY
+c1_stat35_composition_archive_01_next: ACCEPTED_NO_RERUN
 pr96_residuals: FULL_SUITE_26_WARNINGS_DETAILS_UNCONFIRMED_OLD_FIXTURE_PARENT_TEARDOWN_RETIREMENT_UNRESOLVED
 c1_stat35_composition_view_01: MERGED_REVIEW_COMPLETED_PR96
 c1_stat35_composition_view_01_access: FLAG_LOCAL_LOOPBACK_GET_ONLY_DEFAULT_DISABLED
@@ -1046,7 +1051,8 @@ BT-03E-02以降で利用する場合は、
 | C1-STAT35-COMPOSITION-REQUEST-01 | 固定入力のレース指定・依頼保存・参照・再利用・再現 | MERGED_REVIEW_COMPLETED_PR94 | PR94 P2修正・再seal不正拒否。旧10show/新10技術操作/予測bytes-SHA一致、旧244ファイル・モデルコード96不変、学習/repackage/性能評価0は当時の記録、15.66.1参照 |
 | C1-STAT35-COMPOSITION-RESULT-01 | 保存予測と固定2025結果の照合・保存・参照・再現 | MERGED_REVIEW_COMPLETED_PR95 | 事故後の限定再実装。固定10件、位置Hit@3 8/27・Primary完全順序0/9、独立再現/既存Evaluator参照一致。未知データ精度・採用の証明ではない、15.67参照 |
 | C1-STAT35-COMPOSITION-VIEW-01 | 保存固定10件のローカル閲覧GET一覧・詳細 | MERGED_REVIEW_COMPLETED_PR96 | PR95受入束だけを検証して表示。旧6画面実績は15.68へ保持。全体26 warnings詳細・旧親tearDown退避は未解決として別管理 |
-| C1-STAT35-COMPOSITION-ARCHIVE-01 | 保存2025年予測24,866件の年次対応・100件ページング・完全一致検索・詳細 | COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW | 新規1回/249頁/最終66件、全原予測・旧10件・全寄与集約一致、原本不可視HTTP/12画面成功。IN_SAMPLE用途のみ、学習/推論/DB/2026/Gateなし。15.69参照 |
+| C1-STAT35-COMPOSITION-ARCHIVE-01 | 保存2025年予測24,866件の年次対応・100件ページング・完全一致検索・詳細 | MERGED_REVIEW_COMPLETED_PR97 | 新規1回/249頁/最終66件、全原予測・旧10件・全寄与集約一致、原本不可視HTTP/12画面成功。IN_SAMPLE用途のみ、学習/推論/DB/2026/Gateなし。15.69の過去実績を保持 |
+| C1-COMPOSITION-TEST-ENV-01 | 閲覧系テストの人工.env欠落だけを修正 | COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW | Artisan/CollisionでView26/151・Archive45/517を各1回、警告/失敗0。アプリ/成果物/helper不変、通常全体は未実行、15.70参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3936,6 +3942,17 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.70 C1-COMPOSITION-TEST-ENV-01 / 2026-10-11
+
+PR97受入・マージ完了、clean main/ローカルorigin `1eed67740986aae7e52096a935b60015b32d7de1`から `fix/composition-http-test-env-01`を作成、fetchなし。
+既存HTTP2クラスのcreateApplication内で、専用人工rootの.envをKernel起動前・既存try内へ排他的新規作成。コメントと改行だけ、書込み/flush確認、各代表3 assertions追加。設定/期待値/アプリ/helper/tearDown不変。
+前回代表警告と同じPHP8.5.4・既存隔離・Artisan/Collisionで各1回: View26 tests/151 assertions、Archive45/517、欠落.env/その他警告0・失敗/エラー/skip0・exit0。構文2件・限定Pint成功。
+原本.env/storage/cache/成果物不可視・ネットワーク/DB sockets遮断、記録済みpathだけを既存helperで人工Trashへ退避。警告抑制/依存無効化の追加なし。
+通常全体/年次生成/実照合execute/reproduce/学習/予測再生成/repackage各0回、DB/Redis/外部HTTP/2026アクセス0。
+過去ユーザー全体71 warnings/9 skipped/3386 passed/32078 assertionsを保持。代表2件は人工.env欠落（phpdotenv Reader.php:73）確認済みだが、全71本文/当時の全環境は未確認。PR97マージを妨げない残件として扱った判断を維持。
+今回71ケース警告0を通常全体の解消へ転用しない。旧tearDown残件と15.69の実生成/hash/画面記録は変更しない。
+証跡 `/home/shinya/neo-keirin-artifacts/c1-stat35-composition-final-01/composition-test-env-review-20261010-220455-e01b5a01/`、実コマンド・隔離差・詳細は `docs/c1-composition-test-environment-01.md`。未コミットで限定差分レビューだけを待つ。
+
 ## 15.69 C1-STAT35-COMPOSITION-ARCHIVE-01 / 2026-10-10
 
 PR96を受入・マージ完了としてmain/origin `f1d3829bb38f40f1025353d7cbe3cdf06b3abbab`から専用feature branchを作成。
@@ -4391,6 +4408,11 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.64 / 2026-10-11
+
+PR97受入・マージ/main1eed677を同期。閲覧系HTTPテスト2クラスの人工.env作成だけを修正し、Artisan/Collisionで26/151と45/517・警告0を15.70へ記録。
+過去全体71 warnings/9 skipped/3386 passed/32078 assertions、代表2件の確認、全71本文/全環境未確認を今回と分離。アプリ/旧成果物/退避helper不変、通常全体/年次生成/学習/repackageなし。次は限定差分レビューのみ。
 
 ## v1.63 / 2026-10-10
 
@@ -5165,8 +5187,13 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-STAT35-COMPOSITION-ARCHIVE-01 / COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW
-Current main = f1d3829bb38f40f1025353d7cbe3cdf06b3abbab / PR96_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Phase = C1-COMPOSITION-TEST-ENV-01 / COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW
+Current main = 1eed67740986aae7e52096a935b60015b32d7de1 / PR97_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Composition test environment = EXCLUSIVE_COMMENT_ONLY_ENV_BEFORE_KERNEL / TWO_TEST_CLASSES_ONLY / EXISTING_CONFIG_HELPER_TEARDOWN_UNCHANGED
+Composition test environment tests = ARTISAN_COLLISION_VIEW26_151_ARCHIVE45_517_ONCE_EACH / ENV_WARNINGS0_OTHER_WARNINGS0_ERRORS0_SKIP0_EXIT0 / PHP8.5.4_LINT_LIMITED_PINT
+Composition test environment evidence = composition-test-env-review-20261010-220455-e01b5a01 / SEE_15.70_AND_DOCS_C1_COMPOSITION_TEST_ENVIRONMENT
+Previous user full run = 71_WARNINGS_9_SKIPPED_3386_PASSED_32078_ASSERTIONS / TWO_ENV_WARNING_EXAMPLES_CONFIRMED / COMPLETE_OLD_MESSAGES_AND_ENV_UNCONFIRMED / NOT_PR97_MERGE_BLOCKER
+Previous accepted PR97 archive records (historical execution, not a rerun):
 Composition archive = FIXED_2025_SAVED_PREDICTIONS_24866_PAGES249_LAST66 / ORIGINAL_ALL_OLD10_AGGREGATES_EXACT / IN_SAMPLE_ONLY
 Composition archive verification = BUILD_ONCE_128M_26.808304SEC_PEAK38MiB / SOURCE8_AND_OLD_CODE_UNCHANGED / HTTP_ARCHIVE_ONLY_12_SCREENS_SEARCH_DETAIL_12551
 Composition archive tests = NEW43_507_RELATED75_391_128M_EXIT0 / LIMITED_PINT_CHANGED_PHP_LINT_DIFF / FULL_SUITE_NOT_RUN
@@ -5351,13 +5378,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_STAT35_COMPOSITION_VIEW_REVIEW_ONLY
+Next allowed action = C1_COMPOSITION_TEST_ENV_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Production writes / implementation beyond this limited final-composition phase = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the two HTTP test initialization changes and scoped documentation. PR97 is accepted and merged. View26/151 and Archive45/517 passed once each via Artisan/Collision with missing-env/other warnings0; no full-suite rerun. Preserve previous71-warning user record and unconfirmed full messages/environment; do not claim full-suite warning resolution. No original .env/storage/model/artifact changes, annual build, result execute/reproduce, training/inference/repackage, DB/Redis/HTTP/2026 access. See15.70 and docs/c1-composition-test-environment-01.md. Stop uncommitted for review.
+
+Previous handoff (v1.63, PR97 review-pending then; now MERGED_REVIEW_COMPLETED):
 Review only this saved 2025 archive code, results and screens. PR96 is accepted and merged. Build once: 24866 races/249 pages/last66; original predictions, old10 and all contribution aggregates exact. New43/507 and related75/391 pass at128M; archive-only HTTP, desktop/mobile12 screens and GET search/detail pass. No training/inference/repackage/business DB/Raw/2026/Gate/CI/bootstrap. IN_SAMPLE only, historical timing/generalization/adoption/freeze/LIVE=false, points=null. Own server/browser stopped; repository router restart instructions in docs/c1-stat35-composition-archive-01.md. Keep PR96 26 warnings details and old parent-teardown retirement unresolved separately. Preserve previous execution records and accident/recovery evidence. See15.69. Stop uncommitted for review.
 
 Previous handoff (v1.60, PR94 review-pending then; now MERGED_REVIEW_COMPLETED):

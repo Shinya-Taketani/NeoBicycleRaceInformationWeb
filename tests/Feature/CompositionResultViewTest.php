@@ -48,6 +48,18 @@ final class CompositionResultViewTest extends TestCase
             mkdir($root.'/'.$name, 0700);
         }
         try {
+            $environment = fopen($root.'/.env', 'xb');
+            if ($environment === false) {
+                throw new RuntimeException('Could not create the isolated test environment file.');
+            }
+            try {
+                $content = "# Isolated test fixture. No application secrets.\n";
+                if (fwrite($environment, $content) !== strlen($content) || ! fflush($environment)) {
+                    throw new RuntimeException('Could not write the isolated test environment file.');
+                }
+            } finally {
+                fclose($environment);
+            }
             $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
             $this->traitsUsedByTest = class_uses_recursive(self::class);
             $app->useEnvironmentPath($root);
@@ -80,6 +92,9 @@ final class CompositionResultViewTest extends TestCase
 
     public function test_index_uses_verified_saved_metrics_once_and_has_ten_detail_links(): void
     {
+        $this->assertSame($this->temporary->path().'/.env', $this->app->environmentFilePath());
+        $this->assertFileExists($this->app->environmentFilePath());
+        $this->assertSame("# Isolated test fixture. No application secrets.\n", file_get_contents($this->app->environmentFilePath()));
         $saved = $this->bundle();
         $before = $this->inventory($saved['path']);
         $response = $this->localGet('/development/keirin/composition-results')->assertOk()->assertHeader('Cache-Control', 'no-store, private');
