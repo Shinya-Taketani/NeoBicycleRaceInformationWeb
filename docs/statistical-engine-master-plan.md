@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.64
+- Version: 1.65
 - Created: 2026-08-23
 - Updated: 2026-10-11
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `1eed67740986aae7e52096a935b60015b32d7de1`（今回のローカルorigin/main確認、fetchなし）
-- Current review: PR97受入・マージ完了。限定的な閲覧系テスト環境整備の差分レビュー待ち
-- Current code: 既存HTTPテスト2クラスの人工rootへKernel起動前にコメントだけの.envを排他的新規作成。既存アプリ・設定・成果物・安全helper・tearDown不変
-- Current execution record: COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW。人工Fixtureのみ、通常全体/年次生成/実照合/学習/予測再生成/repackage/DB/2026なし、15.70参照
-- Current tests record: Artisan/CollisionでView26/151・Archive45/517を各1回、欠落.env/その他警告0・失敗/エラー/skip0・exit0。変更PHP2件構文・限定Pint成功。過去全71警告の本文/全環境は未確認
+- Remote `main` at last update: `90520bbd47d8192efe6fa01f102edf05062b46f0`（今回のローカルorigin/main確認、fetchなし）
+- Current review: PR98 MERGED_REVIEW_COMPLETED。C1-TACTICAL-INPUT-READINESS-01の限定コード・候補証跡レビュー待ち
+- Current code: 新規専用namespace/Commandで固定C1の脚質・ラインをREAD ONLY抽出、候補保存・offline再現。旧モデル・数値契約・原本・安全helper不変
+- Current execution record: TACTICAL_INPUT_PARTIAL_READINESS_AWAITING_REVIEW。99,669レース/706,051出走正常対応、脚質100%、ライン全NULL、列専用取得時点全件未確認。7意味ファイル/manifest一致、15.71参照
+- Current tests record: 専用27/167・安全helper関連27/119、独立128Mの100MiB超実build・途中改変拒否、7PHP構文/限定Pint成功。通常全体未実行
+- Previous execution/tests record (PR98): 15.70の人工.env限定修正・Artisan/Collision View26/151・Archive45/517・警告0は受入済みの当時の記録。過去全71警告の本文/全環境未確認と区別
 - Previous execution/tests record (PR97): COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW当時の2025保存予測24,866件/249頁/最終66件、新規43/507・直接関連75/391/128M・全原予測/旧10件/寄与再集約一致・原本なしHTTP/12画面は15.69へ保持。後続ユーザー全体71 warnings/9 skipped/3386 passed/32078 assertionsは今回の限定実行と区別
 - Previous execution/tests record (PR96): 15.68のHTTP26/148・関連44/229・固定10件の隔離HTTPとPC/mobile6画面は当時の記録として保持
 - Previous execution/tests record (PR95): 15.67の限定再実装44/229・関連11/140・実照合/再現を当時の記録として保持。Codex終了後の3386 passed/31416 assertions/9 skipped/322.99秒は後続ユーザー実行記録で、今回Codex実行ではない
@@ -182,18 +183,25 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW
+current_engine_state: TACTICAL_INPUT_PARTIAL_READINESS_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_COMPOSITION_TEST_ENV_REVIEW_ONLY
+next_allowed_action: C1_TACTICAL_INPUT_READINESS_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
-current_phase: C1-COMPOSITION-TEST-ENV-01
-remote_main: 1eed67740986aae7e52096a935b60015b32d7de1
+current_phase: C1-TACTICAL-INPUT-READINESS-01
+remote_main: 90520bbd47d8192efe6fa01f102edf05062b46f0
 pr93_status: MERGED_REVIEW_COMPLETED
 pr94_status: MERGED_REVIEW_COMPLETED
 pr95_status: MERGED_REVIEW_COMPLETED
 pr96_status: MERGED_REVIEW_COMPLETED
 pr97_status: MERGED_REVIEW_COMPLETED
-c1_composition_test_env_01: COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW
+pr98_status: MERGED_REVIEW_COMPLETED
+c1_tactical_input_readiness_01: PARTIAL_READINESS_AWAITING_REVIEW
+c1_tactical_input_readiness_01_cohort: RACES_99669_ENTRIES_706051_MATCHED_706051_MISMATCHED_0
+c1_tactical_input_readiness_01_values: STYLE_706051_NORMALIZABLE_706051_LINE_ALL_NULL
+c1_tactical_input_readiness_01_timing: VERIFIED_0_UNKNOWN_706051_HISTORICAL_AS_OF_FALSE
+c1_tactical_input_readiness_01_reproduction: SEVEN_FILES_AND_MANIFEST_IDENTICAL_OFFLINE_128M
+c1_tactical_input_readiness_01_training_evaluation_2026: NOT_AUTHORIZED_NOT_PERFORMED
+c1_composition_test_env_01: MERGED_REVIEW_COMPLETED_PR98
 c1_composition_test_env_01_tests: ARTISAN_COLLISION_VIEW_26_151_ARCHIVE_45_517_EXIT0_WARNINGS0
 c1_composition_test_env_01_full_suite: NOT_RUN_PREVIOUS_71_WARNING_DETAILS_AND_ENVIRONMENT_UNCONFIRMED
 c1_stat35_composition_archive_01: MERGED_REVIEW_COMPLETED_PR97
@@ -726,6 +734,7 @@ completed_phases:
   - C1-P12-FIXED-MARGINAL-P3-01_FIXED_MODEL_COMPARISON_AND_INDEPENDENT_DECODE_EVALUATION
   - C1-P23-NONDECREASING-MARGINAL-01_FIXED_MODEL_COMPARISON_AND_INDEPENDENT_DECODE_EVALUATION
   - C1-STAT35-P1-COMPOSITION-01_SAVED_UTILITY_FORWARD_COMPARISON_AND_INDEPENDENT_REPRODUCTION
+  - C1-COMPOSITION-TEST-ENV-01_PR98_MERGED_REVIEW_COMPLETED
 
 superseded_phases:
   - BT-03D-PREDICTIVE-SELECTION
@@ -1052,7 +1061,8 @@ BT-03E-02以降で利用する場合は、
 | C1-STAT35-COMPOSITION-RESULT-01 | 保存予測と固定2025結果の照合・保存・参照・再現 | MERGED_REVIEW_COMPLETED_PR95 | 事故後の限定再実装。固定10件、位置Hit@3 8/27・Primary完全順序0/9、独立再現/既存Evaluator参照一致。未知データ精度・採用の証明ではない、15.67参照 |
 | C1-STAT35-COMPOSITION-VIEW-01 | 保存固定10件のローカル閲覧GET一覧・詳細 | MERGED_REVIEW_COMPLETED_PR96 | PR95受入束だけを検証して表示。旧6画面実績は15.68へ保持。全体26 warnings詳細・旧親tearDown退避は未解決として別管理 |
 | C1-STAT35-COMPOSITION-ARCHIVE-01 | 保存2025年予測24,866件の年次対応・100件ページング・完全一致検索・詳細 | MERGED_REVIEW_COMPLETED_PR97 | 新規1回/249頁/最終66件、全原予測・旧10件・全寄与集約一致、原本不可視HTTP/12画面成功。IN_SAMPLE用途のみ、学習/推論/DB/2026/Gateなし。15.69の過去実績を保持 |
-| C1-COMPOSITION-TEST-ENV-01 | 閲覧系テストの人工.env欠落だけを修正 | COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW | Artisan/CollisionでView26/151・Archive45/517を各1回、警告/失敗0。アプリ/成果物/helper不変、通常全体は未実行、15.70参照 |
+| C1-COMPOSITION-TEST-ENV-01 | 閲覧系テストの人工.env欠落だけを修正 | MERGED_REVIEW_COMPLETED_PR98 | Artisan/CollisionでView26/151・Archive45/517を各1回、警告/失敗0。アプリ/成果物/helper不変、通常全体は未実行、15.70の当時の記録を保持 |
+| C1-TACTICAL-INPUT-READINESS-01 | 固定C1の脚質・ラインの出典/時点確認と候補接続 | PARTIAL_READINESS_AWAITING_REVIEW | 99,669レース/706,051出走正常対応、脚質100%、ライン全NULL/専用時点未確認。7意味ファイル/manifest独立一致、学習/評価/2026なし、15.71参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3942,6 +3952,18 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.71 C1-TACTICAL-INPUT-READINESS-01 / 2026-10-11
+
+PR98受入・マージ完了、clean main/ローカルorigin `90520bbd47d8192efe6fa01f102edf05062b46f0` から専用feature branchを作成。ユーザーの限定許可で出走表属性だけを調査し、STAT-17/18/28/29原本を確認した。
+固定C1結果非依存入力・既存target抽出・本人対応のmanifest/COMPLETE/共通出典を照合。99,669レース/706,051出走のID/車番/日付/内部外部本人対応が全件一致、不一致0。
+READ ONLY/REPEATABLE READ、SQL側の固定対象と2022〜2025日付限定で脚質/ライン/限定時点メタデータのみSTART/END抽出。一致hash `aa8cd4986f3fdfd4f0b6d1d5e753065dddec894110b3de24cb599897ab2c7c26`、rollback/disconnect、DB write0。結果/払戻/現在プロフィール/2026は未参照。
+脚質は逃203,454/追360,318/両142,279、NULL/空/未知0、全件正規化可能。ラインは全706,051件NULL、現行保存元未確認。脚質をライン役割へ置換せず、継続/変更履歴を0で補完しない。
+汎用fetched_atはJSJ017/PJ0315で更新されるため列専用観測証明としない。時点検証済み0/UNKNOWN706,051、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、精度改善NOT_MEASURED。
+専用v1でaudit34.559685秒/peak32MiB、build7.837097秒/peak30MiB、reproduce8.394428秒/peak30MiB、全128M/exit0。元資料/DB/Raw/HTTP不可視の独立再現で7意味ファイルとmanifest完全一致。
+成果物 `/home/shinya/neo-keirin-artifacts/c1-tactical-input-readiness-01/run-20261010-224221-fb937a1d/`、candidate/reproduce manifest SHA `f3b00f73843427da4b57d1827c877992423da77d2104cbe00c187fd552a82ab3`。専用27/167・安全helper関連27/119、独立100MiB超実build/途中改変拒否、7PHP構文/限定Pint成功。初期隔離device/人工接続/出力名衝突の失敗ログも保持。
+PARTIAL_READINESS、次はコード・候補証跡レビューのみ。登録脚質3カテゴリは未承認候補、ライン/STAT18/29は不足、次のP2/P3比較は時点取扱いと入力定義の追加承認が必要。旧C1/正式モデル/成果物/原本.env/storage/helper不変、通常全体/学習/評価/bootstrap/推論/repackage/取得/2026は0回。
+詳細とコマンド・年別coverage・原本SHA・保存sealは `docs/c1-tactical-input-readiness-01.md`。15.70と過去71警告の未確認記録は当時の状態として保持する。
+
 ## 15.70 C1-COMPOSITION-TEST-ENV-01 / 2026-10-11
 
 PR97受入・マージ完了、clean main/ローカルorigin `1eed67740986aae7e52096a935b60015b32d7de1`から `fix/composition-http-test-env-01`を作成、fetchなし。
@@ -4408,6 +4430,11 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.65 / 2026-10-11
+
+PR98 MERGED_REVIEW_COMPLETED、main/origin90520bbを同期。C1-TACTICAL-INPUT-READINESS-01の限定許可・全対象READ ONLY抽出・候補生成/独立再現を15.71へ記録。
+現在地/冒頭/工程表/引継ぎをPARTIAL_READINESSのレビュー待ちへ同期。脚質100%と発走前時点未確認、ライン全NULLを分離し、学習・精度評価・正式採用・2026は開放しない。PR98受入実績・旧警告記録は保持。
 
 ## v1.64 / 2026-10-11
 
@@ -5187,8 +5214,14 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-COMPOSITION-TEST-ENV-01 / COMPOSITION_HTTP_TEST_ENV_VERIFIED_AWAITING_REVIEW
-Current main = 1eed67740986aae7e52096a935b60015b32d7de1 / PR97_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Phase = C1-TACTICAL-INPUT-READINESS-01 / TACTICAL_INPUT_PARTIAL_READINESS_AWAITING_REVIEW
+Current main = 90520bbd47d8192efe6fa01f102edf05062b46f0 / PR98_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Tactical input = FIXED_C1_RACES99669_ENTRIES706051_ALL_MATCH / STYLE_ESCAPE203454_CHASE360318_BOTH142279 / LINE_ALL_NULL
+Tactical timing = VERIFIED0_UNKNOWN706051 / GENERIC_FETCHED_AT_NOT_FIELD_OBSERVATION / HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
+Tactical reproduction = SEVEN_FILES_AND_MANIFEST_EXACT_128M / DB_RAW_HTTP_AND_ORIGINAL_C1_UNAVAILABLE_OFFLINE
+Tactical tests = NEW27_167_HELPER_RELATED27_119 / INDEPENDENT_128M_OVER100MiB_REAL_BUILD_AND_MIDRUN_DRIFT_REJECTION / LINT7_LIMITED_PINT / FULL_SUITE_NOT_RUN
+Tactical evidence = c1-tactical-input-readiness-01/run-20261010-224221-fb937a1d / MANIFEST_f3b00f73843427da4b57d1827c877992423da77d2104cbe00c187fd552a82ab3 / SEE_15.71_AND_DOC
+Previous accepted PR98 test environment records (historical execution, not a rerun):
 Composition test environment = EXCLUSIVE_COMMENT_ONLY_ENV_BEFORE_KERNEL / TWO_TEST_CLASSES_ONLY / EXISTING_CONFIG_HELPER_TEARDOWN_UNCHANGED
 Composition test environment tests = ARTISAN_COLLISION_VIEW26_151_ARCHIVE45_517_ONCE_EACH / ENV_WARNINGS0_OTHER_WARNINGS0_ERRORS0_SKIP0_EXIT0 / PHP8.5.4_LINT_LIMITED_PINT
 Composition test environment evidence = composition-test-env-review-20261010-220455-e01b5a01 / SEE_15.70_AND_DOCS_C1_COMPOSITION_TEST_ENVIRONMENT
@@ -5378,13 +5411,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_COMPOSITION_TEST_ENV_REVIEW_ONLY
+Next allowed action = C1_TACTICAL_INPUT_READINESS_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Production writes / implementation beyond this limited final-composition phase = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the tactical readiness code and saved candidate evidence. PR98 is accepted and merged. All fixed99,669 races/706,051 entries match; registered styles are available but field timing is UNKNOWN, all line_text is NULL. PARTIAL_READINESS, not approval for P2/P3 training/evaluation, role inference, adoption or LIVE. Offline seven files and manifest match. No original .env/storage/model/artifact changes, full-suite rerun, annual build, inference/repackage, result/Raw/HTTP/2026 access or DB write. See15.71 and docs/c1-tactical-input-readiness-01.md. Stop uncommitted for review.
+
+Previous handoff (v1.64, PR98 review-pending then; now MERGED_REVIEW_COMPLETED):
 Review only the two HTTP test initialization changes and scoped documentation. PR97 is accepted and merged. View26/151 and Archive45/517 passed once each via Artisan/Collision with missing-env/other warnings0; no full-suite rerun. Preserve previous71-warning user record and unconfirmed full messages/environment; do not claim full-suite warning resolution. No original .env/storage/model/artifact changes, annual build, result execute/reproduce, training/inference/repackage, DB/Redis/HTTP/2026 access. See15.70 and docs/c1-composition-test-environment-01.md. Stop uncommitted for review.
 
 Previous handoff (v1.63, PR97 review-pending then; now MERGED_REVIEW_COMPLETED):
