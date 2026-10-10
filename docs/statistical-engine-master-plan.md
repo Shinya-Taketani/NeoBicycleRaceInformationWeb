@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.62
+- Version: 1.63
 - Created: 2026-08-23
 - Updated: 2026-10-10
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `40c76900c955dba2ab29d7f28eb96c4a14c43d14`（今回のローカルorigin/main確認、fetchなし）
-- Current review: PR95受入・マージ完了。保存済み固定10件のローカル閲覧GET画面・コードレビュー待ち
-- Current code: 専用Reader/Presenter・Controller・middleware・Blade/CSSと2GETを追加。既存トップ/モデル/依頼/結果照合のコードidentity・provider/bootstrap/依存不変
-- Current execution record: COMPOSITION_LOCAL_VIEW_VERIFIED_AWAITING_REVIEW。隔離した保存束読取りだけで一覧/37750/12542とPC/スマートフォン6画面・遷移を確認。DB/推論/実execute/reproduce/2026なし、15.68参照
-- Current tests record: 新規HTTP26/148・直接関連人工44/229、PHPUnit本体128M/exit0。7PHP構文・限定Pint成功。通常全体は今回未実行
+- Remote `main` at last update: `f1d3829bb38f40f1025353d7cbe3cdf06b3abbab`（今回のローカルorigin/main確認、fetchなし）
+- Current review: PR96受入・マージ完了。年次保存予測アーカイブのコード・結果・画面レビュー待ち
+- Current code: 年次専用streaming生成CLI・固定manifest閲覧Reader/Presenter・Controller・middleware・Blade/CSS/専用routerを追加。既存トップ/固定10件/モデル/依頼/照合のcode identity・provider/bootstrap/共通数値処理不変
+- Current execution record: COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW。2025保存予測24,866件/249頁/最終66件を新規1回生成。原予測全件・旧10件・全寄与再集約一致、原本なしHTTP/PC/mobile12画面・検索成功。学習/推論/repackage/DB/2026なし、15.69参照
+- Current tests record: 新規43/507・直接関連75/391、PHPUnit本体128M/exit0。変更PHP構文・限定Pint/diff確認。通常全体は今回未実行、PR96全体26 warnings詳細未確認・旧Fixture親tearDown退避残件は別管理
+- Previous execution/tests record (PR96): 15.68のHTTP26/148・関連44/229・固定10件の隔離HTTPとPC/mobile6画面は当時の記録として保持
 - Previous execution/tests record (PR95): 15.67の限定再実装44/229・関連11/140・実照合/再現を当時の記録として保持。Codex終了後の3386 passed/31416 assertions/9 skipped/322.99秒は後続ユーザー実行記録で、今回Codex実行ではない
 - Previous execution/tests record (PR94修正): SAVED_PREDICTION_VALIDATION_VERIFIED_AWAITING_REVIEW当時の旧10show/新10操作・予測一致。専用119/987・関連270/1860、通常全体3315 passed/31068 assertions/既存9 skipped/328.270秒/exit0は15.66.1に保持
 - Previous execution/tests record (PR94初版): 専用47/166・関連107/546、全体3243 passed/30247 assertions/既存9 skipped/319.894秒/exit0。旧store10依頼は保持、初版の記録は15.66へ保持
@@ -180,16 +181,25 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: COMPOSITION_LOCAL_VIEW_VERIFIED_AWAITING_REVIEW
+current_engine_state: COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_STAT35_COMPOSITION_VIEW_REVIEW_ONLY
+next_allowed_action: C1_STAT35_COMPOSITION_ARCHIVE_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
-current_phase: C1-STAT35-COMPOSITION-VIEW-01
-remote_main: 40c76900c955dba2ab29d7f28eb96c4a14c43d14
+current_phase: C1-STAT35-COMPOSITION-ARCHIVE-01
+remote_main: f1d3829bb38f40f1025353d7cbe3cdf06b3abbab
 pr93_status: MERGED_REVIEW_COMPLETED
 pr94_status: MERGED_REVIEW_COMPLETED
 pr95_status: MERGED_REVIEW_COMPLETED
-c1_stat35_composition_view_01: COMPOSITION_LOCAL_VIEW_VERIFIED_AWAITING_REVIEW
+pr96_status: MERGED_REVIEW_COMPLETED
+c1_stat35_composition_archive_01: COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW
+c1_stat35_composition_archive_01_count_pages: RACES_24866_PAGES_249_LAST_66
+c1_stat35_composition_archive_01_purpose: IN_SAMPLE_SAVED_PREDICTION_ARCHIVE
+c1_stat35_composition_archive_01_verification: ORIGINAL_PREDICTIONS_ALL_OLD10_AND_AGGREGATES_EXACT_HTTP_SAVED_ARCHIVE_ONLY
+c1_stat35_composition_archive_01_training_inference_repackage_db_2026: NOT_PERFORMED
+c1_stat35_composition_archive_01_gate_ci_bootstrap: NOT_RUN
+c1_stat35_composition_archive_01_next: CODE_RESULT_SCREEN_REVIEW_ONLY
+pr96_residuals: FULL_SUITE_26_WARNINGS_DETAILS_UNCONFIRMED_OLD_FIXTURE_PARENT_TEARDOWN_RETIREMENT_UNRESOLVED
+c1_stat35_composition_view_01: MERGED_REVIEW_COMPLETED_PR96
 c1_stat35_composition_view_01_access: FLAG_LOCAL_LOOPBACK_GET_ONLY_DEFAULT_DISABLED
 c1_stat35_composition_view_01_verification: VERIFIED_SAVED_BUNDLE_HTTP_AND_DESKTOP_MOBILE_SIX_SCREENS
 c1_stat35_composition_view_01_original_files_unchanged: 117
@@ -1035,7 +1045,8 @@ BT-03E-02以降で利用する場合は、
 | C1-STAT35-COMPOSITION-FINAL-01 | 保存構成候補の公開修正・再パッケージ・特徴量予測 | MERGED_REVIEW_COMPLETED_PR93 | REPACKAGE専用v3の配置後receiptで未公開移設を拒否。FIT/予測v2保護は維持。旧4path/8試行/37一致・全2025照合・公開v2/v3実績は過去記録、15.65.2参照 |
 | C1-STAT35-COMPOSITION-REQUEST-01 | 固定入力のレース指定・依頼保存・参照・再利用・再現 | MERGED_REVIEW_COMPLETED_PR94 | PR94 P2修正・再seal不正拒否。旧10show/新10技術操作/予測bytes-SHA一致、旧244ファイル・モデルコード96不変、学習/repackage/性能評価0は当時の記録、15.66.1参照 |
 | C1-STAT35-COMPOSITION-RESULT-01 | 保存予測と固定2025結果の照合・保存・参照・再現 | MERGED_REVIEW_COMPLETED_PR95 | 事故後の限定再実装。固定10件、位置Hit@3 8/27・Primary完全順序0/9、独立再現/既存Evaluator参照一致。未知データ精度・採用の証明ではない、15.67参照 |
-| C1-STAT35-COMPOSITION-VIEW-01 | 保存固定10件のローカル閲覧GET一覧・詳細 | COMPOSITION_LOCAL_VIEW_VERIFIED_AWAITING_REVIEW | PR95受入束だけを検証して表示。PC/スマートフォン6画面・遷移/保存値一致、原本117と旧code不変。DB/推論/実照合再実行0、15.68参照 |
+| C1-STAT35-COMPOSITION-VIEW-01 | 保存固定10件のローカル閲覧GET一覧・詳細 | MERGED_REVIEW_COMPLETED_PR96 | PR95受入束だけを検証して表示。旧6画面実績は15.68へ保持。全体26 warnings詳細・旧親tearDown退避は未解決として別管理 |
+| C1-STAT35-COMPOSITION-ARCHIVE-01 | 保存2025年予測24,866件の年次対応・100件ページング・完全一致検索・詳細 | COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW | 新規1回/249頁/最終66件、全原予測・旧10件・全寄与集約一致、原本不可視HTTP/12画面成功。IN_SAMPLE用途のみ、学習/推論/DB/2026/Gateなし。15.69参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3925,6 +3936,27 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.69 C1-STAT35-COMPOSITION-ARCHIVE-01 / 2026-10-10
+
+PR96を受入・マージ完了としてmain/origin `f1d3829bb38f40f1025353d7cbe3cdf06b3abbab`から専用feature branchを作成。
+最新ユーザー指示により固定2025保存予測・入力・labelsの年次対応と閲覧を限定許可。既存固定10件/モデル/依頼/照合のcode identityは不変。
+新規build1回、matched24,866/missing0/mismatched0、100件/頁・249頁・最後66件。26.808304秒/peak39,845,888 bytes/exit0。
+全原予測payload、旧10件のinput/Primary/全確率/結果/寄与/旧順小計、年次元順での全寄与再集約が厳密一致。source8と依存code END一致。
+年次集計: P1 9,928/24,789=40.0500%、P2 5,740/24,727=23.2135%、P3 4,680/24,739=18.9175%、位置Hit@3 20,275/73,989=27.4027%、Primary完全順序1,183/24,663=4.7967%。学習期間内照合で、将来精度改善の証明ではない。
+元年次資料/モデル/DB不可視のHTTPで先頭/次/末尾/検索37750/12542/旧10件外12551とPC/mobile12画面確認。PHP128M・HTTP0.05～0.07秒/peak8～12MiB、自分のserver/browserは終了。
+新規人工43/507・旧閲覧/照合/E05直接関連75/391、128M成功。初回テスト2件と独立参照加算順の失敗ログを保持し、確認処理だけを修正して通過。通常全体未実行。
+出力 `composition-archive-review-20261010-172936/archive-2025`、manifest113,784 bytes/SHA `22c1f8b8b9f3ea7e72a041b4c5395ea84b2c211e532ce5405e1fe74eb0d344b8`。新規専用configへpin固定、旧成果物は上書きしない。
+IN_SAMPLE_SAVED_PREDICTION_ARCHIVE、historical_as_of/generalization/adoption/freeze/LIVE=false、points=null、Gate/CI/bootstrap NOT_RUN、2026 FORBIDDENを維持。
+確認・検証予算は累積30分以内、実装別。初期確認の保守的600秒枠と実行/手動確認区間をintervals.jsonlへ記録。
+PR96の全体26 warnings詳細未確認・旧Fixture親tearDown例外時退避は未解決として保持。新Fixtureだけはfinallyで記録済みpathを退避する。
+詳細・実コマンド・再起動router・小型review ZIPは `docs/c1-stat35-composition-archive-01.md`。次は今回のコード/結果/画面レビューのみ。
+
+### PR97 P2リンク表示修正 / 2026-10-11
+
+年次一覧の固定10件リンクを `composition_result_view.enabled === true` の場合だけ表示。無効時非表示・有効時表示、現在地常時表示。設定既定値・起動方法・アクセス制御・生成版/pinは変更しない。
+追加HTTP2件のみを既存隔離/128Mで検証し、2 tests / 7 assertions、警告0、skip0、0.228秒（隔離起動込み0.403029秒）/exit0。限定Pint・変更PHP/Blade構文もexit0。実固定10件束へのアクセス確認は行わない。
+実アーカイブ再生成・学習・repackage・通常全体テストは各0回。旧実績・未調査警告は過去記録のまま保持。新ログは `pr97-link-review-20261010-205654-f7b27d1c`（専用文書に絶対パス）。次は修正差分のレビューのみ。
+
 ## 15.68 C1-STAT35-COMPOSITION-VIEW-01 / 2026-10-10
 
 PR95受入・マージ完了。開始main/ローカルorigin `40c76900c955dba2ab29d7f28eb96c4a14c43d14`、clean確認後 `feature/c1-stat35-composition-view-01` を作成。main直接編集なし。
@@ -4359,6 +4391,11 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.63 / 2026-10-10
+
+PR96受入・マージ/main f1d3829を同期。保存2025年24,866件の年次アーカイブ1回生成・249頁/検索/詳細・元資料不可視HTTP/12画面・全予測/旧10件/集約一致を15.69へ記録。
+冒頭/現在地/工程表/引継ぎをCOMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEWへ同期。既存code/成果物不変、旧警告/退避残件は別管理、次は限定レビューだけ。正式採用/LIVE/2026/Gateは開放しない。
 
 ## v1.62 / 2026-10-10
 
@@ -5128,8 +5165,14 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-STAT35-COMPOSITION-VIEW-01 / COMPOSITION_LOCAL_VIEW_VERIFIED_AWAITING_REVIEW
-Current main = 40c76900c955dba2ab29d7f28eb96c4a14c43d14 / PR95_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Phase = C1-STAT35-COMPOSITION-ARCHIVE-01 / COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW
+Current main = f1d3829bb38f40f1025353d7cbe3cdf06b3abbab / PR96_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Composition archive = FIXED_2025_SAVED_PREDICTIONS_24866_PAGES249_LAST66 / ORIGINAL_ALL_OLD10_AGGREGATES_EXACT / IN_SAMPLE_ONLY
+Composition archive verification = BUILD_ONCE_128M_26.808304SEC_PEAK38MiB / SOURCE8_AND_OLD_CODE_UNCHANGED / HTTP_ARCHIVE_ONLY_12_SCREENS_SEARCH_DETAIL_12551
+Composition archive tests = NEW43_507_RELATED75_391_128M_EXIT0 / LIMITED_PINT_CHANGED_PHP_LINT_DIFF / FULL_SUITE_NOT_RUN
+Composition archive evidence = composition-archive-review-20261010-172936 / ARCHIVE_MANIFEST_22c1f8b8b9f3ea7e72a041b4c5395ea84b2c211e532ce5405e1fe74eb0d344b8 / OWN_SERVER_BROWSER_STOPPED
+PR96 residuals = FULL_SUITE26_WARNINGS_DETAILS_UNCONFIRMED / OLD_FIXTURE_PARENT_TEARDOWN_RETIREMENT_UNRESOLVED / NOT_SOLVED_BY_THIS_PHASE
+Previous accepted PR96 view records (historical execution, not a rerun):
 Composition view = TWO_LOCAL_LOOPBACK_FLAGGED_GETS_ONLY / DEFAULT_DISABLED / TOP_ROUTE_UNCHANGED / NO_STATEFUL_SESSION_OR_INFERENCE
 Composition view verification = SAVED_BUNDLE_ONLY_ISOLATED_HTTP200_INDEX_37750_12542 / DESKTOP1440_MOBILE390_SIX_SCREENS_AND_LINK / SOURCE117_AND_EXISTING_THREE_CODE_IDENTITIES_UNCHANGED
 Composition view tests = NEW26_148_RELATED44_229_128M_EXIT0 / SEVEN_PHP_LINT_LIMITED_PINT / FULL_SUITE_NOT_RUN_BY_CODEX
@@ -5315,7 +5358,7 @@ Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
-Review only the local composition-view GETs and screenshots. PR95 is accepted and merged. Verified saved bundle only: index/37750/12542 HTTP200, desktop/mobile six screens and list-to-detail link, exact saved metrics/probabilities/decisions, original117 and existing three code identities unchanged. Own server/browser stopped; restart instructions in docs/c1-stat35-composition-view-01.md. No real execute/reproduce, inference, DB/Redis/Raw/annual data or2026. New26/148 and related44/229 are current Codex tests; user subsequent3386/31416/9skip/322.99sec is a separate PR95 record. Preserve historical timing/adoption/freeze/LIVE restrictions and accident/recovery evidence. See15.68. Stop uncommitted for review.
+Review only this saved 2025 archive code, results and screens. PR96 is accepted and merged. Build once: 24866 races/249 pages/last66; original predictions, old10 and all contribution aggregates exact. New43/507 and related75/391 pass at128M; archive-only HTTP, desktop/mobile12 screens and GET search/detail pass. No training/inference/repackage/business DB/Raw/2026/Gate/CI/bootstrap. IN_SAMPLE only, historical timing/generalization/adoption/freeze/LIVE=false, points=null. Own server/browser stopped; repository router restart instructions in docs/c1-stat35-composition-archive-01.md. Keep PR96 26 warnings details and old parent-teardown retirement unresolved separately. Preserve previous execution records and accident/recovery evidence. See15.69. Stop uncommitted for review.
 
 Previous handoff (v1.60, PR94 review-pending then; now MERGED_REVIEW_COMPLETED):
 Review only PR94 saved-prediction validation fix: resealed invalid probabilities/decisions rejected before publication and in show/REUSED/reproduce; existing calculator/E06 mathematical verification uses saved utility only, not model/annual/Forward for saved reads. Old ten requests readable and all244 old-store files unchanged; new ten requests created/shown/reused/reproduced with prediction bytes/SHA identical, all exit0 in separate128M processes. Model code96/package/input unchanged; real training/repackage/performance evaluation0. Keep unknown historical timing, adoption/freeze/LIVE=false, points=null and2026 closed. No DB/HTTP/Raw/another phase. See15.66.1 and docs/c1-stat35-composition-request-01.md. Stop uncommitted for review.
