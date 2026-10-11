@@ -3964,6 +3964,13 @@ READ ONLY/REPEATABLE READ、SQL側の固定対象と2022〜2025日付限定で�
 PARTIAL_READINESS、次はコード・候補証跡レビューのみ。登録脚質3カテゴリは未承認候補、ライン/STAT18/29は不足、次のP2/P3比較は時点取扱いと入力定義の追加承認が必要。旧C1/正式モデル/成果物/原本.env/storage/helper不変、通常全体/学習/評価/bootstrap/推論/repackage/取得/2026は0回。
 詳細とコマンド・年別coverage・原本SHA・保存sealは `docs/c1-tactical-input-readiness-01.md`。15.70と過去71警告の未確認記録は当時の状態として保持する。
 
+### PR99 P2: reproduceのmanifest完全一致 / 2026-10-11
+
+既存feature branch / HEAD `3d184c674d56129fba7a71f273e40eacc86ae308` から限定修正。Builderは公開予定manifestを一つの配列にし、codeを含む全フィールドを原candidateと公開前に比較。予定bytes/SHAも照合し、不一致はCOMPLETE非公開・FAILED保持。公開後manifest/COMPLETE検証と原candidateとのmanifest bytes/SHA一致まで成功した場合だけIDENTICALとする。
+人工正常再現と、7ファイル/source_manifestが同じでcodeだけ異なる正しくseal済み候補の拒否をArtisan/Collision・PHP8.5.4・親/子128Mで確認。修正前2 tests/24 assertions・1失敗/警告0/exit1で不備検出、修正後2 tests/30 assertions・失敗/エラー/警告0/exit0。原candidate不変・FAILED保持・COMPLETEなしを確認。変更PHP2件構文・限定Pint `--test`・`git diff --check` 成功、既存テスト削除/緩和/skipなし。
+証跡 `/home/shinya/neo-keirin-artifacts/c1-tactical-input-readiness-01/pr99-p2-review-20261011-084033-75175f50/` にargv・stdout/stderr・イベント・JUnit・exit・実行秒数を保持。実.env/storage/cache/正式資料不可視、network/DB socket遮断、既存helperの記録済み人工pathだけ退避、永久削除なし。
+旧正式成果物変更0、DB再抽出/正式audit/build/reproduce/通常全体/学習/評価/予測再生成/2026参照0回。上記99,669レース/706,051出走・脚質3種類・ライン全NULL・時点確認0・旧manifest SHAと再現実績は当時の記録で、修正版の実データ再集計/再現結果ではない。PARTIAL_READINESS、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、次はPR99修正差分レビューのみを維持。
+
 ## 15.70 C1-COMPOSITION-TEST-ENV-01 / 2026-10-11
 
 PR97受入・マージ完了、clean main/ローカルorigin `1eed67740986aae7e52096a935b60015b32d7de1`から `fix/composition-http-test-env-01`を作成、fetchなし。

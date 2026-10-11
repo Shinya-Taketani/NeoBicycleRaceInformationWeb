@@ -103,3 +103,26 @@ php -d memory_limit=128M artisan keirin:c1:tactical-input-readiness reproduce --
 従来C1関連テストには永久削除tearDownがあるため今回は実行せず、利用する固定接続/Validator/Stream/Artifactsの回帰経路を専用人工テスト内で確認した。通常全体・旧Raw全量監査は未実施。
 
 次のP2/P3比較に検討できるのは、意味・本人対応を確認した登録脚質3カテゴリの**未承認候補**だけ。歴史的発走前入力としての保証はない。ライン役割・STAT-18/29履歴は利用不可。次工程の時点取扱い・入力定義・比較開始は追加承認が必要で、自動的に学習や精度評価へ進まない。
+
+## PR99 P2: reproduceのmanifest完全一致 / 2026-10-11
+
+開始branch `feature/c1-tactical-input-readiness-01`、HEAD `3d184c674d56129fba7a71f273e40eacc86ae308`、clean確認後の限定修正。Builderは公開予定manifestを一つの配列へ組み立て、`version/kind/historical_as_of_available/prediction_use/source_manifest/files/code` 全体を原candidateと公開前に比較する。公開予定bytes/SHAも確認し、不一致はCOMPLETE発行前に例外で停止してFAILEDを保持する。公開後はmanifest/COMPLETEを検証し、原candidateとmanifestのbytes/SHAが一致する場合だけ `IDENTICAL` を返す。
+
+人工snapshotの既存正常再現を拡張し、7ファイル・source_manifest・code・manifest全体・bytes/SHA・COMPLETEの一致を確認した。追加回帰は7ファイル/source_manifestを変えず、code内のBuilder SHAだけ異なる別candidateを新規作成し、整合するmanifest/COMPLETEで `Contract::published()` を通過させる。その候補の再現を完全manifest比較で拒否し、新出力のmanifest/COMPLETEなし・FAILEDあり・原candidate不変を確認した。
+
+| 人工検証 | 件数 | assertions | warnings | 失敗 / エラー | exit |
+| --- | ---: | ---: | ---: | --- | ---: |
+| 修正前（追加回帰による不備検出） | 2 | 24 | 0 | 1 / 0 | 1 |
+| 修正後（正常再現＋code不一致拒否） | 2 | 30 | 0 | 0 / 0 | 0 |
+
+PHP `/usr/bin/php8.5` / 8.5.4、Artisan/Collision、親PHPとPHPUnit子プロセスとも128M。実際のargv・stdout/stderr・イベント・JUnit・exit・実行秒数は次の専用証跡へ保存した:
+
+`/home/shinya/neo-keirin-artifacts/c1-tactical-input-readiness-01/pr99-p2-review-20261011-084033-75175f50/`
+
+```bash
+/usr/bin/php8.5 -d memory_limit=128M artisan test tests/Feature/TacticalInputReadinessTest.php --filter='test_shuffled_records_join_by_identity_and_reproduce_without_original_sources|test_reproduce_rejects_sealed_candidate_with_only_different_code_without_publication' -d memory_limit=128M --display-all-issues --log-events-text "$EVIDENCE/after/events.log" --log-junit "$EVIDENCE/after/junit.xml" --do-not-cache-result --no-ansi
+```
+
+`EVIDENCE`は上記絶対パス。既存bwrap隔離で実.env/storage/cacheと正式成果物を不可視にし、ネットワーク/DB socketを遮断。既存runnerと同じ `PAO_DISABLE=1`、人工Desktop/Trashと新証跡だけを書込み可能にした。後片付けは既存helperの保持オブジェクトpathのみを人工Trashへ退避し、永久削除なし。変更PHP2件の構文検査・2件限定Pint `--test`・`git diff --check` は成功。
+
+旧正式成果物への変更0件、DB再抽出・正式audit/build/reproduce・通常全体テスト・学習・評価・予測再生成・2026参照は各0回。前節の実測件数、7ファイル/manifest一致とSHA `f3b00f73843427da4b57d1827c877992423da77d2104cbe00c187fd552a82ab3` は旧コード実行時の記録を維持する。今回の人工回帰を正式資料の再現成功へ読み替えず、変更済みcodeと旧candidateの不一致を成功扱いにしない。PARTIAL_READINESS、`historical_as_of_available=false`、`prediction_use=NOT_AUTHORIZED` と追加承認待ちは不変。未コミットでPR99再レビュー待ち。

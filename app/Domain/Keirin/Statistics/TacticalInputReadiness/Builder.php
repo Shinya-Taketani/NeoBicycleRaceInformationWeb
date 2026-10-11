@@ -101,16 +101,25 @@ final class Builder
             foreach ($streams as $year => $stream) {
                 $files['tactical-input-'.$year.'.jsonl'] = $stream->finish();
             }
+            $candidateManifest = ['version' => Contract::VERSION, 'kind' => 'CANDIDATE', 'historical_as_of_available' => false,
+                'prediction_use' => 'NOT_AUTHORIZED', 'source_manifest' => $sourceSeal, 'files' => $files, 'code' => $code];
             if ($reference !== null) {
-                Files::same($reference['files'], $files, 'offline reproduction files');
-                Files::same($reference['source_manifest'], $sourceSeal, 'reproduction snapshot');
-                Contract::published($original, 'CANDIDATE');
+                Files::same($reference, $candidateManifest, 'offline reproduction manifest');
+                Files::same($reference, Contract::published($original, 'CANDIDATE'), 'original candidate START/END');
+                $referenceSeal = Files::identity($original.'/manifest.json');
+                $manifestBytes = Files::canonical($candidateManifest)."\n";
+                Files::same($referenceSeal, ['bytes' => strlen($manifestBytes), 'sha256' => hash('sha256', $manifestBytes)],
+                    'offline reproduction manifest seal');
             }
             Contract::published($snapshot, 'AUDIT');
             Files::verify($snapshot.'/manifest.json', $sourceSeal);
             Files::same($code, Contract::code(), 'candidate code START/END');
-            Artifacts::publish($output, ['version' => Contract::VERSION, 'kind' => 'CANDIDATE', 'historical_as_of_available' => false,
-                'prediction_use' => 'NOT_AUTHORIZED', 'source_manifest' => $sourceSeal, 'files' => $files, 'code' => $code]);
+            Artifacts::publish($output, $candidateManifest);
+            Files::same($candidateManifest, Contract::published($output, 'CANDIDATE'), 'published candidate manifest');
+            if ($reference !== null) {
+                Files::verify($original.'/manifest.json', $referenceSeal);
+                Files::same($referenceSeal, Files::identity($output.'/manifest.json'), 'offline reproduction manifest seal');
+            }
 
             return ['status' => 'PARTIAL_READINESS', 'years' => $years, 'reproduction' => $reference === null ? 'NOT_RUN' : 'IDENTICAL'];
         } catch (\Throwable $e) {

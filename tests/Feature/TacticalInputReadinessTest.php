@@ -104,8 +104,62 @@ final class TacticalInputReadinessTest extends TestCase
         $this->assertSame(5, $a['years'][2024]['matched']);
         $this->assertSame(0, $a['years'][2024]['timing_verified']);
         $this->assertSame('IDENTICAL', $b['reproduction']);
-        $this->assertSame(Contract::published($this->temporary->path().'/first', 'CANDIDATE')['files'],
-            Contract::published($this->temporary->path().'/second', 'CANDIDATE')['files']);
+        $first = Contract::published($this->temporary->path().'/first', 'CANDIDATE');
+        $second = Contract::published($this->temporary->path().'/second', 'CANDIDATE');
+        $this->assertCount(7, $first['files']);
+        $this->assertSame($first['files'], $second['files']);
+        $this->assertSame($first['source_manifest'], $second['source_manifest']);
+        $this->assertSame($first['code'], $second['code']);
+        $this->assertSame($first, $second);
+        $this->assertSame(Files::identity($this->temporary->path().'/first/manifest.json'),
+            Files::identity($this->temporary->path().'/second/manifest.json'));
+        $this->assertSame(Files::json($this->temporary->path().'/first/COMPLETE.json'),
+            Files::json($this->temporary->path().'/second/COMPLETE.json'));
+    }
+
+    public function test_reproduce_rejects_sealed_candidate_with_only_different_code_without_publication(): void
+    {
+        $snapshot = $this->snapshot();
+        $root = $this->temporary->path();
+        $builder = new Builder;
+        $builder->build($snapshot, $root.'/first');
+        $first = Contract::published($root.'/first', 'CANDIDATE');
+        $differentCode = $root.'/different-code';
+        Artifacts::create($differentCode);
+        foreach ($first['files'] as $name => $seal) {
+            $this->assertTrue(copy($root.'/first/'.$name, $differentCode.'/'.$name));
+            Files::verify($differentCode.'/'.$name, $seal);
+        }
+        $different = $first;
+        $key = 'app/Domain/Keirin/Statistics/TacticalInputReadiness/Builder.php';
+        $different['code'][$key]['sha256'] = hash('sha256', 'synthetic-different-builder-code');
+        Artifacts::publish($differentCode, $different);
+        $verified = Contract::published($differentCode, 'CANDIDATE');
+        $this->assertSame($different, $verified);
+        $this->assertSame($first['files'], $verified['files']);
+        $this->assertSame($first['source_manifest'], $verified['source_manifest']);
+        $this->assertNotSame($first['code'], $verified['code']);
+        $this->assertSame(array_diff_key($first, ['code' => true]), array_diff_key($verified, ['code' => true]));
+        $before = ['manifest' => Files::identity($differentCode.'/manifest.json'),
+            'complete' => Files::identity($differentCode.'/COMPLETE.json')];
+        $output = $root.'/rejected-reproduction';
+        try {
+            $builder->build($snapshot, $output, $differentCode);
+            $this->fail('A sealed candidate with different code must not reproduce as IDENTICAL.');
+        } catch (RuntimeException $error) {
+            $this->assertSame('Semantic mismatch: offline reproduction manifest', $error->getMessage());
+        }
+        $this->assertFileDoesNotExist($output.'/manifest.json');
+        $this->assertFileDoesNotExist($output.'/COMPLETE.json');
+        $this->assertFileExists($output.'/FAILED.json');
+        $this->assertSame('Semantic mismatch: offline reproduction manifest', Files::json($output.'/FAILED.json')['message']);
+        foreach ($first['files'] as $name => $seal) {
+            Files::verify($output.'/'.$name, $seal);
+        }
+        $this->assertSame($before, ['manifest' => Files::identity($differentCode.'/manifest.json'),
+            'complete' => Files::identity($differentCode.'/COMPLETE.json')]);
+        $this->assertSame($verified, Contract::published($differentCode, 'CANDIDATE'));
+        $this->assertSame($first, Contract::published($root.'/first', 'CANDIDATE'));
     }
 
     public function test_sealed_fixed_sources_are_joined_without_using_history_values(): void
