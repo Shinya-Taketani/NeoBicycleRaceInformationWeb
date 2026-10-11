@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.68
+- Version: 1.69
 - Created: 2026-08-23
-- Updated: 2026-10-11
+- Updated: 2026-10-12
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `a549980dedb7f9c859618dbb7547bd51c88b4a76`（ローカルorigin/main確認、fetchなし）
-- Current review: PR102 OPEN、P2の受信/Raw保存時点分離と人工symlink退避を修正し、追加レビュー待ち。PR101マージ・設計工程終了。実収集・予測利用は未承認
-- Current code: 専用PrestartEvidence PHP実装と人工PHPUnitのみ。既存Fetcher/Parser/HTTP/Repository、DB、旧モデル・数値契約・原本・安全helperは不変
-- Current execution record: RACECARD_PRESTART_EVIDENCE_PHASE1_SYNTHETIC_VERIFIED_AWAITING_REVIEW。人工Capture保存・保存資料だけの独立検証、15.74参照。実取得/実Raw/学習/予測/評価なし
-- Current tests record: PR102 P2修正後Phase1 75 tests/444 assertions、既存Parser32/451・安全helper27/119、各PHPUnit本体128M/exit0。変更PHP3ファイル構文・限定Pint成功。通常全体テストは未実行。初版55/254・関連5/27は15.74に当時の記録として保持
+- Remote `main` at last update: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
+- Current review: PR103 OPEN。P2の専用spool管理とP3のテスト退避理由を人工検証し再レビュー待ち。旧C3不採用・正式採用/2026/LIVE/実収集未承認は不変
+- Current code: 専用18項目C3、旧mean6照合付きtrend生成、C3 U1＋元C1 U2/U3、既存Evaluator/Gate・数値互換の非削除spool経路。旧Solver/Fetcher/Parser/DB/モデル/資料は不変
+- Current execution record: TREND6_COMPARISON_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW。旧mean/window不変、Outer50078レース、独立2run77成果物一致、C−B/C−A Gate未達、Primary完全順序B比悪化。精度改善は未確認、15.75参照
+- Current tests record: PR103 P2/P3専用68/366・安全な関連49/452、各128M/exit0・failure/error/skip=0。旧実験の36/243・22/333とは時点を区別。通常全体は旧危険cleanupのため未実行
+- Previous execution/tests record (PR102): P2修正後Phase1 75/444、既存Parser32/451・安全helper27/119、各128M/exit0。3PHP構文・限定Pint成功、全体未実行。15.74の受入済み当時の記録、今回再実行していない
 - Previous execution/tests record (PR100): 15.72の固定99,669レースmetadata、JSJ017ログ21,203/PJ0315ログ125,130は全て後日取得・候補0、Phase A早期終了/Phase B非実施、manifest SHAと未確認範囲は受入済みの当時の記録。今回再監査していない
 - Previous execution/tests record (PR99): 15.71のPARTIAL_READINESS・99,669レース/706,051出走の旧実測・7ファイル/manifest一致、27/167・helper27/119、P2限定2/30の実績は受入済みの当時の記録。今回の設計へ読み替えない
 - Previous execution/tests record (PR98): 15.70の人工.env限定修正・Artisan/Collision View26/151・Archive45/517・警告0は受入済みの当時の記録。過去全71警告の本文/全環境未確認と区別
@@ -185,12 +186,18 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: RACECARD_PRESTART_EVIDENCE_PHASE1_SYNTHETIC_VERIFIED_AWAITING_REVIEW
+current_engine_state: TREND6_COMPARISON_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_RACECARD_PRESTART_EVIDENCE_PHASE1_CODE_REVIEW_ONLY
+next_allowed_action: REVIEW_STAT35_TREND6_P1_CODE_AND_NEGATIVE_RESULT_ONLY
 next_implementation_phase: PHASE2_4_NOT_AUTHORIZED
-current_phase: C1-RACECARD-PRESTART-EVIDENCE-PHASE1
-remote_main: a549980dedb7f9c859618dbb7547bd51c88b4a76
+current_phase: STAT35-TREND6-P1-INCREMENTAL-01
+remote_main: d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d
+stat35_trend6_p1_incremental_01: MEASURED_REPRODUCED_INCREMENTAL_GATE_NOT_PASSED
+stat35_trend6_p1_incremental_01_review_fix: P2_P3_SYNTHETIC_TESTED_AWAITING_REREVIEW
+stat35_trend6_p1_incremental_01_review_fix_performance: NOT_MEASURED_THIS_CHANGE
+stat35_trend6_p1_incremental_01_use: LIMITED_DEVELOPMENT_EXPERIMENT_ONLY
+stat35_trend6_p1_incremental_01_historical_as_of_available: false
+stat35_trend6_p1_incremental_01_formal_adoption: false
 pr93_status: MERGED_REVIEW_COMPLETED
 pr94_status: MERGED_REVIEW_COMPLETED
 pr95_status: MERGED_REVIEW_COMPLETED
@@ -200,7 +207,8 @@ pr98_status: MERGED_REVIEW_COMPLETED
 pr99_status: MERGED_REVIEW_COMPLETED
 pr100_status: MERGED_REVIEW_COMPLETED
 pr101_status: MERGED_DESIGN_PHASE_COMPLETED
-c1_racecard_prestart_evidence_phase1: SYNTHETIC_VERIFIED_AWAITING_REVIEW
+pr102_status: MERGED_REVIEW_COMPLETED
+c1_racecard_prestart_evidence_phase1: SYNTHETIC_VERIFIED_ACCEPTED_PR102_MERGED
 c1_racecard_prestart_evidence_phase1_version: C1-RACECARD-PRESTART-EVIDENCE-PHASE1-SYNTHETIC-v1
 c1_racecard_prestart_evidence_phase1_use: HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
 c1_racecard_prestart_evidence_contract_01: PR101_MERGED_PHASE1_SYNTHETIC_USER_AUTHORIZED
@@ -1086,7 +1094,8 @@ BT-03E-02以降で利用する場合は、
 | C1-TACTICAL-INPUT-READINESS-01 | 固定C1の脚質・ラインの出典/時点確認と候補接続 | PARTIAL_READINESS_ACCEPTED_PR99_MERGED | 99,669レース/706,051出走正常対応、脚質100%、ライン全NULL/専用時点未確認。旧7意味ファイル/manifest独立一致・P2修正受入、学習/評価/2026なし、15.71参照 |
 | C1-RACECARD-ASOF-PREFLIGHT-01 | 保存出走表の発走前取得証拠をmetadataだけで前提監査 | NO_PRESTART_FETCH_EVIDENCE_ACCEPTED_PR100_MERGED | 固定99,669レース、JSJ017ログ21,203/PJ0315ログ125,130は全て現在発走時刻後。候補0・Phase A早期終了、Raw本文未検証、予測利用未承認、15.72の旧記録を保持 |
 | C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01 | 将来出走表の取得/原Raw/本人/時点/不変履歴の契約案 | PR101_MERGED_PHASE1_SYNTHETIC_USER_AUTHORIZED | 設計当時の2Markdown・未承認記録は15.73に保持。最新許可はPhase1人工実装だけ、D1〜D8の実収集決定とPhase2〜4は未承認 |
-| C1-RACECARD-PRESTART-EVIDENCE-PHASE1 | 人工Captureの排他保存・取得元/本人/時点分類・独立検証 | SYNTHETIC_VERIFIED_AWAITING_REVIEW | PR101マージ後の最新許可でPHPを実装。新規55/254・関連5/27、独立128M。15.73の未承認記録は当時の状態。実収集/DB/実Raw/予測利用は未承認、15.74参照 |
+| C1-RACECARD-PRESTART-EVIDENCE-PHASE1 | 人工Captureの排他保存・取得元/本人/時点分類・独立検証 | ACCEPTED_PR102_MERGED | P2修正後75/444・関連59/570、旧実績は15.74へ保持。実収集/DB/実Raw/予測利用は未承認 |
+| STAT35-TREND6-P1-INCREMENTAL-01 | 固定mean6＋過去6開催trendの18項目C3、C3 U1＋元C1 U2/U3をA/Bと比較 | MEASURED_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW | 独立2run77成果物一致、C−B/C−A Gate未達、Primary完全順序B比悪化。旧C1/B維持、15.75参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3976,6 +3985,18 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.75 STAT35-TREND6-P1-INCREMENTAL-01 / 2026-10-11〜12
+
+開始clean main/ローカルorigin `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（PR102 merge）、branch `feature/stat35-trend6-p1-incremental-01`。
+今回の最新ユーザー指示は既存INPUT-02/履歴/元C1/PR92の固定資料からtrend生成・新C3学習・Outer比較・独立2runを許可する。旧実収集未承認を解除せず、旧C1/C2/final-fit/solver/grid/200更新上限/Gate・2026は不変。
+INPUT-02のwindow/meanとseal済み履歴の本人/class/計測定義を照合し、既存History/Exactでtrendを計算。対象/未来除外、NULL枠を先に6開催へ数える規則を維持。全99669レース/706051出走と旧mean/window/cohortが一致、trend数値566265/NULL139786/有効0が3391。旧50source/394codeをSTART seal、生成4入力を加えた54sourceをEND/公開前にも照合した。
+Inner A Train2022/Validate2023、Outer2024 Refit22/23、seal後だけ2024教師開放、Inner B Train22/23/Validate2024、Outer2025 Refit22〜24、同様のseal後だけ2025教師を開放する。C3全3順位は旧C2と同条件で学習するが構成はC3 U1/C1 U2/U3だけ。C−B主比較、C−A総合、B−A旧PR92再照合。新候補の採用/改善は実測後に別判定する。
+専用36 tests/243 assertions・安全な純計算関連22/333、各128M/exit0。23PHP構文・限定Pint成功。旧bin/validation/metric spoolを削除せず保持する専用数値互換経路を確認。通常全体は旧永久削除cleanupを避けるため未実行、新規skip/テスト削除/緩和0。
+証跡 `/home/shinya/neo-keirin-artifacts/stat35-trend6-p1-incremental-01/run-20261011-xhqtu0fq/`。初回の個別manifest要求失敗・安全停止・result-finalのOuter構成読込失敗は保持。最後の失敗はInner A/Outer2024収束後で教師2024未開放・精度未評価。親sealのみの入力を通す修正前失敗/修正後成功、保存fitの25,212レース構成確認を経て、最終コードをresult-outer-parent-verifiedへ新規実行した。途中fitを流用せず、数値非収束や悪い性能による条件変更・再試行ではない。
+最終実行2026-10-11 18:55:05〜10-12 00:18:40 JST、5時間23分35秒、exit0、128M制限下peak36MiB、stderr0。両runのOuter選択lambda0.1、全refit収束。各Innerの8候補中6非収束は除外し、閾値/上限を変更しない。各runでOuter2024/25の50078レース/356209出走を評価、独立2runの77意味的成果物が一致。二重標本に数えない。171ファイルmanifest SHA `ff2470d5c8662f169c75f112882ab8aeaae5fb8ab406cc4de5e566022fa5ea9b` とCOMPLETE一致、START/END/公開前資料・code照合成功、B−AはPR92の未丸め指標/分子分母/Primary/paired CIと一致した。
+C−Bの年等重み差pp（95%CI）は1着+0.017562 [-0.050592,+0.085840]、2着-0.028584 [-0.094617,+0.033868]、3着-0.001850 [-0.024003,+0.020374]、Hit3-0.005640 [-0.045373,+0.032605]。Primary完全順序は-0.002088pp（合計-1件）、Supporting MAPは-0.008079pp（合計-4件）。C−B/C−A GateともNOT_PASSED（非劣性/完全性true、年別/優越false）。C−A Hit3+0.048406ppでもCI [-0.004110,+0.099348]が0をまたぎ、増分改善の代用にしない。旧B−A Gate通過と元C1/Bを維持する。
+implementation_status=IMPLEMENTED_TESTED、evaluation_status=MEASURED_REPRODUCED、incremental_effect_vs_C2=NOT_CONFIRMED、total_effect_vs_C1=NOT_PASSED、exact_order_effect=DETERIORATED_VS_C2、development_gate=NOT_PASSED、accuracy_progress=NOT_CONFIRMED、adoption=NOT_ADOPTED。技術的完了と精度改善を区別し、否定結果のレビューだけへ停止。原本ro-bind・.env/storage/socket隔離・ネットワーク遮断、業務DB/Raw/HTTP/2026参照0。historical_as_of_available=false、LIMITED_DEVELOPMENT_EXPERIMENT_ONLY、formal_adoption=false。年別分子/分母/率・全差分と制約は [専用記録](stat35-trend6-p1-incremental-01.md)。
+
 ## 15.74 C1-RACECARD-PRESTART-EVIDENCE-PHASE1 / 2026-10-11
 
 PR101マージのclean main/ローカルorigin `a549980dedb7f9c859618dbb7547bd51c88b4a76` から `feature/c1-racecard-prestart-evidence-phase1` を作成。最新ユーザー指示はPhase1の人工PHP実装・テストに限定した承認であり、15.73の設計当時の未承認記録は変更しない。
@@ -4512,6 +4533,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.69 / 2026-10-12
+
+PR102マージmain d19f5656を同期。最新ユーザー許可のSTAT35-TREND6-P1-INCREMENTAL-01専用PHP/人工試験・全固定入力照合・Outer実測・独立2run77成果物一致とEND照合を15.75へ追加。C−B/C−A Gate未達、Primary完全順序B比悪化、精度改善未確認/NOT_ADOPTEDとしてレビュー待ち。旧PR102/PR92実績と元C1/Bを保持し、実収集/正式採用/2026/LIVEは開放しない。
 
 ## v1.68 / 2026-10-11
 
@@ -5310,8 +5335,12 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-RACECARD-PRESTART-EVIDENCE-PHASE1 / SYNTHETIC_VERIFIED_AWAITING_REVIEW
-Current main = a549980dedb7f9c859618dbb7547bd51c88b4a76 / PR101_MERGED / LOCAL_ORIGIN_NO_FETCH
+Phase = STAT35-TREND6-P1-INCREMENTAL-01 / MEASURED_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW
+Current main = d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d / PR102_MERGED / LOCAL_ORIGIN_NO_FETCH
+Trend6 = FIXED_INPUT02_MEAN_WINDOW_UNCHANGED / RACES99669_ENTRIES706051 / NUMERIC566265_NULL139786_ZERO3391
+Trend6 training = C3_18_FEATURES_ONLY / FROZEN_FISTA_GRID_ONESE / BOTH_OUTER_LAMBDA_0.1_CONVERGED / COMPOSE_C3_U1_C1_U2_U3 / TWO_RUNS_77_FILES_IDENTICAL
+Trend6 evaluation = MEASURED_REPRODUCED / C_MINUS_B_AND_C_MINUS_A_GATE_NOT_PASSED / PRIMARY_EXACT_ORDER_DETERIORATED_VS_B / B_MINUS_A_PR92_EXACT_RECONCILED / NOT_ADOPTED_NO_2026
+Previous accepted PR102 records (historical execution, not a rerun):
 Racecard evidence contract = DRAFT_V1_PR101_MERGED / PHASE1_SYNTHETIC_USER_AUTHORIZED / REAL_CAPTURE_NOT_AUTHORIZED
 Racecard evidence proposal = ONE_HTTP_ATTEMPT_ONE_CAPTURE / APPEND_ONLY_RAW_AND_OBSERVATIONS / SHARED_JSJ017_RAW_REFERENCE / IDENTITY_TIMING_ATTRIBUTE_SEPARATION
 Racecard evidence timing = RECEIVED_SAVED_OBSERVED_SCHEDULE_CURRENT_DB_ACTUAL_START_FIRST_PUBLICATION_SEPARATED / STRICT_PRESTART_CANDIDATE_NOT_PREDICTION_APPROVAL
@@ -5518,13 +5547,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_RACECARD_PRESTART_EVIDENCE_CONTRACT_REVIEW_ONLY
+Next allowed action = REVIEW_STAT35_TREND6_P1_CODE_AND_NEGATIVE_RESULT_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Production writes / implementation beyond this limited final-composition phase = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the completed STAT35-TREND6-P1 PHP implementation, tests and reproduced negative result. C-B/C-A gates did not pass and Primary exact order deteriorated versus B; C3 is NOT_ADOPTED. Preserve original C1 and candidate B. The specifically authorized feature-branch commit/push/new PR is for this technical work and negative result, never adoption. Do not retune, rerun a failed performance result, merge or begin another experiment automatically. Keep historical_as_of=false, formal_adoption=false and 2026/LIVE/real capture closed. See15.75 and docs/stat35-trend6-p1-incremental-01.md.
+
+Previous handoff (v1.68, PR102 review-pending then; now merged):
 Review the Phase1 synthetic PHP implementation, 55/254 new tests and 5/27 related Parser regressions only. PR101 is merged; the latest user authorized artificial capture save/classification/offline verification, not real collection or prediction use. Keep historical_as_of=false, prediction_use=NOT_AUTHORIZED, all real capture decisions and Phase2-4 pending. No DB/HTTP/real Raw/old regeneration/training/prediction/evaluation/2026 access. Existing C1/C2, artifacts, safe helper and frozen/unfrozen contracts remain unchanged. See15.74. Stop for code review after the specifically authorized feature-branch commit/push/PR; never merge or start capture automatically.
 
 Previous handoff (v1.67, PR101 design-review then; now merged, Phase1 synthetic implementation user-authorized):
