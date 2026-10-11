@@ -3980,6 +3980,14 @@ PR100マージコミットmain/ローカルorigin `637ca013774ed5b9186aa4f8aedd1
 変更は `docs/c1-racecard-prestart-evidence-contract-01.md` と本MASTER PLANのみ。文書整合/変更範囲/`git diff --check`を確認し、DESIGN_REVIEW_REQUIREDで停止。コード/設定/安全helper/旧成果物変更0、テスト/Pint/DB SELECT-write/HTTP/Raw再解析/再監査/学習/予測/評価/2026年開催参照は0。永久削除・退避処理なし。
 15.71/15.72の旧実測・manifest SHA・再現実績・未確認範囲は不変。historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、2026 holdout/BT-04/BT-05/LIVE閉鎖、既存frozen/unfrozen contractを維持。次は契約案レビューと未決事項の決定だけ、実装・収集は未承認。詳細は `docs/c1-racecard-prestart-evidence-contract-01.md`。
 
+### PR101 P2: リダイレクト拒否と取得元検証の契約追記 / 2026-10-11
+
+既存 `design/c1-racecard-prestart-evidence-contract-01` / 開始HEAD `0ccd45f6f67052621e9345fbb30a6dba8b401e6b` とclean、base origin/main `637ca013774ed5b9186aa4f8aedd152b712031e1` を確認。新branch/新PRなし、2Markdownだけの限定レビュー修正。
+現行HTTPのrequest keyは元URL由来だが、DTO urlはeffectiveUri（ない場合は元URL）であり、Raw内対象一致だけでは実取得先を保証しない。将来専用経路の契約へ、送信前scheme/host/port/path・method/パラメータ/対象allowlist検証、自動リダイレクトのデフォルト禁止、301/302/303/307/308を含む3xx拒否、effective URIの正当性不明/不一致時のfail-closedを追記した。
+captureに送信URI/effective URI・転送有無/拒否理由・取得元検証状態とRaw参照対応を分ける。必要な完全URL/Locationはprivateだけ、共有は識別子/許可route/digest/状態だけ。GETの正規query付加と転送を区別し、元URLのrequest keyや正しいRaw内容で未許可取得元を正当化しない。
+設計書3/4/5.1/6/7/8/9(D3)/10(Phase2)へ同期。人工テスト案8ケースを追加し、将来の転送許可は各hop接続前検証・経路証跡・回数上限・認証/Cookie転送制限等の別承認を必要とした。今回はテスト作成/実行・HTTP設定/アプリ変更・DB/Raw/学習/予測/評価/2026参照なし。
+文書内容と許可範囲・`git diff --check`を確認する。DESIGN_REVIEW_REQUIRED、D1〜D8未承認、historical_as_of_available=false、prediction_use=NOT_AUTHORIZEDを維持。旧実測/レビュー履歴/SHA/frozen-unfrozen契約/成果物は不変。次はPR101修正後レビューのみ、未コミットで停止。
+
 ## 15.72 C1-RACECARD-ASOF-PREFLIGHT-01 / 2026-10-11
 
 PR99マージコミットmain/origin `daca2371e091ae9b01b3128d66c4c4c151dfeb47` とcleanを確認し、`audit/c1-racecard-asof-preflight-01` を作成。PARTIAL_READINESSを受入済みとし、今回だけのmetadata監査を実施した。アプリ本体・既存Parser/Fetcher/Repository・テストは変更しない。

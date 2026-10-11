@@ -43,7 +43,7 @@
 | `Parsers/RaceEntryListParser.php` | `keirinCd/kaisaihi/reqprm`を照合。`rInfo[].raceNo`、`sInfo[].syaban/senNo/kyaku`、`stTime`を読む。登録番号は数字文字列を保持、男子5〜9車・車番重複拒否、非連番を許可 | DTOの脚質はHtmlTextNormalizer経由。原fieldの欠落/null/型/空文字をそのまま証拠にする機能とは別 |
 | `Fetchers/RaceLiveFetcher.php`、`Services/RaceResultSyncService.php` | race encpでPOST `disp=PJ0315`、詳細更新後にPJ0326を取得・結果import。通常は `result_available` を対象条件に使用 | PJ0315取得が発走前である保証はない。新しい取得経路は結果同期/結果の取得可否から独立させる |
 | `Parsers/RaceDetailParser.php` | HTML内PC0201の `selKaisai/selKjyoCd/selRaceNo`、`C0201racedtl.aftStartTime`。`sensyuTypeInfo[].syaban/sensyuRegistNo/kyakusitu`とPC0201 `carNum/numPlayer`を照合 | 原Raw内の2表の本人対応を保持できる。後日のDB本人情報で原文の欠落を補わない |
-| `Http/KeirinHttpClient.php` | HTTP処理が返り、status/body/headerを取得した後、DTO作成時に `fetchedAt=new DateTimeImmutable('now')`。接続失敗用DTOも失敗後のnow。request keyはソートしたパラメータ・元URL・methodのSHA | request開始/受信完了の厳密な境界、時計同期証拠はない。リトライは最終応答とretry_countであり、中間試行の独立証拠を保証しない |
+| `Http/KeirinHttpClient.php` | HTTP処理が返り、status/body/headerを取得した後、DTO作成時に `fetchedAt=new DateTimeImmutable('now')`。接続失敗用DTOも失敗後のnow。request keyはソートしたパラメータ・元URL・methodのSHAだが、DTOのurlは `effectiveUri()` があればその値、なければ元URL | request開始/受信完了の厳密な境界、時計同期証拠はない。リトライは最終応答とretry_countであり、中間試行の独立証拠を保証しない。元URLのrequest keyだけではリダイレクト後の取得先を証明できず、専用経路には送信前allowlist検証・自動追従禁止・effective URI検証が必要 |
 | `Services/RawResponseStorageService.php::store()` | 原bodyのSHA/bytes→`Storage::put()`→UTF-8変換→ScrapingFetchLog作成。パスは取得日/request key一部/取得時刻/原SHA一部から生成 | 名前の衝突を減らすが、既存パス拒否・no-replace公開・不変履歴を保証しない。専用Raw保存日時もない |
 | 同 `store()` / `logFailureWithoutBody()` と `ScrapingFetchService` | HTTP異常でもbodyがあれば保存・log後に例外。接続失敗/bodyなしはRaw path/SHA nullのlog。変換失敗はRaw/log後に例外。put失敗はlog前に例外 | 保存失敗時のlog欠損、log作成失敗時の孤立Rawがあり得る。ファイル/DBの一体原子性は保証されていない |
 | `RaceRepository::syncRaceDay()/updateRaceDetail()` | 両方が `riding_style` と汎用 `fetched_at` を更新。呼出し側が同期時のnowを渡す。JSJ017 `stTime` / PJ0315 `aftStartTime`由来の現在 `scheduled_start_at` も更新 | 汎用時刻は属性専用取得時刻でもHTTP応答時刻でもない。再同期で過去の属性/予定時刻が変わり得る |
@@ -62,7 +62,8 @@
   race PJ0315 → Raw/log → 詳細/現在entry更新 → PJ0326 → 結果import
 
 将来案（初期無効、承認対象だけ）:
-  許可対象seal → capture/attempt IDを予約・記録 → JSJ017またはPJ0315
+  許可対象seal → 送信先allowlist検証 → capture/attempt IDを予約・記録
+  → JSJ017またはPJ0315（自動リダイレクト禁止、3xxは失敗）→ effective URI検証
   → 変換前Rawの新規排他保存 → fetch logとの関連を新規記録
   → 原bytes/SHA再検証 → Raw内識別/脚質/予定時刻の投影
   → 対象・車番・登録番号照合 → 時点分類 → 検証版append → manifest/marker公開
@@ -70,6 +71,8 @@
 ```
 
 将来経路は `syncRaceDay()` や `updateRaceDetail()` を証拠保存の代用として呼ばない。既存result同期の取得・保存・状態遷移は変更せず、新経路は結果label・払戻・予測成績・result_availableを対象選択や時点証明に使わない。取得HTTPに結果関連内容が同居しても、原Rawを保持することと、それを入力へ投影することは別。投影は識別/予定時刻/脚質のallowlistだけとする。
+
+3xxまたは取得元検証の不成立時は正常経路へ進めず、実際に存在する応答body/Rawと失敗証拠を保持する。Raw内の対象識別が正しくても、未許可の取得先や未検証のeffective URIを有効な出走表証拠として採用しない。これは将来専用経路の契約であり、今回、現行HTTP設定を変更するものではない。
 
 ## 5. 保存単位と関連
 
@@ -100,6 +103,10 @@ JSJ017は1 capture/1原Rawから複数race observationへ参照を張り、レ�
 | `source` | JSJ017/PJ0315/必須 | route/method/typeまたはdispの組合せと照合 |
 | `fetch_log_id` / `batch_run_id` | 内部ID/nullable | 実在した関連だけ。未成立/バッチなしの理由を区別し架空IDを入れない |
 | `request_key` / `request_binding` | SHA/参照/必須 | method、route、秘匿パラメータのdigest、許可target manifestとの対応。encpだけを本人/対象証明にしない |
+| `request_uri_private` / `effective_uri_private` | private参照/後者nullable | 実際に送信したURIと実際の応答取得先を別々に記録。完全URLが必要な場合はアクセス制限付きprivate証跡だけへ保存。effective URIが取得不能ならnull/UNKNOWN、元URLで補完しない |
+| `request_route` / `effective_route` / 各URIのdigest | route/識別証拠 | scheme/host/port/pathと許可route識別子を区別して照合。共有側は許可済みroute・秘匿値を露出しないdigest・private証跡参照だけとし、encp等を含むqueryを出力しない |
+| `redirect_detected` / `redirect_refusal_reason` | boolean nullable/理由nullable | リダイレクトの有無と拒否理由を記録。有無が確認不能ならnull/UNKNOWN、falseに既定化しない。301/302/303/307/308は追従せず拒否 |
+| `source_validation_status` / `source_validation_reasons` | 状態/理由一覧 | PENDING/VERIFIED/REJECTED/UNKNOWNを区別。送信先・effective URI・method/パラメータ・対象の対応を確認できた場合だけVERIFIED。未許可/不一致/不明を正常扱いしない |
 | `http_method` / `http_status` | 文字列/整数nullable | 応答なしはstatus null。既存FetchErrorTypeと失敗原因を別fieldに保持 |
 | `request_started_at` / `fetched_at` | offset付日時 | 開始と受信完了を別記録。成功時fetched_atは原body受信完了時点。接続失敗では受信時刻null、別の `failed_at` を持つ |
 | `raw_saved_at` | offset付日時/nullable | 原bodyの永続保存完了を確認した時刻。未確認はnull。file mtimeやlog created_atから補わない |
@@ -110,6 +117,15 @@ JSJ017は1 capture/1原Rawから複数race observationへ参照を張り、レ�
 | `clock_evidence` | 参照/nullable | 時計同期方法、確認時刻、確認できた誤差/ジャンプ等。証拠なしはUNKNOWN、誤差0としない |
 
 encp生値・認証・Cookie・URL全文を共有manifest/Git/報告へ保存しない。秘匿request bindingはprivate領域だけに限定し、共有側は識別子・digest・routeで追跡する。原Raw自体に含まれる値は改変せずprivate保存/アクセス制限とする。
+
+取得先検証契約（PR101 P2）:
+
+- **自動HTTPリダイレクトはデフォルト禁止**。専用経路では追従を無効にしたことを確認してから送信する。設定確認不能なら送信しない。既存クライアントの動作をそのまま安全と認定しない。
+- 初回送信前に、構造として解析したscheme・host・port・pathを各allowlistへ照合し、HTTP method・パラメータ形式・許可対象との対応も検証する。未許可先には接続しない。URL全体の前方一致/部分一致による許可はしない。省略portやエンコード等の同一性は承認された比較規則だけで扱い、解釈が曖昧なら拒否する。
+- 301/302/303/307/308を含むHTTP 3xxは正常な出走表取得ではない。Locationが許可済みhost/pathでも追従しない。未許可host/pathにも接続せず、応答と拒否理由を保持する。Locationの完全値が証跡に必要な場合もprivateだけへ保存する。
+- 元URLのrequest keyと実送信URIを区別する。GETではパラメータを付けた送信URI、POSTでは送信URIとformパラメータのbindingを基準にし、effective URIのscheme/host/port/path・許可パラメータとの対応を検証する。元URLへのGET query付加を未許可転送と混同しない一方、不明な差異を勝手に正規化して受理しない。
+- 送信URI/effective URIの一致または承認された同一性を確認できない場合はfail-closed。未許可、不一致、URI不明、転送有無不明は候補にしない。確認できたURI、capture ID、fetch log ID、原Rawのpath/bytes/SHAの対応をsealし、private証跡と共有digestから後日検証可能にする。
+- 今回の案で転送許可の例外は設けない。将来許可するには、取得元/転送先allowlist、**各転送先へ接続する前**の検証、転送回数上限、実経路の証跡、host/scheme/port/path変更規則、認証/Cookieの転送制限、不正な途中転送先の拒否を別途承認する。未承認なら禁止を維持する。
 
 ### 5.2 レース・出走者
 
@@ -147,7 +163,7 @@ encp生値・認証・Cookie・URL全文を共有manifest/Git/報告へ保存し
 
 HTTP受信完了の `fetched_at`、永続保存確認の `raw_saved_at`、同Rawの予定発走時刻、後日DB予定時刻、実発走時刻、公式初回公開時刻は別物。全比較はoffset/TZ根拠の確認後UTCへ正規化し、報告はAsia/Tokyoとoffsetを表示する。同一瞬間の異なるoffset表記は同じ比較結果とする。
 
-時刻・対象・原Rawの出典が確認された場合の単純な候補条件は:
+取得元がVERIFIEDで、3xx/リダイレクトがなく、時刻・対象・原Rawの出典が確認された場合の単純な候補条件は:
 
 ```text
 fetched_at < observed_scheduled_start_at
@@ -164,35 +180,36 @@ fetched_at < observed_scheduled_start_at
 | 状態案 | 条件/次の処理 |
 | --- | --- |
 | CAPTURE_NOT_STARTED | 許可対象・capture IDのみ。取得開始の記録をappend |
-| FETCH_FAILED | 接続失敗、HTTP異常、空応答等。原因と実際に存在するbody/ログを保持し候補にしない |
+| FETCH_FAILED | 接続失敗、HTTP異常、空応答等。3xxは `HTTP_3XX_REJECTED`、301/302/303/307/308の転送拒否は `REDIRECT_REFUSED` の理由も記録。原因と実際に存在するbody/ログを保持し候補にしない |
 | RAW_SAVED_UNVERIFIED | 原Raw保存済み、bytes/SHA/関連/耐久性は未検証。正常判定に利用しない |
 | RAW_INTEGRITY_VERIFIED | 原bytes/SHA・許可path・取得logとの対応が一致。これだけでは本人/時点は未確定 |
 | IDENTITY_MISMATCH | 場/日/番号/車番集合/外部登録番号/内部対応の検証済み証拠が不一致。該当race/entryの候補公開をブロック |
 | TIMING_UNKNOWN | 取得/予定時刻・TZ・時計証拠等不足。識別合格や属性値ありでも時点は未適格 |
 | POSTSTART_CAPTURE | strict `<` 不成立（等値を含む）。`AT_SCHEDULED_START`/`AFTER_SCHEDULED_START`を理由で区別。実発走後と断定する状態ではない |
-| PRESTART_EVIDENCE_CANDIDATE | 受信時刻が同Raw予定時刻より前で、整合性/対象/時刻証拠を確認。属性欠損等は別軸で残す。予測利用は未承認 |
-| VALIDATION_FAILED | 破損・SHA不一致・不正schema・公開時seal不一致等。原因/失敗証拠を残し適格候補として公開しない |
+| PRESTART_EVIDENCE_CANDIDATE | 取得元VERIFIEDかつ3xx/リダイレクトなし、受信時刻が同Raw予定時刻より前で、整合性/対象/時刻証拠を確認。属性欠損等は別軸で残す。予測利用は未承認 |
+| VALIDATION_FAILED | 破損・SHA不一致・不正schema・公開時seal不一致等。取得元未許可/URI不一致/確認不能は `SOURCE_NOT_ALLOWED` / `SOURCE_URI_MISMATCH` / `SOURCE_UNVERIFIED` を理由に記録。原因/失敗証拠を残し適格候補として公開しない |
 
 ```text
 CAPTURE_NOT_STARTED → FETCH_FAILED
 CAPTURE_NOT_STARTED → RAW_SAVED_UNVERIFIED → VALIDATION_FAILED
 RAW_SAVED_UNVERIFIED → RAW_INTEGRITY_VERIFIED
+RAW_INTEGRITY_VERIFIED → VALIDATION_FAILED（取得元未許可/URI不一致/確認不能）
 RAW_INTEGRITY_VERIFIED → IDENTITY_MISMATCH
 RAW_INTEGRITY_VERIFIED → TIMING_UNKNOWN / POSTSTART_CAPTURE / PRESTART_EVIDENCE_CANDIDATE
 ```
 
-「遷移」は監査event/revisionの追加であり、旧行の状態を書き換える意味ではない。状態集計は最新版の評価を表示できるが、参照revisionを明示する。複数問題のある観測はintegrity/identity/timing/attribute各軸と全reasonを保持し、一つの代表状態で原因を消さない。取得候補でも未知/欠損脚質を有効値にしない。別Gate承認記録がない限り `prediction_use=NOT_AUTHORIZED`。
+「遷移」は監査event/revisionの追加であり、旧行の状態を書き換える意味ではない。状態集計は最新版の評価を表示できるが、参照revisionを明示する。複数問題のある観測はsource/integrity/identity/timing/attribute各軸と全reasonを保持し、一つの代表状態で原因を消さない。取得元検証に不合格/未確定なら、Raw内のレース/選手/時刻が一致しても候補へ昇格させない。取得候補でも未知/欠損脚質を有効値にしない。別Gate承認記録がない限り `prediction_use=NOT_AUTHORIZED`。
 
 ## 7. 取得・保存・検証・公開のシーケンス案
 
 1. 明示許可対象のmanifestをsealし、開催年・日・場・番号・期待出走者対応を固定する。2026/対象外をHTTP前に拒否し、source/capture code/契約設定をSTART sealする。
-2. capture ID、attempt、排他的保存先、開始日時を記録する。認証等の秘密を一般ログへ出さない。対象・URL制限・時計証拠・容量/権限不足なら未開始/失敗として停止。
-3. 専用取得経路でHTTPを実行し、受信完了/失敗時刻・status・実応答を記録する。再試行は承認回数の範囲のみ、各試行別capture。現行の中間試行証拠の不足を解消できなければPhase 2を受入しない。
+2. capture ID、attempt、排他的保存先、開始日時を記録する。認証等の秘密を一般ログへ出さない。送信前にscheme/host/port/path・method・パラメータ形式・対象のallowlist対応と、自動追従が無効であることを確認する。対象・取得先・時計証拠・容量/権限不足なら未開始/失敗として停止し、未許可先へ送信しない。
+3. 専用取得経路でHTTPを実行し、受信完了/失敗時刻・status・実応答・送信URI/effective URI・転送有無・取得元検証状態を記録する。3xxは失敗として追従せず、Location先へ接続しない。URIの正当性不明/不一致もfail-closed。実body/Rawと失敗証拠は次の保存処理で保持するが、正常解析/候補判定へ進めない。再試行は承認回数の範囲のみ、各試行別capture。現行の中間試行証拠の不足を解消できなければPhase 2を受入しない。
 4. bodyがあれば変換前bytes/SHAを計算し、新規排他的stageへ書込み・flush/永続化確認・no-replace公開。実際に保存した時刻を記録する。失敗bodyも原文保持し、正常bodyとして解析しない。
 5. 既存fetch logとの関連を記録する。保存失敗/関連未成立はFAILEDとして保持し、既存Rawやlogへ戻って上書きしない。取得観測を単にlog created_atから組み立てない。
 6. 原Rawのbytes/SHAとlog/captureを再検証し、既存の変換/Parserを読取り専用で利用する範囲と専用原field投影を分ける。原Raw/source pointerを保持。結果/払戻等の投影は拒否する。
 7. Raw内のcontextを固定targetへ照合し、車番と登録番号でentryを対応させる。PJ0315の二つの出走者表も照合。別ソース/再取得の変更は明示し多数決/現在値補完しない。
-8. integrity、identity、timing、attributeを独立判定し、同Rawの予定時刻と比較する。対象件数と原因別coverageを、capture/Raw/race/entryの単位別に記録する。
+8. source、integrity、identity、timing、attributeを独立判定し、同Rawの予定時刻と比較する。取得元VERIFIEDかつ3xx/リダイレクトなしを候補の前提とする。対象件数と原因別coverageを、capture/Raw/race/entryの単位別に記録する。
 9. END source/code sealと公開予定全manifestを検証後、排他的にmarkerを公開する。完了できなければFAILEDと実在ファイルを保持し、自動再試行・修復・削除しない。
 
 提案する束は `capture.json`、原Raw参照、`race-observations.jsonl`、`entry-observations.jsonl`、`validation.jsonl`、`execution.json`、`manifest.json`、`COMPLETE.json`または`FAILED.json`。manifestは契約版・許可対象seal・直接依存code seal・全ファイルbytes/SHA・Raw参照・検証版を含む。COMPLETEは保存/検証手続きの完了であり、全件発走前/属性完備/予測利用承認を意味しない。異常状態も証拠として保持するが、Raw整合性不成立や公開seal不一致ではCOMPLETEを出さない。
@@ -203,6 +220,14 @@ RAW_INTEGRITY_VERIFIED → TIMING_UNKNOWN / POSTSTART_CAPTURE / PRESTART_EVIDENC
 
 | ケース | 必要な確認 |
 | --- | --- |
+| 許可済みURLの通常HTTP 200 | 初回scheme/host/port/path・method/パラメータ/対象とeffective URIを検証し、source_validation_status=VERIFIEDなら次の検証へ進む。送信前の成分検証はURL前方/部分一致の偽装も拒否 |
+| HTTP 301/302/303/307/308 | 各statusで自動追従なし・転送先への送信0、FETCH_FAILED/拒否理由保持、正常capture/候補へ昇格なし。他の3xxも正常扱いしない |
+| 許可済みhostへのリダイレクト | 許可済みpathでもデフォルト拒否。Locationの安全性だけで追従を有効にしない |
+| 未許可hostへのリダイレクト | 転送先へ接続せず拒否、失敗証拠保持 |
+| 未許可pathへのリダイレクト | hostが許可済みでも転送先へ接続せず拒否 |
+| 元URLとeffective URLが不一致/不明 | 実送信URIと承認済み同一性を確認できなければVALIDATION_FAILED/SOURCE_URI_MISMATCHまたはSOURCE_UNVERIFIED。GETの正規パラメータ付加は元URLのrequest keyと区別して照合 |
+| リダイレクト後のRaw内容だけが正しい | race/日/選手/時刻一致でも取得元検証を通過せず候補なし。意図しない追従を示す人工証拠も拒否 |
+| URL/Locationにencp等の秘密情報 | 必要な完全値はprivateのみ。共有manifest/Git/一般ログは識別子・許可route・digest・状態だけで、秘密の原値なし |
 | 正常JSJ017・複数レース | 1 Rawを共有参照し、日/場/raceNo/bike/登録番号/脚質pointerが一致。レースごとに時点分類 |
 | 正常PJ0315 | PC0201/contextとsensyuTypeInfoが一致、原脚質とaftStartTime出典保持、原bytes/SHAとlog照合 |
 | 同時刻を異なるoffset表記 | UTC比較/候補判定一致、原表記は保持 |
@@ -231,7 +256,7 @@ RAW_INTEGRITY_VERIFIED → TIMING_UNKNOWN / POSTSTART_CAPTURE / PRESTART_EVIDENC
 | --- | --- | --- |
 | D1 | 取得年/日/場/レースの列挙、対象数上限。広い期間指定か限定allowlistか | 小さな明示allowlistから開始。2026は選択肢に入れず既存凍結を維持。将来レースという言葉だけで対象年を自動許可しない |
 | D2 | 発走何分前か、再取得間隔/上限、timeout/retry | ユーザー決定の有限回数と負荷上限、候補成立前の取得を基本とする。具体分数/回数は未決、既存configを無検証で転用しない |
-| D3 | 規約/robots/アクセス制限、許可route、429時の停止 | 最新利用条件を別途確認してから有効化。未確認/禁止/上限到達ならSTOP。今回は外部確認していない |
+| D3 | 規約/robots/アクセス制限、scheme/host/port/path・method/パラメータ/対象のallowlist、429時の停止 | 最新利用条件と取得先比較規則を別途確認・承認してから有効化。自動リダイレクトはデフォルト禁止、3xx拒否/effective URI照合を必須とする。将来の転送許可は5.1の全条件を別途承認するまで禁止。未確認/禁止/上限到達ならSTOP。今回は外部確認していない |
 | D4 | JSJ017/PJ0315優先、予定時刻や脚質が異なる場合 | JSJ017はday一括、PJ0315は個別検証用という候補。両方独立保存し、矛盾は保留。最終入力に使う版/優先規則を承認し多数決しない |
 | D5 | 延期/中止/欠場/交代の再取得規則 | 新captureと変更理由をappend、旧版を保持。中止を正常入力扱いにせず再取得も許可回数内だけ |
 | D6 | 時計同期・証拠保存・許容誤差・境界判定 | 同期証拠と受信/保存時刻を保持し、不明/境界重複はUNKNOWN。誤差の数値は実測/承認後だけ |
@@ -245,7 +270,7 @@ RAW_INTEGRITY_VERIFIED → TIMING_UNKNOWN / POSTSTART_CAPTURE / PRESTART_EVIDENC
 | Phase | 変更対象・責務案 | 事前条件 | 検証/受入 | STOP条件 |
 | --- | --- | --- | --- | --- |
 | 1 人工証拠 | 専用Scraping DTO/validation・不変ファイル保存器・人工Fixtureテスト。既存汎用クラス変更は先に差分レビュー。DB/HTTP/Command/Scheduler不要 | 保存/状態/時刻/pointer契約とPhase 1範囲の承認。人工rootだけ書込み可 | 第8節正常/異常/競合・独立128M・保存資料だけの検証・原本不変。既存安全helper維持 | 不明なroot、既存path、seal不一致、未承認設定依存、秘密混入、I/O保護不成立 |
-| 2 許可対象接続 | 専用capture orchestration、既存Fetcher/HTTP/Rawとのadapter。初期無効。設定/任意DB保存/運用起動の許可は別途明記 | D1〜D7、route/TZ/時計根拠、各試行観測、権限/保存先と有限負荷の承認 | mock HTTP全異常、I/O前対象/2026拒否、1試行1観測、独立Raw/log、結果同期を起動しない | default有効、対象外、期限/回数超過、時点根拠不足、保存失敗。自動retry拡張/本番修復禁止 |
+| 2 許可対象接続 | 専用capture orchestration、既存Fetcher/HTTP/Rawとのadapter。初期無効・自動リダイレクト禁止。設定/任意DB保存/運用起動の許可は別途明記 | D1〜D7、取得先allowlist/比較規則/TZ/時計根拠、各試行観測、権限/保存先と有限負荷の承認 | mock HTTP全異常、送信前の取得先/対象/2026拒否、3xxの追従/転送先接続0、effective URIと原Raw対応・private/共有分離、1試行1観測、独立Raw/log、結果同期を起動しない | default有効、取得元不一致/不明、自動追従、対象外、期限/回数超過、時点根拠不足、保存失敗。自動retry拡張/本番修復禁止 |
 | 3 観測監査 | 明示許可されたcaptureのsource/code/coverage・本人/時点監査、保存証拠だけのoffline再検証 | Phase 2受入と限定監査対象承認。結果/性能を監査対象へ加えない | capture数/Raw数/race数/entry数を分離、missing/unknown/mismatch/poststart等を集計、原本不変 | 帰属不能、時刻不足、Raw/seal不一致は保留/失敗、完全性を未知値で水増ししない |
 | 4 適格性/比較 | 別契約の入力適格性Gate、必要なら別途限定予測比較。C1/model機能変更と収集を混在させない | D8・対象入力/結果開放/比較規則を別承認しfreeze。Phase 3受入だけでは開始不可 | 適格証拠と使用版の追跡、時系列漏洩防止、別承認された再現/精度評価 | UNKNOWNを適格化、未承認対象/結果アクセス、既存固定成果物改変、2026/BT-04/BT-05/LIVEへの移行 |
 
