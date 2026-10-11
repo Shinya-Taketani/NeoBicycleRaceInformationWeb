@@ -1,5 +1,10 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-12 最新工程追記：PR103はGitHubでMERGED、merge/main/originは `8a9ea0f4768f620b9c23194e7c40051681c25d94`。
+> v1.69のレビュー待ち・C3不採用・実行/テスト記録は当時の記録として保持する。
+> 現在は15.76のB-FIXED-WINNER-JOINT-P23-01を実装・限定比較・独立再現済み。次は未コミット差分/結果レビューのみ。
+> Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
+
 - Document: 統計エンジン開発工程マスター
 - Version: 1.69
 - Created: 2026-08-23
@@ -3984,6 +3989,23 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 実データ学習/予測再生成/λ選択/repackage/DB/HTTP/Raw/Migration/2026結果参照0、旧成果物・.env/storage/vendorは変更0。
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
+
+## 15.76 B-FIXED-WINNER-JOINT-P23-01 / 2026-10-12
+
+この最新追記は、冒頭・Section5・引継ぎに残るPR103当時の現在地だけに優先する。過去実測/hash/否定結果は不変。
+GitHub PR103 MERGED、merge/main/origin `8a9ea0f4768f620b9c23194e7c40051681c25d94`、head b40a1843a209bf5170b37a50584e59d6487cde19を読取り確認。
+既存clean branch `feature/b-fixed-winner-joint-p23-01`、開始/終了HEADは同main SHA。Git書込みを行わず新規専用PHP10・文書1と本追記だけ。
+最新承認の1方式はPR92固定B manifest f1c1687aed2aa6cf9540c6f351e8017c240f096177e3206af775d936e3d92264のwinnerを保持し、E06のQ2(b|a)*Q3(c|a,b)を厳密最大化する。B同値最大を保持、他同値最大だけ専用SHA、underflow0を補正しない。学習/モデル変更なし。
+両年candidate・seal・cohort照合後だけ教師を開放。2024:25212race/179089出走、2025:24866/177120、全50078/356209を実照合、P1変更0、pair変更2480/2522、全joint非低下・Supporting不変。
+C−BのPrimary三連単は1197→1227/25040、1173→1189/24663、計+46件。年等重み+0.092341pp、paired95%CI [+0.019844,+0.168134]pp。
+C−Bの1着差0、2着-0.155982pp CI[-0.293805,-0.014625]、3着+0.146826pp CI[-0.015080,+0.303673]、Hit3-0.004415pp CI[-0.074716,+0.070297]。
+既存incremental Gate NOT_PASSED（非劣性/年別/優越false、integrity=true）。C−AもNOT_PASSED、B−Aは旧PR92の開発PASSを維持。Primary三連単の改善は使用済みdevelopmentだけで、位置別Gate・正式採用・未来精度の代用ではない。
+1 execute/原資料独立再読込み2runの18ファイルが一致。2000/seed20260812/Type7/年層別paired/年等重みを維持し、PrimaryとSupporting MAPを別保存。
+証跡 `/home/shinya/neo-keirin-artifacts/b-fixed-winner-joint-p23-01/run-20261011-233148-f1c173e7/`、result manifest 130745bytes/SHA fc250be6615b147cd1f25c531494903220cebbb799150c982e8886e150064786、START-END/公開前照合・COMPLETE成功。
+2026-10-12 08:36:53〜08:43:59 JST、425.841524秒、exit0/128M/peak34MiB/stderr空。新規33/128、関連21/411、追加10PHP構文/限定Pint成功。独立128M人工193198986bytes/18000raceのpeak26MiB。初期隔離の退避拒否ログは保持し、人工Desktop内のrename-onlyへ限定、削除fallbackなし。通常全体は旧危険cleanupのため未実行。
+current_engine_state=JOINT_P23_MEASURED_REPRODUCED_GATE_NOT_PASSED_AWAITING_REVIEW、current_phase=B-FIXED-WINNER-JOINT-P23-01、next_allowed_action=REVIEW_B_FIXED_WINNER_JOINT_P23_CODE_AND_DEVELOPMENT_RESULT_ONLY。
+implementation_status=IMPLEMENTED_TESTED、evaluation_status=MEASURED_REPRODUCED、joint_probability_invariant=true、winner_preservation=true、development_accuracy_evidence=PRIMARY_EXACT_ORDER_IMPROVEMENT_DEVELOPMENT_ONLY。formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN。元C1/B・旧C3不採用を維持し、結果を見た規則変更・再実行・次工程を開始しない。
+実DB/競輪HTTP/実Raw/2026/学習/Migration/LIVE/既存成果物上書き/永久削除/既存資料移動は0。保持人工領域だけ人工Desktop/Trashへ退避。詳細・全比較・CI・件数は [専用記録](b-fixed-winner-joint-p23-01.md)。未コミットの手動Git/差分レビュー待ち、commit/push/PR操作は禁止のまま。
 
 ## 15.75 STAT35-TREND6-P1-INCREMENTAL-01 / 2026-10-11〜12
 
