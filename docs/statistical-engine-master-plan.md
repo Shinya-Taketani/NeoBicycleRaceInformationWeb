@@ -1,17 +1,17 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.67
+- Version: 1.68
 - Created: 2026-08-23
 - Updated: 2026-10-11
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `637ca013774ed5b9186aa4f8aedd152b712031e1`（今回のローカルorigin/main確認、fetchなし）
-- Current review: PR100 MERGED_REVIEW_COMPLETED、NO_PRESTART_FETCH_EVIDENCE受入。C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01はDESIGN_REVIEW_REQUIRED、未承認の設計案
-- Current code: アプリ本体・旧モデル・数値契約・原本・安全helper不変。今回の変更は設計書とMASTER PLANの2Markdownのみ
-- Current execution record: RACECARD_PRESTART_EVIDENCE_DESIGN_REVIEW_REQUIRED。取得イベント/原Raw/本人対応/時点/不変履歴の契約案だけ、収集・DB・Raw再解析・学習・予測・評価なし、15.73参照
-- Current tests record: 今回は文書整合・変更範囲・git diff --checkのみ。テスト/Pint/実データ監査・生成・再現なし
+- Remote `main` at last update: `a549980dedb7f9c859618dbb7547bd51c88b4a76`（ローカルorigin/main確認、fetchなし）
+- Current review: PR101マージ・設計工程終了。最新ユーザー指示によるPhase1人工実装のレビュー待ち。実収集・予測利用は未承認
+- Current code: 専用PrestartEvidence PHP実装と人工PHPUnitのみ。既存Fetcher/Parser/HTTP/Repository、DB、旧モデル・数値契約・原本・安全helperは不変
+- Current execution record: RACECARD_PRESTART_EVIDENCE_PHASE1_SYNTHETIC_VERIFIED_AWAITING_REVIEW。人工Capture保存・保存資料だけの独立検証、15.74参照。実取得/実Raw/学習/予測/評価なし
+- Current tests record: 新規55 tests/254 assertions、既存Parser関連5/27、各PHPUnit本体128M/exit0。10新規PHP構文・限定Pint成功。通常全体テストは未実行
 - Previous execution/tests record (PR100): 15.72の固定99,669レースmetadata、JSJ017ログ21,203/PJ0315ログ125,130は全て後日取得・候補0、Phase A早期終了/Phase B非実施、manifest SHAと未確認範囲は受入済みの当時の記録。今回再監査していない
 - Previous execution/tests record (PR99): 15.71のPARTIAL_READINESS・99,669レース/706,051出走の旧実測・7ファイル/manifest一致、27/167・helper27/119、P2限定2/30の実績は受入済みの当時の記録。今回の設計へ読み替えない
 - Previous execution/tests record (PR98): 15.70の人工.env限定修正・Artisan/Collision View26/151・Archive45/517・警告0は受入済みの当時の記録。過去全71警告の本文/全環境未確認と区別
@@ -185,12 +185,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: RACECARD_PRESTART_EVIDENCE_DESIGN_REVIEW_REQUIRED
+current_engine_state: RACECARD_PRESTART_EVIDENCE_PHASE1_SYNTHETIC_VERIFIED_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_RACECARD_PRESTART_EVIDENCE_CONTRACT_REVIEW_ONLY
-next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
-current_phase: C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01
-remote_main: 637ca013774ed5b9186aa4f8aedd152b712031e1
+next_allowed_action: C1_RACECARD_PRESTART_EVIDENCE_PHASE1_CODE_REVIEW_ONLY
+next_implementation_phase: PHASE2_4_NOT_AUTHORIZED
+current_phase: C1-RACECARD-PRESTART-EVIDENCE-PHASE1
+remote_main: a549980dedb7f9c859618dbb7547bd51c88b4a76
 pr93_status: MERGED_REVIEW_COMPLETED
 pr94_status: MERGED_REVIEW_COMPLETED
 pr95_status: MERGED_REVIEW_COMPLETED
@@ -199,11 +199,15 @@ pr97_status: MERGED_REVIEW_COMPLETED
 pr98_status: MERGED_REVIEW_COMPLETED
 pr99_status: MERGED_REVIEW_COMPLETED
 pr100_status: MERGED_REVIEW_COMPLETED
-c1_racecard_prestart_evidence_contract_01: DESIGN_REVIEW_REQUIRED
+pr101_status: MERGED_DESIGN_PHASE_COMPLETED
+c1_racecard_prestart_evidence_phase1: SYNTHETIC_VERIFIED_AWAITING_REVIEW
+c1_racecard_prestart_evidence_phase1_version: C1-RACECARD-PRESTART-EVIDENCE-PHASE1-SYNTHETIC-v1
+c1_racecard_prestart_evidence_phase1_use: HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
+c1_racecard_prestart_evidence_contract_01: PR101_MERGED_PHASE1_SYNTHETIC_USER_AUTHORIZED
 c1_racecard_prestart_evidence_contract_01_version: C1-RACECARD-PRESTART-EVIDENCE-DRAFT-v1
 c1_racecard_prestart_evidence_contract_01_scope: TWO_MARKDOWN_ONLY_NO_IMPLEMENTATION_OR_CAPTURE
 c1_racecard_prestart_evidence_contract_01_access: NO_DB_HTTP_RAW_REAUDIT_TRAINING_PREDICTION_EVALUATION_2026
-c1_racecard_prestart_evidence_contract_01_next: DESIGN_REVIEW_AND_D1_D8_DECISIONS_ONLY_PHASES_NOT_AUTHORIZED
+c1_racecard_prestart_evidence_contract_01_next: PHASE1_CODE_REVIEW_ONLY_D1_D8_REAL_CAPTURE_DECISIONS_PENDING
 c1_racecard_prestart_evidence_contract_01_use: HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
 c1_racecard_asof_preflight_01: NO_PRESTART_FETCH_EVIDENCE_ACCEPTED_PR100_MERGED
 c1_racecard_asof_preflight_01_scope: FIXED_2022_2025_RACES_99669_METADATA_ONLY
@@ -1081,7 +1085,8 @@ BT-03E-02以降で利用する場合は、
 | C1-COMPOSITION-TEST-ENV-01 | 閲覧系テストの人工.env欠落だけを修正 | MERGED_REVIEW_COMPLETED_PR98 | Artisan/CollisionでView26/151・Archive45/517を各1回、警告/失敗0。アプリ/成果物/helper不変、通常全体は未実行、15.70の当時の記録を保持 |
 | C1-TACTICAL-INPUT-READINESS-01 | 固定C1の脚質・ラインの出典/時点確認と候補接続 | PARTIAL_READINESS_ACCEPTED_PR99_MERGED | 99,669レース/706,051出走正常対応、脚質100%、ライン全NULL/専用時点未確認。旧7意味ファイル/manifest独立一致・P2修正受入、学習/評価/2026なし、15.71参照 |
 | C1-RACECARD-ASOF-PREFLIGHT-01 | 保存出走表の発走前取得証拠をmetadataだけで前提監査 | NO_PRESTART_FETCH_EVIDENCE_ACCEPTED_PR100_MERGED | 固定99,669レース、JSJ017ログ21,203/PJ0315ログ125,130は全て現在発走時刻後。候補0・Phase A早期終了、Raw本文未検証、予測利用未承認、15.72の旧記録を保持 |
-| C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01 | 将来出走表の取得/原Raw/本人/時点/不変履歴の契約案 | DESIGN_REVIEW_REQUIRED | 2Markdownだけ。1試行1capture・共有Raw参照・strict時点候補と別Gate・append-onlyを提案。D1〜D8/Phase1〜4未承認、実装/DB/HTTP/Raw/2026なし、15.73参照 |
+| C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01 | 将来出走表の取得/原Raw/本人/時点/不変履歴の契約案 | PR101_MERGED_PHASE1_SYNTHETIC_USER_AUTHORIZED | 設計当時の2Markdown・未承認記録は15.73に保持。最新許可はPhase1人工実装だけ、D1〜D8の実収集決定とPhase2〜4は未承認 |
+| C1-RACECARD-PRESTART-EVIDENCE-PHASE1 | 人工Captureの排他保存・取得元/本人/時点分類・独立検証 | SYNTHETIC_VERIFIED_AWAITING_REVIEW | PR101マージ後の最新許可でPHPを実装。新規55/254・関連5/27、独立128M。15.73の未承認記録は当時の状態。実収集/DB/実Raw/予測利用は未承認、15.74参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3971,6 +3976,15 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.74 C1-RACECARD-PRESTART-EVIDENCE-PHASE1 / 2026-10-11
+
+PR101マージのclean main/ローカルorigin `a549980dedb7f9c859618dbb7547bd51c88b4a76` から `feature/c1-racecard-prestart-evidence-phase1` を作成。最新ユーザー指示はPhase1の人工PHP実装・テストに限定した承認であり、15.73の設計当時の未承認記録は変更しない。
+専用SYNTHETIC-v1はtyped target/capture、排他保存器、原field投影、取得元判定、独立Verifierを分離。ランダムcapture ID・private Raw/URI・bytes/SHA・対象/車番/先頭ゼロ登録番号・コードseal・manifest・COMPLETE/FAILEDを関連付け、JSJ017複数レースは1 Rawを共有する。同body再取得は別capture、既存path/リンク/不正pathは拒否し、上書き修復/永久削除なし。
+保存後はtrusted receiptのmanifest SHAを起点に全ファイルseal・Raw対応・対象/本人・source・時刻・markerを再検算し、公開前にも全seal/意味/ファイル集合を照合。人工200・明示allowlist・URI一致・転送なし・人工時計/TZ根拠・同Raw予定時刻へのstrict `<`だけを候補にする。3xx/未許可/不明URI/識別不一致はFAILED証拠、未知時刻はTIMING_UNKNOWN、等時刻/後はPOSTSTART_CAPTURE。候補でも予測利用は未承認。脚質の原値・欠落/null/型/空文字/未知・object/listを保持する。
+最終新規55 tests/254 assertions・既存JSJ017/PJ0315 Parser関連5/27はPHP8.5.4/PHPUnit12.5.31、各独立128M/exit0・stderr空。新規内で別128M PHPによる1MiB人工padding付き保存資料の独立検証も成功。新規PHP10ファイル構文・限定Pint成功、diff検査を実施。通常全体テストは未実行、既存テスト削除/緩和/新規skipなし。
+証跡 `/home/shinya/neo-keirin-artifacts/c1-racecard-prestart-evidence-phase1/verification-20261011-rww6Iw/` にstdout/stderr/JUnitと人工領域を保持。bwrapで原本ro-bind、home/run/ネットワーク遮断、.env不可視、storage/cacheは人工領域。後片付けは既存helperの保持pathだけを隔離内の人工Desktop/Trashへrename-only退避。意図的なlink Fixtureはhelperで移動せず保持。初回ログmount先の起動失敗と修正前実行も別ログで保持。
+実HTTP/DB/実Raw/旧監査再生成/学習/予測/評価/Migration/2026実データ参照0。旧成果物・.env/storage・安全helper・旧C1/C2は不変。historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、D1〜D8の実収集決定/時計同期証明/DBログ連携/運用公開/独立検証の旧版互換は未実装・未承認。人工のsource VERIFIEDと時計証拠を現実の取得証明へ読み替えない。次はPhase1コードレビューのみ。
+
 ## 15.73 C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01 / 2026-10-11
 
 PR100マージコミットmain/ローカルorigin `637ca013774ed5b9186aa4f8aedd152b712031e1` とcleanを確認し、`design/c1-racecard-prestart-evidence-contract-01` を新規作成。ユーザーの受入に従いNO_PRESTART_FETCH_EVIDENCEを受入済みとし、設計だけを進めた。fetchなし。
@@ -4484,6 +4498,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.68 / 2026-10-11
+
+PR101マージ後、最新ユーザー許可のPhase1人工PHP実装・独立検証・55/254と関連5/27を15.74へ記録。128M・原本隔離・既存安全helper、予測未承認/実収集未承認を維持。旧監査・設計時の未承認記録は当時の状態として保持する。
 
 ## v1.67 / 2026-10-11
 
@@ -5278,13 +5296,13 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01 / RACECARD_PRESTART_EVIDENCE_DESIGN_REVIEW_REQUIRED
-Current main = 637ca013774ed5b9186aa4f8aedd152b712031e1 / PR100_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
-Racecard evidence contract = DRAFT_V1_DESIGN_REVIEW_REQUIRED / TWO_MARKDOWN_ONLY / NOT_APPROVED_OR_FROZEN
+Phase = C1-RACECARD-PRESTART-EVIDENCE-PHASE1 / SYNTHETIC_VERIFIED_AWAITING_REVIEW
+Current main = a549980dedb7f9c859618dbb7547bd51c88b4a76 / PR101_MERGED / LOCAL_ORIGIN_NO_FETCH
+Racecard evidence contract = DRAFT_V1_PR101_MERGED / PHASE1_SYNTHETIC_USER_AUTHORIZED / REAL_CAPTURE_NOT_AUTHORIZED
 Racecard evidence proposal = ONE_HTTP_ATTEMPT_ONE_CAPTURE / APPEND_ONLY_RAW_AND_OBSERVATIONS / SHARED_JSJ017_RAW_REFERENCE / IDENTITY_TIMING_ATTRIBUTE_SEPARATION
 Racecard evidence timing = RECEIVED_SAVED_OBSERVED_SCHEDULE_CURRENT_DB_ACTUAL_START_FIRST_PUBLICATION_SEPARATED / STRICT_PRESTART_CANDIDATE_NOT_PREDICTION_APPROVAL
-Racecard evidence next = REVIEW_D1_D8_AND_PHASE1_4_ONLY / IMPLEMENTATION_AND_CAPTURE_NOT_AUTHORIZED / HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
-Racecard evidence checks = DOCUMENT_CONSISTENCY_SCOPE_DIFF_ONLY / NO_TEST_PINT_DB_HTTP_RAW_REAUDIT_TRAINING_PREDICTION_EVALUATION_2026 / SEE_15.73_AND_DOC
+Racecard evidence next = PHASE1_CODE_REVIEW_ONLY / PHASE2_4_AND_REAL_CAPTURE_NOT_AUTHORIZED / HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
+Racecard evidence checks = NEW55_254_RELATED5_27_INDEPENDENT_128M_LINT10_LIMITED_PINT / NO_REAL_DB_HTTP_RAW_TRAINING_PREDICTION_EVALUATION_2026 / SEE_15.74
 Previous accepted PR100 preflight records (historical execution, not a rerun):
 Racecard preflight = FIXED_RACES99669_METADATA_ONLY / JSJ017_LOGS21203_PJ0315_LOGS125130 / ALL_AFTER_CURRENT_SCHEDULED_START / PRESTART0
 Racecard preflight scope = MATCHED_CURRENT_PARAMETERS_AND_BATCH_TARGET_ITEM / OLD_ENCP_OTHER_URL_UNATTRIBUTED / COHORT_ONLY_COLLISION_CHECK / HISTORICAL_SCHEDULE_UNPROVEN
@@ -5493,6 +5511,9 @@ Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review the Phase1 synthetic PHP implementation, 55/254 new tests and 5/27 related Parser regressions only. PR101 is merged; the latest user authorized artificial capture save/classification/offline verification, not real collection or prediction use. Keep historical_as_of=false, prediction_use=NOT_AUTHORIZED, all real capture decisions and Phase2-4 pending. No DB/HTTP/real Raw/old regeneration/training/prediction/evaluation/2026 access. Existing C1/C2, artifacts, safe helper and frozen/unfrozen contracts remain unchanged. See15.74. Stop for code review after the specifically authorized feature-branch commit/push/PR; never merge or start capture automatically.
+
+Previous handoff (v1.67, PR101 design-review then; now merged, Phase1 synthetic implementation user-authorized):
 Review only docs/c1-racecard-prestart-evidence-contract-01.md and the synced MASTER PLAN. PR100 is accepted and merged; NO_PRESTART_FETCH_EVIDENCE and all prior records remain historical facts, not rerun results. DESIGN_REVIEW_REQUIRED: decide D1-D8 and staged implementation acceptance before authorizing even Phase1 synthetic implementation. Capture/Raw/identity/timing are separate, immutable append-only observations; strict fetched_at < observed_scheduled_start_at is only a candidate, never automatic prediction eligibility. No code changes, DB SELECT/writes, HTTP, Raw reanalysis, old audit/regeneration, tests, training/prediction/evaluation or2026 race access in this phase. Existing C1/C2, frozen/unfrozen contracts, historical_as_of=false, prediction_use=NOT_AUTHORIZED and BT-04/BT-05/LIVE closure stay unchanged. See15.73. Stop uncommitted for document review.
 
 Previous handoff (v1.66, PR100 review-pending then; now MERGED_REVIEW_COMPLETED, NO_PRESTART_FETCH_EVIDENCE accepted):
