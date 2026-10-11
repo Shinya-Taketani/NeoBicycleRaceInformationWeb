@@ -8,10 +8,10 @@
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
 - Remote `main` at last update: `a549980dedb7f9c859618dbb7547bd51c88b4a76`（ローカルorigin/main確認、fetchなし）
-- Current review: PR101マージ・設計工程終了。最新ユーザー指示によるPhase1人工実装のレビュー待ち。実収集・予測利用は未承認
+- Current review: PR102 OPEN、P2の受信/Raw保存時点分離と人工symlink退避を修正し、追加レビュー待ち。PR101マージ・設計工程終了。実収集・予測利用は未承認
 - Current code: 専用PrestartEvidence PHP実装と人工PHPUnitのみ。既存Fetcher/Parser/HTTP/Repository、DB、旧モデル・数値契約・原本・安全helperは不変
 - Current execution record: RACECARD_PRESTART_EVIDENCE_PHASE1_SYNTHETIC_VERIFIED_AWAITING_REVIEW。人工Capture保存・保存資料だけの独立検証、15.74参照。実取得/実Raw/学習/予測/評価なし
-- Current tests record: 新規55 tests/254 assertions、既存Parser関連5/27、各PHPUnit本体128M/exit0。10新規PHP構文・限定Pint成功。通常全体テストは未実行
+- Current tests record: PR102 P2修正後Phase1 75 tests/444 assertions、既存Parser32/451・安全helper27/119、各PHPUnit本体128M/exit0。変更PHP3ファイル構文・限定Pint成功。通常全体テストは未実行。初版55/254・関連5/27は15.74に当時の記録として保持
 - Previous execution/tests record (PR100): 15.72の固定99,669レースmetadata、JSJ017ログ21,203/PJ0315ログ125,130は全て後日取得・候補0、Phase A早期終了/Phase B非実施、manifest SHAと未確認範囲は受入済みの当時の記録。今回再監査していない
 - Previous execution/tests record (PR99): 15.71のPARTIAL_READINESS・99,669レース/706,051出走の旧実測・7ファイル/manifest一致、27/167・helper27/119、P2限定2/30の実績は受入済みの当時の記録。今回の設計へ読み替えない
 - Previous execution/tests record (PR98): 15.70の人工.env限定修正・Artisan/Collision View26/151・Archive45/517・警告0は受入済みの当時の記録。過去全71警告の本文/全環境未確認と区別
@@ -3984,6 +3984,20 @@ PR101マージのclean main/ローカルorigin `a549980dedb7f9c859618dbb7547bd51
 最終新規55 tests/254 assertions・既存JSJ017/PJ0315 Parser関連5/27はPHP8.5.4/PHPUnit12.5.31、各独立128M/exit0・stderr空。新規内で別128M PHPによる1MiB人工padding付き保存資料の独立検証も成功。新規PHP10ファイル構文・限定Pint成功、diff検査を実施。通常全体テストは未実行、既存テスト削除/緩和/新規skipなし。
 証跡 `/home/shinya/neo-keirin-artifacts/c1-racecard-prestart-evidence-phase1/verification-20261011-rww6Iw/` にstdout/stderr/JUnitと人工領域を保持。bwrapで原本ro-bind、home/run/ネットワーク遮断、.env不可視、storage/cacheは人工領域。後片付けは既存helperの保持pathだけを隔離内の人工Desktop/Trashへrename-only退避。意図的なlink Fixtureはhelperで移動せず保持。初回ログmount先の起動失敗と修正前実行も別ログで保持。
 実HTTP/DB/実Raw/旧監査再生成/学習/予測/評価/Migration/2026実データ参照0。旧成果物・.env/storage・安全helper・旧C1/C2は不変。historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、D1〜D8の実収集決定/時計同期証明/DBログ連携/運用公開/独立検証の旧版互換は未実装・未承認。人工のsource VERIFIEDと時計証拠を現実の取得証明へ読み替えない。次はPhase1コードレビューのみ。
+
+### 15.74.1 PR102 P2: Raw保存時点の独立分類・人工symlinkの安全退避 / 2026-10-11
+
+開始branch `feature/c1-racecard-prestart-evidence-phase1` / HEAD `c28f3f608efe016c526609acb614538446abb9db` とclean、GitHub PR102 OPEN・同HEADを確認。限定修正はObservationProjector・Phase1テスト・専用symlink fixture helperと本記録のみ。既存の通常安全helper、Fetcher/Parser/HTTP/DB/旧成果物は変更しない。
+
+受信の `timing_status/timing_reason` は維持し、`fetched_at/raw_saved_at/observed_scheduled_start_at` と独立した `raw_save_timing_status/raw_save_timing_reason` を保存検証結果へ追加。判定版は `C1-RACECARD-PRESTART-TIMING-v2`。保存状態は `RAW_SAVED_BEFORE_SCHEDULED_START` / `RAW_SAVED_AT_SCHEDULED_START` / `RAW_SAVED_AFTER_SCHEDULED_START` / `RAW_SAVE_TIMING_UNKNOWN`、理由はBEFORE/AT/AFTER_SCHEDULED_STARTまたはMISSING_OR_INVALID_RAW_SAVED_AT/UNKNOWN_CLOCK_EVIDENCE/UNKNOWN_SCHEDULE_TIME_OR_TIMEZONE。同Rawの予定時刻・offset比較だけを使用し、時刻/TZ/時計根拠不足はUNKNOWN。現在時刻やmtimeで不明保存時刻を補わない。受信前・保存後でも受信候補とCOMPLETEは維持、予測利用はNOT_AUTHORIZEDのまま。
+
+CaptureStoreの `raw_saved_at` は既存のRaw排他書込み・fflush/fsync完了後に実時計で記録する処理を維持し、過去時刻注入を追加しない。ファイルfsyncの保証に限定し、ディレクトリentryの永続化や電源断耐性、現実の時計同期は証明していない。束のSYNTHETIC-v1・旧seal/成果物を更新せず、今回の分類版と直接依存code sealで区別する。
+
+専用helperは作成直後に保持したsourceのpath/device/inode/creation recordと、実際に作成したflat symlinkのinode・リンク文字列・別管理された人工targetを検証。内部を再帰追跡せず、同一filesystem・mount/保護path/排他的Trash先を確認して `/home/shinya/Desktop/Trash/` へmv --no-copyによるrename-only退避。ATTEMPT/MOVED/FAILEDに元path・先・日時・理由を記録し、失敗は伝播・原本保持、削除/copy fallbackなし。tearDownはリンクfixtureをtargetより先に退避し、テスト失敗/例外時も保持オブジェクトだけを使用する。
+
+修正前の新規時点14ケースは欠落fieldで失敗、旧symlinkケースは通常helperのリンク拒否で失敗し、各ログを保持。修正後はPhase1 75/444、既存Parser32/451、安全helper27/119（計134/1014）、PHP8.5.4/PHPUnit12.5.31・各128M/exit0・stderr空。保存資料だけの別128M PHP検証、複数Raw対象、本人照合、3xx/UNKNOWN/seal拒否を維持。時点境界/offset/独立UNKNOWN、実保存後分類、link/target不変・退避記録、想定外link名/mount/保護path/target作成記録不一致/移動失敗/例外後処理を確認。変更PHP3構文・限定Pint・diff検査成功、全体テスト未実施、テスト削除/緩和/新規skipなし。
+
+証跡は `/home/shinya/neo-keirin-artifacts/c1-racecard-prestart-evidence-phase1/pr102-review-20261011-I9XNls/`。原本ro-bind、home/run/.env不可視、storage/cache人工領域、ネットワーク遮断のbwrapを使用し、退避は隔離内の人工Desktop/Trashだけ。修正前失敗資料と既存安全helperの意図的拒否fixtureは同隔離証跡に保持し、実Desktopや過去資料を移動しない。実DB/HTTP/Raw/学習/予測/評価/2026参照0、予測精度は **NOT_MEASURED**。次は既存PR102の修正後レビューだけ、実収集/Phase2〜4へ進まない。
 
 ## 15.73 C1-RACECARD-PRESTART-EVIDENCE-CONTRACT-01 / 2026-10-11
 

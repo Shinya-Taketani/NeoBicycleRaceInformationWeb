@@ -10,6 +10,8 @@ use RuntimeException;
 
 final class ObservationProjector
 {
+    public const TIMING_VERSION = 'C1-RACECARD-PRESTART-TIMING-v2';
+
     /** Projects only race identity, schedule and riding style; never outcome fields. */
     public function project(string $source, string $raw): array
     {
@@ -81,13 +83,31 @@ final class ObservationProjector
                 : ($fetched < $scheduled ? 'PRESTART_EVIDENCE_CANDIDATE' : 'POSTSTART_CAPTURE');
             $timingReason = $timing === 'POSTSTART_CAPTURE'
                 ? ($fetched == $scheduled ? 'AT_SCHEDULED_START' : 'AFTER_SCHEDULED_START') : $timing;
+            $rawSaved = $this->instant($capture['raw_saved_at'] ?? null);
+            $saveStatus = match (true) {
+                $rawSaved === null, ! $scheduled instanceof DateTimeImmutable => 'RAW_SAVE_TIMING_UNKNOWN',
+                $rawSaved < $scheduled => 'RAW_SAVED_BEFORE_SCHEDULED_START',
+                $rawSaved == $scheduled => 'RAW_SAVED_AT_SCHEDULED_START',
+                default => 'RAW_SAVED_AFTER_SCHEDULED_START',
+            };
+            $saveReason = match (true) {
+                $rawSaved === null => 'MISSING_OR_INVALID_RAW_SAVED_AT',
+                $capture['clock_evidence'] !== 'SYNTHETIC_CLOCK_CONFIRMED' => 'UNKNOWN_CLOCK_EVIDENCE',
+                ! $scheduled instanceof DateTimeImmutable => 'UNKNOWN_SCHEDULE_TIME_OR_TIMEZONE',
+                $rawSaved < $scheduled => 'BEFORE_SCHEDULED_START',
+                $rawSaved == $scheduled => 'AT_SCHEDULED_START',
+                default => 'AFTER_SCHEDULED_START',
+            };
             $httpFailed = in_array('HTTP_3XX_REJECTED', $source['reasons'], true)
                 || in_array('HTTP_RESPONSE_NOT_OK', $source['reasons'], true);
             $state = $httpFailed ? 'FETCH_FAILED' : ($source['status'] !== 'VERIFIED' ? 'VALIDATION_FAILED'
                 : (! $identity ? 'IDENTITY_MISMATCH' : $timing));
             $classified[] = ['target' => $target, 'observation' => $observation,
                 'identity_status' => $identity ? 'VERIFIED' : 'IDENTITY_MISMATCH',
+                'timing_version' => self::TIMING_VERSION,
+                'fetched_at' => $capture['fetched_at'], 'raw_saved_at' => $capture['raw_saved_at'] ?? null,
                 'timing_status' => $timing, 'timing_reason' => $timingReason,
+                'raw_save_timing_status' => $saveStatus, 'raw_save_timing_reason' => $saveReason,
                 'observed_scheduled_start_at' => $scheduled instanceof DateTimeImmutable ? $scheduled->format(DATE_ATOM) : null,
                 'state' => $state, 'prediction_use' => 'NOT_AUTHORIZED'];
         }
@@ -196,9 +216,9 @@ final class ObservationProjector
         return $value;
     }
 
-    private function instant(?string $value): ?DateTimeImmutable
+    private function instant(mixed $value): ?DateTimeImmutable
     {
-        if ($value === null || preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$/D', $value) !== 1) {
+        if (! is_string($value) || preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$/D', $value) !== 1) {
             return null;
         }
         $instant = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP', $value);
