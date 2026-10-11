@@ -1,17 +1,18 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.65
+- Version: 1.66
 - Created: 2026-08-23
 - Updated: 2026-10-11
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `90520bbd47d8192efe6fa01f102edf05062b46f0`（今回のローカルorigin/main確認、fetchなし）
-- Current review: PR98 MERGED_REVIEW_COMPLETED。C1-TACTICAL-INPUT-READINESS-01の限定コード・候補証跡レビュー待ち
-- Current code: 新規専用namespace/Commandで固定C1の脚質・ラインをREAD ONLY抽出、候補保存・offline再現。旧モデル・数値契約・原本・安全helper不変
-- Current execution record: TACTICAL_INPUT_PARTIAL_READINESS_AWAITING_REVIEW。99,669レース/706,051出走正常対応、脚質100%、ライン全NULL、列専用取得時点全件未確認。7意味ファイル/manifest一致、15.71参照
-- Current tests record: 専用27/167・安全helper関連27/119、独立128Mの100MiB超実build・途中改変拒否、7PHP構文/限定Pint成功。通常全体未実行
+- Remote `main` at last update: `daca2371e091ae9b01b3128d66c4c4c151dfeb47`（今回のローカルorigin/main確認、fetchなし）
+- Current review: PR99 MERGED_REVIEW_COMPLETED、PARTIAL_READINESS受入。C1-RACECARD-ASOF-PREFLIGHT-01の限定文書・監査証跡レビュー待ち
+- Current code: アプリ本体不変。リポジトリ外の限定監査スクリプトで保存取得ログmetadataをREAD ONLY照合。旧モデル・数値契約・原本・安全helper不変
+- Current execution record: RACECARD_ASOF_NO_PRESTART_FETCH_EVIDENCE_AWAITING_REVIEW。固定99,669レースmetadata照合、JSJ017ログ21,203/PJ0315ログ125,130は全て現在発走時刻後。発走前候補0、Phase A早期終了・Phase B非実施、15.72参照
+- Current tests record: 今回は監査スクリプト構文・保存seal/依存コードSTART-END・git diff --checkのみ。テスト/Pint/正式再生成なし
+- Previous execution/tests record (PR99): 15.71のPARTIAL_READINESS・99,669レース/706,051出走の旧実測・7ファイル/manifest一致、27/167・helper27/119、P2限定2/30の実績は受入済みの当時の記録。今回のmetadata監査へ読み替えない
 - Previous execution/tests record (PR98): 15.70の人工.env限定修正・Artisan/Collision View26/151・Archive45/517・警告0は受入済みの当時の記録。過去全71警告の本文/全環境未確認と区別
 - Previous execution/tests record (PR97): COMPOSITION_ARCHIVE_VERIFIED_AWAITING_REVIEW当時の2025保存予測24,866件/249頁/最終66件、新規43/507・直接関連75/391/128M・全原予測/旧10件/寄与再集約一致・原本なしHTTP/12画面は15.69へ保持。後続ユーザー全体71 warnings/9 skipped/3386 passed/32078 assertionsは今回の限定実行と区別
 - Previous execution/tests record (PR96): 15.68のHTTP26/148・関連44/229・固定10件の隔離HTTPとPC/mobile6画面は当時の記録として保持
@@ -183,19 +184,26 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ```yaml
-current_engine_state: TACTICAL_INPUT_PARTIAL_READINESS_AWAITING_REVIEW
+current_engine_state: RACECARD_ASOF_NO_PRESTART_FETCH_EVIDENCE_AWAITING_REVIEW
 current_scoring_hypothesis_status: BT-03E-08_REJECTED_FOR_ADOPTION
-next_allowed_action: C1_TACTICAL_INPUT_READINESS_REVIEW_ONLY
+next_allowed_action: C1_RACECARD_ASOF_PREFLIGHT_REVIEW_ONLY
 next_implementation_phase: NOT_AUTHORIZED_REVIEW_ONLY
-current_phase: C1-TACTICAL-INPUT-READINESS-01
-remote_main: 90520bbd47d8192efe6fa01f102edf05062b46f0
+current_phase: C1-RACECARD-ASOF-PREFLIGHT-01
+remote_main: daca2371e091ae9b01b3128d66c4c4c151dfeb47
 pr93_status: MERGED_REVIEW_COMPLETED
 pr94_status: MERGED_REVIEW_COMPLETED
 pr95_status: MERGED_REVIEW_COMPLETED
 pr96_status: MERGED_REVIEW_COMPLETED
 pr97_status: MERGED_REVIEW_COMPLETED
 pr98_status: MERGED_REVIEW_COMPLETED
-c1_tactical_input_readiness_01: PARTIAL_READINESS_AWAITING_REVIEW
+pr99_status: MERGED_REVIEW_COMPLETED
+c1_racecard_asof_preflight_01: NO_PRESTART_FETCH_EVIDENCE_AWAITING_REVIEW
+c1_racecard_asof_preflight_01_scope: FIXED_2022_2025_RACES_99669_METADATA_ONLY
+c1_racecard_asof_preflight_01_logs: JSJ017_21203_PJ0315_125130_ALL_AFTER_CURRENT_START
+c1_racecard_asof_preflight_01_prestart: ZERO_PHASE_A_EARLY_STOP_PHASE_B_NOT_RUN
+c1_racecard_asof_preflight_01_access: READ_ONLY_NO_RAW_BODY_NO_2026_RACES_NO_WRITES
+c1_racecard_asof_preflight_01_use: HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
+c1_tactical_input_readiness_01: PARTIAL_READINESS_ACCEPTED_PR99_MERGED
 c1_tactical_input_readiness_01_cohort: RACES_99669_ENTRIES_706051_MATCHED_706051_MISMATCHED_0
 c1_tactical_input_readiness_01_values: STYLE_706051_NORMALIZABLE_706051_LINE_ALL_NULL
 c1_tactical_input_readiness_01_timing: VERIFIED_0_UNKNOWN_706051_HISTORICAL_AS_OF_FALSE
@@ -1062,7 +1070,8 @@ BT-03E-02以降で利用する場合は、
 | C1-STAT35-COMPOSITION-VIEW-01 | 保存固定10件のローカル閲覧GET一覧・詳細 | MERGED_REVIEW_COMPLETED_PR96 | PR95受入束だけを検証して表示。旧6画面実績は15.68へ保持。全体26 warnings詳細・旧親tearDown退避は未解決として別管理 |
 | C1-STAT35-COMPOSITION-ARCHIVE-01 | 保存2025年予測24,866件の年次対応・100件ページング・完全一致検索・詳細 | MERGED_REVIEW_COMPLETED_PR97 | 新規1回/249頁/最終66件、全原予測・旧10件・全寄与集約一致、原本不可視HTTP/12画面成功。IN_SAMPLE用途のみ、学習/推論/DB/2026/Gateなし。15.69の過去実績を保持 |
 | C1-COMPOSITION-TEST-ENV-01 | 閲覧系テストの人工.env欠落だけを修正 | MERGED_REVIEW_COMPLETED_PR98 | Artisan/CollisionでView26/151・Archive45/517を各1回、警告/失敗0。アプリ/成果物/helper不変、通常全体は未実行、15.70の当時の記録を保持 |
-| C1-TACTICAL-INPUT-READINESS-01 | 固定C1の脚質・ラインの出典/時点確認と候補接続 | PARTIAL_READINESS_AWAITING_REVIEW | 99,669レース/706,051出走正常対応、脚質100%、ライン全NULL/専用時点未確認。7意味ファイル/manifest独立一致、学習/評価/2026なし、15.71参照 |
+| C1-TACTICAL-INPUT-READINESS-01 | 固定C1の脚質・ラインの出典/時点確認と候補接続 | PARTIAL_READINESS_ACCEPTED_PR99_MERGED | 99,669レース/706,051出走正常対応、脚質100%、ライン全NULL/専用時点未確認。旧7意味ファイル/manifest独立一致・P2修正受入、学習/評価/2026なし、15.71参照 |
+| C1-RACECARD-ASOF-PREFLIGHT-01 | 保存出走表の発走前取得証拠をmetadataだけで前提監査 | NO_PRESTART_FETCH_EVIDENCE_AWAITING_REVIEW | 固定99,669レース、JSJ017ログ21,203/PJ0315ログ125,130は全て現在発走時刻後。候補0・Phase A早期終了、Raw本文未検証、予測利用未承認、15.72参照 |
 | STAT-36-OBSERVATION-01 | 全import版のスタート候補表示観測 | PR80_MERGED_PAGE_V3_SIGNATURE_V2 | 旧v1:127,121版/900,049行。署名v2・ページ判定v3は人工検証のみ、実データ再生成なし。startはNULL・初手/予測利用未成立。15.52参照 |
 | BT-04 | freeze後holdout評価 | BLOCKED | 2026 CLOSED |
 | BT-05 / LIVE | 未来レース事前予測→結果後評価 | BLOCKED | NOT STARTED |
@@ -3952,6 +3961,17 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.72 C1-RACECARD-ASOF-PREFLIGHT-01 / 2026-10-11
+
+PR99マージコミットmain/origin `daca2371e091ae9b01b3128d66c4c4c151dfeb47` とcleanを確認し、`audit/c1-racecard-asof-preflight-01` を作成。PARTIAL_READINESSを受入済みとし、今回だけのmetadata監査を実施した。アプリ本体・既存Parser/Fetcher/Repository・テストは変更しない。
+旧snapshot manifest2332bebaa235385843e4d6d4a308c1a31090b7f151c3f18b7871d19e08964afdとtarget sealを検証し、固定race ID/日付だけ再利用。固定99,669レースmetadataを500件ずつ照合し、706,051出走の属性再auditは行わない。
+既存ReadOnlySessionで対象DB/public・session/transaction READ ONLY・REPEATABLE READを確認。固定2022〜2025日付と対象IDをSQL側で限定し、現行encpのrequest_key/パラメータ/同batch固定対象itemを100リクエストずつ照合。終了時rollback/disconnect、本番write0。
+JSJ017は10,659開催日/21,203ログ、PJ0315は99,669レース/125,130ログ。各ソース全99,669レースに対応ログあり、照合範囲内のログ欠損/encp欠落/対象不備/衝突/予定時刻不明0。取得日は2026-07-21〜08-04で対象開催は2022〜2025、全対応ログが現在予定発走時刻後。PJ0315の1ログだけHTTP2xx/Rawパス-SHA記録なし・サイズ0だがレースのログ欠損ではない。
+strict fetched_at < scheduled_start_atの候補0、NO_PRESTART_FETCH_EVIDENCE、Phase A早期終了。Phase B/Raw本文/実ファイル存在・body SHA確認/Extractor/sidecar再生成なし。現在予定時刻は歴史的確定時刻の証明ではない。旧encp/別URL/対象itemのないログ・対象外のencp衝突・公式初回公開時刻は未確認で、すべての歴史資料の証拠不存在は断定しない。
+証跡 `/home/shinya/neo-keirin-artifacts/c1-racecard-asof-preflight-01/run-20261011-095607-a40d23f1/`、manifest523 bytes/SHA `d0cf1d4d424094a462d5a55ef705b181a101e7085c35441aa8470cd67eec2467`。3JSON/manifest/COMPLETE・補助索引・スクリプト・stdout/stderr/argvを新規保存。encp生値・認証・Raw全文は保存しない。
+本体12.824877秒/peak28MiB/128M/PHP8.5.4/exit0・stderr空、入力seal/直接依存13コードSTART-END一致、監査スクリプト構文成功。テスト/Pint/正式audit-build-reproduce/学習/予測/評価/HTTP/2026年開催参照は0回、既存.env/storage/モデル/成果物/helper不変、永久削除なし。
+historical_as_of_available=false、prediction_use=NOT_AUTHORIZEDを維持。次は今回の文書・限定監査結果レビューのみ。時点証拠を直接結び付ける将来保存仕様は提案に留め、実装・比較・LIVEへ進まない。詳細は `docs/c1-racecard-asof-preflight-01.md`。15.71/P2修正の実測・旧manifest/再現実績は当時の記録として保持。
+
 ## 15.71 C1-TACTICAL-INPUT-READINESS-01 / 2026-10-11
 
 PR98受入・マージ完了、clean main/ローカルorigin `90520bbd47d8192efe6fa01f102edf05062b46f0` から専用feature branchを作成。ユーザーの限定許可で出走表属性だけを調査し、STAT-17/18/28/29原本を確認した。
@@ -4437,6 +4457,11 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.66 / 2026-10-11
+
+PR99マージ/main-origin daca2371を同期し、PARTIAL_READINESSを受入済みとした。最新ユーザー許可のC1-RACECARD-ASOF-PREFLIGHT-01 metadata READ ONLY監査とPhase A早期終了を15.72へ記録。
+冒頭/現在地/工程表/引継ぎをNO_PRESTART_FETCH_EVIDENCEのレビュー待ちへ同期。現行対象対応ログは全て後日取得で候補0、Raw本文/Phase B/学習/評価/2026は未実施。旧encpや当時の予定時刻等の未確認範囲を保持し、historical_as_of=false・prediction_use未承認を解除しない。旧実測/成果物/コードは変更しない。
 
 ## v1.65 / 2026-10-11
 
@@ -5221,8 +5246,13 @@ Remote `main`:
 
 ```text
 Current:
-Phase = C1-TACTICAL-INPUT-READINESS-01 / TACTICAL_INPUT_PARTIAL_READINESS_AWAITING_REVIEW
-Current main = 90520bbd47d8192efe6fa01f102edf05062b46f0 / PR98_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Phase = C1-RACECARD-ASOF-PREFLIGHT-01 / RACECARD_ASOF_NO_PRESTART_FETCH_EVIDENCE_AWAITING_REVIEW
+Current main = daca2371e091ae9b01b3128d66c4c4c151dfeb47 / PR99_MERGED_REVIEW_COMPLETED / LOCAL_ORIGIN_NO_FETCH
+Racecard preflight = FIXED_RACES99669_METADATA_ONLY / JSJ017_LOGS21203_PJ0315_LOGS125130 / ALL_AFTER_CURRENT_SCHEDULED_START / PRESTART0
+Racecard preflight scope = MATCHED_CURRENT_PARAMETERS_AND_BATCH_TARGET_ITEM / OLD_ENCP_OTHER_URL_UNATTRIBUTED / COHORT_ONLY_COLLISION_CHECK / HISTORICAL_SCHEDULE_UNPROVEN
+Racecard preflight = NO_PRESTART_FETCH_EVIDENCE / PHASE_A_EARLY_STOP_PHASE_B_NOT_RUN / RAW_BODY_EXISTENCE_SHA_UNCHECKED / HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
+Racecard evidence = c1-racecard-asof-preflight-01/run-20261011-095607-a40d23f1 / MANIFEST_d0cf1d4d424094a462d5a55ef705b181a101e7085c35441aa8470cd67eec2467 / SEE_15.72_AND_DOC
+Previous accepted PR99 readiness records (historical execution, not a rerun):
 Tactical input = FIXED_C1_RACES99669_ENTRIES706051_ALL_MATCH / STYLE_ESCAPE203454_CHASE360318_BOTH142279 / LINE_ALL_NULL
 Tactical timing = VERIFIED0_UNKNOWN706051 / GENERIC_FETCHED_AT_NOT_FIELD_OBSERVATION / HISTORICAL_AS_OF_FALSE_PREDICTION_NOT_AUTHORIZED
 Tactical reproduction = SEVEN_FILES_AND_MANIFEST_EXACT_128M / DB_RAW_HTTP_AND_ORIGINAL_C1_UNAVAILABLE_OFFLINE
@@ -5418,13 +5448,16 @@ Player history trend = CALCULATED_573435_NULL_143402 / UNKNOWN_CLASS_2215_ROWS /
 Player history reproduction = SIX_FILES_BYTE_AND_SHA256_EXACT / OLD_FOUR_DATA_FILES_BYTE_AND_SHA256_UNCHANGED / INDEPENDENT_COUNTS_AND_TEMPORAL_SELECTION_VERIFIED
 Player history prior tests = ARTISAN_2152_PASSED_9_EXISTING_SKIPPED_18129_PARENT_ASSERTIONS / PRIOR_RECORDED_TOTALS_PRESERVED / CURRENT_TESTS_IN_15.47
 Player history purpose = FINAL_RESULT_DESCRIPTIVE_ONLY / EVENT_DATE_BACKFILLED_FINAL_RESULTS / historical_as_of_available=false / prediction_use=NOT_AUTHORIZED / points=null
-Next allowed action = C1_TACTICAL_INPUT_READINESS_REVIEW_ONLY
+Next allowed action = C1_RACECARD_ASOF_PREFLIGHT_REVIEW_ONLY
 C1 final fit = FIXED_LAMBDA_0.1_AND_EXISTING_COEFFICIENTS_BINS / NOT_REOPENED / NOT_AN_OUTER_2024_2025_MODEL
 Production writes / implementation beyond this limited final-composition phase = NOT_AUTHORIZED
 Backup = CUSTOM_DUMP_AND_ARCHIVE_LIST_SUCCEEDED / RESTORE_TEST_NOT_PERFORMED
 Memory = INDEPENDENT_BOUNDED_TEST_128M / PRODUCTION_EXAMPLE_512M_ADJUST_BY_MEASUREMENT
 
 Next:
+Review only the racecard-asof preflight documents and sealed metadata audit. PR99 is accepted and merged; PARTIAL_READINESS remains accepted. Both sources cover fixed99,669 races with only post-start metadata fetches; possible prestart0, Phase A early stop, Phase B/Raw body checks not run. NO_PRESTART_FETCH_EVIDENCE is limited to current parameters and matching target batch items, not all historical material. Keep historical_as_of=false and prediction_use=NOT_AUTHORIZED. No app changes, DB writes, HTTP, old audit/candidate regeneration, training/prediction/evaluation or2026 race access. See15.72 and docs/c1-racecard-asof-preflight-01.md. Stop uncommitted for review.
+
+Previous handoff (v1.65, PR99 review-pending then; now MERGED_REVIEW_COMPLETED, PARTIAL_READINESS accepted):
 Review only the tactical readiness code and saved candidate evidence. PR98 is accepted and merged. All fixed99,669 races/706,051 entries match; registered styles are available but field timing is UNKNOWN, all line_text is NULL. PARTIAL_READINESS, not approval for P2/P3 training/evaluation, role inference, adoption or LIVE. Offline seven files and manifest match. No original .env/storage/model/artifact changes, full-suite rerun, annual build, inference/repackage, result/Raw/HTTP/2026 access or DB write. See15.71 and docs/c1-tactical-input-readiness-01.md. Stop uncommitted for review.
 
 Previous handoff (v1.64, PR98 review-pending then; now MERGED_REVIEW_COMPLETED):
