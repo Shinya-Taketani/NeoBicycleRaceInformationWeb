@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Console\Commands\Keirin\CompareStat35Trend6P1Command;
 use App\Domain\Keirin\Backtest\Calculators\Bt03e05MetricEvaluator;
 use App\Domain\Keirin\Backtest\Contracts\EffectBinBoundaryProvider;
 use App\Domain\Keirin\Backtest\Experiments\Stat35Trend6P1\Contract;
@@ -30,6 +31,7 @@ use Brick\Math\BigRational;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 use Tests\Support\CompositionResultTemporaryDirectory;
+use Tests\Support\MemoryLimitedTestProcess;
 use Tests\Support\Stat35C1ComparisonFixture;
 use Tests\TestCase;
 
@@ -46,8 +48,78 @@ class Stat35Trend6P1Test extends TestCase
 
     protected function tearDown(): void
     {
-        $this->temporary->retire($this->temporary->path(), 'TEST_COMPLETE');
-        parent::tearDown();
+        try {
+            if (isset($this->temporary)) {
+                $this->temporary->retire($this->temporary->path(), $this->status()->isSuccess() ? 'TEST_COMPLETE' : 'TEST_FAILURE');
+            }
+        } finally {
+            parent::tearDown();
+        }
+    }
+
+    #[DataProvider('cleanupModes')]
+    public function test_subprocess_cleanup_reasons_and_parent_teardown_are_preserved(string $mode): void
+    {
+        $directory = Files::directory($this->temporary->path().'/cleanup-probe-'.$mode);
+        $command = [PHP_BINARY, '-d', 'memory_limit=128M', base_path('vendor/bin/phpunit'),
+            '--configuration', base_path('phpunit.xml'), base_path('tests/Support/Stat35Trend6TearDownProbeTest.php'),
+            '--filter', '::test_probe$', '--do-not-cache-result', '--colors=never', '--log-junit', $directory.'/junit.xml'];
+        $execution = MemoryLimitedTestProcess::launch($command, $directory, ['PR103_PROBE_MODE' => $mode, 'PR103_PROBE_OUTPUT' => $directory]);
+        $record = Files::json($directory.'/teardown.json');
+        $this->assertTrue($record['parent_executed']);
+        $this->assertNull($execution['error']);
+        if ($mode === 'success') {
+            $this->assertSame(0, $execution['exit_code']);
+        } else {
+            $this->assertNotSame(0, $execution['exit_code']);
+        }
+        $matches = [];
+        foreach (glob(CompositionResultTemporaryDirectory::TRASH.'/composition-result-*/ATTEMPT.json') as $path) {
+            $attempt = Files::json($path);
+            if ($attempt['source'] === $record['source']) {
+                $matches[] = [$path, $attempt];
+            }
+        }
+        if (in_array($mode, ['success', 'failure', 'error'], true)) {
+            $this->assertCount(1, $matches);
+            [$path, $attempt] = $matches[0];
+            $this->assertSame($mode === 'success' ? 'TEST_COMPLETE' : 'TEST_FAILURE', $attempt['reason']);
+            $this->assertSame('MOVED', Files::json(dirname($path).'/MOVED.json')['state']);
+            $this->assertNull($record['cleanup_error']);
+            $this->assertDirectoryDoesNotExist($record['source']);
+        } else {
+            $this->assertNotNull($record['cleanup_error']);
+            $this->assertSame('artificial original retained', file_get_contents($record['source'].'/sentinel'));
+            if ($mode === 'move_failure') {
+                $this->assertCount(1, $matches);
+                [$path, $attempt] = $matches[0];
+                $this->assertSame('TEST_FAILURE', $attempt['reason']);
+                $this->assertFileExists(dirname($path).'/FAILED.json');
+                $this->assertFileDoesNotExist(dirname($path).'/MOVED.json');
+            } else {
+                $this->assertSame([], $matches);
+            }
+        }
+    }
+
+    public static function cleanupModes(): array
+    {
+        return [['success'], ['failure'], ['error'], ['move_failure'], ['symlink'], ['mount']];
+    }
+
+    public function test_command_records_its_spools_before_resolving_experiment(): void
+    {
+        $parent = $this->temporary->path();
+        $command = new CompareStat35Trend6P1Command;
+        $command->setLaravel($this->app);
+        $path = (new \ReflectionMethod($command, 'bindRetainedSpools'))->invoke($command, $parent);
+        $bins = $this->app->make(EffectBinBoundaryProvider::class)->build(range(1, 20));
+        $this->assertSame(20, array_sum(array_column($bins, 'trainingSampleCount')));
+        $directories = glob($parent.'/bin-spools-*', GLOB_ONLYDIR);
+        $this->assertCount(1, $directories);
+        $this->assertSame($path, $directories[0]);
+        $this->assertSame($directories[0], Files::json($directories[0].'/CREATED.json')['source']);
+        $this->assertCount(2, glob($directories[0].'/bt02-bin-*.SEALED.json'));
     }
 
     #[DataProvider('trends')]

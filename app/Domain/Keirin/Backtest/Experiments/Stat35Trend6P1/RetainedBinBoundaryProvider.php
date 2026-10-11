@@ -12,27 +12,27 @@ use RuntimeException;
 
 final class RetainedBinBoundaryProvider implements EffectBinBoundaryProvider
 {
+    private readonly RetainedSpoolDirectory $spools;
+
     public function __construct(
-        private readonly ?string $temporaryDirectory = null,
+        string $temporaryDirectory,
         private readonly string $sortBinary = '/usr/bin/sort',
         private readonly BoundedProcessRunner $processRunner = new BoundedProcessRunner,
-    ) {}
+    ) {
+        $this->spools = new RetainedSpoolDirectory($temporaryDirectory);
+    }
 
     public function build(iterable $trainingValues): array
     {
-        $directory = $this->temporaryDirectory ?? sys_get_temp_dir();
-        $inputPath = $this->temporaryPath($directory, 'bt02-bin-input-');
+        $input = $this->spools->create('input');
+        $handle = $input['handle'];
         try {
-            $sortedPath = $this->temporaryPath($directory, 'bt02-bin-sorted-');
+            $sorted = $this->spools->create('sorted');
         } catch (\Throwable $throwable) {
-            $this->remove([$inputPath]);
+            fclose($handle);
             throw $throwable;
         }
-        $handle = fopen($inputPath, 'wb');
-        if ($handle === false) {
-            $this->remove([$inputPath, $sortedPath]);
-            throw new RuntimeException('Could not open the BT-02 effect-bin input spool.');
-        }
+        $sortedPath = $sorted['path'];
 
         try {
             $count = 0;
@@ -57,6 +57,7 @@ final class RetainedBinBoundaryProvider implements EffectBinBoundaryProvider
 
                     continue;
                 }
+                $this->spools->verify($input);
                 $this->write($handle, $this->canonicalNumber((float) $value)."\n");
             }
             if (! fflush($handle)) {
@@ -64,6 +65,7 @@ final class RetainedBinBoundaryProvider implements EffectBinBoundaryProvider
             }
             fclose($handle);
             $handle = null;
+            $this->spools->verify($input);
             if ($count === 0) {
                 throw new InvalidArgumentException('Effect bins require non-null training values.');
             }
@@ -75,18 +77,22 @@ final class RetainedBinBoundaryProvider implements EffectBinBoundaryProvider
             }
 
             $sort = $this->processRunner->run(
-                [$this->sortBinary, '-g', '-o', $sortedPath, $inputPath],
+                [$this->sortBinary, '-g', '--temporary-directory='.$this->spools->path(), '--', $input['path']],
                 ['LC_ALL' => 'C'],
                 null,
-                static function (string $chunk): void {
-                    if ($chunk !== '') {
-                        throw new RuntimeException('GNU sort unexpectedly wrote to stdout.');
-                    }
+                function (string $chunk) use ($sorted): void {
+                    $this->spools->verify($sorted);
+                    $this->write($sorted['handle'], $chunk);
                 },
             );
             if ($sort->exitCode !== 0) {
                 throw new RuntimeException('BT-02 external effect-bin sort failed: '.($sort->stderr ?: 'no stderr was provided'));
             }
+            if (! fflush($sorted['handle'])) {
+                throw new RuntimeException('Could not flush retained sorted spool.');
+            }
+            $this->spools->verify($input);
+            $this->spools->verify($sorted);
 
             $boundaries = $this->type7Boundaries($sortedPath, $count);
 
@@ -95,7 +101,9 @@ final class RetainedBinBoundaryProvider implements EffectBinBoundaryProvider
             if (is_resource($handle)) {
                 fclose($handle);
             }
-            $this->remove([$inputPath, $sortedPath]);
+            fclose($sorted['handle']);
+            $this->spools->seal($input);
+            $this->spools->seal($sorted);
         }
     }
 
@@ -233,21 +241,5 @@ final class RetainedBinBoundaryProvider implements EffectBinBoundaryProvider
             }
             $offset += $written;
         }
-    }
-
-    private function temporaryPath(string $directory, string $prefix): string
-    {
-        $path = tempnam($directory, $prefix);
-        if ($path === false) {
-            throw new RuntimeException('Could not create a BT-02 effect-bin temporary path.');
-        }
-
-        return $path;
-    }
-
-    /** @param list<string> $paths */
-    private function remove(array $paths): void
-    {
-        // This experiment retains its own spools; no unlink or inferred cleanup path.
     }
 }

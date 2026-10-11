@@ -8,10 +8,10 @@
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
 - Remote `main` at last update: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR102 MERGED。STAT35-TREND6-P1-INCREMENTAL-01の専用実装・実測否定結果はレビュー待ち。正式採用・2026・LIVE・実収集は未承認
+- Current review: PR103 OPEN。P2の専用spool管理とP3のテスト退避理由を人工検証し再レビュー待ち。旧C3不採用・正式採用/2026/LIVE/実収集未承認は不変
 - Current code: 専用18項目C3、旧mean6照合付きtrend生成、C3 U1＋元C1 U2/U3、既存Evaluator/Gate・数値互換の非削除spool経路。旧Solver/Fetcher/Parser/DB/モデル/資料は不変
 - Current execution record: TREND6_COMPARISON_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW。旧mean/window不変、Outer50078レース、独立2run77成果物一致、C−B/C−A Gate未達、Primary完全順序B比悪化。精度改善は未確認、15.75参照
-- Current tests record: 新規36/243・安全な純計算関連22/333、各128M/exit0。新規PHP23構文・限定Pint成功。旧suiteの永久削除cleanupを避けるため通常全体は未実行。今回の成功と過去全体実績は区別
+- Current tests record: PR103 P2/P3専用68/366・安全な関連49/452、各128M/exit0・failure/error/skip=0。旧実験の36/243・22/333とは時点を区別。通常全体は旧危険cleanupのため未実行
 - Previous execution/tests record (PR102): P2修正後Phase1 75/444、既存Parser32/451・安全helper27/119、各128M/exit0。3PHP構文・限定Pint成功、全体未実行。15.74の受入済み当時の記録、今回再実行していない
 - Previous execution/tests record (PR100): 15.72の固定99,669レースmetadata、JSJ017ログ21,203/PJ0315ログ125,130は全て後日取得・候補0、Phase A早期終了/Phase B非実施、manifest SHAと未確認範囲は受入済みの当時の記録。今回再監査していない
 - Previous execution/tests record (PR99): 15.71のPARTIAL_READINESS・99,669レース/706,051出走の旧実測・7ファイル/manifest一致、27/167・helper27/119、P2限定2/30の実績は受入済みの当時の記録。今回の設計へ読み替えない
@@ -193,6 +193,8 @@ next_implementation_phase: PHASE2_4_NOT_AUTHORIZED
 current_phase: STAT35-TREND6-P1-INCREMENTAL-01
 remote_main: d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d
 stat35_trend6_p1_incremental_01: MEASURED_REPRODUCED_INCREMENTAL_GATE_NOT_PASSED
+stat35_trend6_p1_incremental_01_review_fix: P2_P3_SYNTHETIC_TESTED_AWAITING_REREVIEW
+stat35_trend6_p1_incremental_01_review_fix_performance: NOT_MEASURED_THIS_CHANGE
 stat35_trend6_p1_incremental_01_use: LIMITED_DEVELOPMENT_EXPERIMENT_ONLY
 stat35_trend6_p1_incremental_01_historical_as_of_available: false
 stat35_trend6_p1_incremental_01_formal_adoption: false

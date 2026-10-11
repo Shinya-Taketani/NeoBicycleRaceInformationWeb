@@ -1,6 +1,6 @@
 # STAT35-TREND6-P1-INCREMENTAL-01
 
-## Scope
+## Scope (Initial Experiment)
 
 開始clean main / origin/main: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（PR102 merge）。
 作業branch: `feature/stat35-trend6-p1-incremental-01`。
@@ -279,3 +279,37 @@ developmentの多数探索、event-dateによる履歴と取得時点未証明�
 最終manifest SHA-256:
 `ff2470d5c8662f169c75f112882ab8aeaae5fb8ab406cc4de5e566022fa5ea9b`。
 旧途中停止のログ/FAILED/fit/予測は消さず、最終成功や追加の精度標本へ読み替えない。
+
+## PR103 P2/P3 Review Fix / 2026-10-12
+
+開始HEAD `e4495924883f35122ee249a2aaed1af16880e9c7` の既存PRへ追加する一時管理・人工テスト後処理の修正だけ。
+上記の実学習・77成果物一致・性能値は同HEADの旧実行記録であり、修正後コードによる再実験ではない。
+`performance_evaluation=NOT_MEASURED_THIS_CHANGE`。C3 vs B Gate NOT_PASSED、C3 NOT_ADOPTED、元C1/B維持は不変。
+
+RetainedBinBoundaryProviderは専用ディレクトリを必須化し、tempnam/sys_get_temp_dir fallbackを廃止。
+専用RetainedSpoolDirectoryが絶対path、0700/current UID、全path componentの非symlink、mount/保護境界、
+呼出し元のCREATED.json/source/dev/inode/processを検証する。Commandはbin-spools作成直後に記録してからbindする。
+spoolは0600/x+bで排他作成し、path/dev/inode/owner/作成時刻/親記録SHAを.CREATED.json、bytes/SHAを.SEALED.jsonへ保存。
+入力書込み前・sort出力書込み前にも所在/実体を検証。GNU sortの数値順は不変、出力は既存handleへ逐次書込み、
+作業先も専用directoryに限定する。失敗もspoolを保持し、unlink・推測path操作・fallback・上書きはしない。
+
+Feature/numericsのtearDownはPHPUnit12.5 status()->isSuccess()でTEST_COMPLETE/TEST_FAILUREを分離し、
+finallyでparent::tearDown()を必ず呼ぶ。共通安全helperは変更せず、記録済みpath()だけをrename-only退避へ渡す。
+人工失敗・例外・移動失敗・symlink・同一device mountの独立PHPUnit probeで理由/原本保持/親のapp解放を検証した。
+意図的な子processの非0終了は拒否系の期待結果であり、親suiteの成功や実処理成功へ読み替えない。
+
+今回の専用68 tests/366 assertions、関連49/452が各128M/exit0、failure/error/skip=0。
+7数値routineの旧source完全一致、旧数値routineとのbin/support厳密一致、既存solver/forward互換を維持。
+別128M子processで100,001値を逐次sortし、support一致・spool保持を確認した。
+変更PHP8ファイルの構文・限定Pint・git diff --checkもfinal-checksでexit0。数値子processのpeakは10MiB。
+初回focused-01の1失敗は隔離内nested bwrapのnamespace権限制限。mount fixtureを実判定関数へ渡す検証に修正し、
+最終focused-finalは68/366成功。新規skip・既存テスト削除/緩和なし。通常全体suiteは旧危険cleanupのため未実行。
+
+新規証跡:
+`/home/shinya/neo-keirin-artifacts/stat35-trend6-p1-incremental-01/pr103-review-fix-20261012-5eaf73514d30/`。
+原本.env/storage/実Desktopを隠したbwrap、人工Desktop/Trash、network/DB socket遮断で人工Fixtureだけを実行。
+正常退避は同root desktop/Trash（隔離内 /home/shinya/Desktop/Trash）に保持。
+意図的なリンク/移動失敗などの unsafe fixtureは人工作成元に保持し、削除して後処理を成功させない。
+old-artifact-integrityは旧manifest/COMPLETE・171成果物・54原資料のサイズ/SHA不変をread-only確認した。
+旧code sealとの差は既存2PHP（Command/provider）で、新規guardを含む修正後codeを別HEADで追跡する。
+旧manifest/hash/実行記録は上書きしない。実データ学習/予測生成/Outer比較、DB/HTTP/Raw/2026参照は0。

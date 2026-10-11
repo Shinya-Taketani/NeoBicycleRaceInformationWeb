@@ -8,6 +8,7 @@ use App\Domain\Keirin\Backtest\Contracts\EffectBinBoundaryProvider;
 use App\Domain\Keirin\Backtest\Experiments\Stat35Trend6P1\Contract;
 use App\Domain\Keirin\Backtest\Experiments\Stat35Trend6P1\Experiment;
 use App\Domain\Keirin\Backtest\Experiments\Stat35Trend6P1\RetainedBinBoundaryProvider;
+use App\Domain\Keirin\Backtest\Experiments\Stat35Trend6P1\RetainedSpoolDirectory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -41,11 +42,7 @@ final class CompareStat35Trend6P1Command extends Command
                 });
                 Http::fake(static fn () => throw new RuntimeException('HTTP forbidden.'));
                 // Resolve the trainer only after binding a numerically identical, nondeleting spool adapter.
-                $spools = dirname($output).'/bin-spools-'.bin2hex(random_bytes(8));
-                if (! mkdir($spools, 0700)) {
-                    throw new RuntimeException('Cannot create dedicated retained bin spools.');
-                }
-                $this->laravel->instance(EffectBinBoundaryProvider::class, new RetainedBinBoundaryProvider($spools));
+                $this->bindRetainedSpools(dirname($output));
                 $result = $this->laravel->make(Experiment::class)->execute(Contract::INPUT, Contract::BASELINE, Contract::COMPOSITION, $output);
             }
             $this->line(json_encode($result + ['peak_memory_bytes' => memory_get_peak_usage(true)], JSON_THROW_ON_ERROR));
@@ -56,5 +53,17 @@ final class CompareStat35Trend6P1Command extends Command
 
             return self::FAILURE;
         }
+    }
+
+    private function bindRetainedSpools(string $parent): string
+    {
+        $spools = $parent.'/bin-spools-'.bin2hex(random_bytes(8));
+        if (! mkdir($spools, 0700)) {
+            throw new RuntimeException('Cannot create dedicated retained bin spools.');
+        }
+        RetainedSpoolDirectory::recordCreation($spools);
+        $this->laravel->instance(EffectBinBoundaryProvider::class, new RetainedBinBoundaryProvider($spools));
+
+        return $spools;
     }
 }

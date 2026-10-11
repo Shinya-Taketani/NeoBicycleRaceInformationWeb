@@ -19,9 +19,27 @@ use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Objective as OldObjec
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\Optimizer as OldOptimizer;
 use App\Domain\Keirin\Backtest\Services\Bt03e03Contract;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\CompositionResultTemporaryDirectory;
 
 class Stat35Trend6P1NumericsTest extends TestCase
 {
+    private CompositionResultTemporaryDirectory $temporary;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->temporary = CompositionResultTemporaryDirectory::create();
+    }
+
+    protected function tearDown(): void
+    {
+        try {
+            $this->temporary->retire($this->temporary->path(), $this->status()->isSuccess() ? 'TEST_COMPLETE' : 'TEST_FAILURE');
+        } finally {
+            parent::tearDown();
+        }
+    }
+
     public function test_solver_and_bin_arithmetic_are_unchanged_from_frozen_code(): void
     {
         $root = dirname(__DIR__, 5).'/app/Domain/Keirin/Backtest/Experiments/';
@@ -32,9 +50,11 @@ class Stat35Trend6P1NumericsTest extends TestCase
         }
         $old = file_get_contents(dirname(__DIR__, 5).'/app/Domain/Keirin/Backtest/Calculators/ExternalSortEffectBinBoundaryProvider.php');
         $new = file_get_contents($root.'Stat35Trend6P1/RetainedBinBoundaryProvider.php');
-        $new = str_replace(['namespace App\\Domain\\Keirin\\Backtest\\Experiments\\Stat35Trend6P1;', 'final class RetainedBinBoundaryProvider'],
-            ['namespace App\\Domain\\Keirin\\Backtest\\Calculators;', 'class ExternalSortEffectBinBoundaryProvider'], $new);
-        $this->assertSame(explode('    private function remove', $old)[0], explode('    private function remove', $new)[0]);
+        // IO lifecycle changes are intentional; every numerical routine remains byte-exact.
+        $methods = ['categoryBins', 'type7Boundaries', 'numericBins', 'sortedValues', 'canonicalCategory', 'canonicalNumber', 'write'];
+        foreach ($methods as $method) {
+            $this->assertSame($this->methodSource($old, $method), $this->methodSource($new, $method));
+        }
         foreach (['Support/Bt03e03ValidationLossSpool' => 'ValidationLossSpool', 'Support/Bt03e05MetricContributionSpool' => 'MetricContributionSpool',
             'Calculators/Bt03e03OneSeSelector' => 'OneSeSelector', 'Calculators/Bt03e05PairedBootstrap' => 'PairedBootstrap'] as $path => $name) {
             $old = file_get_contents(dirname(__DIR__, 5).'/app/Domain/Keirin/Backtest/'.$path.'.php');
@@ -131,7 +151,7 @@ class Stat35Trend6P1NumericsTest extends TestCase
 
     public function test_zero_extra_coefficients_preserve_forward_and_training_only_support_keeps_null_inactive(): void
     {
-        $builder = new EffectBinBuilder(new RetainedBinBoundaryProvider);
+        $builder = new EffectBinBuilder(new RetainedBinBoundaryProvider($this->temporary->path()));
         $source = fn () => [['entries' => array_map(fn ($v) => ['signals' => [...array_fill(0, 16, 0), $v, $v === null ? null : -$v]], [null, 0.0, 0.5, 1.0])]];
         $layout = (new LayoutBuilder($builder))->build($source);
         $this->assertSame(3, array_sum(array_column($layout->canonicalBins()[Contract::EXTRA_FEATURES[0]], 'training_support')));
@@ -168,6 +188,35 @@ class Stat35Trend6P1NumericsTest extends TestCase
         }
 
         return $bins;
+    }
+
+    private function methodSource(string $source, string $method): string
+    {
+        $tokens = token_get_all($source);
+        $found = false;
+        $name = false;
+        $depth = 0;
+        $body = '';
+        foreach ($tokens as $token) {
+            $text = is_array($token) ? $token[1] : $token;
+            if (! $found) {
+                if (is_array($token) && $token[0] === T_FUNCTION) {
+                    $name = true;
+                } elseif ($name && is_array($token) && $token[0] === T_STRING) {
+                    $found = $text === $method;
+                    $name = false;
+                }
+
+                continue;
+            }
+            $body .= $text;
+            if ($text === '{') {
+                $depth++;
+            } elseif ($text === '}' && --$depth === 0) {
+                return $body;
+            }
+        }
+        throw new \RuntimeException('Numerical method missing: '.$method);
     }
 
     private function race(Layout $layout): array
