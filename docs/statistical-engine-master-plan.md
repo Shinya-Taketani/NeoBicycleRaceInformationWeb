@@ -1,5 +1,12 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-12 最新工程追記：PR103はGitHubでMERGED、merge/main/originは `8a9ea0f4768f620b9c23194e7c40051681c25d94`。
+> v1.69および15.76/15.76.1のレビュー待ち・未コミット状態・実行/テスト記録は当時の履歴として保持する。現在地は15.76.2を正本とする。
+> PR #104は作成・再レビュー済み、テスト環境修正コミット `6783fc65779c5ef9f0be05dd36d2516ae910f7da` はpush済み（ユーザー報告、ローカルHEAD/origin追跡参照も同SHA）。現在はマージ前の最終確認段階。
+> 以前の7件の失敗は解消確認済み。Codexの限定検証は34 passed / 140 assertions / warnings 0、ユーザーの修正後全体実行は失敗0件（エラー報告なし）/ 3603 passed / 33245 assertions / 9 skipped / 59 warnings。
+> 59 warningsの本文は未確認、全59件の解消も未確認。最新HEADのGitHub Actions独立検証は未確認、異なる環境での互換性は未保証。次はPR #104の今回文書差分に対するChatGPT再レビューのみ。
+> Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
+
 - Document: 統計エンジン開発工程マスター
 - Version: 1.69
 - Created: 2026-08-23
@@ -3984,6 +3991,73 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 実データ学習/予測再生成/λ選択/repackage/DB/HTTP/Raw/Migration/2026結果参照0、旧成果物・.env/storage/vendorは変更0。
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
+
+## 15.76 B-FIXED-WINNER-JOINT-P23-01 / 2026-10-12
+
+この最新追記は、冒頭・Section5・引継ぎに残るPR103当時の現在地だけに優先する。過去実測/hash/否定結果は不変。
+GitHub PR103 MERGED、merge/main/origin `8a9ea0f4768f620b9c23194e7c40051681c25d94`、head b40a1843a209bf5170b37a50584e59d6487cde19を読取り確認。
+既存clean branch `feature/b-fixed-winner-joint-p23-01`、開始/終了HEADは同main SHA。Git書込みを行わず新規専用PHP10・文書1と本追記だけ。
+最新承認の1方式はPR92固定B manifest f1c1687aed2aa6cf9540c6f351e8017c240f096177e3206af775d936e3d92264のwinnerを保持し、E06のQ2(b|a)*Q3(c|a,b)を厳密最大化する。B同値最大を保持、他同値最大だけ専用SHA、underflow0を補正しない。学習/モデル変更なし。
+両年candidate・seal・cohort照合後だけ教師を開放。2024:25212race/179089出走、2025:24866/177120、全50078/356209を実照合、P1変更0、pair変更2480/2522、全joint非低下・Supporting不変。
+C−BのPrimary三連単は1197→1227/25040、1173→1189/24663、計+46件。年等重み+0.092341pp、paired95%CI [+0.019844,+0.168134]pp。
+C−Bの1着差0、2着-0.155982pp CI[-0.293805,-0.014625]、3着+0.146826pp CI[-0.015080,+0.303673]、Hit3-0.004415pp CI[-0.074716,+0.070297]。
+既存incremental Gate NOT_PASSED（非劣性/年別/優越false、integrity=true）。C−AもNOT_PASSED、B−Aは旧PR92の開発PASSを維持。Primary三連単の改善は使用済みdevelopmentだけで、位置別Gate・正式採用・未来精度の代用ではない。
+1 execute/原資料独立再読込み2runの18ファイルが一致。2000/seed20260812/Type7/年層別paired/年等重みを維持し、PrimaryとSupporting MAPを別保存。
+証跡 `/home/shinya/neo-keirin-artifacts/b-fixed-winner-joint-p23-01/run-20261011-233148-f1c173e7/`、result manifest 130745bytes/SHA fc250be6615b147cd1f25c531494903220cebbb799150c982e8886e150064786、START-END/公開前照合・COMPLETE成功。
+2026-10-12 08:36:53〜08:43:59 JST、425.841524秒、exit0/128M/peak34MiB/stderr空。新規33/128、関連21/411、追加10PHP構文/限定Pint成功。独立128M人工193198986bytes/18000raceのpeak26MiB。初期隔離の退避拒否ログは保持し、人工Desktop内のrename-onlyへ限定、削除fallbackなし。通常全体は旧危険cleanupのため未実行。
+current_engine_state=JOINT_P23_MEASURED_REPRODUCED_GATE_NOT_PASSED_AWAITING_REVIEW、current_phase=B-FIXED-WINNER-JOINT-P23-01、next_allowed_action=REVIEW_B_FIXED_WINNER_JOINT_P23_CODE_AND_DEVELOPMENT_RESULT_ONLY。
+implementation_status=IMPLEMENTED_TESTED、evaluation_status=MEASURED_REPRODUCED、joint_probability_invariant=true、winner_preservation=true、development_accuracy_evidence=PRIMARY_EXACT_ORDER_IMPROVEMENT_DEVELOPMENT_ONLY。formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN。元C1/B・旧C3不採用を維持し、結果を見た規則変更・再実行・次工程を開始しない。
+実DB/競輪HTTP/実Raw/2026/学習/Migration/LIVE/既存成果物上書き/永久削除/既存資料移動は0。保持人工領域だけ人工Desktop/Trashへ退避。詳細・全比較・CI・件数は [専用記録](b-fixed-winner-joint-p23-01.md)。未コミットの手動Git/差分レビュー待ち、commit/push/PR操作は禁止のまま。
+
+### 15.76.1 PR104: 7件の人工fixture拒否修正 / 2026-10-12
+
+対象PR104、branch `feature/b-fixed-winner-joint-p23-01`、開始HEAD `c7cc0eea2d8ebe2ce56a552642c1172aaf2a1a48`、cleanを確認。PR作成済みという最新指示に従い、15.76の「未コミットの手動Git/差分レビュー待ち」は初回当時の記録として保持し、現在のPR作成待ちとは扱わない。
+ユーザーの全体実行は7 failed / 59 warnings / 9 skipped / 3595 passed / 33204 assertions / 360.69秒。59警告本文は未入手、今回の対象警告0を全59件解消へ読み替えない。
+
+原因はDesktop fixtureと、既存人工Sourcesのtesting＋PHP一時領域配下条件の不一致。通常 `/tmp` / TMPDIR未設定、実deviceはtmp=44、Desktop/Trash=66306。APP_ENV=testingでも旧7ケースがSources:26/Fixture:101で失敗することを隔離再現した。旧sys_temp_dir=Desktopの成功記録を通常環境の保証にしない。
+変更は `BFixedWinnerJointP23Test.php` と専用 `BFixedWinnerJointP23TestProcess.php`、専用文書と本追記だけ。作成した記録付きオブジェクトをdevice/inode/hashで検証し、tmp/Trashが同一mountなら直接実行、異なる場合は既存7ケース＋追加1ケースを一つの人工root view内の128M PHPへ委譲する。mount IDまで照合し、子case/JUnit/exitを検証して元assertionsを親へ引き継ぐ。Production Sources/計算/共通退避helperは変更しない。
+原本repo read-only、実.env/storage/cache/socket隔離、ネットワーク遮断。人工入力ガードを緩和せず、作成時の保持pathだけを同一filesystemの人工Trashへrename-only退避、削除/copy fallbackなし。通常device差のvendor-only親では自作envelopeだけ実Trashへ退避し記録、過去Desktop資料は操作しない。
+
+修正前Artisanは33ケース/107 assertions/7 errors/26 warnings/skip0/exit2。26警告は隔離のdev-null env読取り拒否、別にread-only cache警告1件で、ユーザー全体59件とは区別する。最終はコメントだけの人工envをbindし、原本cacheへの書込みを避けた。警告抑制・skip・既存assertions削除/緩和は0。
+最終Artisan対象34 passed/140 assertions、関連安全helper＋数値48/530、通常device差の独立子8/33、全failure/error/warning/skip0/exit0。PHP8.5.4/PHPUnit12.5.31、本体128M。Artisan親のPHP指定だけでは子が無制限だった途中ログも保持し、最終はPHPUnit側にも `-d memory_limit=128M` を指定、全34環境記録で確認した。対象peak87.5MiB、native子40.5MiB、関連38.50MiB。大容量独立128Mは193198986 bytes/18000race/126000出走/peak28MiB、P1/joint/Supporting不変。
+対象最終13:18:46〜13:18:57 JST/11.040301秒。変更2PHP構文・限定Pint成功、diff検査実施。前後/実コマンド/JUnit/events/環境/退避証拠は `/home/shinya/neo-keirin-artifacts/b-fixed-winner-joint-p23-01/pr104-review-20261012-035526-80b76f84/`、詳細は [専用記録](b-fixed-winner-joint-p23-01.md)。
+
+全体は旧対象外testのFile::deleteDirectory/unlinkとmetric spool unlinkが残るため未実施。一括改変・抑制で回避しない。bwrap/user namespace/mountinfoが必要で、利用不能はfail-closed。当地の入れ子namespaceは拒否されたため、単一root viewのArtisan対象とnative親からの委譲を分離して検証。通常全体成功と全59警告の原因は未確認。
+current_engine_state=PR104_TEST_ENV_FIX_READY_FOR_REVIEW、next_allowed_action=REVIEW_PR104_TEST_ENV_FIX_ONLY。限定修正のレビュー可能状態であり、全体確認済みとはしない。既存incremental Gate NOT_PASSED、formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN、元C1/B/旧C3不採用/過去実測/hashは不変。実DB/HTTP/Raw/学習/実比較再実行/既存成果物変更/永久削除/Git書込みは0、精度影響はNOT_MEASURED_THIS_CHANGE。次工程へ進まない。
+
+### 15.76.2 PR104: 修正コミット後の最終確認・工程記録同期 / 2026-10-12
+
+開始branch `feature/b-fixed-winner-joint-p23-01`、HEAD `6783fc65779c5ef9f0be05dd36d2516ae910f7da`、worktree clean、ローカルoriginの同branch追跡参照も同SHAを読取り確認した。最新コミットはテスト2ファイル・文書2ファイルの修正で、303追加/2削除。今回の変更はこの2文書だけで、実装・テスト・設定は変更しない。
+ユーザー報告ではPR #104は作成済み、同修正コミットはpush・再レビュー済みで、重大な予測ロジック問題の追加検出はない。15.76/15.76.1の未コミット・全体未実施の記述は当時のCodex作業の履歴であり、現在の修正コミット状態やユーザーの後続全体実行を表さない。今回の文書差分だけは未コミットでレビュー待ちとする。
+
+`6783fc6` は文書同期作業開始時のHEADである。その後の文書修正は `a40e756de63cfa71d2ddb801aaa4131ee7b3cbea` としてコミット・pushされた（ユーザー報告、ローカル履歴で当該文書コミットを確認）。本節の未コミット状態はCodexが文書同期作業を終了した時点の履歴であり、現在状態ではない。後続コミットも履歴上の保存時点として記録し、固定の最新HEADとは扱わない。
+
+| 検証主体・順序 | 結果 | assertions | 所要時間 | 根拠・確認範囲 |
+|---|---|---:|---|---|
+| ユーザー全体・修正前 | 7 failed / 59 warnings / 9 skipped / 3595 passed | 33204 | 360.69秒 | ユーザー共有の集計。警告本文・実行日時・終了コードは未確認 |
+| Codex限定・テスト環境修正後 | 34 passed / failure・error・warning・skip各0 | 140 | 11.040301秒（Collision表示10.89秒） | 2026-10-12 13:18:46〜13:18:57 JST、保存Artisanログ・JUnit・exit0、15.76.1参照 |
+| ユーザー全体・修正後 | 失敗0件（エラー報告なし）/ 59 warnings / 9 skipped / 3603 passed | 33245 | 362.55秒 | 今回ユーザー共有の集計。実行日時・終了コード・警告本文は未確認 |
+
+Codexの限定実行とユーザーの全体実行は別の検証。後者をCodexによる隔離検証や独立CI成功と扱わない。テスト2ファイルは保存済み限定検証記録のコードSHAと一致することを読取り確認したが、今回PHPUnit/全体テストを再実行していない。
+
+警告調査記録 `/home/shinya/neo-keirin-artifacts/b-fixed-winner-joint-p23-01/pr104-review-20261012-035526-80b76f84/warning-lookup-20261012-133855-d1636fc8/report.json` は実在・読取り可能。内容は2026-10-12 13:38:55 JSTの84ファイル/23実行記録の調査、元全体ログの該当なし、WARNING_DETAILS_NOT_AVAILABLE。内訳件数も一致、同reportのSHA-256は `7d484534c320255fb17162c36002fcefb6cf9b72b745be33deb6e7d1688a8ccf`。今回読み取っただけで、既存証跡の変更や再調査・テスト再実行は行わない。調査範囲外でのログ不存在は断定しない。
+
+```ini
+current_engine_state=PR104_DOCUMENT_SYNC_READY_FOR_REVIEW
+next_allowed_action=CHATGPT_REVIEW_PR104_DOCUMENT_DIFF_ONLY
+pr104_head_at_document_sync_start=6783fc65779c5ef9f0be05dd36d2516ae910f7da
+pr104_review_stage=PRE_MERGE_FINAL_CHECK
+warning_details_status=WARNING_DETAILS_NOT_AVAILABLE
+full_suite_warning_count=59
+target_test_warning_count=0
+all_59_warnings_resolved=NOT_CONFIRMED
+latest_head_github_actions_verification=NOT_CONFIRMED
+cross_environment_compatibility=NOT_GUARANTEED
+```
+
+59件の由来・PR104との関係・原因・解消は未確定。限定テスト警告0や、修正前後で59という同数だったことから全体警告の原因/無関係/解消を推定しない。今回警告取得目的の全体実行、警告抑制、CI構築は行わない。
+既存の隔離経路はLinuxのbwrap・user namespace・mount情報取得に依存し、他環境では起動できない可能性がある。最新HEADのGitHub Actions独立成功と他環境互換性は未確認で、既存ガード解除や成功扱いの根拠にしない。
+候補Cは正式採用しない。existing_incremental_gate=NOT_PASSED、formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN、2026 holdout閉鎖・LIVE未承認を維持。15.76/15.76.1の実測・判定・SHA・再現記録は変更なし、予測精度改善の作業ではない。今回DB/競輪HTTP/実Raw/2026参照/学習/バックテスト/既存成果物操作/Git書込み/PR操作は0。READY_FOR_REVIEWは文書差分のみの判定で、マージ/採用/次工程を許可しない。
 
 ## 15.75 STAT35-TREND6-P1-INCREMENTAL-01 / 2026-10-11〜12
 
