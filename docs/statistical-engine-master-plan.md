@@ -4030,6 +4030,8 @@ current_engine_state=PR104_TEST_ENV_FIX_READY_FOR_REVIEW、next_allowed_action=R
 開始branch `feature/b-fixed-winner-joint-p23-01`、HEAD `6783fc65779c5ef9f0be05dd36d2516ae910f7da`、worktree clean、ローカルoriginの同branch追跡参照も同SHAを読取り確認した。最新コミットはテスト2ファイル・文書2ファイルの修正で、303追加/2削除。今回の変更はこの2文書だけで、実装・テスト・設定は変更しない。
 ユーザー報告ではPR #104は作成済み、同修正コミットはpush・再レビュー済みで、重大な予測ロジック問題の追加検出はない。15.76/15.76.1の未コミット・全体未実施の記述は当時のCodex作業の履歴であり、現在の修正コミット状態やユーザーの後続全体実行を表さない。今回の文書差分だけは未コミットでレビュー待ちとする。
 
+`6783fc6` は文書同期作業開始時のHEADである。その後の文書修正は `a40e756de63cfa71d2ddb801aaa4131ee7b3cbea` としてコミット・pushされた（ユーザー報告、ローカル履歴で当該文書コミットを確認）。本節の未コミット状態はCodexが文書同期作業を終了した時点の履歴であり、現在状態ではない。後続コミットも履歴上の保存時点として記録し、固定の最新HEADとは扱わない。
+
 | 検証主体・順序 | 結果 | assertions | 所要時間 | 根拠・確認範囲 |
 |---|---|---:|---|---|
 | ユーザー全体・修正前 | 7 failed / 59 warnings / 9 skipped / 3595 passed | 33204 | 360.69秒 | ユーザー共有の集計。警告本文・実行日時・終了コードは未確認 |
@@ -4043,7 +4045,7 @@ Codexの限定実行とユーザーの全体実行は別の検証。後者をCod
 ```ini
 current_engine_state=PR104_DOCUMENT_SYNC_READY_FOR_REVIEW
 next_allowed_action=CHATGPT_REVIEW_PR104_DOCUMENT_DIFF_ONLY
-pr104_head=6783fc65779c5ef9f0be05dd36d2516ae910f7da
+pr104_head_at_document_sync_start=6783fc65779c5ef9f0be05dd36d2516ae910f7da
 pr104_review_stage=PRE_MERGE_FINAL_CHECK
 warning_details_status=WARNING_DETAILS_NOT_AVAILABLE
 full_suite_warning_count=59
