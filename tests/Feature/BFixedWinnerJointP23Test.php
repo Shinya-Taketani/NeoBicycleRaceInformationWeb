@@ -11,6 +11,7 @@ use App\Domain\Keirin\Backtest\Experiments\BFixedWinnerJointP23\Decoder;
 use App\Domain\Keirin\Backtest\Experiments\BFixedWinnerJointP23\Evaluation;
 use App\Domain\Keirin\Backtest\Experiments\BFixedWinnerJointP23\Experiment;
 use App\Domain\Keirin\Backtest\Experiments\BFixedWinnerJointP23\Reader;
+use App\Domain\Keirin\Backtest\Experiments\C1MarginalP23Decoder\Sources;
 use App\Domain\Keirin\Backtest\Experiments\Stat35Trend6P1\MetricContributionSpool;
 use App\Domain\Keirin\Backtest\Experiments\Stat35Trend6P1\PairedBootstrap;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\JsonlArtifact;
@@ -18,6 +19,7 @@ use App\Domain\Keirin\Backtest\Experiments\TacticalHistoryFinal\Files;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 use Tests\Support\BFixedWinnerJointP23Fixture as Fixture;
+use Tests\Support\BFixedWinnerJointP23TestProcess;
 use Tests\Support\C1MarginalP23Fixture;
 use Tests\Support\CompositionResultTemporaryDirectory;
 use Tests\TestCase;
@@ -29,12 +31,13 @@ class BFixedWinnerJointP23Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->temporary = CompositionResultTemporaryDirectory::create();
+        $this->temporary = BFixedWinnerJointP23TestProcess::temporary();
     }
 
     protected function tearDown(): void
     {
         try {
+            JsonlArtifact::json($this->temporary->path().'/environment.json', BFixedWinnerJointP23TestProcess::environment($this->temporary->path()));
             $this->temporary->retire($this->temporary->path(), $this->status()->isSuccess() ? 'TEST_COMPLETE' : 'TEST_FAILURE');
         } finally {
             parent::tearDown();
@@ -163,6 +166,9 @@ class BFixedWinnerJointP23Test extends TestCase
 
     public function test_saved_bundle_two_independent_runs_teacher_order_and_outcome_isolation(): void
     {
+        if (BFixedWinnerJointP23TestProcess::delegate($this, $this->temporary)) {
+            return;
+        }
         $bundle = Fixture::make($this->temporary->path().'/source');
         $experiment = new Experiment($bundle['joint_sources'], app(Reader::class), app(Evaluation::class));
         $out = $this->temporary->path().'/result';
@@ -200,6 +206,9 @@ class BFixedWinnerJointP23Test extends TestCase
     #[DataProvider('tampering')]
     public function test_source_manifest_and_parent_drift_rejected(string $kind): void
     {
+        if (BFixedWinnerJointP23TestProcess::delegate($this, $this->temporary)) {
+            return;
+        }
         $b = Fixture::make($this->temporary->path().'/source');
         $path = match ($kind) {
             'manifest' => $b['b'].'/manifest.json', 'prediction' => $b['joint_source']['paths'][2024]['b_predictions'],
@@ -217,6 +226,9 @@ class BFixedWinnerJointP23Test extends TestCase
 
     public function test_global_race_reappearance_is_rejected_even_when_ids_are_nonmonotonic(): void
     {
+        if (BFixedWinnerJointP23TestProcess::delegate($this, $this->temporary)) {
+            return;
+        }
         $bundle = Fixture::make($this->temporary->path().'/source');
         $reader = app(Reader::class);
         $seen = Reader::identities($this->temporary->path().'/seen.sqlite');
@@ -230,6 +242,9 @@ class BFixedWinnerJointP23Test extends TestCase
 
     public function test_source_end_drift_blocks_teacher_release(): void
     {
+        if (BFixedWinnerJointP23TestProcess::delegate($this, $this->temporary)) {
+            return;
+        }
         $bundle = Fixture::make($this->temporary->path().'/source');
         $source = $bundle['joint_source'];
         // Non-outcome model metadata drift is discovered before opening either teacher.
@@ -244,6 +259,37 @@ class BFixedWinnerJointP23Test extends TestCase
         $this->assertFileDoesNotExist($directory.'/access-order.json');
         $this->assertFileDoesNotExist($directory.'/evaluation.json');
         $this->assertFileDoesNotExist($directory.'/COMPLETE.json');
+    }
+
+    public function test_synthetic_source_guard_rejects_outside_paths_and_non_testing_environment(): void
+    {
+        if (BFixedWinnerJointP23TestProcess::delegate($this, $this->temporary)) {
+            return;
+        }
+        $before = scandir($this->temporary->path());
+        try {
+            BFixedWinnerJointP23TestProcess::run(self::class.'::test_source_end_drift_blocks_teacher_release', clone $this->temporary);
+            $this->fail('Unregistered process owner accepted.');
+        } catch (\RuntimeException $error) {
+            $this->assertSame('Recorded test-process identity changed or owner is unregistered.', $error->getMessage());
+        }
+        $this->assertSame($before, scandir($this->temporary->path()));
+        $bundle = Fixture::make($this->temporary->path().'/source');
+        $outside = CompositionResultTemporaryDirectory::create('/home/shinya/Desktop');
+        try {
+            $sources = new Sources(str_repeat('0', 64));
+            try {
+                $sources->open($outside->path(), $outside->path());
+                $this->fail('Outside synthetic path accepted.');
+            } catch (\RuntimeException $error) {
+                $this->assertSame('Synthetic pins are testing-only.', $error->getMessage());
+            }
+            $this->app->detectEnvironment(fn () => 'production');
+            $this->expectExceptionMessage('Synthetic pins are testing-only.');
+            $sources->open($bundle['input'], $bundle['baseline']);
+        } finally {
+            $outside->retire($outside->path(), 'TEST_COMPLETE');
+        }
     }
 
     public function test_command_plan_is_outcome_free_and_training_free(): void

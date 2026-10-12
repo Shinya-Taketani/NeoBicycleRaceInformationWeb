@@ -2,7 +2,7 @@
 
 > 2026-10-12 最新工程追記：PR103はGitHubでMERGED、merge/main/originは `8a9ea0f4768f620b9c23194e7c40051681c25d94`。
 > v1.69のレビュー待ち・C3不採用・実行/テスト記録は当時の記録として保持する。
-> 現在は15.76のB-FIXED-WINNER-JOINT-P23-01を実装・限定比較・独立再現済み。次は未コミット差分/結果レビューのみ。
+> 15.76のB-FIXED-WINNER-JOINT-P23-01は実装・限定比較・独立再現済み。PR104作成後の現在は15.76.1のテスト環境限定修正を未コミットで再レビュー待ち。
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
@@ -4006,6 +4006,22 @@ C−Bの1着差0、2着-0.155982pp CI[-0.293805,-0.014625]、3着+0.146826pp CI[
 current_engine_state=JOINT_P23_MEASURED_REPRODUCED_GATE_NOT_PASSED_AWAITING_REVIEW、current_phase=B-FIXED-WINNER-JOINT-P23-01、next_allowed_action=REVIEW_B_FIXED_WINNER_JOINT_P23_CODE_AND_DEVELOPMENT_RESULT_ONLY。
 implementation_status=IMPLEMENTED_TESTED、evaluation_status=MEASURED_REPRODUCED、joint_probability_invariant=true、winner_preservation=true、development_accuracy_evidence=PRIMARY_EXACT_ORDER_IMPROVEMENT_DEVELOPMENT_ONLY。formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN。元C1/B・旧C3不採用を維持し、結果を見た規則変更・再実行・次工程を開始しない。
 実DB/競輪HTTP/実Raw/2026/学習/Migration/LIVE/既存成果物上書き/永久削除/既存資料移動は0。保持人工領域だけ人工Desktop/Trashへ退避。詳細・全比較・CI・件数は [専用記録](b-fixed-winner-joint-p23-01.md)。未コミットの手動Git/差分レビュー待ち、commit/push/PR操作は禁止のまま。
+
+### 15.76.1 PR104: 7件の人工fixture拒否修正 / 2026-10-12
+
+対象PR104、branch `feature/b-fixed-winner-joint-p23-01`、開始HEAD `c7cc0eea2d8ebe2ce56a552642c1172aaf2a1a48`、cleanを確認。PR作成済みという最新指示に従い、15.76の「未コミットの手動Git/差分レビュー待ち」は初回当時の記録として保持し、現在のPR作成待ちとは扱わない。
+ユーザーの全体実行は7 failed / 59 warnings / 9 skipped / 3595 passed / 33204 assertions / 360.69秒。59警告本文は未入手、今回の対象警告0を全59件解消へ読み替えない。
+
+原因はDesktop fixtureと、既存人工Sourcesのtesting＋PHP一時領域配下条件の不一致。通常 `/tmp` / TMPDIR未設定、実deviceはtmp=44、Desktop/Trash=66306。APP_ENV=testingでも旧7ケースがSources:26/Fixture:101で失敗することを隔離再現した。旧sys_temp_dir=Desktopの成功記録を通常環境の保証にしない。
+変更は `BFixedWinnerJointP23Test.php` と専用 `BFixedWinnerJointP23TestProcess.php`、専用文書と本追記だけ。作成した記録付きオブジェクトをdevice/inode/hashで検証し、tmp/Trashが同一mountなら直接実行、異なる場合は既存7ケース＋追加1ケースを一つの人工root view内の128M PHPへ委譲する。mount IDまで照合し、子case/JUnit/exitを検証して元assertionsを親へ引き継ぐ。Production Sources/計算/共通退避helperは変更しない。
+原本repo read-only、実.env/storage/cache/socket隔離、ネットワーク遮断。人工入力ガードを緩和せず、作成時の保持pathだけを同一filesystemの人工Trashへrename-only退避、削除/copy fallbackなし。通常device差のvendor-only親では自作envelopeだけ実Trashへ退避し記録、過去Desktop資料は操作しない。
+
+修正前Artisanは33ケース/107 assertions/7 errors/26 warnings/skip0/exit2。26警告は隔離のdev-null env読取り拒否、別にread-only cache警告1件で、ユーザー全体59件とは区別する。最終はコメントだけの人工envをbindし、原本cacheへの書込みを避けた。警告抑制・skip・既存assertions削除/緩和は0。
+最終Artisan対象34 passed/140 assertions、関連安全helper＋数値48/530、通常device差の独立子8/33、全failure/error/warning/skip0/exit0。PHP8.5.4/PHPUnit12.5.31、本体128M。Artisan親のPHP指定だけでは子が無制限だった途中ログも保持し、最終はPHPUnit側にも `-d memory_limit=128M` を指定、全34環境記録で確認した。対象peak87.5MiB、native子40.5MiB、関連38.50MiB。大容量独立128Mは193198986 bytes/18000race/126000出走/peak28MiB、P1/joint/Supporting不変。
+対象最終13:18:46〜13:18:57 JST/11.040301秒。変更2PHP構文・限定Pint成功、diff検査実施。前後/実コマンド/JUnit/events/環境/退避証拠は `/home/shinya/neo-keirin-artifacts/b-fixed-winner-joint-p23-01/pr104-review-20261012-035526-80b76f84/`、詳細は [専用記録](b-fixed-winner-joint-p23-01.md)。
+
+全体は旧対象外testのFile::deleteDirectory/unlinkとmetric spool unlinkが残るため未実施。一括改変・抑制で回避しない。bwrap/user namespace/mountinfoが必要で、利用不能はfail-closed。当地の入れ子namespaceは拒否されたため、単一root viewのArtisan対象とnative親からの委譲を分離して検証。通常全体成功と全59警告の原因は未確認。
+current_engine_state=PR104_TEST_ENV_FIX_READY_FOR_REVIEW、next_allowed_action=REVIEW_PR104_TEST_ENV_FIX_ONLY。限定修正のレビュー可能状態であり、全体確認済みとはしない。既存incremental Gate NOT_PASSED、formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN、元C1/B/旧C3不採用/過去実測/hashは不変。実DB/HTTP/Raw/学習/実比較再実行/既存成果物変更/永久削除/Git書込みは0、精度影響はNOT_MEASURED_THIS_CHANGE。次工程へ進まない。
 
 ## 15.75 STAT35-TREND6-P1-INCREMENTAL-01 / 2026-10-11〜12
 
