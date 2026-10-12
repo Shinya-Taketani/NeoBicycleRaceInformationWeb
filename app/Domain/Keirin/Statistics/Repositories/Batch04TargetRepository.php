@@ -28,6 +28,8 @@ class Batch04TargetRepository
         if (! $run instanceof StatisticFeatureRun
             || $run->stat_code !== Stat01Calculator::STAT_CODE
             || $run->calculation_version !== Stat01Calculator::CALCULATION_VERSION
+            || ! in_array($run->status, ['SUCCEEDED', 'PARTIALLY_SUCCEEDED'], true)
+            || $run->finished_at === null
             || (int) $run->processed_race_count !== (int) $run->target_race_count
             || (int) $run->error_count !== 0) {
             throw new RuntimeException('The specified STAT-01 run was not complete.');

@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-12 最新工程：開始clean main/ローカルorigin `3abaaf8acc2230cd660abe339e7757d10b8afae9` のPR104 mergeを履歴で確認（fetch/外部照会なし）。最新ユーザー指示で区分1の16 STAT限定MVPを製造・人工検証した。現在地の正本は15.77、次はコード・受入台帳レビューのみ。
+> branch `feature/stat-category1-mvp-completion-01`、関連208 tests / 1988 assertions / 128M / exit0。正式DB保存・本番照合は未実施。confidence/配点はNULL、historical_as_of_available=false、正式採用/2026/LIVEは禁止のまま。以下のPR103/104レビュー記載は追記当時の履歴として保持する。
+
 > 2026-10-12 最新工程追記：PR103はGitHubでMERGED、merge/main/originは `8a9ea0f4768f620b9c23194e7c40051681c25d94`。
 > v1.69および15.76/15.76.1のレビュー待ち・未コミット状態・実行/テスト記録は当時の履歴として保持する。現在地は15.76.2を正本とする。
 > PR #104は作成・再レビュー済み、テスト環境修正コミット `6783fc65779c5ef9f0be05dd36d2516ae910f7da` はpush済み（ユーザー報告、ローカルHEAD/origin追跡参照も同SHA）。現在はマージ前の最終確認段階。
@@ -8,17 +11,22 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.69
+- Version: 1.70
 - Created: 2026-08-23
 - Updated: 2026-10-12
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR103 OPEN。P2の専用spool管理とP3のテスト退避理由を人工検証し再レビュー待ち。旧C3不採用・正式採用/2026/LIVE/実収集未承認は不変
-- Current code: 専用18項目C3、旧mean6照合付きtrend生成、C3 U1＋元C1 U2/U3、既存Evaluator/Gate・数値互換の非削除spool経路。旧Solver/Fetcher/Parser/DB/モデル/資料は不変
-- Current execution record: TREND6_COMPARISON_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW。旧mean/window不変、Outer50078レース、独立2run77成果物一致、C−B/C−A Gate未達、Primary完全順序B比悪化。精度改善は未確認、15.75参照
-- Current tests record: PR103 P2/P3専用68/366・安全な関連49/452、各128M/exit0・failure/error/skip=0。旧実験の36/243・22/333とは時点を区別。通常全体は旧危険cleanupのため未実行
+- Remote `main` at last update: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
+- Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
+- Current review: 区分1の16 STAT限定MVPのコード・人工検証・台帳レビュー待ち。正式保存・正式採用・2026/LIVEは未承認、15.77参照
+- Current code: 新規STAT20品質根拠監査と既存B2〜B5の終端run受入検査。既存15項目の計算式・版、予測モデル/係数/Solver/Decoder/Gateは不変
+- Current execution record: CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW / PRODUCTION_STORAGE_NOT_VERIFIED。人工保存・dry-run非書込みだけを確認し、本番実行/学習/評価/Raw参照は0
+- Current tests record: 関連208/1988、独立128M/exit0・failure/error/warning/skip=0、peak66.50MiB。人工6000race/42000出走・累計583714986bytesをpeak10MiBで逐次処理。通常全体は危険cleanupのため未実施
+- Previous review at v1.69: PR103 OPEN。P2の専用spool管理とP3のテスト退避理由を人工検証し再レビュー待ち。旧C3不採用・正式採用/2026/LIVE/実収集未承認は不変
+- Previous code at v1.69: 専用18項目C3、旧mean6照合付きtrend生成、C3 U1＋元C1 U2/U3、既存Evaluator/Gate・数値互換の非削除spool経路。旧Solver/Fetcher/Parser/DB/モデル/資料は不変
+- Previous execution record at v1.69: TREND6_COMPARISON_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW。旧mean/window不変、Outer50078レース、独立2run77成果物一致、C−B/C−A Gate未達、Primary完全順序B比悪化。精度改善は未確認、15.75参照
+- Previous tests record at v1.69: PR103 P2/P3専用68/366・安全な関連49/452、各128M/exit0・failure/error/skip=0。旧実験の36/243・22/333とは時点を区別。通常全体は旧危険cleanupのため未実行
 - Previous execution/tests record (PR102): P2修正後Phase1 75/444、既存Parser32/451・安全helper27/119、各128M/exit0。3PHP構文・限定Pint成功、全体未実行。15.74の受入済み当時の記録、今回再実行していない
 - Previous execution/tests record (PR100): 15.72の固定99,669レースmetadata、JSJ017ログ21,203/PJ0315ログ125,130は全て後日取得・候補0、Phase A早期終了/Phase B非実施、manifest SHAと未確認範囲は受入済みの当時の記録。今回再監査していない
 - Previous execution/tests record (PR99): 15.71のPARTIAL_READINESS・99,669レース/706,051出走の旧実測・7ファイル/manifest一致、27/167・helper27/119、P2限定2/30の実績は受入済みの当時の記録。今回の設計へ読み替えない
@@ -191,6 +199,29 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 ---
 
 # 5. 現在地
+
+## 5.0 最新ユーザー承認の限定MVP工程
+
+```yaml
+current_engine_state: CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW
+current_phase: STAT-CATEGORY1-MVP-COMPLETION-01
+next_allowed_action: REVIEW_CATEGORY1_MVP_CODE_TESTS_AND_LEDGER_ONLY
+remote_main: 3abaaf8acc2230cd660abe339e7757d10b8afae9
+pr104_status: MERGED_LOCAL_HISTORY_CONFIRMED
+category1_stat_codes: [STAT-01, STAT-07, STAT-08, STAT-10, STAT-11, STAT-12, STAT-20, STAT-23, STAT-24, STAT-26, STAT-31, STAT-32, STAT-33, STAT-39, STAT-41, STAT-42]
+category1_mvp_implementation: IMPLEMENTED_SYNTHETIC_TESTED
+category1_production_storage: NOT_VERIFIED_THIS_PHASE
+stat20_confidence_policy: NOT_DEFINED_NO_INVENTED_POINTS
+historical_as_of_available: false
+formal_adoption: false
+prediction_use: NOT_AUTHORIZED
+holdout_2026: FROZEN_NO_ACCESS
+production_db_access: NOT_AUTHORIZED_THIS_PHASE
+```
+
+以下のv1.69現在地・next_allowed_actionと5.1の説明は当時の履歴であり、今回の製造許可を制限する現在状態ではない。旧モデルや不採用判断は変更しない。
+
+### v1.69時点の現在地（履歴）
 
 ```yaml
 current_engine_state: TREND6_COMPARISON_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW
@@ -862,7 +893,7 @@ holdout_status:
   final_holdout_outcome_access: FORBIDDEN
 ```
 
-## 5.1 意味
+## 5.1 v1.69時点の意味（履歴）
 
 - PR91レビュー後マージ、main f5cc8316b0deaa4bfb8b1e83ebd12417846b307b。15.63の成分別非低下比較は主Gate未達で不採用・元C1維持、旧実行・未マージ当時の記録は保持する。最新ユーザー指示で今回だけC2 U1＋C1 U2/U3の構成比較を許可（15.64）。PR91制約/P2固定は持ち込まず学習0、旧モデル・旧結果を保持。正式置換/LIVE/2026/DB/HTTP/Rawは禁止のまま。
 
@@ -1036,6 +1067,7 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
+| STAT-CATEGORY1-MVP-COMPLETION-01 | 既存DB対応16 STATのMVP製造・受入監査 | CODE_TESTED_AWAITING_REVIEW | STAT20新規・既存15再点検、正式DB保存未確認、配点/採用/2026未承認、15.77参照 |
 | Statistics Feature Foundation | 発走前統計特徴量の構築 | COMPLETED for current scope | GO |
 | BT-01 | STAT-01 baseline確立 | COMPLETED | PASS |
 | BT-02 | STAT-01に対する各STAT増分予測力評価 | COMPLETED | PASS |
@@ -3992,6 +4024,31 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.77 STAT-CATEGORY1-MVP-COMPLETION-01 / 2026-10-12
+
+開始clean main/ローカルorigin `3abaaf8acc2230cd660abe339e7757d10b8afae9`、PR104 mergeをローカル履歴で確認。
+branch `feature/stat-category1-mvp-completion-01`。今回の最新承認は取得可否4分類ドラフト区分1の16項目の限定MVPであり、15.76.2の文書レビュー専用許可は当時の履歴として保持する。
+対象は01/07/08/10/11/12/20/23/24/26/31/32/33/39/41/42のみ。既存15 Calculatorの式・版・過去結果は変更せず、[16項目の受入台帳](stat-category1-mvp-completion-01.md)に入力経路・NULL/異常/履歴/cutoff/hash/保存・未完成事項を記録。
+
+STAT20-existing-db-v1は明示run/resultと本人・race/entry/bike・STAT01 lineageを照合し、STAT別品質とレース充足をRACE_ENTRY resultへ保存する。
+充足比率はconfidenceではない。未知の元Raw/log/Parser版/公式公開時刻はDATA_SOURCE_PENDING/NOT_VERIFIEDとし、直接証拠なしのjoin・推定・本番fallbackは作らない。
+原則PARTIAL/DEGRADED、重大不正はINVALID_INPUTまたはrace FAILED、未解決本人/cutoffはMISSING_INPUT。raw_points/confidence/effective_pointsはNULL。
+STAT33は観測遷移だけで公式勝ち上がり未実装、STAT41は得点分布だけで波乱/不確実性score未定義を維持する。
+
+既存B2/B3/B4/B5のrun受入不具合は人工16ケースで修正前failure/exit1を確認し、SUCCEEDED/PARTIALLY_SUCCEEDEDとfinished_atの2条件だけを各Repositoryへ追加。
+修正後は拒否16/許可8ケースが成功。式・計算版・旧コードseal/旧成果物を更新せず、過去の実験結果を今回のコード実行へ読み替えない。
+新規STAT20の参加者順序だけhash用構造を正規化し、原evidence・共通hash仕様を変更しない。
+車立ての整数/数値文字列/float混在の暗黙同値化を人工5ケース中2 failuresで再現し、全行の整数型検査を追加。正常入力のhashは不変、旧15 Calculatorへ変更しない。
+
+最終関連208 tests / 1988 assertions、failure/error/warning/skip=0、exit0。PHP8.5.4/PHPUnit12.5.31、独立128M、原本read-only/人工.env/SQLite :memory:/ネットワーク遮断で実行。
+変更19PHP構文/限定Pint/通常git diff --checkはexit0、新規未追跡資料も空白エラーなし。Migration追加なし。
+2026-10-12 18:38:04〜18:38:09 JST、5.804583秒、peak66.50MiB。人工6000race/42000出走・累計583714986bytes逐次処理はpeak10MiB/exit0、本番年間処理の実測ではない。中間検証203/1913と修正前失敗は当時のログへ保持。
+通常全体は対象外の永久削除cleanupが残るため未実施。旧59 warnings本文/解消と独立CIは未確認のまま、今回の関連警告0と分離する。
+証跡 `/home/shinya/neo-keirin-artifacts/stat-category1-mvp-completion-01/verification-20261012-175659-cec31fd1/` に修正前/開発中失敗・最終ログ/JUnit/eventsを保持。
+本番DB/HTTP/実Raw/2026/学習/評価/既存成果物変更/Migration追加は0。人工SQLite保存のみを確認し、実DB正式runの件数/保存成功は未確認。
+current_engine_state=CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW、next_allowed_action=REVIEW_CATEGORY1_MVP_CODE_TESTS_AND_LEDGER_ONLY。
+historical_as_of_available=false、formal_adoption=false、prediction_use=NOT_AUTHORIZED、2026閉鎖を維持。commit/push/PR作成/mergeなし、レビュー待ちで停止する。
+
 ## 15.76 B-FIXED-WINNER-JOINT-P23-01 / 2026-10-12
 
 この最新追記は、冒頭・Section5・引継ぎに残るPR103当時の現在地だけに優先する。過去実測/hash/否定結果は不変。
@@ -4607,6 +4664,23 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.70 / 2026-10-12
+
+```yaml
+document_version: 1.70
+updated_at: 2026-10-12
+remote_main_sha: 3abaaf8acc2230cd660abe339e7757d10b8afae9
+phase_changed: CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW
+related_pr: PR104_MERGED_LOCAL_HISTORY_CONFIRMED
+related_run: SYNTHETIC_VERIFICATION_ONLY_NO_PRODUCTION_RUN
+decision: REVIEW_CATEGORY1_MVP_CODE_TESTS_AND_LEDGER_ONLY
+reason: Latest user authorization for existing-DB category1 sixteen-STAT MVP
+```
+
+16項目の台帳・STAT20の品質根拠MVP・再現した終端run受入不具合の最小修正を15.77へ記録。
+旧v1.69/15.76/15.76.1/15.76.2の数値・失敗/成功・HEAD・レビュー許可を当時の履歴として残す。
+本番保存未確認、confidence/配点未定義、歴史的as-of/正式採用/2026/LIVE未承認を維持する。
 
 ## v1.69 / 2026-10-12
 
@@ -5404,6 +5478,11 @@ Remote `main`:
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+最新の現在地は15.77と5.0。区分1の16 STAT限定MVPはコード・人工検証完了/レビュー待ち、実DB正式保存は未確認。
+開始main/ローカルoriginはPR104 merge `3abaaf8acc2230cd660abe339e7757d10b8afae9`（fetchなし）。次は受入台帳・コード・関連208/1988のレビューのみ。
+STAT20は保存品質根拠のみ、confidence/配点はNULL。既存C1/B/C3の判定とhistorical_as_of_available=false・2026閉鎖を維持する。
+以下のv1.69開始文は過去の引継ぎ記録であり、今回の現在地として扱わない。
 
 統計エンジン作業を再開するとき、ChatGPTは少なくとも次を認識してから回答する。
 
