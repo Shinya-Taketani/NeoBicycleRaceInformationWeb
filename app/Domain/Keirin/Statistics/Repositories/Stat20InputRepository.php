@@ -36,6 +36,13 @@ class Stat20InputRepository
                 || ($id !== $options->stat01RunId && ($run->parameters['stat01_run_id'] ?? null) !== $options->stat01RunId)) {
                 throw new RuntimeException('STAT-20 source run is incomplete, unsupported, duplicate, or belongs to another snapshot.');
             }
+            if ($id === $options->stat01RunId) {
+                $resultCount = DB::table('statistic_feature_results')->where('feature_run_id', $id)
+                    ->where('stat_code', 'STAT-01')->where('subject_type', 'RACE_ENTRY')->count();
+                if ((int) $resultCount !== (int) $run->target_entry_count) {
+                    throw new RuntimeException('The specified STAT-01 run result count was incomplete.');
+                }
+            }
             $runs[$run->stat_code] = (int) $id;
         }
         ksort($runs);

@@ -251,7 +251,12 @@ class Stat20CalculatorTest extends TestCase
     {
         $sql = file_get_contents(dirname(__DIR__, 5).'/docs/sql/validate_stat20.sql');
         $this->assertIsString($sql);
-        foreach (['BEGIN READ ONLY', 'ROLLBACK', '\\if :{?stat20_run_id}', '\\quit 1',
+        foreach (['BEGIN READ ONLY', 'ROLLBACK', '\\if :{?stat20_run_id}', '\\unset stat20_validation_ok',
+            'stat20_validation_missing_run_id', 'stat20_validation_failed', '\\if :stat20_validation_ok',
+            '\\gset', 'REPEATABLE READ', "run.status IN ('SUCCEEDED', 'PARTIALLY_SUCCEEDED')",
+            'run.finished_at IS NOT NULL', 'run.processed_race_count = run.target_race_count', 'run.error_count = 0',
+            '(SELECT COUNT(*) FROM saved) = run.target_entry_count', '(SELECT COUNT(*) FROM items) = run.target_race_count',
+            'items.feature_result_count IS DISTINCT FROM race_counts.result_count',
             'STAT-20-existing-db-v1', 'duplicate_subjects', 'invented_points_or_confidence',
             'official_publication', 'raw_linkage', 'unfinished_items', 'NOT_AUTHORIZED',
             'blocked_reason', 'missing_or_conflicting_current_entry'] as $required) {
@@ -259,5 +264,7 @@ class Stat20CalculatorTest extends TestCase
         }
         $this->assertDoesNotMatchRegularExpression('/\b(INSERT|UPDATE|DELETE|ALTER|CREATE|TRUNCATE)\b/i', $sql);
         $this->assertStringNotContainsString('ORDER BY started_at DESC', $sql);
+        $this->assertStringNotContainsString('\\quit', $sql);
+        $this->assertLessThan(strpos($sql, '\\gset'), strpos($sql, '\\unset stat20_validation_ok'));
     }
 }

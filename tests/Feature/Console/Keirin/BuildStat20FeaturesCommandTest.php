@@ -91,6 +91,89 @@ class BuildStat20FeaturesCommandTest extends TestCase
         }
     }
 
+    #[DataProvider('completeRootRuns')]
+    public function test_complete_successful_and_partial_stat01_sources_are_still_accepted(bool $missingScore, string $status): void
+    {
+        $race = Fixture::race();
+        if ($missingScore) {
+            DB::table('race_entries')->where('race_id', $race)->where('bike_number', 1)->update(['race_score' => null]);
+        }
+        $root = Fixture::stat01($race);
+        $run = StatisticFeatureRun::query()->findOrFail($root);
+        $this->assertSame($status, $run->status);
+        $this->assertSame(0, $run->error_count);
+        $this->assertSame(7, StatisticFeatureResult::query()->where('feature_run_id', $root)->count());
+        $before = $this->statisticRows();
+        $this->artisan('keirin:statistics:build-stat20', [
+            '--stat01-run-id' => $root, '--race-id' => $race, '--dry-run' => true,
+        ])->expectsOutputToContain('target_races=1 target_entries=7')->assertExitCode(0);
+        $this->assertSame($before, $this->statisticRows());
+    }
+
+    public static function completeRootRuns(): array
+    {
+        return [[false, 'SUCCEEDED'], [true, 'PARTIALLY_SUCCEEDED']];
+    }
+
+    public function test_a_whole_missing_race_in_the_source_run_is_rejected_even_for_a_retained_race_target(): void
+    {
+        $retained = Fixture::race();
+        $missing = Fixture::race();
+        $date = new DateTimeImmutable('2024-01-02');
+        $root = (int) app(Stat01FeatureBuildService::class)->build(new Stat01BuildOptionsDto($date, $date, null, 1, false))->runId;
+        $run = StatisticFeatureRun::query()->findOrFail($root);
+        $this->assertSame(2, $run->target_race_count);
+        $this->assertSame(2, $run->processed_race_count);
+        $this->assertSame(14, $run->target_entry_count);
+        $this->assertSame(7, DB::table('statistic_feature_results')->where('feature_run_id', $root)->where('race_id', $missing)->delete());
+
+        $this->assertSourceRejectedWithoutWrites($root, $retained);
+    }
+
+    #[DataProvider('wrongEntryCounts')]
+    public function test_stat01_recorded_entry_count_must_equal_the_saved_snapshot(int $count): void
+    {
+        $race = Fixture::race();
+        $root = Fixture::stat01($race);
+        StatisticFeatureRun::query()->findOrFail($root)->forceFill(['target_entry_count' => $count])->save();
+        $this->assertSourceRejectedWithoutWrites($root, $race);
+    }
+
+    public static function wrongEntryCounts(): array
+    {
+        return [[6], [8]];
+    }
+
+    #[DataProvider('nonStat01EntryResults')]
+    public function test_other_stat_codes_or_subjects_do_not_replace_missing_stat01_entries(array $changes): void
+    {
+        $race = Fixture::race();
+        $root = Fixture::stat01($race);
+        StatisticFeatureResult::query()->where('feature_run_id', $root)->where('bike_number', 1)->sole()->forceFill($changes)->save();
+        $this->assertSame(7, StatisticFeatureResult::query()->where('feature_run_id', $root)->count());
+        $this->assertSourceRejectedWithoutWrites($root, $race);
+    }
+
+    public static function nonStat01EntryResults(): array
+    {
+        return [[['stat_code' => 'STAT-10']], [['subject_type' => 'RACE']]];
+    }
+
+    #[DataProvider('unfinishedRootRuns')]
+    public function test_root_stat01_must_be_terminal_and_have_a_finish_time(array $changes): void
+    {
+        $race = Fixture::race();
+        $root = Fixture::stat01($race);
+        StatisticFeatureRun::query()->findOrFail($root)->forceFill($changes)->save();
+        $this->assertSourceRejectedWithoutWrites($root, $race);
+    }
+
+    public static function unfinishedRootRuns(): array
+    {
+        return [[['status' => 'RUNNING']], [['status' => 'FAILED']], [['finished_at' => null]],
+            [['status' => 'PARTIALLY_SUCCEEDED', 'finished_at' => null]]];
+    }
+
     #[DataProvider('invalidRuns')]
     public function test_incomplete_version_or_mixed_snapshot_source_run_is_rejected_before_writes(array $changes): void
     {
@@ -203,6 +286,15 @@ class BuildStat20FeaturesCommandTest extends TestCase
     {
         return array_map(fn ($table) => DB::table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all(),
             ['statistic_feature_runs', 'statistic_feature_results', 'statistic_feature_run_items']);
+    }
+
+    private function assertSourceRejectedWithoutWrites(int $root, int $race): void
+    {
+        $before = $this->statisticRows();
+        $this->artisan('keirin:statistics:build-stat20', ['--stat01-run-id' => $root, '--race-id' => $race])->assertExitCode(1);
+        $this->assertSame($before, $this->statisticRows());
+        $this->assertSame(0, StatisticFeatureRun::query()->where('stat_code', 'STAT-20')->count());
+        $this->assertSame(0, StatisticFeatureResult::query()->where('stat_code', 'STAT-20')->count());
     }
 
     private function businessRows(): array
