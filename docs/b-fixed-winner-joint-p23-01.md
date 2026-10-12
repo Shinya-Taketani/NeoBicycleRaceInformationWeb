@@ -165,3 +165,33 @@ php -d memory_limit=128M vendor/bin/phpunit tests/Unit \
 通常全体は未実施。対象外の `C1Stat35P1CompositionTest` / `C1MarginalP23DecoderTest` の `File::deleteDirectory/unlink` と既存metric spoolの `unlink` が残るため、永久削除禁止を守って停止した。一括改変や無効化は行わない。
 専用helperはLinuxのbwrap/user namespaceとmountinfoを必要とする。利用不能なら失敗証拠を保持してfail-closed。当地では隔離の入れ子namespaceが拒否されたため、Artisan対象には一つの専用root view、通常device差の委譲にはnativeのvendor-only親を使用して両経路を別々に実測した。標準全体ランナーでの連続成功・59警告本文は未確認。
 今回の限定修正は `READY_FOR_REVIEW`。全体テスト確認済みを意味しない。既存Gate NOT_PASSED、formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDENは不変。実DB/競輪HTTP/実Raw/学習/保存実験再実行/旧成果物変更/永久削除/Git書込みは0、予測精度への影響は `NOT_MEASURED_THIS_CHANGE`。
+
+## PR104: 修正コミット後の最終確認・工程記録同期 / 2026-10-12
+
+開始branch `feature/b-fixed-winner-joint-p23-01`、HEAD `6783fc65779c5ef9f0be05dd36d2516ae910f7da`、clean、ローカルoriginの同branch追跡参照も同SHAを確認。ユーザー報告ではPR #104は作成・再レビュー済みで、テスト環境修正コミット6783fc6はpush済み、重大な予測ロジック問題の追加検出なし。現在はマージ前の最終確認段階。
+上記の初回実行・前回修正時の未コミット/全体未実施は当時のCodex履歴として保持する。今回の文書差分のみ未コミットでレビュー待ちであり、実装修正コミット自体は保存・push済み。今回コード/テスト/設定・旧モデル/比較結果/証跡は変更しない。
+
+| 検証主体・順序 | 結果 | assertions | 所要時間 | 確認状態 |
+|---|---|---:|---|---|
+| ユーザー全体・修正前 | 7 failed / 59 warnings / 9 skipped / 3595 passed | 33204 | 360.69秒 | 共有された集計、警告本文・実行日時・終了コードは未確認 |
+| Codex限定・修正後 | 34 passed / failure・error・warning・skip各0 | 140 | 11.040301秒（Collision表示10.89秒） | 2026-10-12 13:18:46〜13:18:57 JST、Artisan保存ログ・JUnit・exit0確認済み |
+| ユーザー全体・修正後 | 失敗0件（エラー報告なし）/ 59 warnings / 9 skipped / 3603 passed | 33245 | 362.55秒 | 今回共有された集計、警告本文・実行日時・終了コードは未確認 |
+
+以前の7件の失敗解消と、全体59 warningsの内容未確認を分離する。ユーザー全体実行はCodex自身の隔離検証でもGitHub Actions成功でもない。今回、保存ログとテスト2ファイルの記録SHA一致を読取り確認しただけで、テストを再実行していない。
+
+警告調査記録は実在・読取り可能で、84ファイル（23実行記録）・本文付き元全体ログ未発見という内容と内訳を確認した。
+`/home/shinya/neo-keirin-artifacts/b-fixed-winner-joint-p23-01/pr104-review-20261012-035526-80b76f84/warning-lookup-20261012-133855-d1636fc8/report.json`
+記録日時2026-10-12 13:38:55 JST、SHA-256 `7d484534c320255fb17162c36002fcefb6cf9b72b745be33deb6e7d1688a8ccf`。既存reportは変更しない。調査範囲外のログ不存在までは断定しない。
+
+```ini
+warning_details_status=WARNING_DETAILS_NOT_AVAILABLE
+full_suite_warning_count=59
+target_test_warning_count=0
+all_59_warnings_resolved=NOT_CONFIRMED
+latest_head_github_actions_verification=NOT_CONFIRMED
+cross_environment_compatibility=NOT_GUARANTEED
+```
+
+59件すべてが既存警告/PR104無関係/解消済みという判定や、原因確定はできていない。今回、本文取得のための全体再実行・抑制・CI構築は行わない。Linuxのbwrap・user namespace・mount情報取得への依存を維持し、隔離子起動不能はfail-closed、ガードを解除しない。限定検証成功・ユーザー全体失敗0件/59 warnings・最新HEADの独立CI未確認・他環境互換性未保証を別々の事実として扱う。
+existing_incremental_gate=NOT_PASSED、formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDENは不変。候補Cの正式採用・2026 holdout開放・LIVE開始は許可しない。過去の実測数値・SHA・CI・再現結果は変更しない。
+今回の文書整合修正は `READY_FOR_REVIEW`、予測精度影響はNOT_MEASURED_THIS_CHANGE。次の許可作業はPR #104の文書差分に対するChatGPT再レビューだけ。学習/予測/評価/DB/HTTP/Raw/2026参照/Git commit・push・merge/PR操作は実施せず停止する。

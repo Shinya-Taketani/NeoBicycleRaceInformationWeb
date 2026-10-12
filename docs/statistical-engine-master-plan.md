@@ -1,8 +1,10 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
 > 2026-10-12 最新工程追記：PR103はGitHubでMERGED、merge/main/originは `8a9ea0f4768f620b9c23194e7c40051681c25d94`。
-> v1.69のレビュー待ち・C3不採用・実行/テスト記録は当時の記録として保持する。
-> 15.76のB-FIXED-WINNER-JOINT-P23-01は実装・限定比較・独立再現済み。PR104作成後の現在は15.76.1のテスト環境限定修正を未コミットで再レビュー待ち。
+> v1.69および15.76/15.76.1のレビュー待ち・未コミット状態・実行/テスト記録は当時の履歴として保持する。現在地は15.76.2を正本とする。
+> PR #104は作成・再レビュー済み、テスト環境修正コミット `6783fc65779c5ef9f0be05dd36d2516ae910f7da` はpush済み（ユーザー報告、ローカルHEAD/origin追跡参照も同SHA）。現在はマージ前の最終確認段階。
+> 以前の7件の失敗は解消確認済み。Codexの限定検証は34 passed / 140 assertions / warnings 0、ユーザーの修正後全体実行は失敗0件（エラー報告なし）/ 3603 passed / 33245 assertions / 9 skipped / 59 warnings。
+> 59 warningsの本文は未確認、全59件の解消も未確認。最新HEADのGitHub Actions独立検証は未確認、異なる環境での互換性は未保証。次はPR #104の今回文書差分に対するChatGPT再レビューのみ。
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
@@ -4022,6 +4024,38 @@ implementation_status=IMPLEMENTED_TESTED、evaluation_status=MEASURED_REPRODUCED
 
 全体は旧対象外testのFile::deleteDirectory/unlinkとmetric spool unlinkが残るため未実施。一括改変・抑制で回避しない。bwrap/user namespace/mountinfoが必要で、利用不能はfail-closed。当地の入れ子namespaceは拒否されたため、単一root viewのArtisan対象とnative親からの委譲を分離して検証。通常全体成功と全59警告の原因は未確認。
 current_engine_state=PR104_TEST_ENV_FIX_READY_FOR_REVIEW、next_allowed_action=REVIEW_PR104_TEST_ENV_FIX_ONLY。限定修正のレビュー可能状態であり、全体確認済みとはしない。既存incremental Gate NOT_PASSED、formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN、元C1/B/旧C3不採用/過去実測/hashは不変。実DB/HTTP/Raw/学習/実比較再実行/既存成果物変更/永久削除/Git書込みは0、精度影響はNOT_MEASURED_THIS_CHANGE。次工程へ進まない。
+
+### 15.76.2 PR104: 修正コミット後の最終確認・工程記録同期 / 2026-10-12
+
+開始branch `feature/b-fixed-winner-joint-p23-01`、HEAD `6783fc65779c5ef9f0be05dd36d2516ae910f7da`、worktree clean、ローカルoriginの同branch追跡参照も同SHAを読取り確認した。最新コミットはテスト2ファイル・文書2ファイルの修正で、303追加/2削除。今回の変更はこの2文書だけで、実装・テスト・設定は変更しない。
+ユーザー報告ではPR #104は作成済み、同修正コミットはpush・再レビュー済みで、重大な予測ロジック問題の追加検出はない。15.76/15.76.1の未コミット・全体未実施の記述は当時のCodex作業の履歴であり、現在の修正コミット状態やユーザーの後続全体実行を表さない。今回の文書差分だけは未コミットでレビュー待ちとする。
+
+| 検証主体・順序 | 結果 | assertions | 所要時間 | 根拠・確認範囲 |
+|---|---|---:|---|---|
+| ユーザー全体・修正前 | 7 failed / 59 warnings / 9 skipped / 3595 passed | 33204 | 360.69秒 | ユーザー共有の集計。警告本文・実行日時・終了コードは未確認 |
+| Codex限定・テスト環境修正後 | 34 passed / failure・error・warning・skip各0 | 140 | 11.040301秒（Collision表示10.89秒） | 2026-10-12 13:18:46〜13:18:57 JST、保存Artisanログ・JUnit・exit0、15.76.1参照 |
+| ユーザー全体・修正後 | 失敗0件（エラー報告なし）/ 59 warnings / 9 skipped / 3603 passed | 33245 | 362.55秒 | 今回ユーザー共有の集計。実行日時・終了コード・警告本文は未確認 |
+
+Codexの限定実行とユーザーの全体実行は別の検証。後者をCodexによる隔離検証や独立CI成功と扱わない。テスト2ファイルは保存済み限定検証記録のコードSHAと一致することを読取り確認したが、今回PHPUnit/全体テストを再実行していない。
+
+警告調査記録 `/home/shinya/neo-keirin-artifacts/b-fixed-winner-joint-p23-01/pr104-review-20261012-035526-80b76f84/warning-lookup-20261012-133855-d1636fc8/report.json` は実在・読取り可能。内容は2026-10-12 13:38:55 JSTの84ファイル/23実行記録の調査、元全体ログの該当なし、WARNING_DETAILS_NOT_AVAILABLE。内訳件数も一致、同reportのSHA-256は `7d484534c320255fb17162c36002fcefb6cf9b72b745be33deb6e7d1688a8ccf`。今回読み取っただけで、既存証跡の変更や再調査・テスト再実行は行わない。調査範囲外でのログ不存在は断定しない。
+
+```ini
+current_engine_state=PR104_DOCUMENT_SYNC_READY_FOR_REVIEW
+next_allowed_action=CHATGPT_REVIEW_PR104_DOCUMENT_DIFF_ONLY
+pr104_head=6783fc65779c5ef9f0be05dd36d2516ae910f7da
+pr104_review_stage=PRE_MERGE_FINAL_CHECK
+warning_details_status=WARNING_DETAILS_NOT_AVAILABLE
+full_suite_warning_count=59
+target_test_warning_count=0
+all_59_warnings_resolved=NOT_CONFIRMED
+latest_head_github_actions_verification=NOT_CONFIRMED
+cross_environment_compatibility=NOT_GUARANTEED
+```
+
+59件の由来・PR104との関係・原因・解消は未確定。限定テスト警告0や、修正前後で59という同数だったことから全体警告の原因/無関係/解消を推定しない。今回警告取得目的の全体実行、警告抑制、CI構築は行わない。
+既存の隔離経路はLinuxのbwrap・user namespace・mount情報取得に依存し、他環境では起動できない可能性がある。最新HEADのGitHub Actions独立成功と他環境互換性は未確認で、既存ガード解除や成功扱いの根拠にしない。
+候補Cは正式採用しない。existing_incremental_gate=NOT_PASSED、formal_adoption=false、historical_as_of_available=false、2026_access=FORBIDDEN、2026 holdout閉鎖・LIVE未承認を維持。15.76/15.76.1の実測・判定・SHA・再現記録は変更なし、予測精度改善の作業ではない。今回DB/競輪HTTP/実Raw/2026参照/学習/バックテスト/既存成果物操作/Git書込み/PR操作は0。READY_FOR_REVIEWは文書差分のみの判定で、マージ/採用/次工程を許可しない。
 
 ## 15.75 STAT35-TREND6-P1-INCREMENTAL-01 / 2026-10-11〜12
 
