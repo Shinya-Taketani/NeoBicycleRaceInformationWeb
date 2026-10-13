@@ -1,5 +1,9 @@
 # STAT39-BIKE-FRAME-PROBABILITY-RESEARCH-01
 
+> PR106のNULL監査修正はSection16を正本とする。2026-10-14、既存branch/clean HEAD
+> `839c5f26bc2eb3596b6e6acfdd94fafbf48b1eb0` から修正・限定再照合した。
+> 以下の基本確率・分母・初回実行記録はv1当時の履歴を保持する。予測実験ではなく、結論・モデルは不変。
+
 ## 1. 目的と対象期間
 
 2026-10-14、PR105 mergeをローカル履歴で確認。開始clean main/ローカルorigin/mainは
@@ -13,7 +17,8 @@ MASTER PLAN v1.70/5.0/15.77の旧DB未承認記録は当時の工程記録であ
 7/9は登録車立てであり、欠場があるレースの実発走人数まで7/9と断定しない。
 目的は車番・保存枠番と結果の観測関連。新しい予測実験・因果効果・配点計算ではない。
 
-最終状態は `STAT39_RESEARCH_READY_FOR_REVIEW`。
+初回調査終了時の状態は `STAT39_RESEARCH_READY_FOR_REVIEW`。
+今回の監査修正は `STAT39_RESEARCH_REVIEW_FIX_READY_FOR_REVIEW`（Section16）。
 判断A: **未補正率の差を実測確認**。判断B: **実力・番組編成補正後の独立効果は判断不能**。
 判断C: **新STATを作る根拠はなく、既存STAT39の拡張を提案**。
 研究全体の結論は `INSUFFICIENT_EVIDENCE`、拡張案の位置付けは `STAT39_EXTENSION_CANDIDATE`。
@@ -55,9 +60,13 @@ Normalizer/Enum/DTO、source/feature Migration、Batch04 Unit/Featureの分母�
 
 ## 3. 取得・除外条件と再現SQL
 
-[実行した最終SQL](sql/research_stat39_bike_frame_2024_2025.sql) は
+初回調査で実行したSQLは
 `STAT39-BIKE-FRAME-PROBABILITY-RESEARCH-01-v1`、SHA-256
 `22913344ebb77b598abd332dae1f4247268f7f514edd351e0446122c8fff1365`。
+その内容は開始commit `839c5f2` と今回証跡の `sql-v1.sql` へ保持した。
+[現行SQL](sql/research_stat39_bike_frame_2024_2025.sql) は監査修正版v2、SHA-256
+`0abf3581a3b72ab9a5b173c455ad4f3be24584b5ac7e0efc6dd07a4f5f790354`。
+初回v1の集計と今回v2の限定監査は、Section15/16の日時・証跡・実行範囲で区別する。
 全業務SELECTにSQL側の2024/2025範囲を指定。対象行数を事前確認し、各集計前に
 EXPLAIN(FORMAT JSON)を保存。EXPLAIN ANALYZE、無制限の明細読込み、DDL/一時tableは使用しない。
 PHPへ返すのは集約行だけ（主集計1,546行）、128M制限、最終DB処理のpeak16MiB。
@@ -269,7 +278,9 @@ competition rankに基づくscore percentileを作り、その差を得点期待
 
 現行Bt02SourceManifestの明示ID/UUIDと実DBが一致。両runは版・終端・全件数・error0を検査した。
 部分期間run19（2024-01-01、94race/645entry）は年間参照に選ばない。latest自動選択はしない。
-研究対象7/9への保存STAT39は170,949/170,480行すべてVALID、STAT01 lineage/hash・cutoffの不一致0。
+初回v1で研究対象7/9への保存STAT39は170,949/170,480行すべてVALID、既存lineage/hash・cutoffカウンタは0だった。
+ただしv1のcutoff検査は予定発走時刻以前の判定だけで、NULLの検出漏れとSTAT01時点の比較不足があった。
+今回のNULL安全な追加検査・STAT01 cutoff一致確認はSection16の結果であり、初回実施へ読み替えない。
 ただし平均保存履歴win_rate 0.1414437557/0.1413509307は各target時点の過去累積値の平均であり、
 今回の年間事後率と直接引算していない。分母だけでなく期間・cutoffも異なる。
 32車番群の正常分母の差分式だけを既存Batch04CalculatorSupport::deltaへ渡し、算術一致を確認した。
@@ -300,7 +311,7 @@ competition rankに基づくscore percentileを作り、その差を得点期待
 独立効果と予測への増分は別問題で、後者の検証は別途承認されたdevelopment工程で行う必要がある。
 今回Calculator/式/coefficients/Gate/モデルを変更せず、points/confidenceを作らない。
 
-## 15. 実行証跡・未確認事項・次工程
+## 15. 初回調査の実行証跡・未確認事項・次工程
 
 新規の永続証跡root:
 `/home/shinya/neo-keirin-artifacts/stat39-bike-frame-probability-research-01/research-20261014-051106-5eab37ef/`
@@ -339,3 +350,102 @@ DB書込み・Migration/統計build/run生成・HTTP/Raw再取得・学習/予�
 historical_as_of_available=false、formal_adoption=false、prediction_use=NOT_AUTHORIZEDを維持する。
 既存成果物は読取りのみで、全量不変性再監査は行わない。変更は新規報告書とSQLだけ。
 commit/push/PR作成/mergeなし。次は**この報告/SQL/証跡のレビューのみ**で、自動的に製造工程へ進まない。
+
+## 16. PR106: NULL安全なlineage・cutoff・hash監査 / 2026-10-14
+
+### 範囲と修正
+
+開始は既存研究branchのclean HEAD `839c5f26bc2eb3596b6e6acfdd94fafbf48b1eb0`。
+アプリ・Calculator/計算版・モデル・係数・Gate・Migration・MASTER PLANを変更しない。
+変更はこの報告書と監査SQLのみ。SQL版v2は**研究の監査契約の版**でありSTAT39計算版の更新ではない。
+
+- 指摘①: `stat01_run_id` を `IS DISTINCT FROM` で比較し、キー欠落/JSON null/SQL NULL/空文字も不一致へ数える。
+- 指摘②: STAT39/STAT01の `input_as_of IS DISTINCT FROM` を追加。参照なし・片方/両方NULLは別の欠損カウンタでも数える。
+- 両時点とscheduled_start_atの欠損・発走後をinvalid_cutoffへ数える。既存のstrict `>` を維持し、発走時刻と同時刻のcutoffを拒否しない。
+- source STAT01 hash、evidenceの元hash、STAT39自身のhashについて、NULLと既存64桁小文字hex形式不正を数える。
+  hash一致と有効なhashの存在は別検査。双方NULLなら一致比較だけの値は0でも、不正hashカウンタは正となる。
+- score-availabilityをLEFT JOINへ変更し、参照欠損entryが監査対象から消えるのを防ぐ。
+  `target_rows=COUNT(*)`、`joined_rows=COUNT(a.id)`、feature_run_idは年に対応する明示参照run ID。
+- qualityのresult_status除外を `NOT COALESCE(... IN (...), false)` とし、NULLも除外件数へ数える。
+  非NULL本人ID矛盾とNULL識別子の別管理、正常/実発走分母、確率・枠イベントの計算は変更しない。
+
+監査の一致確認にはlineage/hash/cutoff不一致だけでなく、参照/時点/予定時刻の欠損と各bad hashカウンタも
+全て0であることを要求する。これは既存の整合性確認意図の明確化で、モデルの品質・採用Gateの新設ではない。
+
+### 人工PostgreSQL検証
+
+新規証跡内の人工fixture32ケースを、**元SQLのクエリ本体**へVALUES/CTEで接続した。
+case名を投影/groupへ足しただけで監査条件・JOIN・年/run制限は同じ。
+各対象人工レースには7登録/7結果を持たせ、期待件数を独立に指定した。
+欠損は物理tableを書き換えず、NULL許容の人工SQL値で表現する。
+EXPLAINで人工3クエリの実table参照が0であることも確認した。人工2026日付は年filterで除外され、実2026資料は読まない。
+
+32ケースには、正常2024/2025・文字列/数値run ID、異なるrun・キーなし/JSON null/SQL NULL/空文字、
+同じ/異なるcutoff・両方NULL・片側NULL・参照欠損・同一瞬間のタイムゾーン表記、
+hash片側/両側NULL・キーなし・空文字・不正形式・大文字・有効だが異なるhash、
+STAT39自身の不正hash、予定時刻NULL、片側/両側発走後、発走時刻との一致、NULL結果状態、人工2026除外を含む。
+
+| SQL | 実行日時 JST | ケース | 失敗 | 終了コード | 証跡 |
+|---|---|---:|---:|---:|---|
+| v1 | 2026-10-14 05:55:31 | 32 | 13 | 1 | synthetic-v1-* |
+| v2 | 2026-10-14 05:55:58 | 32 | 0 | 0 | synthetic-v2-* |
+
+旧版でlineageキーなし/JSON null、異なる発走前cutoff、STAT01側NULL、source hash NULL、両hash NULL、
+参照欠損の監査母集団消失、予定時刻NULL等の漏れを再現した。失敗は証跡として保持する。
+修正版は全カウンタの期待件数を確認し、発走時刻との一致許容も成功した。
+SQL構文/型/NULL挙動はPostgreSQL18.6で実評価した。PHPの文字列検査だけの検証ではない。
+
+### 実データの再照合
+
+既存認証のPG接続でdefault/transaction READ ONLY=on、REPEATABLE READ、statement_timeout=60s、
+lock_timeout=2s、Asia/Tokyo、対象DB/publicを確認してからSELECTを実行し、最後にROLLBACK。
+業務row/DDLの書込み0。EXPLAINのみ（ANALYZEなし）。各クエリは同一snapshotで2回完全一致。
+
+| 年 | STAT39 run | STAT01 run | 照合entry | lineage不一致 | hash不一致 | cutoff不一致 | 参照欠損 | 時点欠損 | 不正cutoff | source不正hash |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2024 | 21 | 1 | 170,949 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 2025 | 57 | 27 | 170,480 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+予定発走時刻欠損・evidence不正hash・STAT39不正hash・本人対応不一致も両年0。
+score-availabilityのtarget_rows=joined_rows=170,949/170,480、各欠損/不正カウンタ0。
+得点発走前観測の証拠は増えておらず、timestamp_before_startは両年0のまま。
+
+2監査の実行は2026-10-14 05:56:30〜05:56:44 JST、14.672201秒、exit0。
+qualityだけの実行は05:57:47〜05:57:48 JST、0.744686秒、exit0。
+PHP8.5.4、128M制限、両処理peak10MiB。3クエリの初回に存在した全列は旧結果とstrict値比較で完全一致。
+確率・枠イベント・Wilson/bootstrap・run完全性・実モデル利用検査は今回再実行していない。
+既存の47,471race/341,429登録/340,952発走と全実測率は**初回の結果**として変更せず保持する。
+
+### 証跡・版・提出状態
+
+今回の新規root:
+`/home/shinya/neo-keirin-artifacts/stat39-bike-frame-probability-research-01/pr106-review-fix-20261014-055222-f265bbd6/`
+
+sql-v1.sql/SHA `22913344ebb77b598abd332dae1f4247268f7f514edd351e0446122c8fff1365` は初回正本のコピー。
+sql-v2.sql/SHA `0abf3581a3b72ab9a5b173c455ad4f3be24584b5ac7e0efc6dd07a4f5f790354` は今回の現行SQLと一致。
+実行コマンド・時刻・終了コード・peakは各*-execution.json、stdout/stderr、計画と結果JSON、
+人工fixture/期待値/失敗・成功結果を保存した。実DBへ再接続しないverify.phpが新旧全既存列、
+人工計画の実table非参照、旧証跡のsealを確認し、verification-summary.jsonへ記録した。
+外部PHPは認証を出さない既存接続手順と人工SQL評価/保存値比較の実行器だけで、アプリ新クラスやCommandではない。
+audit.php/fixtures.php/verify.phpの構文確認と上記限定実行は成功。PHPUnit/Pint/全体テストは実行していない。
+
+```bash
+php -d memory_limit=128M "$root/audit.php" synthetic-v1 "$root/sql-v1.sql"
+php -d memory_limit=128M "$root/audit.php" synthetic-v2 "$root/sql-v2.sql"
+php -d memory_limit=128M "$root/audit.php" actual-v2 "$root/sql-v2.sql"
+php -d memory_limit=128M "$root/audit.php" quality-v2 "$root/sql-v2.sql"
+php -d memory_limit=128M "$root/verify.php"
+git diff --check
+```
+
+初回rootの83保存ファイルとmanifest/COMPLETE、計85ファイルのhashを確認し、一切変更/削除/移動しない。
+旧manifest SHA `8bf172164c586706894537b4f785f068a2b4b597bd4d6b122183ca2bb836240b` は不変。
+旧manifestのsource欄にある2文書のhashは初回版の記録であり、今回の文書へ書き換えない。
+それ以外の旧27 source sealも一致。今回のmanifest/COMPLETEは別rootへ保存し、旧CSVを再公開/上書きしない。
+git diff --check成功、変更範囲は指定2ファイル。開始/終了HEADは同じ839c5f2で、未コミット差分を保持する。
+
+`Independent effect: NOT_ESTABLISHED`、`Research conclusion: INSUFFICIENT_EVIDENCE`、
+`Proposal: STAT39_EXTENSION_CANDIDATE`、historical_as_of_available=false、formal_adoption=falseを維持。
+公式枠割当・day_kindの意味、本人ID、発走前取得証拠・交絡補正・差CIは未確認のまま。
+予測性能改善/独立効果を確認したとは報告しない。HTTP/Raw再取得・DB更新・新規run・学習/予測/評価・2026実データアクセスは0。
+今回commit/push/PR操作/mergeを行わず、`STAT39_RESEARCH_REVIEW_FIX_READY_FOR_REVIEW`で再レビュー待ちに停止する。
