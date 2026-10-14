@@ -1,6 +1,6 @@
 # STAT39-PRESTART-ATTRIBUTE-EVIDENCE-PHASE1-01
 
-> PR #109再レビュー修正版は末尾の「PR109: 属性・人工時刻・用途の分離（v2）」を正本とする。それ以前は初回v1の仕様・実行履歴であり、今回の結果へ読み替えない。今回の開始HEADは`d245ea9d394492ed2c0d47c56f5807a3c3581c52`、同じPRブランチで修正する。
+> 現行修正版は末尾の「PR109: トップレベル文書代入の構造検証（v3）」を正本とする。初回v1・用途分離v2の仕様と実行値は各時点の履歴として保持し、今回の実測値へ読み替えない。今回の開始HEADは`5990eb1d60f6bbd2fa42d43c90415924fa95b2c3`、同じPRブランチで修正する。
 
 ## 範囲と実装前技術ゲート
 
@@ -214,3 +214,88 @@ PHP `/usr/bin/php` 8.5.4 / PHPUnit 12.5.31。上記初回と同じbwrapの人工
 未解決はPhase 1対象外の実時計・実入力集合・公式制度・実運用承認であり、UNKNOWN/NOT_EVALUATED/BLOCKEDを維持。実DB/HTTP/実Raw/実モデル/2026実データへのアクセス、学習/予測/性能評価、過去証拠の再seal、Phase 2製造、commit/push/PR操作/mergeは実施していない。
 
 最終状態: **STAT39_PRESTART_ATTRIBUTE_EVIDENCE_PHASE1_REVIEW_FIX_READY**。次はこの未コミット差分の再レビューのみ。
+
+## PR109: トップレベル文書代入の構造検証（v3）
+
+### P2指摘と修正前の再現
+
+対象は[RawDocumentsのトップレベル代入検証不足](https://github.com/Shinya-Taketani/NeoBicycleRaceInformationWeb/pull/109#discussion_r4276881557)だけ。作業ブランチは`feature/stat39-prestart-attribute-evidence-phase1-01`、開始/終了HEADは`5990eb1d60f6bbd2fa42d43c90415924fa95b2c3`で不変。開始時clean、commit/push/PR更新/mergeなし。前回の時刻条件と属性用途の分離は維持する。
+
+原因は、文字列/comment外の`;`だけで文境界を更新し、ブロック・丸括弧・角括弧内の空文も独立文の開始と扱っていたこと。正常な人工PC0201/PJ0315を`if(false){; ... }`へ配置し、**PHP本体を変更する前**に次を個別実測した。
+
+| 段階 | 修正前 | 修正後（同じ人工Raw） |
+|---|---|---|
+| RawDocuments単体 | PC0201/PJ0315の両方を受理 | NON_TOP_LEVEL_DOCUMENT_ASSIGNMENTで拒否 |
+| 旧CaptureStore | COMPLETE | COMPLETE（旧コードは変更なし） |
+| 旧CaptureVerifier | COMPLETE | COMPLETE（旧コードは変更なし） |
+| 派生saveと独立Verifier | v2を公開・独立検証まで成功 | saveの原Raw再解析で拒否 |
+| 派生COMPLETE / receipt | 1 / 1 | 0 / 0 |
+| 元captureのファイル集合・全SHA | 変更なし | 変更なし |
+
+この人工ケースについては不正な正常公開まで到達したことを確認済み。他の入力について、未実測の公開経路を成功したとは称さない。修正前の最初の拒否回帰は19 tests / 36 assertions / 19 failures / exit1（未拒否だけでなく旧例外の理由不足も含む）。初期の追加正常系Fixtureのescape・DOM encoding指定・旧captureが非対応の空白形式による失敗ログも残し、最終成功結果と区別する。
+
+### 限定字句・文法とfail-closed
+
+`RawDocuments`内だけに限定スキャナを実装した。通常字句、単/複引用符、escape、行/ブロックcommentを分離し、`{}`・`()`・`[]`の対応と深さをstackで検査する。`;`はstackが空のときだけ文の終端とする。制御ブロック内の`;`、閉じ括弧、改行で独立代入の開始へ戻さない。
+
+- 受理する証拠はトップレベルの`jsonData["PC0201"/'PC0201']`または`jsonData["PJ0315"/'PJ0315']`への単純代入のみ。右辺の`{`をこの文法位置で確認してから、既存lossless JSON検査へ渡す。制御ブロックの`{`とは混同しない。
+- 文終端は`;`またはscriptのEOF。一般的なASIは推測しない。別scriptの正常代入、空文、ASCII空白・改行、対象keyの単/複引用符、コメント内の偽代入を扱う。コメントはLHSのtoken間・JSON後にも許す。元document byte列は切り出すだけで正規化しない。
+- 証拠外で許すのは、単独の通常文字列と`const/let/var identifier = 通常文字列`という限定decoy文。予約語・jsonDataへの宣言、同名宣言の繰返しは拒否する。通常文字列は引用符/backslashと`b/f/n/r/t/v`、slash、2桁hex/4桁Unicode escapeを扱い、未知escape・不完全escape・行継続は未対応として拒否する。
+- 関数、arrow、条件、loop、switch、IIFE内部、波括弧なしの条件文、式prefix/suffix、関数RHS、重複document、括弧不整合を拒否する。JSONのobject/list、escape、文字列中の`{ } ;`は既存JSON文法で保持する。
+- templateと正規表現/divisionは判定を推測せず、それぞれUNSUPPORTED_TEMPLATE_LITERAL / UNSUPPORTED_REGEXP_OR_DIVISION。その他の実行文（throw等）、未対応字句/文法も拒否する。任意JavaScriptの実行や汎用解釈はしない。
+- scriptごとの通常字句tokenは20,000、stack深さは64まで。JSON側の既存サイズ/深さ/node上限は不変。非証拠文は識別用に最大5tokenだけ保持する。
+
+拒否理由はNON_TOP_LEVEL_DOCUMENT_ASSIGNMENT、NON_STANDALONE_DOCUMENT_ASSIGNMENT、NON_STATIC_DOCUMENT_RHS、UNSUPPORTED_DOCUMENT_EXPRESSION、DUPLICATE_DOCUMENT_ASSIGNMENT等で入力クラスを区別する。JSON/Rawの秘密値を例外へコピーしない。saveは出力bundleを予約する前に拒否し、専用出力rootの集合・hashも変化しなかった。既存の書込み失敗/公開失敗/receipt欠損の拒否回帰も成功し、失敗途中の証拠を正常公開へ昇格させない。
+
+### 版・原字句・旧証拠の保護
+
+| 契約 | 今回 |
+|---|---|
+| 派生bundle | STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v3 |
+| 文書抽出・許可構文（新設の明示版） | STAT39-RAW-DOCUMENTS-TOPLEVEL-v1 |
+| JSON字句decoder / Pointerのdecoder_version | STAT39-LOSSLESS-JSON-v1（変更なし） |
+| 属性投影 | STAT39-ATTRIBUTE-PROJECTION-v2（変更なし） |
+| 人工時計 | STAT39-SIMULATED-TIMING-v2（変更なし） |
+| 用途別判定 | STAT39-SYNTHETIC-ATTRIBUTE-PURPOSES-v1（変更なし） |
+
+code sealへ`raw_documents`版を追加し、変更PHPのbytes/SHAとともに新仕様を識別する。JSON Pointerとtoken offset/lengthの意味は変更していない。正常入力の`90.10`と`90.1`、登録番号の先頭ゼロ、入れ子/escape/文字列中の括弧・`;`、script内document offsetを実測照合し、正常保存と独立Verifierも成功した。旧capture decoderは`jsonData[key]`の間に空白を入れた形式を扱わないため、その形式の新Decoder単体試験と、旧captureを通る単引用符形式の保存試験は分けた。旧コードを変更して救済していない。
+
+v1/v2のmanifest、code seal、実行値、既存証拠を変更・再sealしていない。現行v3 Verifierは版とcode sealが一致するv3に限定し、旧派生v1/v2を新版で検証済みとは扱わない。旧派生は当時のコード/証跡で検証する必要がある。旧captureは旧Verifierを変更せず使用し、人工資料の派生保存/検証前後のファイル集合・SHAを照合した。実モデル/実Rawの全件hash監査はしていない。
+
+### 人工回帰・独立128Mの実測
+
+追加は49ケース（既存128ケースを維持、既存変更は期待bundle版v2→v3のみ）。JS01〜JS16をすべて実施した。
+
+| ケース | 結果 |
+|---|---|
+| JS01 / JS09 | 正常2文書・連続文・空文・別scriptを受理 |
+| JS02〜JS08 / JS15 / JS16 | false/true/else、関数、arrow、波括弧なし条件、for、混在、nested blockを理由付きで拒否 |
+| JS10 / JS11 | 通常文字列/単引用符/escape/行・block commentの疑似代入を取得しない |
+| JS12 | JSONの入れ子・escape・文字列中`{ } ;`、Pointer/offset/字句を保持 |
+| JS13 / JS14 | 重複、関数RHS、条件式RHS、member/binary/call suffixを拒否 |
+| 追加拒否 | while/switch/IIFE、角/丸括弧、template/regexp、不完全comment/string、予約語/重複宣言、未知escape、深さ/token上限 |
+| 保存回帰 | 不正原RawはCOMPLETE/receipt未発行、元capture不変。正常系は保存と独立検証成功 |
+
+PHPは`/usr/bin/php` 8.5.4、PHPUnit 12.5.31。既存bwrap経路でrepoをread-onlyにし、実.env/storage/cacheを人工領域にmask、networkを遮断、実homeの成果物を不可視にした。作成時保持オブジェクトのpathだけを既存helperに渡し、同じ人工filesystem内のDesktop/Trashへrename退避した。実Desktopへの書込み・永久削除はない。
+
+| 最終コードの検証 | passed | assertions | failures/errors/skips/warnings | PHPUnit時間 | peak表示 | exit |
+|---|---:|---:|---|---:|---:|---:|
+| Phase 1全件 | 177 | 1116 | すべて0 | 3.919s | 28.50 MB | 0 |
+| 旧PrestartEvidence（変更なし） | 75 | 444 | すべて0 | 0.948s | 30.00 MB | 0 |
+| 合計 | 252 | 1560 | すべて0 | 上記別実行値 | 親累積peakでは判定しない | 0 |
+
+独立子PHPにも実際に`memory_limit=128M`を適用し、JSJ017/PJ0315計12 bundleを保存・別Verifierで再検証。exit0、stderr空、peak_memory_bytes=10,485,760（10MiB）。実効limitと12件をassertし、メモリJSONを人工Trash内に保持した。前回v2の128/936・旧75/444とは別の今回実測である。
+
+新規証跡は合意済みroot `/home/shinya/neo-keirin-artifacts/stat39-prestart-attribute-evidence-phase1-01/` 内。名前の日時はUTC。
+
+- 修正前の段階別再現: `pr109-rawdocs-20261014-231123-reproduce-before-62b4710a/`
+- 修正前の19件失敗: `pr109-rawdocs-20261014-231125-before-fix-cd7d01d1/`
+- 最終Phase 1: `pr109-rawdocs-20261014-231559-focused-0a3e0814/`（runner所要4.002秒）
+- 最終旧回帰: `pr109-rawdocs-20261014-231606-legacy-bcf41df8/`（runner所要1.032秒）
+- 修正後の段階別再現: `pr109-rawdocs-20261014-231618-reproduce-after-cddbefc5/`
+
+本体コマンドは本書初回記載の指定2クラス（それぞれ`php -d memory_limit=128M vendor/bin/phpunit ... --do-not-cache-result --display-all-issues --fail-on-warning --fail-on-risky --fail-on-skipped --fail-on-incomplete`）。stdout/stderr、JUnit/events、コマンド/隔離条件、開始終了/所要/exit、人工capture/Trashを新規runだけに保存した。変更PHP3ファイルの`php -l`と3ファイル限定`pint --test`はすべてexit0。`git diff --check`成功、未追跡を含む変更は許可4ファイルだけである。
+
+残る制限は限定JavaScript文法と人工Phase 1の範囲。実データの発走前証明、実時計同期、公式制度、実入力集合、正式予測利用は未実装/未承認のまま。時刻と用途を再統合していない。`historical_as_of_available=false`、`prediction_use=NOT_AUTHORIZED`、`formal_adoption=false`を維持する。DB/HTTP/実Raw/2026実データ、STAT再計算、学習/予測/評価/全体テスト、Phase 2製造、旧証拠の変更/移動/再seal、commit/push/PR操作/mergeはいずれも0回。
+
+最終状態: **STAT39_PRESTART_ATTRIBUTE_EVIDENCE_PHASE1_RAWDOCUMENTS_FIX_READY**。次はこの未コミット差分の再レビューのみ。

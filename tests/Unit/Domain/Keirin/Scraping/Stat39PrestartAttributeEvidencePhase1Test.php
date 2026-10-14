@@ -33,6 +33,185 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
 
     private array $links = [];
 
+    public static function unsafeScriptContexts(): array
+    {
+        return [
+            'JS02 false block with empty statement' => ['if(false){;{{DOCUMENTS}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'JS03 true block with empty statement' => ['if(true){;{{DOCUMENTS}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'JS04 else block' => ['if(false){}else{;{{DOCUMENTS}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'JS05 named function' => ['function loadData(){;{{DOCUMENTS}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'JS06 arrow block' => ['const initialize=()=>{;{{DOCUMENTS}}};', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'JS07 braceless conditional' => ['if(false) {{DOCUMENTS}}', 'NON_STANDALONE_DOCUMENT_ASSIGNMENT'],
+            'JS08 for loop' => ['for(let i=0;i<1;i++){;{{DOCUMENTS}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'JS15 normal PC and conditional PJ' => ['{{PC0201}} if(false){;{{PJ0315}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'JS16 nested control' => ['if(true){while(false){;;;{{DOCUMENTS}}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'while block' => ['while(false){;{{DOCUMENTS}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'switch block' => ['switch(0){case 1:;{{DOCUMENTS}}}', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'IIFE body' => ['(function(){;{{DOCUMENTS}}})();', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'braceless for' => ['for(;;) {{DOCUMENTS}}', 'NON_STANDALONE_DOCUMENT_ASSIGNMENT'],
+            'parenthesis and semicolon' => ['(function(){;}(),{{DOCUMENTS}})', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'array nesting' => ['[;{{DOCUMENTS}}]', 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT'],
+            'template interpolation' => ['const text=`${ (()=>{;{{DOCUMENTS}}})() }`;', 'UNSUPPORTED_TEMPLATE_LITERAL'],
+            'regexp literal' => ['const pattern=/[;{}]/;{{DOCUMENTS}}', 'UNSUPPORTED_REGEXP_OR_DIVISION'],
+            'unrelated throwing statement' => ['throw "artificial stop";{{DOCUMENTS}}', 'UNSUPPORTED_TOP_LEVEL_STATEMENT'],
+            'unbalanced delimiter' => ['([)];{{DOCUMENTS}}', 'UNBALANCED_SCRIPT_DELIMITER'],
+            'unclosed delimiter' => ['{{DOCUMENTS}}(', 'UNBALANCED_SCRIPT_DELIMITER'],
+            'unclosed comment' => ['{{DOCUMENTS}}/*', 'UNTERMINATED_SCRIPT_COMMENT'],
+            'unclosed string' => ['{{DOCUMENTS}}"', 'UNTERMINATED_SCRIPT_STRING'],
+            'JS13 duplicate same script' => ['{{DOCUMENTS}}{{PJ0315}}', 'DUPLICATE_DOCUMENT_ASSIGNMENT'],
+            'JS13 duplicate separate scripts' => ['{{DOCUMENTS}}</script><script>{{PC0201}}', 'DUPLICATE_DOCUMENT_ASSIGNMENT'],
+            'JS14 function RHS' => ['{{PC0201}}jsonData["PJ0315"]=fetchSomething();', 'NON_STATIC_DOCUMENT_RHS'],
+            'JS14 expression RHS' => ['{{PC0201}}jsonData["PJ0315"]=true ? {} : {};', 'NON_STATIC_DOCUMENT_RHS'],
+            'JS14 object suffix' => ['{{PC0201}}jsonData["PJ0315"]={}.other;', 'UNSUPPORTED_DOCUMENT_EXPRESSION'],
+            'JS14 binary suffix' => ['{{PC0201}}jsonData["PJ0315"]={} + {};', 'UNSUPPORTED_DOCUMENT_EXPRESSION'],
+            'JS14 call suffix' => ['{{PC0201}}jsonData["PJ0315"]={}();', 'UNSUPPORTED_DOCUMENT_EXPRESSION'],
+            'assignment without independent terminator' => ['jsonData["PC0201"]={} {{PJ0315}}', 'UNSUPPORTED_DOCUMENT_EXPRESSION'],
+            'property assignment prefix' => ['window.{{DOCUMENTS}}', 'NON_STANDALONE_DOCUMENT_ASSIGNMENT'],
+            'computed document key' => ['jsonData["PC"+"0201"]={};{{PJ0315}}', 'UNSUPPORTED_DOCUMENT_ASSIGNMENT'],
+            'reserved decoy binding' => ['const throw="value";{{DOCUMENTS}}', 'UNSUPPORTED_DECOY_BINDING'],
+            'repeated decoy binding' => ['const decoy="a";const decoy="b";{{DOCUMENTS}}', 'UNSUPPORTED_DECOY_BINDING'],
+            'invalid string escape' => ['const decoy="\\xZZ";{{DOCUMENTS}}', 'UNSUPPORTED_SCRIPT_STRING'],
+            'unknown string escape' => ['const decoy="\\q";{{DOCUMENTS}}', 'UNSUPPORTED_SCRIPT_STRING'],
+            'script depth budget' => [str_repeat('(', 65).'{{DOCUMENTS}}'.str_repeat(')', 65), 'SCRIPT_NESTING_LIMIT'],
+            'script token budget' => [str_repeat(';', 20001).'{{DOCUMENTS}}', 'SCRIPT_TOKEN_LIMIT'],
+        ];
+    }
+
+    #[DataProvider('unsafeScriptContexts')]
+    public function test_js_nested_or_unsupported_context_is_rejected_with_a_reason(string $template, string $reason): void
+    {
+        $this->rejectWithReason(fn () => (new RawDocuments)->decode('PJ0315', $this->scriptFixture($template)), $reason);
+    }
+
+    public static function supportedScriptContexts(): array
+    {
+        $decoy = 'jsonData["PC0201"] = {}; jsonData["PJ0315"] = {}; { [ ( ; ) ] } escaped " quote';
+
+        return [
+            'JS01 normal top level' => ['{{DOCUMENTS}}'],
+            'JS09 consecutive with empty statements' => [";\n{{PC0201}};\n\t{{PJ0315}};"],
+            'JS09 separate scripts' => ['{{PC0201}}</script><script>{{PJ0315}}'],
+            'JS10 quoted decoy' => ['const decoy = '.json_encode($decoy, JSON_THROW_ON_ERROR).';{{DOCUMENTS}}'],
+            'JS10 single quoted decoy' => ["const decoy = 'jsonData[\"PJ0315\"] = {}; \\' quoted';{{DOCUMENTS}}"],
+            'JS10 escaped decoy string' => ['const decoy="\\x3b\\u007b\\u007d\\t\\n\\\\";{{DOCUMENTS}}'],
+            'JS11 line and block comments' => ["/* jsonData[\"PC0201\"] = {}; { */\n// jsonData[\"PJ0315\"] = {};\n{{DOCUMENTS}}"],
+            'JS11 CR line comment and suffix comment' => ["// jsonData[\"PJ0315\"] = {};\r{{DOCUMENTS}}/* } ; */"],
+            'JS11 comments between assignment tokens' => ["jsonData /* [ ; */ [ 'PC0201' ] = {} /* suffix */ ; {{PJ0315}}"],
+        ];
+    }
+
+    #[DataProvider('supportedScriptContexts')]
+    public function test_js_safe_top_level_context_preserves_json_bytes_and_offsets(string $template): void
+    {
+        $raw = $this->scriptFixture($template);
+        $documents = (new RawDocuments)->decode('PJ0315', $raw);
+        $this->assertSame(['PC0201', 'PJ0315'], array_keys($documents));
+        $dom = new \DOMDocument;
+        $this->assertTrue($dom->loadHTML('<?xml encoding="UTF-8">'.$raw));
+        $scripts = (new \DOMXPath($dom))->query('//script');
+        foreach ($documents as $document) {
+            $this->assertSame('DOM_SCRIPT_TEXT_BYTES', $document['offset_basis']);
+            $this->assertSame($document['bytes'], substr($scripts->item($document['script_index'])->textContent,
+                $document['document_offset'], strlen($document['bytes'])));
+        }
+        $entries = $documents['PJ0315']['node']->required('sensyuTypeInfo')->items();
+        foreach (['90.10', '90.1'] as $i => $lexeme) {
+            $node = $entries[$i]->required('heikinTokuten');
+            $this->assertSame($lexeme, $node->lexeme);
+            $this->assertSame('/sensyuTypeInfo/'.$i.'/heikinTokuten', $node->pointer);
+            $this->assertSame($lexeme, substr($documents['PJ0315']['bytes'], $node->offset, strlen($node->lexeme)));
+        }
+        $this->assertSame('"000001"', $entries[0]->required('sensyuRegistNo')->lexeme);
+    }
+
+    public function test_js_single_quotes_whitespace_json_escapes_and_nested_lists_keep_publication_contract(): void
+    {
+        $spaced = str_replace(['jsonData["PC0201"] = ', 'jsonData["PJ0315"] = '],
+            ["jsonData \n [ 'PC0201' ] \n = ", "jsonData\t[ 'PJ0315' ] =\n"], $this->pj());
+        $normalDocuments = (new RawDocuments)->decode('PJ0315', $this->pj());
+        foreach ((new RawDocuments)->decode('PJ0315', $spaced) as $key => $document) {
+            $this->assertSame($normalDocuments[$key]['bytes'], $document['bytes']);
+        }
+        // The unchanged legacy capture decoder requires contiguous jsonData[key].
+        $raw = str_replace(['jsonData["PC0201"]', 'jsonData["PJ0315"]'], ["jsonData['PC0201']", "jsonData['PJ0315']"], $this->pj());
+        $text = 'escaped " quote \\ and { } ; [ nested ]';
+        $raw = str_replace(json_encode('heikinTokuten " } { 90.10', JSON_THROW_ON_ERROR), json_encode($text, JSON_THROW_ON_ERROR), $raw);
+        $documents = (new RawDocuments)->decode('PJ0315', $raw);
+        $this->assertSame($text, $documents['PJ0315']['node']->required('sensyuTypeInfo')->items()[0]->required('text')->value());
+        $source = $this->source('PJ0315', $raw);
+        $before = $this->snapshot($source->path);
+        $saved = $this->save($source);
+        $report = $this->verify($saved, $source);
+        $this->assertSame($saved->verification, $report);
+        $this->assertSame(BundleFiles::VERSION, $report['version']);
+        $this->assertSame(RawDocuments::VERSION, BundleFiles::codeSeal()['raw_documents']);
+        $this->assertSame('STAT39-LOSSLESS-JSON-v1', BundleFiles::codeSeal()['decoder']);
+        $entries = $this->rows($saved)[0]['entries'];
+        foreach (['90.10', '90.1'] as $i => $lexeme) {
+            $score = $entries[$i]['attributes']['race_score'];
+            $this->assertSame($lexeme, $score['raw_lexeme']);
+            $this->assertSame('/sensyuTypeInfo/'.$i.'/heikinTokuten', $score['pointer']['json_pointer']);
+            $this->assertSame($lexeme, substr($documents['PJ0315']['bytes'], $score['pointer']['token_offset'], $score['pointer']['token_length']));
+        }
+        $this->assertSame('000001', $entries[0]['external_registration_number']);
+        $race = $report['validation']['races'][0];
+        $this->assertSame('SIMULATED_TIMING_CONDITIONS_SATISFIED', $race['timing']['cutoff_status']);
+        $this->assertFalse($report['historical_as_of_available']);
+        $this->assertSame('NOT_AUTHORIZED', $report['prediction_use']);
+        $this->assertSame($before, $this->snapshot($source->path));
+    }
+
+    public function test_js_control_block_reaches_old_verifier_but_cannot_publish_new_derivative(): void
+    {
+        $source = $this->source('PJ0315', $this->scriptFixture('if(false){;{{DOCUMENTS}}}'));
+        $this->assertSame('COMPLETE', $source->validation['publication_state']);
+        $this->assertSame($source->validation, (new CaptureVerifier)->verify($source->path, $source->manifestSha256));
+        $before = $this->snapshot($source->path);
+        $root = $this->directory();
+        $output = $this->snapshot($root->path());
+        $this->rejectWithReason(fn () => (new AttributeEvidenceStore($root->path()))->save($source->path, $source->manifestSha256, $this->scenario()), 'NON_TOP_LEVEL_DOCUMENT_ASSIGNMENT');
+        $this->assertSame($before, $this->snapshot($source->path));
+        $this->assertSame($output, $this->snapshot($root->path()));
+        $this->assertSame([], glob($root->path().'/*/COMPLETE.json'));
+        $this->assertSame([], glob($root->path().'/*/publication-receipt.json'));
+    }
+
+    public static function rawDocumentsReproduction(): array
+    {
+        $test = new self('test_js_control_block_reaches_old_verifier_but_cannot_publish_new_derivative');
+        $reason = 'PROCESS_FAILURE';
+        try {
+            $raw = $test->scriptFixture('if(false){;{{DOCUMENTS}}}');
+            $report = ['fixture_kind' => 'SYNTHETIC', 'script_class' => 'IF_FALSE_BLOCK_WITH_EMPTY_STATEMENT'];
+            try {
+                $documents = (new RawDocuments)->decode('PJ0315', $raw);
+                $report['raw_documents'] = ['status' => 'ACCEPTED', 'document_keys' => array_keys($documents)];
+            } catch (RuntimeException $error) {
+                $report['raw_documents'] = ['status' => 'REJECTED', 'reason' => $error->getMessage()];
+            }
+            $source = $test->source('PJ0315', $raw);
+            $report['old_capture_store'] = $source->validation['publication_state'];
+            $report['old_capture_verifier'] = (new CaptureVerifier)->verify($source->path, $source->manifestSha256)['publication_state'];
+            $before = $test->snapshot($source->path);
+            $root = $test->directory();
+            try {
+                $saved = (new AttributeEvidenceStore($root->path()))->save($source->path, $source->manifestSha256, $test->scenario());
+                $test->verify($saved, $source);
+                $report['derived_save'] = ['status' => 'PUBLISHED_AND_VERIFIED', 'version' => $saved->verification['version']];
+            } catch (RuntimeException $error) {
+                $report['derived_save'] = ['status' => 'REJECTED', 'reason' => $error->getMessage()];
+            }
+            $report['complete_count'] = count(glob($root->path().'/*/COMPLETE.json'));
+            $report['receipt_count'] = count(glob($root->path().'/*/publication-receipt.json'));
+            $report['old_capture_unchanged'] = $before === $test->snapshot($source->path);
+            $reason = 'PROCESS_COMPLETE';
+
+            return $report;
+        } finally {
+            $test->retire($reason);
+        }
+    }
+
     public static function reviewRegressionCases(): array
     {
         $timing = 'SIMULATED_TIMING_CONDITIONS_SATISFIED';
@@ -158,7 +337,7 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
             $this->assertFalse($entry['formal_adoption']);
             $this->assertSame('NOT_AUTHORIZED', $entry['prediction_use']);
         }
-        $this->assertSame('STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v2', $normal->verification['version']);
+        $this->assertSame('STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v3', $normal->verification['version']);
         $codeSeal = EvidenceFiles::object(EvidenceFiles::read($normal->path, 'manifest.json'))['code_seal'];
         foreach ($codeSeal['stat01_contract_sources'] as $path => $seal) {
             $this->assertSame($seal['sha256'], hash_file('sha256', dirname(__DIR__, 5).'/'.$path));
@@ -918,6 +1097,27 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
         }
 
         return $scenario;
+    }
+
+    private function scriptFixture(string $template): string
+    {
+        $script = substr($this->pj(), strlen('<html><script>'), -strlen('</script></html>'));
+        $parts = explode(';jsonData["PJ0315"] = ', $script, 2);
+
+        return '<html><script>'.strtr($template, ['{{DOCUMENTS}}' => $script,
+            '{{PC0201}}' => $parts[0].';', '{{PJ0315}}' => 'jsonData["PJ0315"] = '.$parts[1]]).'</script></html>';
+    }
+
+    private function rejectWithReason(callable $operation, string $reason): void
+    {
+        try {
+            $operation();
+        } catch (RuntimeException $error) {
+            $this->assertStringStartsWith($reason, $error->getMessage());
+
+            return;
+        }
+        $this->fail('Unsupported JavaScript accepted as attribute evidence.');
     }
 
     private function snapshot(string $path): array

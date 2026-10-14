@@ -12,7 +12,7 @@ use RuntimeException;
 
 final class BundleFiles
 {
-    public const VERSION = 'STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v2';
+    public const VERSION = 'STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v3';
 
     public const FILES = ['source-reference.json', 'attribute-observations.jsonl', 'scenario-time.json', 'validation.json', 'execution.json'];
 
@@ -34,7 +34,7 @@ final class BundleFiles
         }
 
         return ['contract' => self::VERSION, 'source_contract' => EvidenceFiles::VERSION, 'source_timing' => ObservationProjector::TIMING_VERSION,
-            'decoder' => LosslessJson::VERSION, 'projection' => AttributeProjector::VERSION,
+            'decoder' => LosslessJson::VERSION, 'raw_documents' => RawDocuments::VERSION, 'projection' => AttributeProjector::VERSION,
             'timing' => ScenarioTiming::VERSION, 'eligibility' => AttributeEligibility::VERSION,
             'stat01_input_contract' => AttributeEligibility::INPUT_CONTRACT_VERSION, 'stat01_contract_sources' => $contractSources, 'files' => $result];
     }
