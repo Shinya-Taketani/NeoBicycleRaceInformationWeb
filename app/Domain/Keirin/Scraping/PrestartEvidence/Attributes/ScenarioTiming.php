@@ -10,7 +10,7 @@ use Throwable;
 
 final class ScenarioTiming
 {
-    public const VERSION = 'STAT39-SIMULATED-TIMING-v1';
+    public const VERSION = 'STAT39-SIMULATED-TIMING-v2';
 
     public static function assertScenario(array $scenario): void
     {
@@ -40,7 +40,7 @@ final class ScenarioTiming
 
     public function classify(array $race, array $scenario): array
     {
-        $answer = ['version' => self::VERSION, 'time_basis' => 'SIMULATED_SCENARIO',
+        $answer = ['version' => self::VERSION, 'time_basis' => 'SIMULATED_SCENARIO', 'scope' => 'TIMING_CONDITIONS_ONLY',
             'capture_status' => 'TIMING_UNKNOWN', 'capture_reason' => 'UNKNOWN_CLOCK_OR_SCHEDULE',
             'cutoff_status' => 'UNKNOWN', 'cutoff_reason' => 'INCOMPLETE_CLOCK_OR_RECEIPT',
             'physical_historical_availability' => 'NOT_ESTABLISHED',
@@ -104,7 +104,7 @@ final class ScenarioTiming
             return array_replace($answer, ['cutoff_status' => 'UNAVAILABLE', 'cutoff_reason' => 'PRESTART_NOT_CONFIRMED']);
         }
 
-        return array_replace($answer, ['cutoff_status' => 'SIMULATED_TECHNICALLY_AVAILABLE', 'cutoff_reason' => 'ALL_COMPLETIONS_AT_OR_BEFORE_CUTOFF']);
+        return array_replace($answer, ['cutoff_status' => 'SIMULATED_TIMING_CONDITIONS_SATISFIED', 'cutoff_reason' => 'ALL_COMPLETIONS_AT_OR_BEFORE_CUTOFF']);
     }
 
     public static function instant(mixed $value): ?int

@@ -1,5 +1,7 @@
 # STAT39-PRESTART-ATTRIBUTE-EVIDENCE-PHASE1-01
 
+> PR #109再レビュー修正版は末尾の「PR109: 属性・人工時刻・用途の分離（v2）」を正本とする。それ以前は初回v1の仕様・実行履歴であり、今回の結果へ読み替えない。今回の開始HEADは`d245ea9d394492ed2c0d47c56f5807a3c3581c52`、同じPRブランチで修正する。
+
 ## 範囲と実装前技術ゲート
 
 開始HEAD: `45a47dcadc4d1ee823be7125d137efbad42ae587`。cleanなmainとPR #106〜108のマージ履歴を確認し、`feature/stat39-prestart-attribute-evidence-phase1-01`を新規作成した。MASTER PLAN全文と8つの工程制御項目を照合した。旧MVPレビュー待ちの現在地は過去記録として維持し、最新ユーザー承認による人工Phase 1だけを実装する。凍結契約との実質的矛盾なし。
@@ -13,7 +15,7 @@ PHP製造前に採用方式を次の通り記録する。
 
 固定: `historical_as_of_available=false`、`prediction_use=NOT_AUTHORIZED`、`formal_adoption=false`。公式枠適用はUNKNOWN。Phase 2以降、DB、HTTP、実Raw、2026実データ、モデル・STAT計算・学習・予測・評価は対象外。旧文書とMASTER PLANは変更しない。
 
-## 実装・検証結果
+## 初回v1実装・検証結果（履歴）
 
 状態: **STAT39_PRESTART_ATTRIBUTE_EVIDENCE_PHASE1_READY_FOR_REVIEW**。
 
@@ -132,3 +134,83 @@ Parser回帰の追加候補はLaravel起動と本工程に不要なFixtureを含
 未実装は意図したPhase 1対象外: occurrence/変更履歴、交替調停、公式制度/Matcher、実HTTP取得・実時計同期、DB更新、C1/STAT01/39への接続、モデル計算・評価。公式枠適用はUNKNOWN、原本の残タスクOPENと旧不採用判断を変更しない。実データでの発走前証明は未実施。字句抽出器は対応する静的JSON object代入に限定し、任意JavaScriptの評価器ではない。
 
 次に許可される作業は、この人工Phase 1コードとテストのレビュー。未承認の実収集やPhase 2へ自動移行しない。DB/HTTP/実Raw/2026実データ/学習/予測/性能評価/全体テストは0回。永久削除、既存成果物の移動・上書き、commit/push/PR/mergeなし。
+
+## PR109: 属性・人工時刻・用途の分離（v2）
+
+### 指摘と変更の意味
+
+作業ブランチは`feature/stat39-prestart-attribute-evidence-phase1-01`、開始/終了HEADは`d245ea9d394492ed2c0d47c56f5807a3c3581c52`で不変。開始時clean、既存PRへの未コミット修正。MASTER PLANの現在地・凍結契約と最新の限定修正許可を照合し、Phase 2・正式利用へ広げていない。
+
+1. 初回v1の`SIMULATED_TECHNICALLY_AVAILABLE`は時刻だけで返り、得点欠落等も含めた使用可能性と誤読できた。v2は`SIMULATED_TIMING_CONDITIONS_SATISFIED`、`scope=TIMING_CONDITIONS_ONLY`とする。strictな前後比較、同時刻非候補、誤差区間、順序、保存/検証/公開/cutoff、実時計と人工時計の比較ロジックは変更していない。
+2. v1の`stat01_usable`は正規化した非ゼロ得点だけを根拠にtrueとなり、STAT-01入力形式・時点・利用承認を検査していなかった。v2の出力からこのfieldを廃止し、以下の別判定へ分離した。初回v1履歴に残るfield名は当時の記録であり、現在の出力仕様ではない。
+
+| 出力 | 意味と境界 |
+|---|---|
+| `presence/raw_type/raw_value/raw_lexeme` | 既存lossless原値と欠落状態。不変 |
+| `normalization_status/normalized_value` | exact decimal等への解釈。既存の正規化規則は不変 |
+| `positive_decimal_candidate` | 得点だけに付す。正のexact decimalならtrue、0ならfalse、正規化未確認ならnull。利用可否ではない |
+| `stat01_input_format_status` | COMPATIBLE / INCOMPATIBLE / UNKNOWN。既存コードのdecimal(6,2)へ値を変えず表現できるかだけを判定 |
+| `stat01_input_format_reason/contract_version` | 桁/scale超過または未確認の理由と、確認した入力形式候補の版 |
+| `races[].timing` | 人工シナリオの時刻条件のみ。属性有無で上書きしない |
+| `races[].entries[].attributes` | 対応する観測JSONLと同じ原値・正規化・形式候補。race全体の時刻成立を各属性の成立へ転用しない |
+| `races[].entries[].purposes` | 車番観測、枠観測、STAT-01得点候補、公式割当補正を別判定 |
+| `prediction_use`等 | root/出走ごとにNOT_AUTHORIZED、formal_adoption=false、historical_as_of_available=falseを固定 |
+
+追加クラス`AttributeEligibility`は形式候補と人工用途別判定だけを担当する。既存のSTAT-01計算を呼び出したり、本番の最終適格性Gateを実装したりしない。
+
+### STAT-01入力形式の根拠
+
+DB接続ではなく、現在のソースを照合した。
+
+- [race_entriesのMigration](../database/migrations/2026_07_18_000001_create_keirin_scraping_tables.php)のrace_entries定義にnullable `decimal('race_score', 6, 2)`がある。同ファイルのplayer_stat_snapshots側だけを根拠にしたものではない。他Migrationにrace_scoreのprecision/scale変更定義は見つからない。
+- [RaceEntry](../app/Models/RaceEntry.php)は`decimal:2` cast、[Stat01EntryInputDto](../app/Domain/Keirin/Statistics/DTO/Stat01EntryInputDto.php)は`?string`。DTO自身にprecision/scale検査はない。
+- [Stat01InputRepository::raceScore](../app/Domain/Keirin/Statistics/Repositories/Stat01InputRepository.php)はNULLを維持し、数値をfloat化して`number_format(..., 2, '.', '')`。既存の変換経路を確認したが、今回の候補判定でこの丸めを実行しない。
+- [Stat01Calculator](../app/Domain/Keirin/Statistics/Calculators/Stat01Calculator.php)はNULLをMISSING_INPUT、非正値をINVALID_INPUTとし、正値をfloat化して統計計算する。また入力集合・内部player ID・as-of等を検査する。今回この計算や完全な入力集合検査は実行しない。
+- [RaceDetailParser](../app/Domain/Keirin/Scraping/Parsers/RaceDetailParser.php)は欠損/空/全角ハイフンをNULLへ扱い、受理する値を文字列化する。新証拠側は原字句・型・欠落を引き続き別保存する。[既存STAT-01契約](statistical-engine-stat01-existing-db.md)のBACKFILL/as-of制約を、今回解消したことにはしない。
+
+候補の版は`STAT01-EXISTING-DB-DECIMAL6-2-CANDIDATE-v1`。非負の正規化値を文字列で分解し、整数有効桁数<=4、小数の有効桁数<=2のとき形式COMPATIBLEとする。0は形式には表現可能でも正値候補falseのため得点用途は不成立。9999.99は候補、10000・90.123・巨大decimalは形式不適合。90.1000→90.1の末尾ゼロ除去はexactな値同一性であり丸めではない。0.001を0.00へ変更して救済しない。精度/値域の推測拡張・float変換はない。
+
+これは**コード上の保存形式への表現可能性候補**であり、本番schemaの実測・実投入・Calculator結果VALIDの保証ではない。正規化が未確認なら形式UNKNOWNのままにする。実DB構造・内部player解決・統計入力集合・実時計根拠・実予測承認は今回未確認/未評価。
+
+### 用途別の状態
+
+- `bike_observation`: 元capture/Raw/本人対応を再検証したうえで、車番の原値と正規化が成立すればVERIFIED_OBSERVATION。得点欠損・枠NULL・人工時刻不成立ではこの証拠を消さない。
+- `frame_observation`: 原値と正規化が成立すればVERIFIED_OBSERVATION、それ以外はUNKNOWN。原値NULL/欠落/空等を維持し、公式適用はどちらもUNKNOWN。
+- `stat01_score_input`: 原値PRESENT・正規化VERIFIED・正値true・形式COMPATIBLEを`value_conditions_satisfied`で検査し、人工時刻成立と別に保持する。両方成立時だけSIMULATED_CANDIDATE_CONDITIONS_SATISFIED。値条件不成立/時刻不成立はNOT_SATISFIED、値条件成立でも時刻未確認ならUNKNOWN。scopeはSIMULATED_ENTRY_VALUE_FORMAT_AND_TIMING_ONLY、`input_set_eligibility=NOT_EVALUATED`であり、race全体の完全入力・STAT-01正式利用を認定しない。
+- `official_assignment_correction`: 常にBLOCKED / OFFICIAL_DEFINITION_UNKNOWN。公式制度を作成・推測しない。
+
+有効値を持つ他の出走者の候補は維持するが、それをrace全体の完全入力として扱わない。すべての出力で予測利用はNOT_AUTHORIZEDのまま。
+
+### 版と独立検証
+
+派生bundleは`STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v2`、投影は`STAT39-ATTRIBUTE-PROJECTION-v2`、人工時刻は`STAT39-SIMULATED-TIMING-v2`、用途別判定は`STAT39-SYNTHETIC-ATTRIBUTE-PURPOSES-v1`。lossless decoder、元capture契約と旧直下の`EvidenceFiles::codeSeal()`は不変。
+
+新版code sealには上記版、新クラス、確認したSTAT-01のMigration/Model/DTO/Repository/Calculatorのpath・bytes・SHAを含める。参照だけでこれらのコードは変更しない。旧派生v1のsealを更新・上書きせず、v2 Verifierで旧v1を検証済みとは扱わない。旧v1は当時のコード/証跡で保持する。
+
+独立Verifierは旧captureを外部期待SHAで検証し、Rawから属性・正規化・形式・用途別状態を再生成して、JSONLとvalidationの両方に厳密照合する。元/派生manifest、全bytes/SHA、code seal、marker、独立receiptの外部期待hash検査と公開手順は維持した。テストで新規の人工派生束に対する意図的な改ざんを作る場合も、旧の保存成果物や実Rawには触れない。
+
+### PR109回帰と実測結果
+
+F01〜F14は修正前の隔離実行で失敗（旧状態名またはstat01_usableの存在を検出）、F15本人不一致拒否は既存ガードで成功。修正前runは15 tests / 23 assertions / 14 failures / exit1。これを解消後の結果と混同しない。
+
+修正後はF01〜F15、decimal境界11ケース、車番/枠観測と時刻/公式補正の分離、判定改ざん5ケース、別manifest差替えのテストを追加。元の95ケースは削除・skipせず、新出力契約に対応したassertionへ更新し、原字句・型・pointer・時刻境界・保全検査を維持した。得点0はfalse、正規化不明はnull、巨大decimalは正値trueと形式不適合を両方assertしている。
+
+| 今回の検証 | passed | assertions | failures/errors/skips/warnings | 時間 | peak表示 | exit |
+|---|---:|---:|---|---:|---:|---:|
+| Phase 1修正版全件 | 128 | 936 | すべて0 | 3.842s | 28.00 MB | 0 |
+| 旧PrestartEvidence回帰（変更なし） | 75 | 444 | すべて0 | 0.990s | 30.00 MB | 0 |
+| 合計 | 203 | 1380 | すべて0 | 上記別実行値 | 親の累積peakで合否判定しない | 0 |
+
+PHP `/usr/bin/php` 8.5.4 / PHPUnit 12.5.31。上記初回と同じbwrapの人工filesystem・read-only repo・実.env/storage/cacheのmask・network遮断・人工Desktop/Trashを使用。独立子PHPに128Mを実適用し、12 bundleの逐次保存・再検証がexit0、peak_memory_bytes=10,485,760、stderr空。今回生成した人工captureも派生保存/独立検証前後の全ファイルSHAが一致し、旧Verifierの検証結果と旧code sealも一致した。
+
+証跡rootは初回と同じ合意済みroot内、すべて`pr109-`付きの一意な新規runへ保存した。初回95/450・旧75/444の記録やmanifestは変更していない。
+
+- 修正前回帰: `pr109-20261014-223258-before-fix-2c555be9/`
+- 修正版全件: `pr109-20261014-223528-focused-1fe54ad3/`
+- 旧回帰: `pr109-20261014-223547-legacy-c9d186ff/`
+
+本体コマンドは初回に記載した2つの指定Unitコマンド（各128M）と同じ。全引数・隔離条件・stdout/stderr・開始終了・終了コード・JUnit/eventsは各execution記録に保持した。変更PHP6ファイルの構文・限定Pint、tracked/新規の差分・変更範囲を確認する。全体テストは指示どおり0回。
+
+未解決はPhase 1対象外の実時計・実入力集合・公式制度・実運用承認であり、UNKNOWN/NOT_EVALUATED/BLOCKEDを維持。実DB/HTTP/実Raw/実モデル/2026実データへのアクセス、学習/予測/性能評価、過去証拠の再seal、Phase 2製造、commit/push/PR操作/mergeは実施していない。
+
+最終状態: **STAT39_PRESTART_ATTRIBUTE_EVIDENCE_PHASE1_REVIEW_FIX_READY**。次はこの未コミット差分の再レビューのみ。

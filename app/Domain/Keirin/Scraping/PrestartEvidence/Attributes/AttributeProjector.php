@@ -9,7 +9,7 @@ use RuntimeException;
 
 final class AttributeProjector
 {
-    public const VERSION = 'STAT39-ATTRIBUTE-PROJECTION-v1';
+    public const VERSION = 'STAT39-ATTRIBUTE-PROJECTION-v2';
 
     /** @param list<RaceTarget> $targets */
     public function project(string $source, string $raw, array $targets, string $captureId, string $manifestHash): array
@@ -177,11 +177,14 @@ final class AttributeProjector
             default => 'UNKNOWN_OR_UNSUPPORTED_LEXEME',
         };
 
-        return ['presence' => $presence, 'raw_type' => $node?->type, 'raw_value' => $value, 'raw_lexeme' => $node?->lexeme,
+        $result = ['presence' => $presence, 'raw_type' => $node?->type, 'raw_value' => $value, 'raw_lexeme' => $node?->lexeme,
             'raw_value_encoding' => $node === null ? null : match ($node->type) {
                 'INTEGER', 'DECIMAL' => 'JSON_NUMBER_LEXEME', 'OBJECT', 'ARRAY' => 'JSON_FRAGMENT', default => 'JSON_SCALAR',
             }, 'normalized_value' => $normalized, 'normalization_status' => $status, 'normalization_reason' => $reason, 'pointer' => $pointer,
-            'official_applicability' => 'UNKNOWN', 'stat01_usable' => $name === 'race_score' && $status === 'VERIFIED' && $normalized !== '0'];
+            'official_applicability' => 'UNKNOWN'];
+
+        return $name === 'race_score'
+            ? [...$result, ...(new AttributeEligibility)->scoreCandidate($status === 'VERIFIED' ? $normalized : null)] : $result;
     }
 
     private function raceNumber(JsonNode $node): int

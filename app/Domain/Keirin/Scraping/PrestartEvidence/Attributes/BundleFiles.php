@@ -12,7 +12,7 @@ use RuntimeException;
 
 final class BundleFiles
 {
-    public const VERSION = 'STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v1';
+    public const VERSION = 'STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v2';
 
     public const FILES = ['source-reference.json', 'attribute-observations.jsonl', 'scenario-time.json', 'validation.json', 'execution.json'];
 
@@ -27,10 +27,16 @@ final class BundleFiles
         foreach ($paths as $path) {
             $result['PrestartEvidence/Attributes/'.basename($path)] = ['bytes' => filesize($path), 'sha256' => hash_file('sha256', $path)];
         }
+        $contractSources = [];
+        foreach (AttributeEligibility::CONTRACT_SOURCES as $path) {
+            $absolute = dirname(__DIR__, 6).'/'.$path;
+            $contractSources[$path] = ['bytes' => filesize($absolute), 'sha256' => hash_file('sha256', $absolute)];
+        }
 
         return ['contract' => self::VERSION, 'source_contract' => EvidenceFiles::VERSION, 'source_timing' => ObservationProjector::TIMING_VERSION,
             'decoder' => LosslessJson::VERSION, 'projection' => AttributeProjector::VERSION,
-            'timing' => ScenarioTiming::VERSION, 'files' => $result];
+            'timing' => ScenarioTiming::VERSION, 'eligibility' => AttributeEligibility::VERSION,
+            'stat01_input_contract' => AttributeEligibility::INPUT_CONTRACT_VERSION, 'stat01_contract_sources' => $contractSources, 'files' => $result];
     }
 
     public static function now(): string

@@ -33,6 +33,213 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
 
     private array $links = [];
 
+    public static function reviewRegressionCases(): array
+    {
+        $timing = 'SIMULATED_TIMING_CONDITIONS_SATISFIED';
+        $candidate = 'SIMULATED_CANDIDATE_CONDITIONS_SATISFIED';
+
+        return [
+            'F01 null score' => ['null', [], 'NULL', null, 'UNKNOWN', 'NOT_SATISFIED', $timing],
+            'F02 missing score' => [null, [], 'MISSING', null, 'UNKNOWN', 'NOT_SATISFIED', $timing],
+            'F03 invalid score' => ['"90..10"', [], 'PRESENT', null, 'UNKNOWN', 'NOT_SATISFIED', $timing],
+            'F04 zero score' => ['0', [], 'PRESENT', false, 'COMPATIBLE', 'NOT_SATISFIED', $timing],
+            'F05 poststart receipt' => ['90.10', ['response_received_at' => '2025-12-31T10:01:00+09:00'], 'PRESENT', true, 'COMPATIBLE', 'NOT_SATISFIED', 'UNAVAILABLE'],
+            'F06 raw save late' => ['90.10', ['raw_saved_at' => '2025-12-31T09:56:00+09:00'], 'PRESENT', true, 'COMPATIBLE', 'NOT_SATISFIED', 'UNAVAILABLE'],
+            'F07 validation late' => ['90.10', ['validation_completed_at' => '2025-12-31T09:56:00+09:00'], 'PRESENT', true, 'COMPATIBLE', 'NOT_SATISFIED', 'UNAVAILABLE'],
+            'F08 publication late' => ['90.10', ['publication_completed_at' => '2025-12-31T09:56:00+09:00'], 'PRESENT', true, 'COMPATIBLE', 'NOT_SATISFIED', 'UNAVAILABLE'],
+            'F09 huge exact decimal' => ['123456789012345678901234567890.1234567890123400', [], 'PRESENT', true, 'INCOMPATIBLE', 'NOT_SATISFIED', $timing],
+            'F10 excess scale' => ['90.123', [], 'PRESENT', true, 'INCOMPATIBLE', 'NOT_SATISFIED', $timing],
+            'F11 null frame' => ['90.10', [], 'PRESENT', true, 'COMPATIBLE', $candidate, $timing],
+            'F12 missing score preserves bike' => [null, [], 'MISSING', null, 'UNKNOWN', 'NOT_SATISFIED', $timing],
+            'F13 normal score and timing' => ['90.10', [], 'PRESENT', true, 'COMPATIBLE', $candidate, $timing],
+            'F14 missing simulated receipt' => ['90.10', ['publication_receipt' => null], 'PRESENT', true, 'COMPATIBLE', 'UNKNOWN', 'UNKNOWN'],
+        ];
+    }
+
+    #[DataProvider('reviewRegressionCases')]
+    public function test_review_regression_separates_value_format_timing_purpose_and_authorization(?string $token, array $scenario,
+        string $presence, ?bool $positive, string $format, string $purpose, string $timing): void
+    {
+        $raw = $this->pj(frameToken: 'null');
+        $raw = str_replace('"heikinTokuten":90.10}', $token === null ? '"absentScore":90.10}' : '"heikinTokuten":'.$token.'}', $raw);
+        $source = $this->source('PJ0315', $raw);
+        $original = $this->snapshot($source->path);
+        $saved = $this->save($source, $scenario);
+        $validation = EvidenceFiles::object(EvidenceFiles::read($saved->path, 'validation.json'));
+        $race = $validation['races'][0];
+        $entry = $this->rows($saved)[0]['entries'][0];
+
+        $this->assertSame($timing, $race['timing']['cutoff_status']);
+        $this->assertArrayNotHasKey('stat01_usable', $entry['attributes']['race_score']);
+        $this->assertArrayHasKey('entries', $race);
+        $this->assertSame($entry['attributes'], $race['entries'][0]['attributes']);
+        $score = $race['entries'][0]['attributes']['race_score'];
+        $this->assertSame($presence, $score['presence']);
+        $this->assertSame($token, $score['raw_lexeme']);
+        $this->assertSame($positive, $score['positive_decimal_candidate']);
+        $this->assertSame($format, $score['stat01_input_format_status']);
+        $this->assertSame($purpose, $race['entries'][0]['purposes']['stat01_score_input']['status']);
+        $this->assertSame('VERIFIED_OBSERVATION', $race['entries'][0]['purposes']['bike_observation']['status']);
+        $this->assertSame('UNKNOWN', $race['entries'][0]['purposes']['frame_observation']['status']);
+        $this->assertSame('NULL', $entry['attributes']['frame_number']['presence']);
+        $this->assertSame('UNKNOWN', $entry['attributes']['frame_number']['official_applicability']);
+        $this->assertSame('BLOCKED', $race['entries'][0]['purposes']['official_assignment_correction']['status']);
+        $this->assertSame('NOT_EVALUATED', $race['entries'][0]['purposes']['stat01_score_input']['input_set_eligibility']);
+        $this->assertSame($saved->verification['validation'], $validation);
+        $this->assertSame($saved->verification, $this->verify($saved, $source));
+        $this->assertSame($original, $this->snapshot($source->path));
+        $this->assertFalse($validation['historical_as_of_available']);
+        $this->assertFalse($validation['formal_adoption']);
+        $this->assertSame('NOT_AUTHORIZED', $validation['prediction_use']);
+        $this->assertSame('NOT_AUTHORIZED', $race['entries'][0]['prediction_use']);
+        $this->assertSame($timing === 'SIMULATED_TIMING_CONDITIONS_SATISFIED' ? 'SIMULATED_CANDIDATE_CONDITIONS_SATISFIED'
+            : ($timing === 'UNKNOWN' ? 'UNKNOWN' : 'NOT_SATISFIED'), $race['entries'][1]['purposes']['stat01_score_input']['status']);
+        if ($token === '0') {
+            $this->assertSame('0', $score['raw_value']);
+            $this->assertSame('0', $score['normalized_value']);
+            $this->assertSame('VERIFIED', $score['normalization_status']);
+        }
+        if (in_array($format, ['COMPATIBLE', 'INCOMPATIBLE'], true)) {
+            $this->assertSame('VERIFIED', $score['normalization_status']);
+            if ($token === '90.123') {
+                $this->assertSame('90.123', $score['normalized_value']);
+            }
+        }
+    }
+
+    public static function reviewFormatBoundaries(): array
+    {
+        return [
+            'minimum positive' => ['0.01', '0.01', true, 'COMPATIBLE'],
+            'maximum exact' => ['9999.99', '9999.99', true, 'COMPATIBLE'],
+            'integer overflow' => ['10000', '10000', true, 'INCOMPATIBLE'],
+            'would round across maximum' => ['9999.999', '9999.999', true, 'INCOMPATIBLE'],
+            'would round down' => ['0.001', '0.001', true, 'INCOMPATIBLE'],
+            'tiny positive stays exact' => ['0.000000000000000000000000000001', '0.000000000000000000000000000001', true, 'INCOMPATIBLE'],
+            'insignificant trailing zeros' => ['90.1000', '90.1', true, 'COMPATIBLE'],
+            'maximum trailing zeros' => ['9999.99000', '9999.99', true, 'COMPATIBLE'],
+            'zero trailing zeros' => ['0.0000', '0', false, 'COMPATIBLE'],
+            'numeric string leading zeros' => ['"00090.0100"', '90.01', true, 'COMPATIBLE'],
+            'unsupported exponent' => ['9.010e1', null, null, 'UNKNOWN'],
+        ];
+    }
+
+    #[DataProvider('reviewFormatBoundaries')]
+    public function test_review_exact_stat01_format_boundaries_do_not_round(string $token, ?string $normalized, ?bool $positive, string $format): void
+    {
+        $source = $this->source('PJ0315', $this->pj([$token, '90', '91', '92', '93']));
+        $saved = $this->save($source);
+        $score = $this->rows($saved)[0]['entries'][0]['attributes']['race_score'];
+        $this->assertSame($token, $score['raw_lexeme']);
+        $this->assertSame($normalized, $score['normalized_value']);
+        $this->assertSame($positive, $score['positive_decimal_candidate']);
+        $this->assertSame($format, $score['stat01_input_format_status']);
+        $this->assertSame($format === 'COMPATIBLE' && $positive === true ? 'SIMULATED_CANDIDATE_CONDITIONS_SATISFIED' : 'NOT_SATISFIED',
+            $saved->verification['validation']['races'][0]['entries'][0]['purposes']['stat01_score_input']['status']);
+        $this->assertSame($saved->verification, $this->verify($saved, $source));
+    }
+
+    public function test_review_observation_purposes_are_separate_from_official_correction_and_timing(): void
+    {
+        $source = $this->source('PJ0315');
+        $normal = $this->save($source);
+        $late = $this->save($source, ['raw_saved_at' => '2025-12-31T09:56:00+09:00']);
+        $this->assertSame($this->rows($normal), $this->rows($late));
+        $normalEntry = $normal->verification['validation']['races'][0]['entries'][0];
+        $lateEntry = $late->verification['validation']['races'][0]['entries'][0];
+        $this->assertSame('SIMULATED_CANDIDATE_CONDITIONS_SATISFIED', $normalEntry['purposes']['stat01_score_input']['status']);
+        $this->assertSame('NOT_SATISFIED', $lateEntry['purposes']['stat01_score_input']['status']);
+        foreach ([$normalEntry, $lateEntry] as $entry) {
+            $this->assertSame('VERIFIED_OBSERVATION', $entry['purposes']['bike_observation']['status']);
+            $this->assertSame('VERIFIED_OBSERVATION', $entry['purposes']['frame_observation']['status']);
+            $this->assertSame('UNKNOWN', $entry['purposes']['frame_observation']['official_applicability']);
+            $this->assertSame('BLOCKED', $entry['purposes']['official_assignment_correction']['status']);
+            $this->assertFalse($entry['historical_as_of_available']);
+            $this->assertFalse($entry['formal_adoption']);
+            $this->assertSame('NOT_AUTHORIZED', $entry['prediction_use']);
+        }
+        $this->assertSame('STAT39-PRESTART-ATTRIBUTES-SYNTHETIC-v2', $normal->verification['version']);
+        $codeSeal = EvidenceFiles::object(EvidenceFiles::read($normal->path, 'manifest.json'))['code_seal'];
+        foreach ($codeSeal['stat01_contract_sources'] as $path => $seal) {
+            $this->assertSame($seal['sha256'], hash_file('sha256', dirname(__DIR__, 5).'/'.$path));
+        }
+    }
+
+    public static function reviewTamperCases(): array
+    {
+        return array_map(fn ($kind) => [$kind], ['positive flag', 'input format', 'purpose flag', 'normalization', 'authorization']);
+    }
+
+    #[DataProvider('reviewTamperCases')]
+    public function test_review_resealed_false_to_true_eligibility_is_rejected_by_raw_recalculation(string $kind): void
+    {
+        $token = $kind === 'input format' ? '90.123' : ($kind === 'normalization' ? 'null' : '0');
+        $source = $this->source('PJ0315', $this->pj([$token, '90', '91', '92', '93']));
+        $original = $this->snapshot($source->path);
+        $saved = $this->save($source);
+        $rows = $this->rows($saved);
+        $validation = EvidenceFiles::object(EvidenceFiles::read($saved->path, 'validation.json'));
+        $this->assertFalse($validation['races'][0]['entries'][0]['purposes']['stat01_score_input']['value_conditions_satisfied']);
+        if ($kind === 'positive flag') {
+            $this->assertFalse($rows[0]['entries'][0]['attributes']['race_score']['positive_decimal_candidate']);
+            $rows[0]['entries'][0]['attributes']['race_score']['positive_decimal_candidate'] = true;
+        } elseif ($kind === 'input format') {
+            $rows[0]['entries'][0]['attributes']['race_score']['stat01_input_format_status'] = 'COMPATIBLE';
+        } elseif ($kind === 'normalization') {
+            $rows[0]['entries'][0]['attributes']['race_score']['normalization_status'] = 'VERIFIED';
+            $rows[0]['entries'][0]['attributes']['race_score']['normalized_value'] = '90';
+        } elseif ($kind === 'authorization') {
+            $validation['races'][0]['entries'][0]['prediction_use'] = 'AUTHORIZED';
+            $validation['races'][0]['entries'][0]['formal_adoption'] = true;
+        }
+        $validation['races'][0]['entries'][0]['attributes'] = $rows[0]['entries'][0]['attributes'];
+        $validation['races'][0]['entries'][0]['purposes']['stat01_score_input']['value_conditions_satisfied'] = true;
+        $validation['races'][0]['entries'][0]['purposes']['stat01_score_input']['status'] = 'SIMULATED_CANDIDATE_CONDITIONS_SATISFIED';
+        $manifest = EvidenceFiles::object(EvidenceFiles::read($saved->path, 'manifest.json'));
+        foreach (['attribute-observations.jsonl' => BundleFiles::jsonl($rows), 'validation.json' => EvidenceFiles::json($validation)] as $name => $bytes) {
+            $this->mutate($saved->path, $name, $bytes);
+            $manifest['files'][$name] = EvidenceFiles::seal($bytes);
+        }
+        $manifestBytes = EvidenceFiles::json($manifest);
+        $hash = hash('sha256', $manifestBytes);
+        $this->mutate($saved->path, 'manifest.json', $manifestBytes);
+        $marker = EvidenceFiles::object(EvidenceFiles::read($saved->path, 'COMPLETE.json'));
+        $marker['manifest_sha256'] = $hash;
+        $this->mutate($saved->path, 'COMPLETE.json', EvidenceFiles::json($marker));
+        $receipt = EvidenceFiles::object(EvidenceFiles::read($saved->path, 'publication-receipt.json'));
+        $receipt['manifest_sha256'] = $hash;
+        $receiptBytes = EvidenceFiles::json($receipt);
+        $this->mutate($saved->path, 'publication-receipt.json', $receiptBytes);
+        // Test independent semantics even if the caller is given the attacker's updated byte hashes.
+        $this->reject(fn () => (new AttributeEvidenceVerifier)->verify($saved->path, $hash, $source->path, $source->manifestSha256, hash('sha256', $receiptBytes)));
+        $this->assertSame($original, $this->snapshot($source->path));
+    }
+
+    public function test_review_other_manifest_cannot_be_substituted_even_with_its_expected_hash(): void
+    {
+        $source = $this->source('PJ0315');
+        $original = $this->snapshot($source->path);
+        $first = $this->save($source);
+        $second = $this->save($source);
+        $this->mutate($first->path, 'manifest.json', EvidenceFiles::read($second->path, 'manifest.json'));
+        $this->reject(fn () => $this->verify($first, $source));
+        $this->reject(fn () => (new AttributeEvidenceVerifier)->verify($first->path, $second->manifestSha256, $source->path, $source->manifestSha256, $first->receiptSha256));
+        $this->assertSame($original, $this->snapshot($source->path));
+    }
+
+    public function test_review_regression_identity_mismatch_never_emits_attribute_candidate_and_keeps_original(): void
+    {
+        $raw = str_replace('"numPlayer":"000001"', '"numPlayer":"999999"', $this->pj());
+        $source = $this->source('PJ0315', $raw);
+        $before = $this->snapshot($source->path);
+        $root = $this->directory();
+        $outputBefore = $this->snapshot($root->path());
+        $this->assertSame('FAILED', $source->validation['publication_state']);
+        $this->reject(fn () => (new AttributeEvidenceStore($root->path()))->save($source->path, $source->manifestSha256, $this->scenario()));
+        $this->assertSame($outputBefore, $this->snapshot($root->path()));
+        $this->assertSame($before, $this->snapshot($source->path));
+    }
+
     protected function tearDown(): void
     {
         try {
@@ -54,7 +261,7 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
             $this->assertCount($count, $report['validation']['races']);
             foreach ($report['validation']['races'] as $race) {
                 $this->assertSame('PRESTART_EVIDENCE_CANDIDATE', $race['timing']['capture_status']);
-                $this->assertSame('SIMULATED_TECHNICALLY_AVAILABLE', $race['timing']['cutoff_status']);
+                $this->assertSame('SIMULATED_TIMING_CONDITIONS_SATISFIED', $race['timing']['cutoff_status']);
             }
             $this->assertSame('AFTER', $report['physical_publication_vs_simulated_cutoff']);
             $this->assertFalse($report['historical_as_of_available']);
@@ -98,7 +305,8 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
         }
         $this->assertSame(['DECIMAL', 'DECIMAL', 'STRING', 'INTEGER', 'DECIMAL'], array_map(fn ($e) => $e['attributes']['race_score']['raw_type'], $entries));
         $this->assertSame(['90.1', '90.1', '90.1', '0', null], array_map(fn ($e) => $e['attributes']['race_score']['normalized_value'], $entries));
-        $this->assertFalse($entries[3]['attributes']['race_score']['stat01_usable']);
+        $this->assertFalse($entries[3]['attributes']['race_score']['positive_decimal_candidate']);
+        $this->assertSame('COMPATIBLE', $entries[3]['attributes']['race_score']['stat01_input_format_status']);
         $this->assertSame('NORMALIZATION_UNVERIFIED', $entries[4]['attributes']['race_score']['normalization_status']);
         $this->assertSame($saved->verification, $this->verify($saved, $source));
     }
@@ -182,7 +390,7 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
     public static function timingCases(): array
     {
         return [
-            'normal' => [[], 'PRESTART_EVIDENCE_CANDIDATE', 'SIMULATED_TECHNICALLY_AVAILABLE', 'ALL_COMPLETIONS_AT_OR_BEFORE_CUTOFF'],
+            'normal' => [[], 'PRESTART_EVIDENCE_CANDIDATE', 'SIMULATED_TIMING_CONDITIONS_SATISFIED', 'ALL_COMPLETIONS_AT_OR_BEFORE_CUTOFF'],
             'equal' => [['response_received_at' => '2025-12-31T10:00:00+09:00'], 'POSTSTART_CAPTURE', 'UNAVAILABLE', 'CUTOFF_RECEIPT_LATE'],
             'after' => [['response_received_at' => '2025-12-31T10:00:01+09:00'], 'POSTSTART_CAPTURE', 'UNAVAILABLE', 'CUTOFF_RECEIPT_LATE'],
             'save late' => [['raw_saved_at' => '2025-12-31T09:56:00+09:00'], 'PRESTART_EVIDENCE_CANDIDATE', 'UNAVAILABLE', 'CUTOFF_RAW_SAVE_LATE'],
@@ -227,14 +435,14 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
         $overlap = $classifier->classify($race, $scenario);
         $this->assertSame('TIMING_UNKNOWN', $overlap['capture_status']);
         $this->assertSame('CLOCK_INTERVALS_OVERLAP', $overlap['capture_reason']);
-        $this->assertNotSame('SIMULATED_TECHNICALLY_AVAILABLE', $overlap['cutoff_status']);
+        $this->assertNotSame('SIMULATED_TIMING_CONDITIONS_SATISFIED', $overlap['cutoff_status']);
         $afterBoundary = $this->scenario(['response_received_at' => '2025-12-31T10:01:00+09:00']);
         $afterBoundary['uncertainty_microseconds']['response_received_at'] = 60000000;
         $this->assertSame('TIMING_UNKNOWN', $classifier->classify($race, $afterBoundary)['capture_status']);
         $receiptOffset = $this->scenario(['publication_receipt' => ['time_basis' => 'SIMULATED_SCENARIO', 'published_at' => '2025-12-31T00:50:03Z']]);
         $this->assertSame($normal, $classifier->classify($race, $receiptOffset));
         $scenario = $this->scenario(['prediction_as_of' => '2025-12-31T09:50:03+09:00']);
-        $this->assertSame('SIMULATED_TECHNICALLY_AVAILABLE', $classifier->classify($race, $scenario)['cutoff_status']);
+        $this->assertSame('SIMULATED_TIMING_CONDITIONS_SATISFIED', $classifier->classify($race, $scenario)['cutoff_status']);
         $scenario['uncertainty_microseconds']['publication_completed_at'] = 500000;
         $this->assertSame('CUTOFF_PUBLICATION_CLOCK_OVERLAP', $classifier->classify($race, $scenario)['cutoff_reason']);
     }
@@ -267,7 +475,8 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
         $this->assertSame($token, $score['raw_lexeme']);
         $this->assertSame($type, $score['raw_type']);
         $this->assertSame($normalized, $score['normalized_value']);
-        $this->assertSame($normalized !== null, $score['stat01_usable']);
+        $this->assertSame($normalized === null ? null : $normalized !== '0', $score['positive_decimal_candidate']);
+        $this->assertSame($normalized === null ? 'UNKNOWN' : 'INCOMPATIBLE', $score['stat01_input_format_status']);
     }
 
     public function test_number_string_bike_preserves_zeros_and_unprovided_jsj_fields_are_not_observations(): void
@@ -649,9 +858,9 @@ final class Stat39PrestartAttributeEvidencePhase1Test extends TestCase
         return (new CaptureStore($this->directory()->path(), $policy))->save(new SyntheticCapture(...array_replace($input, $changes)));
     }
 
-    private function save(StoredCapture $source): StoredAttributeEvidence
+    private function save(StoredCapture $source, array $scenario = []): StoredAttributeEvidence
     {
-        return (new AttributeEvidenceStore($this->directory()->path()))->save($source->path, $source->manifestSha256, $this->scenario());
+        return (new AttributeEvidenceStore($this->directory()->path()))->save($source->path, $source->manifestSha256, $this->scenario($scenario));
     }
 
     private function verify(StoredAttributeEvidence $saved, StoredCapture $source): array

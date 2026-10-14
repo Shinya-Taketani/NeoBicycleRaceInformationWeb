@@ -79,11 +79,13 @@ final class AttributeEvidenceVerifier
     {
         $timings = [];
         foreach ($races as $race) {
+            $timing = (new ScenarioTiming)->classify($race, $scenario);
             $timings[] = ['race_date' => $race['race_date'], 'track_code' => $race['track_code'], 'race_number' => $race['race_number'],
-                'timing' => (new ScenarioTiming)->classify($race, $scenario)];
+                'timing' => $timing, 'entries' => array_map(fn (array $entry): array => (new AttributeEligibility)->entry($entry, $timing), $race['entries'])];
         }
 
-        return ['version' => BundleFiles::VERSION, 'raw_and_identity' => 'VERIFIED', 'source_verification' => 'VERIFIED',
+        return ['version' => BundleFiles::VERSION, 'eligibility_version' => AttributeEligibility::VERSION,
+            'scope' => 'SYNTHETIC_OBSERVATIONS_AND_ENTRY_CANDIDATES_ONLY', 'raw_and_identity' => 'VERIFIED', 'source_verification' => 'VERIFIED',
             'races' => $timings, ...BundleFiles::restrictions()];
     }
 
