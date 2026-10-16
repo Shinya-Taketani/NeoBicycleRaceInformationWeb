@@ -1,5 +1,11 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-17 最新工程：`C1-2023-OOF-RECOVERY-01`、`2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING`。現在地の正本は5.0と15.78。
+> PR #110/#111/#112はローカルmerge履歴で確認済み、origin/mainは `447b096f9d472f893f95901a8837d1ae1ff60946`（PR112 merge、fetch/外部照会なし）。PR #113はOPEN（最新ユーザー確認）。既存branch `research/c1-2023-oof-recovery-01` のレビュー修正であり、新branchやmergeは行わない。
+> 前回実行で2022年学習済みlambda=0.1/1から各25,197レース・179,007出走の2023候補確率を生成し、独立2実行が一致した。今回の変更は工程文書2件だけで、学習・予測再生成・性能評価は行わない。
+> 親lambdaの2023結果から独立した選択は未確定、最終OOF未認定、H1-U学習は未許可。次は `REVIEW_C1_2023_OOF_RECOVERY_01_PR113_REVIEW_FIX_ONLY`。正式採用・2026 holdout・LIVEは開放しない。
+> 以下のv1.70以前の冒頭記録は当時の履歴。Category 1 MVPの成果と未レビュー事項は独立して維持し、今回の研究で承認済みとは扱わない。
+
 > 2026-10-12 最新工程：開始clean main/ローカルorigin `3abaaf8acc2230cd660abe339e7757d10b8afae9` のPR104 mergeを履歴で確認（fetch/外部照会なし）。最新ユーザー指示で区分1の16 STAT限定MVPを製造・人工検証した。現在地の正本は15.77、次はコード・受入台帳レビューのみ。
 > branch `feature/stat-category1-mvp-completion-01`、関連208 tests / 1988 assertions / 128M / exit0。正式DB保存・本番照合は未実施。confidence/配点はNULL、historical_as_of_available=false、正式採用/2026/LIVEは禁止のまま。以下のPR103/104レビュー記載は追記当時の履歴として保持する。
 
@@ -11,18 +17,23 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.70
+- Version: 1.71
 - Created: 2026-08-23
-- Updated: 2026-10-12
+- Updated: 2026-10-17
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
+- Remote `main` at last update: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
+- Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: 区分1の16 STAT限定MVPのコード・人工検証・台帳レビュー待ち。正式保存・正式採用・2026/LIVEは未承認、15.77参照
-- Current code: 新規STAT20品質根拠監査と既存B2〜B5の終端run受入検査。既存15項目の計算式・版、予測モデル/係数/Solver/Decoder/Gateは不変
-- Current execution record: CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW / PRODUCTION_STORAGE_NOT_VERIFIED。人工保存・dry-run非書込みだけを確認し、本番実行/学習/評価/Raw参照は0
-- Current tests record: 関連208/1988、独立128M/exit0・failure/error/warning/skip=0、peak66.50MiB。人工6000race/42000出走・累計583714986bytesをpeak10MiBで逐次処理。通常全体は危険cleanupのため未実施
+- Current review: PR113 OPEN、C1-2023-OOF-RECOVERY-01の報告・工程同期差分だけを再レビュー。親選択/H1-U/正式採用は未承認、15.78参照
+- Current code: 今回はMarkdown2件だけ。PHP・モデル・Solver・Decoder・Evaluator・Gate・設定・実行スクリプトは変更しない
+- Current execution record: 2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING。前回生成の2候補・各25197レース/179007出走と独立再現を保持。今回はmanifest/COMPLETEと主要23ファイルのseal再確認のみ
+- Current tests record: 今回PHPUnit/Pint/学習/予測再生成/性能比較は未実施。前回の9プロセス128M/exit0と確率検証成功は15.78の過去実行記録であり、今回の再実行ではない
+- Previous review at v1.70: 区分1の16 STAT限定MVPのコード・人工検証・台帳レビュー待ち。正式保存・正式採用・2026/LIVEは未承認、15.77参照
+- Previous code at v1.70: 新規STAT20品質根拠監査と既存B2〜B5の終端run受入検査。既存15項目の計算式・版、予測モデル/係数/Solver/Decoder/Gateは不変
+- Previous execution record at v1.70: CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW / PRODUCTION_STORAGE_NOT_VERIFIED。人工保存・dry-run非書込みだけを確認し、本番実行/学習/評価/Raw参照は0
+- Previous tests record at v1.70: 関連208/1988、独立128M/exit0・failure/error/warning/skip=0、peak66.50MiB。人工6000race/42000出走・累計583714986bytesをpeak10MiBで逐次処理。通常全体は危険cleanupのため未実施
 - Previous review at v1.69: PR103 OPEN。P2の専用spool管理とP3のテスト退避理由を人工検証し再レビュー待ち。旧C3不採用・正式採用/2026/LIVE/実収集未承認は不変
 - Previous code at v1.69: 専用18項目C3、旧mean6照合付きtrend生成、C3 U1＋元C1 U2/U3、既存Evaluator/Gate・数値互換の非削除spool経路。旧Solver/Fetcher/Parser/DB/モデル/資料は不変
 - Previous execution record at v1.69: TREND6_COMPARISON_REPRODUCED_NOT_ADOPTED_AWAITING_REVIEW。旧mean/window不変、Outer50078レース、独立2run77成果物一致、C−B/C−A Gate未達、Primary完全順序B比悪化。精度改善は未確認、15.75参照
@@ -200,7 +211,50 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新ユーザー承認の限定MVP工程
+## 5.0 最新工程: C1-2023-OOF-RECOVERY-01
+
+```yaml
+current_phase: C1-2023-OOF-RECOVERY-01
+current_engine_state: 2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING
+next_allowed_action: REVIEW_C1_2023_OOF_RECOVERY_01_PR113_REVIEW_FIX_ONLY
+remote_main: 447b096f9d472f893f95901a8837d1ae1ff60946
+pr110_status: MERGED_LOCAL_HISTORY_CONFIRMED
+pr111_status: MERGED_LOCAL_HISTORY_CONFIRMED
+pr112_status: MERGED_LOCAL_HISTORY_CONFIRMED
+pr113_status: OPEN
+pr113_status_evidence: LATEST_USER_CONFIRMATION_NO_EXTERNAL_QUERY
+pr113_head_at_review_fix_start: a58f44c0bca6efe4d2c8736f67fb75923d71a8da
+parent_training_years: 2022_ONLY
+candidate_lambdas: [0.1, 1]
+selected_lambda: NONE
+parent_selection_independent_of_2023_outcomes: NOT_ESTABLISHED
+prediction_classification: 2023_OUT_OF_TIME_UNSELECTED_CANDIDATE
+final_selected_2023_oof: NOT_ESTABLISHED
+h1_u_training_use: PENDING_PARENT_SELECTION_REVIEW
+historical_as_of_available: false
+formal_adoption: false
+prediction_use: NOT_AUTHORIZED
+2026_holdout: FROZEN_NO_ACCESS
+```
+
+この現在地は候補確率の生成完了と親選択未確定を示す。lambda選択・候補混合・H1-U学習・補正係数決定・2024/2025再予測/性能評価・最終C1変更・正式採用へ移行する許可ではない。
+
+8工程制御項目は次のとおり適用する。下記の過去YAMLやSection 18/19の既存契約一覧は変更せず、過去のnext_allowed_actionを現在の許可として使わない。
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 上記の2023候補生成完了・親選択待ち |
+| next_allowed_action | PR113の報告・今回工程同期差分レビューのみ |
+| completed_phases | 既存完了一覧を維持。15.78の候補生成・独立検証は完了だが、PR113受入/merge・最終OOF認定・H1-U学習は未完了 |
+| superseded_phases | 既存一覧を維持。旧BT-03D・粗整数点数化を復活させない |
+| blocked_phases | 既存一覧を維持。親lambda選択・H1-U学習等も今回の次作業には未許可。BT-04/BT-05-LIVEは未解除 |
+| frozen_contracts | 既存C1/STAT39/Solver/Scorer/Decoder/Evaluator/Gate、時系列・欠損・128M・artifact契約を維持 |
+| unfrozen_contracts | 将来統合の未決一覧を維持。既存最終C1の固定lambda/bin/係数は再び未決に戻さず、今回の親選択未確定と区別 |
+| holdout_status | development=2022〜2025。2026モデル選択/性能評価/outcome参照は禁止、FROZEN_NO_ACCESS |
+
+### v1.70時点の限定MVP工程（履歴・未レビュー事項は継続）
+
+以下は旧Section 5.0の当時の状態をそのまま保持する。15.77の成果・正式DB保存未確認・レビュー待ちは、今回のC1研究によって承認済みにならない。
 
 ```yaml
 current_engine_state: CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW
@@ -1067,6 +1121,7 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
+| C1-2023-OOF-RECOVERY-01 | 保存2022モデルによる2023候補確率生成・独立検証 | 2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING | PR113 OPEN、2候補各25197レース/179007出走。最終OOF未認定、次は報告/工程同期レビューのみ、15.78参照 |
 | STAT-CATEGORY1-MVP-COMPLETION-01 | 既存DB対応16 STATのMVP製造・受入監査 | CODE_TESTED_AWAITING_REVIEW | STAT20新規・既存15再点検、正式DB保存未確認、配点/採用/2026未承認、15.77参照 |
 | Statistics Feature Foundation | 発走前統計特徴量の構築 | COMPLETED for current scope | GO |
 | BT-01 | STAT-01 baseline確立 | COMPLETED | PASS |
@@ -4024,6 +4079,45 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.78 C1-2023-OOF-RECOVERY-01 / 2026-10-17
+
+現在地は5.0、次は `REVIEW_C1_2023_OOF_RECOVERY_01_PR113_REVIEW_FIX_ONLY`。既存branch `research/c1-2023-oof-recovery-01`、レビュー修正開始時HEAD `a58f44c0bca6efe4d2c8736f67fb75923d71a8da`、worktree clean。PR113はOPEN（最新ユーザー確認）であり、merge済みではない。修正後の未確定HEADを推測して記録しない。
+
+ローカル履歴でPR110 merge `cb7762121650c1b2227a8279420fd3967e13ca3e`、PR111 merge `f95d26bc8d2bed81e988d5912719749f39541d0e`、PR112 merge/origin/main `447b096f9d472f893f95901a8837d1ae1ff60946`を確認。PR110/111の診断は追加調査が必要という根拠、PR112はH1/H2成立性の設計記録であり、補正学習の承認ではない。PR112文書はこのPR枝に未包含なので`git show origin/main:docs/c1-low-rank-calibration-feasibility-01.md`で参照し、取込み/変更はしない。今回のレビュー許可は既存PR修正なのでSection 26を理由にmain移動・新branch作成・pull/merge/rebaseを行わない。
+
+### 欠落原因と前回の生成実績
+
+2023年の元レース情報が欠落したのではない。固定入力25,197レース・179,007出走と検証損失は存在し、未保存だったのは選手別C1予測確率。`TacticalHistory/Trainer::grid()`は損失を保存する一方、全選手のOOF予測分布を生成・保存しない設計だった。確認した保存root以外まで不存在を断定せず、削除・破損が原因とも断定しない。
+
+[実行報告](c1-2023-oof-recovery-01.md)にある前回実績は、2022年だけで学習したC1候補lambda=0.1/1（両方3順位CONVERGED）を復元し、各25,197レース・179,007出走の確率・utility・E06 Primary・全Ordered Top3を新規保存したこと。C1再学習0、lambda選択0。結果fieldを厳密な許可集合から除いて独立入力を予測前にsealし、教師・損失不可視の別PHPから予測した。
+
+別PHPプロセスの独立2生成で各候補の予測と全jointがbyte hash一致。確率範囲・順位/joint総和1・別人制約・元ID/順序・utility・Primaryを独立検証し、両候補のseal/再現後だけ元2023検証損失を独立監査へ開放した。全25,197行×3順位×2候補の保存損失がNULL状態を含め一致したという前回報告を引き継ぐ。今回これらの計算・予測・損失監査は再実行しない。
+
+### 固定成果物と今回の読取り確認
+
+```text
+/home/shinya/neo-keirin-artifacts/c1-2023-oof-recovery-01/run-20261016-212706-e8690386
+```
+
+rootのmanifest.jsonは15,042 bytes、SHA-256 `1f4e53cc10381451efc6eb56c2ae7cbbab045137a338a6d03c8bcdbf131d963f`。COMPLETE.jsonはこのmanifestのbytes/SHAを参照し、manifestは83ファイルをsealする。`generation-01/lambda-*`が候補別生成物、`generation-02/lambda-*`は同対象の独立再現証拠で、追加標本ではない。
+
+| lambda | 各generation内のファイル | rows | bytes | SHA-256 |
+| --- | --- | ---: | ---: | --- |
+| 0.1 | lambda-0.1/predictions.jsonl | 25197 | 221660142 | `4a7cba05c7c66bc5ca05ec0a9bdf8725fb31cdedd6c3be8348b2c5088cf6d158` |
+| 0.1 | lambda-0.1/ordered-top3.jsonl | 25197 | 312960536 | `5cf13ef33d552e9a5e4266026ef0e4f861bef5eeb375ff4ac0e3e499ab63dcc8` |
+| 1 | lambda-1/predictions.jsonl | 25197 | 221653286 | `ebc131e79dc71e5c4d5bd09520a7c1adca15d342fdbc8ac6ad6c0b145e5b7ccc` |
+| 1 | lambda-1/ordered-top3.jsonl | 25197 | 312982874 | `bfff3c57e94a8fb2d5e19523d0490e7d9ff11035c77f6387933bb9b17bd0bb3b` |
+
+今回実際に再確認したのはroot manifestの固定SHAとCOMPLETEの対応、およびmanifest列挙中の主要23ファイル（両generationの予測/joint/候補seal、モデル2個、投影入力とmanifest/COMPLETE、実行・検証・終了検査記録）のsize/SHA一致。候補sealの各25197レース/179007出走と両generationの一致も確認した。件数・確率整合性・元資料47/コード275のSTART/END検証は前回実行記録であり、今回の全行再計算/全83ファイル再hash/元source再監査とは記載しない。既存rootには一切書き込まない。
+
+### 未解決事項と次の許可範囲
+
+状態は `2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING`、分類は `2023_OUT_OF_TIME_UNSELECTED_CANDIDATE`。2023結果から独立した親lambda選択はNOT_ESTABLISHED、selected_lambda=NONE、最終OOF未認定、H1-U補正学習/2024・2025追加性能評価は未実施。2候補を混合せず、2023検証損失で優れた親を選ばない。
+
+歴史的な発走前入力利用可能性は未証明、historical_as_of_available=false、formal_adoption=false、prediction_use=NOT_AUTHORIZED、2026_holdout=FROZEN_NO_ACCESS。旧C1/STAT39/Evaluator/Decoder/Gate・旧不採用判断を維持する。15.77のCategory 1 MVPの成果・正式DB保存未確認・未レビュー事項も別履歴として保持し、承認へ昇格させない。
+
+今回のP2修正はMASTER PLAN v1.71と実行報告への工程記録同期だけ。学習・予測再生成・独立再現・性能評価・DB/HTTP/Raw/2026・バックアップ操作・既存成果物変更は0、PHPUnit/Pintは未実施。次は今回のPR113報告/文書差分のChatGPT再レビューのみで、親選択/H1-U/補正/最終モデル変更/正式採用/LIVEへ自動移行しない。commit/push/PR更新/mergeはせず、未コミット差分を保持する。
+
 ## 15.77 STAT-CATEGORY1-MVP-COMPLETION-01 / 2026-10-12
 
 開始clean main/ローカルorigin `3abaaf8acc2230cd660abe339e7757d10b8afae9`、PR104 mergeをローカル履歴で確認。
@@ -4555,6 +4649,10 @@ run 6は正式完了済み。
 | #91 | C1 P23 nondecreasing marginal | MERGED_REVIEW_COMPLETED / merge f5cc8316b0deaa4bfb8b1e83ebd12417846b307b。旧不採用結果を維持、限定構成比較は15.64 |
 | #92 | C1 STAT35 P1 composition | MERGED_REVIEW_COMPLETED / main a5ea469cc331b009cfe048338584e211a02ff5c2。過去性能実績は15.64 |
 | #93 | C1 STAT35 composition final・公開v3レビュー修正 | MERGED_REVIEW_COMPLETED / main c9fdc3d72292b7c7af83f8d67fba7cdc84affd89。過去fit/公開/移設実績は15.65～15.65.2、依頼機能は15.66 |
+| #110 | STAT39 C1車番別予測誤差診断・レビュー修正 | MERGED / ローカルmerge cb7762121650c1b2227a8279420fd3967e13ca3e。既存診断・B判定を保持 |
+| #111 | STAT39 車番×能力順位の条件付き診断 | MERGED / ローカルmerge f95d26bc8d2bed81e988d5912719749f39541d0e。既存診断・B判定を保持 |
+| #112 | C1能力下位選手の補正候補・成立性設計 | MERGED / ローカルmerge 447b096f9d472f893f95901a8837d1ae1ff60946。補正方式/親選択の承認ではない |
+| #113 | C1 2023候補確率生成・工程状態同期 | OPEN（最新ユーザー確認、外部照会なし）/ 修正開始HEAD a58f44c0bca6efe4d2c8736f67fb75923d71a8da。親選択未確定・最終OOF未認定、15.78参照 |
 
 Current remote `main` at the v1.2 update:
 
@@ -4664,6 +4762,25 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.71 / 2026-10-17
+
+```yaml
+document_version: 1.71
+updated_at: 2026-10-17
+remote_main_sha: 447b096f9d472f893f95901a8837d1ae1ff60946
+phase_changed: C1-2023-OOF-RECOVERY-01
+current_engine_state: 2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING
+related_pr: PR113_OPEN_REVIEW_FIX_PR110_PR111_PR112_MERGED_LOCAL_HISTORY_CONFIRMED
+review_fix_start_head: a58f44c0bca6efe4d2c8736f67fb75923d71a8da
+related_run: c1-2023-oof-recovery-01/run-20261016-212706-e8690386
+decision: REVIEW_C1_2023_OOF_RECOVERY_01_PR113_REVIEW_FIX_ONLY
+reason: Sync the master plan with already generated unselected 2023 candidates; preserve prior history and unresolved parent selection
+```
+
+冒頭metadata・5.0と8工程制御・工程表・15.78・PR履歴・引継ぎを同期。初回報告でMASTER PLANを変更しなかったことは当時の履歴として保持し、今回のMarkdown2件だけのP2修正と区別する。
+前回の各25197レース/179007出走・lambda0.1/1・独立再現・manifest/COMPLETEを引き継ぎ、今回の主要23ファイルseal再確認を分離する。学習・予測・評価は再実行しない。
+15.77/v1.70以下のCategory 1 MVP・既存採否/凍結/未承認/失敗/成功記録は保持。親lambda未選択、最終OOF/H1-U未承認、historical_as_of=false・正式採用/2026/LIVE禁止は不変。PR113をmerge済みとせず、次は今回差分レビューのみ。
 
 ## v1.70 / 2026-10-12
 
@@ -5478,6 +5595,16 @@ Remote `main`:
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+最新の現在地は5.0と15.78。`C1-2023-OOF-RECOVERY-01`は`2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING`。
+PR110/111/112はローカルmerge履歴で確認、origin/mainはPR112 merge `447b096f9d472f893f95901a8837d1ae1ff60946`。PR113はOPEN（最新ユーザー確認）、既存branch `research/c1-2023-oof-recovery-01` のレビュー修正開始HEADは `a58f44c0bca6efe4d2c8736f67fb75923d71a8da`。将来の最新HEADをこの固定値で代用しない。
+2022学習済みlambda0.1/1の各2023予測25197レース/179007出走、独立2実行一致は前回実績。今回の処理は文書同期とread-only seal再確認だけ。
+成果物root: `/home/shinya/neo-keirin-artifacts/c1-2023-oof-recovery-01/run-20261016-212706-e8690386`。manifest SHA `1f4e53cc10381451efc6eb56c2ae7cbbab045137a338a6d03c8bcdbf131d963f`、COMPLETEとの対応は15.78と[実行報告](c1-2023-oof-recovery-01.md)を参照。
+次は `REVIEW_C1_2023_OOF_RECOVERY_01_PR113_REVIEW_FIX_ONLY`。候補分類は2023_OUT_OF_TIME_UNSELECTED_CANDIDATE、親lambdaの2023結果から独立した選択は未確定、最終OOF未認定、H1-U学習はPENDING_PARENT_SELECTION_REVIEW。
+親選択・候補混合・補正係数・2024/2025再予測/性能評価・最終C1変更・正式採用へ進まない。historical_as_of_available=false、formal_adoption=false、prediction_use=NOT_AUTHORIZED、2026_holdout=FROZEN_NO_ACCESS、LIVE未承認を維持する。
+Category 1 MVPの成果・未レビュー事項は15.77の独立履歴として残し、今回の研究で承認済みにしない。今回の文書差分を未コミットでレビュー待ちとし、commit/push/PR更新/mergeは行わない。
+
+### v1.70以前の引継ぎ（以下は当時の履歴）
 
 最新の現在地は15.77と5.0。区分1の16 STAT限定MVPはコード・人工検証完了/レビュー待ち、実DB正式保存は未確認。
 開始main/ローカルoriginはPR104 merge `3abaaf8acc2230cd660abe339e7757d10b8afae9`（fetchなし）。次は受入台帳・コード・関連208/1988のレビューのみ。
