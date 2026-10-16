@@ -43,7 +43,7 @@ AGENTSを全文確認。MASTER PLANは前工程で全文確認した原本と全
 | unfrozen_contracts | 将来統合の未決事項を、既存最終C1のlambda・bin・係数の凍結解除としない。今回も親lambdaは選ばない |
 | holdout_status | development 2022〜2025、2026モデル選択・性能評価・outcome参照は禁止 |
 
-MASTER PLAN本体は変更しない。PR #112の成立性報告書は`git show 7f5b214:docs/c1-low-rank-calibration-feasibility-01.md`で参照した。そこにある将来設計・未承認補正学習を今回の実行へ混入させない。
+初回実行時はMASTER PLAN本体を変更しなかった（本節は当時の履歴）。後続のPR #113レビュー修正による工程同期は第10節へ分離する。PR #112の成立性報告書は`git show 7f5b214:docs/c1-low-rank-calibration-feasibility-01.md`で参照した。そこにある将来設計・未承認補正学習を今回の実行へ混入させない。
 
 ## 3. Phase A: 何が欠けていたか
 
@@ -216,3 +216,39 @@ rootのCOMPLETEとmanifestが一致し、列挙83ファイルのsize/SHAを公�
 - **維持**: C1/STAT39/Evaluator/Decoder/Gateの凍結、旧C1_PLUS_FIELD_BIKE不採用、historical_as_of=false、正式採用/2026/LIVE禁止。
 
 リポジトリ変更は本報告書1件のみ。アプリ・テスト・設定・MASTER PLAN・PR #112は無変更。PHPUnit/Pint、DB接続、HTTP、Raw、2026、C1/補正学習、2024/2025新規予測・性能評価、旧成果物の上書き/削除/移動/再seal、commit/push/PR作成/mergeは未実施。次は本報告・新候補資料のChatGPTレビューのみで停止する。
+
+## 10. PR #113 レビュー指摘対応：MASTER PLAN工程同期
+
+2026-10-17。第1〜9節の生成・実行記録、SHA・件数・モデル状態と、第9節末尾の「本報告書1件のみ」「MASTER PLAN無変更」は初回実行終了時の履歴である。今回の変更範囲を示すものではない。
+
+P2の原因は、本報告へ2023候補生成の完了を記録した一方、MASTER PLANの冒頭/5.0/引継ぎが2026-10-12のCategory 1 MVPのままで、現在地と次工程が一致しなかったこと。今回は既存PR113上で工程文書だけを同期する。
+
+開始branch `research/c1-2023-oof-recovery-01`、HEAD `a58f44c0bca6efe4d2c8736f67fb75923d71a8da`、worktree clean。origin/mainは `447b096f9d472f893f95901a8837d1ae1ff60946`。ローカルmerge履歴でPR110/111/112を確認し、PR113はOPENという最新ユーザー確認を記録する。GitHubへの再照会は行わない。PR113の既存218行報告への追加修正であり、新branch/PRを作らず、PR112の文書も変更しない。
+
+旧現在地 `CATEGORY1_MVP_CODE_TESTED_AWAITING_REVIEW` / `REVIEW_CATEGORY1_MVP_CODE_TESTS_AND_LEDGER_ONLY`を、今回の現在地としては以下へ同期した。Category 1 MVPの成果・正式保存未確認・未レビュー事項は旧5.0/v1.70/15.77に保持し、今回の研究をもって承認済みと扱わない。
+
+```ini
+current_phase=C1-2023-OOF-RECOVERY-01
+current_engine_state=2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING
+next_allowed_action=REVIEW_C1_2023_OOF_RECOVERY_01_PR113_REVIEW_FIX_ONLY
+parent_training_years=2022_ONLY
+candidate_lambdas=0.1,1
+selected_lambda=NONE
+parent_selection_independent_of_2023_outcomes=NOT_ESTABLISHED
+prediction_classification=2023_OUT_OF_TIME_UNSELECTED_CANDIDATE
+final_selected_2023_oof=NOT_ESTABLISHED
+h1_u_training_use=PENDING_PARENT_SELECTION_REVIEW
+historical_as_of_available=false
+formal_adoption=false
+prediction_use=NOT_AUTHORIZED
+2026_holdout=FROZEN_NO_ACCESS
+review_fix_status=C1_2023_OOF_RECOVERY_PR113_REVIEW_FIX_READY_FOR_REVIEW
+```
+
+MASTER PLANはv1.71 / 2026-10-17。冒頭metadata、Section 5.0と8工程制御の適用説明、Section 8工程表、Section 15.78新履歴、Section 21 PR履歴、Section 25変更履歴、Section 27引継ぎを同期した。既存のfrozen/unfrozen/holdout一覧と過去工程本文・版履歴は変更しない。新HEADを推測せず、開始HEADを履歴上の項目名で記録する。
+
+今回、保存rootのmanifest.jsonは15,042 bytes / SHA-256 `1f4e53cc10381451efc6eb56c2ae7cbbab045137a338a6d03c8bcdbf131d963f`のまま、COMPLETEの参照と一致することを再確認した。manifest列挙83ファイルのうち主要23件（両generationの予測/joint/候補seal、モデル2個、投影inputとmanifest/COMPLETE、実行・検証・終了検査記録）を読み取り専用で再hashし、全て既存sealと一致した。前掲の4成果物SHAは両generationで一致、候補sealの各25,197レース/179,007出走も同じ。今回新たに全行を数えたり、確率/損失の数学的検証・元資料47/コード275の監査を再実行したわけではない。第7〜8節のそれらの成功は初回実行記録として保持する。
+
+今回の変更は本報告とMASTER PLANのMarkdown2件のみ。PHP・テスト・設定・モデル・予測・manifest・COMPLETE・生成スクリプト・旧成果物は変更しない。PHPUnit/Pint、学習、予測再生成/再現、性能比較、lambda選択、H1-U学習、DB/HTTP/Raw/2026、バックアップ操作は未実施。
+
+親lambdaの2023結果から独立した選択は未解決、最終OOFモデルは未認定。次は今回の報告と工程同期差分のChatGPT再レビューだけで、親選択作業・候補混合・補正係数決定・2024/2025再予測/性能評価・最終C1変更・正式採用・LIVEを許可しない。commit/push/PR更新/mergeは行わず、未コミット差分を保持して停止する。
