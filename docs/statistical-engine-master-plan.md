@@ -2,7 +2,8 @@
 
 > 2026-10-17 最新工程：`C1-2023-PARENT-LAMBDA-SELECTION-FEASIBILITY-01`、`PARENT_LAMBDA_SELECTION_FEASIBILITY_DOCUMENTED_AWAITING_REVIEW`。現在地の正本は5.0と15.79、[成立性報告](c1-2023-parent-lambda-selection-feasibility-01.md)を参照。
 > PR #113 MERGED。初回設計はclean main/ローカルorigin `0d57393c10ff046505bf85ab232e104dcbe8d6d3` から同設計branchを新規作成し、当時はfetch/外部照会なし。今回PR114 P2修正では実際のGitHubとGitリモートを照合した（15.79.1）。
-> P2確認記録：2026-10-17 10:32:45 JST、fetch後origin/mainとls-remote mainはともに `0d57393c10ff046505bf85ab232e104dcbe8d6d3`。10:32:59 JSTにmain同期確認と既存PR branch復帰を完了。PR114はOPEN、確認時baseは同main、headは `edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f`。設計承認/mergeではない。
+> 初回P2確認記録：2026-10-17 10:32:45 JST、fetch後origin/mainとls-remote mainはともに `0d57393c10ff046505bf85ab232e104dcbe8d6d3`。10:32:59 JSTにmain同期確認と既存PR branch復帰を完了。PR114はOPEN、確認時baseは同main、headは `edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f`。設計承認/mergeではない。
+> P2再確認：2026-10-17 14:10:27 JST、上記修正を含む開始HEAD/PR headは `0706de9b704678903e20021efc6e3c64d3f12631`。fetch/ls-remote/PR baseを再照合し、mainは同SHAで不変、PR114はOPEN。14:10:38 JSTにmain ff-only同期確認と既存branch復帰を完了した（15.79.2）。
 > 初回設計時に2022年24,394レース/170,835出走/837開催の固定target対応と主要sealをread-only・128Mで確認した。今回P2では再実行しない。方法A/Bの案、未承認の規則・境界・年内One-SEの解釈、Bの新規2022内fit必要性は不変。
 > selected_lambda=NONE、親選択独立性/最終OOF未認定、H1-U未許可。今回は設計2Markdownだけで学習/選択/予測再生成/性能比較は0。次は `REVIEW_C1_2023_PARENT_LAMBDA_SELECTION_FEASIBILITY_ONLY`。正式採用/2026/LIVEは開放しない。
 > 以下のv1.71以前の冒頭記録は当時の履歴。PR113のOPEN/未コミット記録を現在と混同せず、Category 1 MVPの未レビュー事項は独立して維持する。
@@ -30,7 +31,7 @@
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `0d57393c10ff046505bf85ab232e104dcbe8d6d3`（PR114 P2: git fetch origin、ls-remote、PR base照合。2026-10-17 10:32:45 JST記録、main pull --ff-only/既存branch復帰確認10:32:59 JST。15.79.1参照）
+- Remote `main` at last update: `0d57393c10ff046505bf85ab232e104dcbe8d6d3`（PR114 P2再確認: git fetch origin、ls-remote、PR base照合。2026-10-17 14:10:27 JST記録、main pull --ff-only/既存branch復帰確認14:10:38 JST。初回記録は15.79.1、再確認は15.79.2）
 - Initial remote evidence at v1.72 design: 同SHAの開始main/ローカルoriginとPR113 merge履歴のみ確認。当時はfetch/外部照会なしであり、今回のリモート検証を初回へ遡及しない
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
@@ -237,6 +238,9 @@ pr113_status: MERGED_LOCAL_HISTORY_CONFIRMED
 pr114_status: OPEN_AWAITING_P2_DIFF_REVIEW
 pr114_base_at_p2_verification: 0d57393c10ff046505bf85ab232e104dcbe8d6d3
 pr114_head_at_p2_verification: edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f
+remote_main_reverified_at: '2026-10-17T14:10:27+09:00'
+pr114_head_at_reverification: 0706de9b704678903e20021efc6e3c64d3f12631
+local_main_resync: FF_ONLY_ALREADY_UP_TO_DATE_PR_BRANCH_RETURNED_20261017_141038_JST
 design_start_head: 0d57393c10ff046505bf85ab232e104dcbe8d6d3
 candidate_artifact_state: 2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING
 feasibility_findings:
@@ -4174,6 +4178,16 @@ cleanのまま `git switch main` → `git pull --ff-only origin main` → HEAD�
 
 PR113 MERGEDとPR114設計レビュー待ちを分離する。current_phase/current_engine_state/next_allowed_action、selected_lambda=NONE、親選択独立性/最終OOF未認定、H1-U保留、historical_as_of=false、formal_adoption=false、prediction_use=NOT_AUTHORIZED、2026凍結、Category 1 MVP未レビュー事項は不変。次はPR114 P2文書差分のChatGPT再レビューのみ。commit/push/PR更新/mergeをせず未コミットで停止する。
 
+### 15.79.2 PR114 P2: 修正保存後の再確認 / 2026-10-17
+
+再依頼の開始時は同じ既存PR branch、HEAD `0706de9b704678903e20021efc6e3c64d3f12631`、clean。同commitには15.79.1と成立性報告Section 12の初回P2修正が保存済みだった。10:32の証拠を現在のHEADへ書き換えず保持する。
+
+14:10:27 JSTの再照合では、`git fetch origin` / `git ls-remote` / `git rev-parse` / `git log -1 origin/main`は各exit0。remote main/追跡参照/local main/PR114 baseは全て `0d57393c10ff046505bf85ab232e104dcbe8d6d3`、remote PR branch/追跡参照/local HEAD/PR114 headは全て上記0706de9。GitHub PRメタデータはOPEN/merged=false、対象repo/branch一致。PR113 merge件名と包含検査exit0を再確認した。
+
+mainへ切替えて `git pull --ff-only origin main` はexit0 / Already up to date。14:10:38 JSTに既存PR branchへ戻り、clean/HEAD不変、merge-baseは同mainと確認した。main編集・新branch・統合はない。記録日時は結果照合時刻で、要求ごとの通信時間ではない。詳細は[成立性報告Section 13](c1-2023-parent-lambda-selection-feasibility-01.md#13-pr114-p2-修正保存後の再確認2026-10-17)。
+
+今回の未コミット差分は2文書の再確認記録だけ。Version1.72、初回設計とP2の過去履歴、全凍結状態と未承認事項を維持する。DB/HTTP収集/Raw/2026/成果物操作/学習/選択/予測/評価/テストは未実施。次はP2文書差分のChatGPT再レビューのみ。
+
 ## 15.78 C1-2023-OOF-RECOVERY-01 / 2026-10-17
 
 現在地は5.0、次は `REVIEW_C1_2023_OOF_RECOVERY_01_PR113_REVIEW_FIX_ONLY`。既存branch `research/c1-2023-oof-recovery-01`、レビュー修正開始時HEAD `a58f44c0bca6efe4d2c8736f67fb75923d71a8da`、worktree clean。PR113はOPEN（最新ユーザー確認）であり、merge済みではない。修正後の未確定HEADを推測して記録しない。
@@ -4748,7 +4762,7 @@ run 6は正式完了済み。
 | #111 | STAT39 車番×能力順位の条件付き診断 | MERGED / ローカルmerge f95d26bc8d2bed81e988d5912719749f39541d0e。既存診断・B判定を保持 |
 | #112 | C1能力下位選手の補正候補・成立性設計 | MERGED / ローカルmerge 447b096f9d472f893f95901a8837d1ae1ff60946。補正方式/親選択の承認ではない |
 | #113 | C1 2023候補確率生成・工程状態同期 | MERGED（初回設計時はユーザー報告/ローカルmerge確認・外部照会なし。今回P2はfetch後remote mainも同merge 0d57393c10ff046505bf85ab232e104dcbe8d6d3と照合）。候補生成実績は15.78、親選択は未確定で最新設計レビューは15.79 |
-| #114 | 2023親lambda選択方法の成立性・P2同期根拠修正 | OPEN/設計レビュー待ち。2026-10-17のGitHubメタデータでbase 0d57393c10ff046505bf85ab232e104dcbe8d6d3/head edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f、fetch/ls-remote/main同期照合。15.79.1参照、方法A/B承認ではない |
+| #114 | 2023親lambda選択方法の成立性・P2同期根拠修正 | OPEN/設計レビュー待ち。2026-10-17 10:32のbase 0d57393c10ff046505bf85ab232e104dcbe8d6d3/head edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540fは15.79.1の履歴。14:10再照合ではbase不変/head 0706de9b704678903e20021efc6e3c64d3f12631、15.79.2参照。方法A/B承認ではない |
 
 Current remote `main` at the v1.2 update:
 
@@ -5715,11 +5729,14 @@ Remote `main`:
 
 PR114 P2修正での適用記録（2026-10-17）: cleanな既存PR branchから手順1〜5を実施し、fetch/ls-remote/PR base/mainの一致とPR113 mergeを確認した。mainの `git pull --ff-only origin main` はexit0 / Already up to date。今回は最新ユーザー指示が既存PR修正のため、手順6の新branch作成はせず、元の `design/c1-2023-parent-lambda-selection-feasibility-01` へ復帰した。mainでの編集・コミットやPR branchへの統合はない。一般の同期手順を免除する新規ルールではなく、今回限定の操作記録である。確認時刻・SHA・コマンド結果は15.79.1と成立性報告Section 12に記載する。
 
+同日14:10の再依頼でも、cleanな修正保存済みbranchから同手順1〜5を再確認し、ff-only同期はAlready up to date、元branchへ復帰した。初回10:32の操作記録とは分離し、15.79.2と成立性報告Section 13に記録する。
+
 ---
 
 # 27. 次回ChatGPT開始時の確認文
 
 最新の現在地は5.0と15.79。`C1-2023-PARENT-LAMBDA-SELECTION-FEASIBILITY-01`は `PARENT_LAMBDA_SELECTION_FEASIBILITY_DOCUMENTED_AWAITING_REVIEW`。
+最新再確認は2026-10-17 14:10:27 JST、PR114 OPEN、main/base不変、開始HEAD/確認時PR headは `0706de9b704678903e20021efc6e3c64d3f12631`。14:10:38 JSTにmain ff-only同期確認・既存branch復帰済み。15.79.2を参照。以下の10:32確認と未コミット終了は初回P2の履歴であり、修正保存後の再確認と混同しない。
 PR113 MERGED、PR114 OPEN/設計レビュー待ち。2026-10-17 10:32:45 JSTにfetch/ls-remote/GitHub PR baseを照合し、remote mainは `0d57393c10ff046505bf85ab232e104dcbe8d6d3`、確認時PR headは `edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f`。main ff-only同期はAlready up to date、10:32:59 JSTに既存PR branch `design/c1-2023-parent-lambda-selection-feasibility-01` へ復帰。15.79.1と[成立性報告Section 12](c1-2023-parent-lambda-selection-feasibility-01.md#12-pr114-p2-リモート同期確認2026-10-17)参照。
 初回設計の開始SHA・当時のfetch/外部照会なし・2022対象24394レース/170835出走/837開催の対応確認は15.79へ保持し、今回の再実行実績にはしない。A1/Bの案、B1推奨候補、未承認の境界・選択規則・年内One-SE解釈・保持spool、Bの新規年内fit必要性は不変。今回はGit同期根拠と2文書だけのP2修正で、製造許可ではない。
 2023候補状態は2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING、selected_lambda=NONE、parent_selection_independent_of_2023_outcomes=NOT_ESTABLISHED、final_selected_2023_oof=NOT_ESTABLISHED、h1_u_training_use=PENDING_PARENT_SELECTION_REVIEW。

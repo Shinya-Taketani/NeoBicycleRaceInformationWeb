@@ -1,6 +1,6 @@
 # C1-2023-PARENT-LAMBDA-SELECTION-FEASIBILITY-01
 
-> Section 1〜11はPR114初回設計時の記録。今回のP2レビュー修正で確認したGitHubリモート状態と同期結果はSection 12へ分離する。初回のfetch/外部照会なしや未コミット終了を、今回の操作・現在HEADと混同しない。
+> Section 1〜11はPR114初回設計時、Section 12は初回P2修正時の記録。修正保存後の今回の再確認はSection 13へ分離する。初回のfetch/外部照会なしや未コミット終了を、今回の操作・現在HEADと混同しない。
 
 ## 1. 目的・開始状態・結論
 
@@ -327,3 +327,24 @@ Section 1の全状態値、C1凍結モデル、2023未選択候補、親選択�
 文書の静的確認は `python3 -B` の読取り専用stdinスクリプトと既存PyYAML 6.0.3でexit0。YAML46ブロック、現在地の全既存値/指定凍結12項目、UTF-8/コードフェンス、追加相対リンク2件と参照見出し、許可2ファイル限定、Git base/head対応を確認した。初回報告Section 1〜11、MASTER PLANの15.79初回本文/15.78/15.77/18/19/20/22/23とv1.72初回履歴/v1.71履歴は開始HEADと不変。`git diff --check`もexit0。アプリbootstrap/テストは実行していない。
 
 次はPR114 P2の文書差分をChatGPTへ提示して再レビューを受けるだけ。commit/push/PR更新/mergeはせず、既存PR branchに未コミット差分を保持し、次工程へ進まない。
+
+## 13. PR114 P2: 修正保存後の再確認（2026-10-17）
+
+今回の開始は同じrepository/origin/既存PR branchでclean、HEAD `0706de9b704678903e20021efc6e3c64d3f12631`。`git log -3` / `git show HEAD` で、Section 12の修正が同commit（親edcc5a7、2Markdown/97追加10削除）に保存済みと確認した。初回設計のローカル追跡参照だけではremoteの最新状態を証明できなかったことがP2の原因であり、初回P2の実施事実はSection 12のまま保持する。
+
+| 今回の再確認 | 結果 |
+| --- | --- |
+| 照合記録日時 / 同期後確認日時 | 2026-10-17T14:10:27+09:00 / 2026-10-17T14:10:38+09:00（JST、通信単位の計測ではない） |
+| remote main / fetch後origin/main / local main / PR114 base | 全て `0d57393c10ff046505bf85ab232e104dcbe8d6d3` |
+| remote PR branch / origin追跡参照 / local HEAD / PR114 head | 全て `0706de9b704678903e20021efc6e3c64d3f12631` |
+| GitHub `get_pr_info` | isError=false、PR114 OPEN/merged=false、base=main、同じhead repository/既存branch |
+| PR113 | origin/mainの件名はPR113 merge、同commitの包含検査exit0 |
+| main同期 / 既存PR branch復帰 | pullはAlready up to date、復帰後clean/HEAD不変、merge-baseは同main |
+
+実行した `pwd` / `git status --short --branch` / `git branch --show-current` / `git rev-parse HEAD` / `git remote -v` / `git log -3 --oneline` / `git show --stat --oneline HEAD` と文書差分確認は各exit0。続く `git fetch origin`、`git ls-remote origin refs/heads/main refs/heads/design/c1-2023-parent-lambda-selection-feasibility-01`、`git rev-parse origin/main origin/design/c1-2023-parent-lambda-selection-feasibility-01 main`、`git log -1 --format='%H %s' origin/main`、`git merge-base --is-ancestor 0d57393c10ff046505bf85ab232e104dcbe8d6d3 origin/main` は各exit0。
+
+`git switch main` / `git pull --ff-only origin main` / `git rev-parse HEAD` / `git switch design/c1-2023-parent-lambda-selection-feasibility-01` / 復帰後のstatus・HEAD・`git merge-base main HEAD`も各exit0。mainは同期確認だけで編集なし。新branch/merge/rebase/cherry-pickは行わず、GitHubのmerge_commit_shaをPR114 merge済みの証拠にしない。
+
+今回の変更は本書の再確認記録とMASTER PLANの最新確認情報だけ。Section 1〜12の実測値・過去SHA・実行履歴、Version1.72、Section 1の全状態値を保持する。方法A/B、境界、年内One-SE、親lambda選択、H1-U、Category 1 MVPは未承認/未解決のまま。既存C1/2023候補/固定artifactは未操作、DB/競輪HTTP/Raw/2026/バックアップ/学習/選択/予測/評価/テストは未実施。次はChatGPTのP2文書差分再レビューのみ。commit/push/PR更新/mergeせず、今回の2文書差分を未コミットで保持する。
+
+今回の文書静的検査は読取り専用 `python3 -B` / PyYAML 6.0.3でexit0。YAML46ブロック、指定凍結12項目と5.0の全既存値、UTF-8/fence、追加相対リンク1件と見出し、Section 1〜12・既存工程本文・変更履歴・記載済みSHA-256の不変、許可2ファイル限定、Git参照の一致を確認した。初回検査は新設15.79.2も過去15.79本文との一致比較に含めた検査スクリプトの範囲誤りでexit1。比較範囲を旧本文に修正後exit0となり、文書を変更して検査を通したものではない。`git diff --check`はexit0。PHPUnit/Pint/アプリ起動は実施していない。
