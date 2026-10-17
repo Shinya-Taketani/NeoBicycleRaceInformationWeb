@@ -1,5 +1,7 @@
 # C1-2023-PARENT-LAMBDA-SELECTION-FEASIBILITY-01
 
+> Section 1〜11はPR114初回設計時の記録。今回のP2レビュー修正で確認したGitHubリモート状態と同期結果はSection 12へ分離する。初回のfetch/外部照会なしや未コミット終了を、今回の操作・現在HEADと混同しない。
+
 ## 1. 目的・開始状態・結論
 
 2026-10-17。2023年結果を使わないC1親lambda選択の成立性と仕様案を確認した。これは設計レビュー用であり、選択規則の承認・凍結・選択実行ではない。的中精度の改善は未検証。
@@ -273,3 +275,55 @@ PHPは `/usr/bin/php` 8.5.4、各 `memory_limit=128M`。次のbwrap起動条件�
 DB/HTTP/Raw/2026/バックアップ操作/新規fit/予測生成/損失計算/性能比較/既存成果物書込み/移動/削除は0。新規のMarkdownとMASTER PLANだけの未コミット差分。テスト/Pintは設計限定のため未実施。
 
 最終状態: `C1_2023_PARENT_LAMBDA_SELECTION_FEASIBILITY_READY_FOR_REVIEW`。commit/push/PR操作/mergeはせず、未コミットのままChatGPTレビューを待つ。
+
+## 12. PR114 P2: リモート同期確認（2026-10-17）
+
+### 指摘と原因
+
+[PR114 P2](https://github.com/Shinya-Taketani/NeoBicycleRaceInformationWeb/pull/114#discussion_r4300589448)は、ローカルorigin/mainの確認だけではGitHubの最新mainを証明できず、MASTER PLAN Section 26のfetch/main同期根拠が不足するという指摘。初回設計の「fetch/外部照会なし」は事実のまま保持し、今回の検証で遡及的に置換しない。初回文書はその後 `edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f` として保存され、今回の開始HEAD/確認時PR headになっていた。固定の将来最新HEADとは扱わない。
+
+### 開始・GitHub照会・同期結果
+
+開始cwdは `/var/www/NeoBicycleRaceInformationWeb`、既存branch `design/c1-2023-parent-lambda-selection-feasibility-01`、HEAD `edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f`、worktree clean。`git remote -v` のoriginは `https://github.com/Shinya-Taketani/NeoBicycleRaceInformationWeb.git`（fetch/pushとも）と一致した。
+
+GitHubのPRメタデータを `get_pr_info(repository_full_name=Shinya-Taketani/NeoBicycleRaceInformationWeb, pr_number=114)` で読取り取得し、成功（isError=false）。PRはOPEN、merged=false、base branch=main、head repository/branchは上記の対象repo/既存branchと一致した。GitHubのmerge_commit_shaをPR114マージ済みの証拠にはしていない。
+
+| 確認対象 | 実値・結果 |
+| --- | --- |
+| リモート照合の記録日時 | 2026-10-17T10:32:45+09:00（JST） |
+| main同期・PR branch復帰の確認日時 | 2026-10-17T10:32:59+09:00（JST） |
+| ls-remote main / fetch後origin/main / local main | 全て `0d57393c10ff046505bf85ab232e104dcbe8d6d3` |
+| PR114 base SHA | `0d57393c10ff046505bf85ab232e104dcbe8d6d3` |
+| PR114 head SHA（今回確認時） | `edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f` |
+| ls-remote PR branch / origin追跡参照 / local HEAD | 全て同じ `edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f` |
+| PR113 merge確認 | origin/mainの当該commit件名は `Merge pull request #113 from Shinya-Taketani/research/c1-2023-oof-recovery-01`、包含検査exit0 |
+| local main同期 | `git pull --ff-only origin main`: `Already up to date.`、exit0 |
+| 復帰後 | 同じPR branch、clean、HEAD不変、merge-base(main, HEAD)=上記main SHA |
+
+PRメタデータ照会・fetchは同じ確認作業中に実施した。日時欄は照合結果を記録した時刻と同期後確認時刻であり、各ネットワーク要求の開始/終了時刻を個別計測した値ではない。
+
+| 実行コマンド | 終了コード・主な結果 |
+| --- | --- |
+| `pwd` / `git status --short --branch` / `git branch --show-current` / `git rev-parse HEAD` / `git remote -v` | 各0、上記cwd/clean/branch/HEAD/originを確認 |
+| `git fetch origin` | 0、stderrを含め出力なし |
+| `git ls-remote origin refs/heads/main refs/heads/design/c1-2023-parent-lambda-selection-feasibility-01` | 0、上記main/PR headと一致 |
+| `git rev-parse origin/main origin/design/c1-2023-parent-lambda-selection-feasibility-01 main` | 0、上記の順でmain/head/mainと一致 |
+| `git log -1 --format='%H %s' origin/main` | 0、main SHAとPR113 merge件名 |
+| `git show -s --format='%H%n%P%n%cI%n%s' 0d57393c10ff046505bf85ab232e104dcbe8d6d3` | 0、親は447b096/bc53fb5、commit日時2026-10-17T08:31:58+09:00、PR113 merge件名 |
+| `git merge-base --is-ancestor 0d57393c10ff046505bf85ab232e104dcbe8d6d3 origin/main` | 0、mainにPR113 mergeが含まれる |
+| `git switch main` / `git pull --ff-only origin main` / `git rev-parse HEAD` | 各0、main一致・同期確認のみ、編集/コミットなし |
+| `git switch design/c1-2023-parent-lambda-selection-feasibility-01` / `git status --short --branch` / `git rev-parse HEAD` / `git merge-base main HEAD` | 各0、既存PR branchへ復帰、clean/HEAD不変、base一致 |
+
+PR baseとremote mainに差はなかった。mainのfast-forward限定同期確認以外の統合、PR branchのrebase/merge/cherry-pick、新branch作成はしていない。Section 26の手順1〜5を実施し、手順6は今回の最新指示に従い新規branchではなく既存PR branchへ復帰した。将来の実際のremote状態は次回また確認する必要がある。
+
+### 修正範囲・未実施・残件
+
+変更は既存の本報告と `statistical-engine-master-plan.md` の2Markdownのみ。MASTER PLAN冒頭/metadata/5.0/15.79.1/PR履歴/v1.72内P2追記/26/27へ、今回の確認日時・根拠・PR対応を同期した。Version1.72、初回設計の本文1〜11・過去の変更履歴・以前のSHA・実行数値は保持する。
+
+今回、既存artifact/model/manifest/COMPLETEの読取り再検証や再sealも不要のため実施していない。PHP/Migration/config/test/計算サービスは変更なし。PHPUnit/Pint、学習/refit、lambda正式選択、予測生成、2024/2025性能評価、DB/SQL、競輪HTTP/スクレイピング/Raw、2026参照、バックアップ操作、既存資料の削除/移動/退避は0。
+
+Section 1の全状態値、C1凍結モデル、2023未選択候補、親選択独立性/最終OOF未認定、H1-U保留、historical_as_of_available=false、formal_adoption=false、prediction_use=NOT_AUTHORIZED、2026凍結を維持する。方法A/Bの選択、境界、年内One-SE、保持spool、H1-Uの未承認事項、Category 1 MVP未レビュー事項は未解決のまま。PR113 MERGEDはPR114設計承認を意味しない。
+
+文書の静的確認は `python3 -B` の読取り専用stdinスクリプトと既存PyYAML 6.0.3でexit0。YAML46ブロック、現在地の全既存値/指定凍結12項目、UTF-8/コードフェンス、追加相対リンク2件と参照見出し、許可2ファイル限定、Git base/head対応を確認した。初回報告Section 1〜11、MASTER PLANの15.79初回本文/15.78/15.77/18/19/20/22/23とv1.72初回履歴/v1.71履歴は開始HEADと不変。`git diff --check`もexit0。アプリbootstrap/テストは実行していない。
+
+次はPR114 P2の文書差分をChatGPTへ提示して再レビューを受けるだけ。commit/push/PR更新/mergeはせず、既存PR branchに未コミット差分を保持し、次工程へ進まない。
