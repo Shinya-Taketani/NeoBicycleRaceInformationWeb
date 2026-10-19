@@ -4,6 +4,8 @@
 
 2026-10-17。PR #114に続き、2022年内の開催単位前進検証B1を製造する前の実行契約案を記録する。**B1は第一推奨候補であり未承認。本書の作成・PR114のmergeは、方法の選択、境界のfreeze、製造、実学習、lambda選択を許可しない。**
 
+2026-10-20 PR115レビュー修正：正式なB1の学習・検証・選択・受入は、保存済み2022年実競輪データだけを根拠にする。人工的な異常入力は第8.2節の安全性専用テストに限定し、実データ受入の代替にしない。今回も実行許可ではなく、実データの実物受入は `NOT_RUN`。初回のGit/作業終了記録は第2・12節、今回の確認時点は第13節へ分離する。
+
 ```yaml
 current_phase: C1-2022-PARENT-LAMBDA-B1-CONTRACT-01
 current_engine_state: PARENT_LAMBDA_B1_CONTRACT_DOCUMENTED_AWAITING_REVIEW
@@ -24,7 +26,7 @@ prediction_use: NOT_AUTHORIZED
 
 既存の最終development C1のlambda=0.1は保存済みモデルの事実であり、新しい2023年親lambdaの選択根拠ではない。今回も未選択であり、2023候補2系列を最終OOFと認定しない。的中精度の改善は未評価。
 
-## 2. Git・確認範囲・工程ゲート
+## 2. 初回設計時のGit・確認範囲・工程ゲート（2026-10-17）
 
 開始cwdは `/var/www/NeoBicycleRaceInformationWeb`、clean main、HEADは `4298c3883c81d907bf13285f002893f6f93f77db`。originのfetch/push先は対象repositoryのHTTPS URLと一致した。`git fetch origin` 後のorigin/mainと一致し、`git switch main` / `git pull --ff-only` は各exit0、pullはAlready up to date。2026-10-17T16:03:35+09:00に同期結果を記録した。mainの件名はPR114 merge、親は `0d57393c10ff046505bf85ab232e104dcbe8d6d3` と `4ee1ddb89ea673f5cccc82277e05968e1f6ea481`、commit日時は2026-10-17T15:43:55+09:00。GitHubの現在のPRメタデータを再照会したという意味ではなく、fetchしたmainの実merge履歴とユーザーの報告の照合である。
 
@@ -88,9 +90,21 @@ fold割当を教師なしで先にsealし、その後固定2022入力を逐次�
 
 2023年に跨る開催終了日のmetadataは2022対象に付随する期間情報に限る。2023年race/教師を追加で読むことを意味しない。日時は暦日比較の範囲であり、保存input_as_ofを当時の発走/公開時刻の証明としない。
 
+### 実データ由来の受入契約（PR115修正）
+
+唯一の正式なデータ源は、実際の2022年競輪の開催・race・出走者、そこから取得/計算して固定保存したSTAT・履歴特徴量、実際の公式着順/結果状態である。PR114の24,394race/170,835entry/837開催は過去の確認記録で、今回再計測していない。実データであることは当時の発走前利用可能性の証明と別であり、historical_as_of_available=falseを維持する。
+
+正式対象の相対パスは上記root下の `inputs-v2/inputs-2022.jsonl` と `inputs-v2/history-2022.jsonl`。両方を同じ固定保存版へ結び付け、別のsnapshot/年度や現在DBの値で差し替えない。
+
+将来の別途承認された受入では、上記2ファイルの実物存在/読取り可否/size/SHA/行数、対応する入力manifest・年別子seal・export・固定契約・元の完了記録を確認する。入力provenanceから取得元識別子/保存元/source seal/生成時コードと処理履歴をたどり、実際の開催ID/期間・race/entry/bikeに一致する保存元証拠との対応を検証する。自己申告のorigin文字列、文書に書かれた件数/hashだけで実データ由来と認定しない。元証拠の所在と照合範囲を記録し、必要な対応が確認できなければSTOPする。DB接続・HTTP/Raw再取得で自動補完しない。
+
+ランダムrace/特徴量、架空選手/着順、人工NLL、欠損の推測補完、ダミーレコード、件数合わせの水増し、別年の結果の2022年への流用は禁止。契約上正当なNULL・順位別除外は保持するが、必須資料/識別/provenance/sealの欠落・不整合や評価成立条件不足は記録して停止する。資料不足を人工データへfallbackせず、復元・追加取得・対象変更等は必要な追加承認を確認する。今回、保存rootの実物は開かず、以上は未実施の受入要件である。
+
 ## 5. 学習契約案と方法Aとの差
 
 方法A1は全2022学習済みモデル・収束情報だけを用いる事前の正則化優先規則案で、新規fitを要しないが性能優位を証明しない。B1は前半で**新規に**8候補pathを学習し、後半NLLで選ぶ。全2022の保存layout/係数を前半fitに流用しない。A/Bのどちらも今回選ばず、B1不成立後に結果を見てAへ切替えるfallbackも禁止する。
+
+B1の学習は前半の固定実データと実教師だけ、検証NLLは後半の実際の公式着順・結果状態から既存Objectiveで算出する。人工ラベル/損失を使わず、検証教師をlayout/bin/support/係数学習へ混入させない。第4節の408/421/8開催等は過去metadata値として、将来の実物受入時に照合する。独立2runも同じ固定実データを使い、別途承認後にのみ実行する。
 
 固定の追加16特徴は次の順序。STAT-01 RACE_SCORE_Zは別のanchor係数1であり、17個目の学習groupにはしない。
 
@@ -141,7 +155,7 @@ race-clusterは同race内の3順位・候補対応を保つが、同一開催内
 
 ## 7. 安全なspool・保存・cleanupの設計案
 
-現行のままでは **BLOCKED_UNSAFE_LEGACY_SPOOL_PATH**。既存Trainer/grid・削除型Spool・その型に依存するSelectorをそのまま起動しない。凍結クラスは変更せず、将来の限定B1 orchestrationに、保持型loss I/Oと同じ演算の選択器接続を用意する案とする。finalクラスの継承や型チェック迂回を解決策にしない。既存Stat35Trend6P1の保持型実装は参考/再利用候補だが、型境界・所有権・再生契約を人工テストで受入れるまで **NOT_IMPLEMENTED_OR_VERIFIED_FOR_B1**。
+現行のままでは **BLOCKED_UNSAFE_LEGACY_SPOOL_PATH**。既存Trainer/grid・削除型Spool・その型に依存するSelectorをそのまま起動しない。凍結クラスは変更せず、将来の限定B1 orchestrationに、保持型loss I/Oと同じ演算の選択器接続を用意する案とする。finalクラスの継承や型チェック迂回を解決策にしない。既存Stat35Trend6P1の保持型実装は参考/再利用候補だが、型境界・所有権・再生契約の安全性専用テストと、2022年固定実データによる正式受入の両方が成立するまで **NOT_IMPLEMENTED_OR_VERIFIED_FOR_B1**。人工的な異常系テストの合格だけで受入済みにしない。
 
 | 対象 | 製造前に満たす要件 |
 | --- | --- |
@@ -158,22 +172,38 @@ race-clusterは同race内の3順位・候補対応を保つが、同一開催内
 
 別processでのloss再生は、元pathをwriterのconstructorへ渡して再作成しない。保存manifest/作成記録/実体size・SHA・race順を検証するread-only readerを分離し、creator PIDが違うことを理由に元資料を再登録・再sealしない。将来の独立検証もこの保存資料だけで再生可能にする。
 
-本実験run/spoolは監査資料としてその場に保持し、自動cleanupしない。人工Fixtureを退避する場合だけ既存 [CompositionResultTemporaryDirectory](../tests/Support/CompositionResultTemporaryDirectory.php)の作成オブジェクトを保持し、path()だけをretireへ渡す。人工Desktop/Trashを隔離環境で使用し、実Desktopの既存資料を操作しない。TEST_COMPLETE/TEST_FAILUREを区別し、parent teardownはfinallyで実行。退避は `/home/shinya/Desktop/Trash/` 内の一意な専用先への同一filesystem rename-only、記録一致が必須。失敗時は元を保持して停止し、削除/copy-deleteへfallbackしない。
+本実験run/spoolは監査資料としてその場に保持し、自動cleanupしない。安全性専用テストで作成した人工一時ファイルを退避する場合だけ既存 [CompositionResultTemporaryDirectory](../tests/Support/CompositionResultTemporaryDirectory.php)の作成オブジェクトを保持し、path()だけをretireへ渡す。人工Desktop/Trashを隔離環境で使用し、実Desktopの既存資料を操作しない。TEST_COMPLETE/TEST_FAILUREを区別し、parent teardownはfinallyで実行。退避は `/home/shinya/Desktop/Trash/` 内の一意な専用先への同一filesystem rename-only、記録一致が必須。失敗時は元を保持して停止し、削除/copy-deleteへfallbackしない。実データ原本への破損・改変・削除・移動試験は禁止する。
 
-## 8. 将来必要な人工検証・独立2実行
+## 8. 実データによる受入検証・安全性専用テスト・独立2実行
 
-今回はテストを作成・実行しない。既存 [One-SE/Optimizer試験](../tests/Unit/Domain/Keirin/Backtest/Bt03e03OptimizerSelectionTest.php)、[保持I/O数値互換試験](../tests/Unit/Domain/Keirin/Backtest/Stat35Trend6P1NumericsTest.php)、[両source検査試験](../tests/Unit/Domain/Keirin/Backtest/TacticalHistorySourceIntegrityTest.php)を読んだ。旧試験にはcleanup/unlinkがあるため、将来も無検証に実行しない。
+以下は将来の別途承認が必要な検証計画。今回の全項目は `NOT_RUN` とし、テスト作成・実行、fit、NLL/One-SE計算を行わない。初回設計で参照した既存 [One-SE/Optimizer試験](../tests/Unit/Domain/Keirin/Backtest/Bt03e03OptimizerSelectionTest.php)、[保持I/O数値互換試験](../tests/Unit/Domain/Keirin/Backtest/Stat35Trend6P1NumericsTest.php)、[両source検査試験](../tests/Unit/Domain/Keirin/Backtest/TacticalHistorySourceIntegrityTest.php)はコード理解の根拠であり、B1実データ受入の代替ではない。旧cleanup/unlink経路を無検証に起動しない。
 
-製造受入には、人工環境だけで次を要求する。
+### 8.1 実データ受入（必須・別途承認後）
 
-- 開催cut当日/年初年末跨ぎ/同日別開催、ID非連続再出現、race/entry/bike/期間不一致を検査。foldの交差0・被覆一致・値/順序/NULL保持をassertする。
-- validation教師を変えてもfold/train/layout/bin/support/fitが不変。2023以降の教師・損失を配置/変更しても選択依存に入らず、禁止pathを実際に開けないことを検査する。
-- 200更新、最適性/中心化、偏ったsupport/欠損、全順位収束条件、candidate非収束とgeneric例外の別扱い、選択不能時の停止を検査する。
-- 保持spoolのNULL/finite/切断/1byte改変/行順/候補maskを検査。既存selectorの数値仕様に対して同じ人工loss列・seed・演算順でpoint/SE/best/threshold/selectedがbit-exact、境界`<=`・完全tieも確認する。旧unlink処理を許容する比較経路は使わず、既存保持型の算術一致を併せて検査する。
-- 存在path、symlink/hardlink、mount、権限不備、書込/flush/rename失敗、例外/destructor/途中終了で旧資料が不変・spoolが保持されることを確認。`.`/repo/Trash指定は移動/削除0で拒否し、実repoを動かす試験はしない。
-- 独立PHP本体128Mでstreaming保存/再生、外部sortのI/Oも専用領域限定と確認。全量を配列へ積む実装や129Mへの緩和は不可。
+1. 第4節の固定2022入力/historyと対応manifest/export/契約/source sealの実物存在・size/SHA・保存版を照合する。
+2. 実際の取得元・保存元・処理履歴/provenanceを追跡し、保存元証拠との対応を検証する。文書の宣言だけで済ませない。
+3. 実際の開催ID/開始・終了日で第4節のfoldへ割り当て、年初/7月/年末跨ぎを保留台帳へ保存する。
+4. 元入力とのrace/entry/bike・順序・型・期間の一意性と対応を検証する。偽のrace/選手/着順を作って正常系の代わりにしない。
+5. train/validation/保留の交差0・全固定対象の被覆・各raceの全entry所属を確認し、元の値/順序/NULLを保持する。
+6. 前半の実データだけでlayout/bin/supportと固定8候補pathを新規生成し、200更新・既存の最適性/中心化/全順位収束条件・非収束除外を検証する。
+7. 後半の実際の公式着順/結果状態から順位別NLLを計算する。実データ由来の同じ保存loss列でI/O・候補mask・選択器のpoint/SE/best/threshold/selectedの数値互換を検証し、人工lossや結果合わせの改変はしない。境界/tieの実例がなければ未確認理由を記録し、人工の実績に置き換えない。
+8. 実データの全対象を独立PHP本体128Mでstreaming処理し、外部sortを含む専用ディスクI/O・保持・例外経路の資源/保存制約を確認する。129Mへの緩和は禁止する。
+9. 同じ承認済み契約と固定実データで独立2runを実行し、下記の数値/成果物の再現性を確認する。
+10. 固定入力/履歴metadata・依存code・生成成果物のSTART/END seal、保存後の独立再生・公開前manifest整合を確認する。
+
+検証記録には項目別status、実測の開催/race/entry件数、順位別適格/除外数、NULL件数、例外件数、処理時間、PHP peak memory/RSS、終了コード、入力・コード・成果物のSHAと照合範囲を残す。未実行はNOT_RUNでありPASSにしない。旧実績の件数やmemory値を今回の実測として転記しない。元の正当なNULL/異常状態/同着の適格規則は変えない。
 
 後日の実データ独立2runは、同じコード/入力/契約seal・乱数・環境で新規processから開始し、fold台帳/部分入力/layout/bin/support/候補状態/係数/診断/NLL/選択結果の意味内容と固定直列化SHAを一致させる。日時・PID・絶対run path・spoolランダム名・inode等の実行証拠は別manifestとし、一致対象から外す項目を**実行前**に固定する。都合の悪い係数/診断を後から除外しない。各runの固有ファイルも全size/SHAを記録する。
+
+### 8.2 異常系・削除安全性テスト（補助）
+
+例外として、破損・途中切断・不正path・symlink/hardlink・mount境界・権限不備・file衝突・書込み/flush/rename失敗・削除経路到達・異常終了/後片付けは、実原本と隔離したテスト専用ファイル/人工的な異常入力だけで確認してよい。これ以外の正常な競輪race/選手/特徴量/教師/損失を人工生成して正式処理の代わりにしない。
+
+安全性の判定は、拒否/停止、既存資料への操作0、spool保持、記録済み人工pathだけのrename-only退避、移動失敗時の元保持に限定する。`.`/repo/Trashを指定しても移動/削除0で拒否し、実repo・実保存資料を動かす試験はしない。合格を実データ受入・B1学習・予測性能の成功と称さない。正式な処理の検証は8.1の実データで別に行う。
+
+### 8.3 実データが確認できない場合
+
+確認対象file/必要な元資料/確認できたprovenance/不足・不整合の種類/確認済みと未確認の範囲/取得・復元等に必要な追加承認を保存してSTOPする。人工データ生成、ダミー/別年への置換、実績に合わせる暫定代替、対象の無断追加は禁止する。今回の文書修正を取得・復元の許可にしない。
 
 ## 9. 2023年以降の結果からの隔離案
 
@@ -219,7 +249,9 @@ PR114の1〜2時間/2GiBは独立2実行を想定した推定値で、今回の�
 
 即時STOPは、入力/metadata不一致、source drift、許可外year/path/通信、unsafe cleanup到達、非有限NLL/モデル、全候補非収束、順位別適格0、bootstrap不成立、出力衝突、書込み/flush失敗、時間/容量/128M超過、2run不一致。候補単位の数値非収束だけは第5節の固定path内除外であり、条件を緩める理由にしない。未評価を性能FAILや差0へ変換しない。
 
-## 12. 今回の検証・残る承認・終了
+## 12. 初回設計終了時の検証・残る承認・終了（2026-10-17の履歴）
+
+以下は初回作業終了時の記録。件数・静的検証・当時の人工受入計画・未コミット終了は当時の事実として保持する。正式受入の現行方針は第4・7・8節、PR作成後の修正記録は第13節を参照する。
 
 今回の作業はコード/文書読取り、Git同期/新branch、2Markdown作成・静的検証だけ。実学習/refit/lambda選択/予測/損失・bootstrap計算/性能評価/保存原本再検証/DB/HTTP収集/Raw/2026/バックアップ操作/旧資料移動・削除は0。PHPUnit/Pint/アプリ起動は設計限定のため実施しない。
 
@@ -230,3 +262,26 @@ PR114の1〜2時間/2GiBは独立2実行を想定した推定値で、今回の�
 残る承認は、A/B1の方法選択、暦日境界・保留規則、単一検証層One-SEの統計的解釈、B1専用保持I/O・selector接続・sort内部一時file管理、隔離/公開/人工受入試験、独立2runの比較仕様、具体的保存root・時間/容量予算、将来の2023再利用/認定範囲。今回の指示をこれらの承認へ読み替えない。
 
 次は本書とMASTER PLAN v1.73差分のユーザー/ChatGPTレビューだけ。未コミットで停止し、commit/push/PR作成/mergeや次工程への自動移行は行わない。
+
+## 13. PR115レビュー修正：実データ利用とGit状態の時点分離（2026-10-20）
+
+初回契約にあった「人工環境だけ」の製造受入を、2022年固定実データによる正式受入と安全性専用の異常系テストに分離した。Solver/Model/feature/grid/教師適格性/分割条件/One-SEの数値規則・予算案・第1節の凍結値は不変。方法/製造/実行/選択/評価の承認は追加していない。
+
+| 時点 | 確認した状態 |
+| --- | --- |
+| 2026-10-17 初回設計終了 | 2Markdownの未コミット差分、Codexはcommit/push/PR作成をせず終了した（第12節） |
+| その後のユーザー操作 | 文書は `675d34190dea806704156c9998a1e66d9e1a9992` としてcommit・pushされ、PR115作成済み。今回のlocal/remote HEADとGitHubメタデータに一致 |
+| 今回の修正開始 | 同じ既存branch、HEADは上記675d341、clean。新branchを作らない |
+| 2026-10-20T06:14:38+09:00 照合記録 | fetch/ls-remote/追跡参照/local mainは `4298c3883c81d907bf13285f002893f6f93f77db`。GitHub PR115はOPEN/merged=false、base=同main、head=上記675d341、head repo/branchも対象と一致 |
+| 2026-10-20T06:15:04+09:00 同期後確認 | mainのpull --ff-onlyはAlready up to date、同じPR branchへ復帰、clean/HEAD不変 |
+| 今回の修正終了 | 既存2Markdownの新しい未コミット差分で再レビュー待ち。今回のcommit/push/PR更新/mergeは行わない |
+
+`pwd`、status/branch/HEAD、`git remote -v`、`git fetch origin`、`git ls-remote origin refs/heads/main refs/heads/design/c1-2022-parent-lambda-b1-contract-01`、追跡参照/local main/merge-base確認は各exit0。originのfetch/push URLは対象repoと一致し、merge-baseは同mainだった。GitHub `get_pr_info(..., pr_number=115)` はisError=false。記録日時は結果照合時点で、通信ごとの所要時間ではない。GitHubのmerge_commit_shaをmerge済みの根拠にしない。
+
+Section 26の手順1〜5はclean状態で実施し、switch main/pull --ff-only/HEAD確認/既存branch復帰も各exit0。手順6は今回の既存PR修正指示に従い新branch作成でなく復帰とした。main編集、PR branchへのmerge/rebase/cherry-pickはない。上記SHAは確認日時に結び付く履歴値であり、将来の最新HEADとして使わない。
+
+2022保存root・実入力/history・manifest/export/source sealの実物再確認は今回不要のため行っていない。今回確認したのはGitとリポジトリの指示/工程文書だけで、実物の存在・provenance・seal・元資料対応の正式受入はNOT_RUN。過去の24394/170835/837、408/421/8開催等を今回の測定値にしない。安全性専用テストもNOT_RUN。DB/HTTP再取得/Raw/2026、学習/refit/予測/NLL/One-SE/性能評価、既存モデル・成果物操作、テスト/Pint/アプリ起動は未実施。
+
+今回の文書静的検査は読取り専用 `python3 -B` / 既存PyYAML 6.0.3でexit0。YAML49ブロック、指定凍結14項目、正式受入10項目、引継ぎ4時点、相対リンク33件、UTF-8/fence/末尾空白、旧数値規則・初回実行記録・15.79以前の工程本文・既存SHA-256の保持、既存branch/head/baseと許可2文書限定を確認した。`git diff --check`もexit0。保存実データの受入検証やテスト実行とは別の結果である。
+
+次はPR115の2文書差分をChatGPTへ再レビュー提示し、ユーザーのマージ可否判断を待つだけ。親lambda未選択、H1-U保留、historical_as_of=false、prediction_use=NOT_AUTHORIZED、正式採用/2026/LIVE禁止を維持し、次工程へ自動移行しない。
