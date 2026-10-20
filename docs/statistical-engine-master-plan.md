@@ -1,5 +1,9 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-21 最新工程：`C1-2022-REAL-DATA-PREFLIGHT-01`。PR115 MERGED、fetch/ls-remote/main ff-only同期でmain/origin/mainは `5a6d2867678666a28b1c40fe8e4683cbf4833293`、PR115 merge件名を確認。clean mainから `audit/c1-2022-real-data-preflight-01` を作成した。
+> 固定2022原本18件のSTART/END・保存seal、24,394race/170,835entry/837開催の内部整合、B1案のtrain408/validation421/保留8開催をread-only/128Mで実測確認した。元公式結果snapshot/固定STAT元行/履歴source行の直接照合はNOT_ESTABLISHED、総合事前監査はBLOCKED。正式B1実データ受入はNOT_RUN。
+> 正本は5.0・15.81と[事前監査報告](c1-2022-real-data-preflight-01.md)。次は `REVIEW_C1_2022_REAL_DATA_PREFLIGHT_ONLY`。B1方法/境界/One-SE/予算は未承認、lambda未選択、最終2023 OOF/H1-U保留、historical_as_of=false・正式採用/2026/LIVE禁止を維持する。以下の2026-10-20以前のOPEN・未コミット・未実施記録は各確認時点の履歴である。
+
 > 2026-10-20 PR115レビュー修正：工程/状態/次の許可は5.0のB1契約レビュー待ちのまま。正式な学習・検証・選択・受入は2022年固定実競輪データだけを根拠とし、人工入力は隔離された異常系安全テストだけに限定する。実データ受入はNOT_RUN、B1の製造/学習/選択/評価は未承認。
 > 06:14:38 JSTのGitHubメタデータ・fetch/ls-remote照合でPR115はOPEN/merged=false、base/mainは `4298c3883c81d907bf13285f002893f6f93f77db`、確認時headは `675d34190dea806704156c9998a1e66d9e1a9992`。06:15:04 JSTにmain ff-only同期確認・既存PR branch復帰済み。15.80.1参照、将来の最新HEADとして固定しない。
 > 初回設計終了時の未コミット状態は過去の履歴。その後ユーザーがcommit/push/PR115作成を完了し、今回の開始はcleanな既存branch。今回の新規差分だけを未コミットで再レビュー待ちにする。以下の2026-10-17以前の記録は各時点の履歴として保持する。
@@ -34,23 +38,25 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.73
+- Version: 1.74
 - Created: 2026-08-23
-- Updated: 2026-10-20
+- Updated: 2026-10-21
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `4298c3883c81d907bf13285f002893f6f93f77db`（2026-10-20 06:14:38 JST、fetch/ls-remote/PR115 base照合、06:15:04 JSTにmain ff-only同期確認・既存branch復帰。15.80.1参照、将来の最新SHAではない）
+- Remote `main` at last update: `5a6d2867678666a28b1c40fe8e4683cbf4833293`（2026-10-21、fetch/ls-remote/main ff-only同期でPR115 mergeを確認。05:54:55 JSTにHEAD/main/origin/main再照合、15.81参照。確認時点の値）
+- Previous remote main at v1.73 review: `4298c3883c81d907bf13285f002893f6f93f77db`（2026-10-20 06:14:38 JST、fetch/ls-remote/PR115 base照合、06:15:04 JSTにmain ff-only同期確認・既存branch復帰。15.80.1の当時の履歴）
 - Initial B1 remote confirmation: 同SHAを2026-10-17 16:03:35 JSTにfetch/main ff-only同期後のHEAD/origin一致・PR114 merge履歴として確認した。15.80初回設計記録を保持
 - Previous remote main at v1.72: `0d57393c10ff046505bf85ab232e104dcbe8d6d3`（PR114 P2再確認: git fetch origin、ls-remote、PR base照合。2026-10-17 14:10:27 JST記録、main pull --ff-only/既存branch復帰確認14:10:38 JST。初回記録は15.79.1、再確認は15.79.2）
 - Initial remote evidence at v1.72 design: 同SHAの開始main/ローカルoriginとPR113 merge履歴のみ確認。当時はfetch/外部照会なしであり、今回のリモート検証を初回へ遡及しない
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR114 MERGED、PR115 OPEN。実データ利用と時点分離の既存2文書修正だけを再レビュー待ち。方法A/B・境界・単一層One-SE・spool/隔離・予算は未承認、15.80.1参照
-- Current code: 既存B1契約書とMASTER PLANのMarkdown2件だけ。PHP・Migration・テスト・設定・Solver・Decoder・Evaluator・Gate・モデルは不変
-- Current execution record: PARENT_LAMBDA_B1_CONTRACT_DOCUMENTED_AWAITING_REVIEW。PR115の実データ利用・時点分離の文書修正だけ。実物受入/安全性テストはNOT_RUN、製造前BLOCKED。新規fit/選択/予測/損失・bootstrap計算/性能比較0、2023候補は親選択待ち
-- Current tests record: 設計限定のUTF-8/Markdown/YAML/履歴差分の静的確認だけ。PHPUnit/Pint/アプリ起動なし、既存資料・モデルの実処理再検証なし
+- Current review: PR115 MERGED。今回の2022事前監査報告/工程同期差分のレビュー待ち。方法B1・境界・One-SE・予算の採用/実行承認ではない
+- Current code: 新規監査報告とMASTER PLANのMarkdown2件だけ。単発read-only監査PHP/ログは新規のリポジトリ外証跡へ保存。アプリPHP・Migration・テスト・設定・Solver・Decoder・Evaluator・Gate・モデル不変
+- Current execution record: REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW。原本18件seal/2022内部整合/B1案件数はPASS、一次保存元の直接照合はNOT_ESTABLISHED、総合BLOCKED、正式B1受入NOT_RUN。新規fit/選択/予測/NLL/性能比較0
+- Current tests record: read-only監査本体128M/peak31,981,568bytes/3.267322秒/exit0。文書静的検証のみ、PHPUnit/Pint/アプリ起動なし。15.81と監査報告へ確認範囲を記録
+- Previous review/execution at v1.73: PR114 MERGED/PR115 OPEN、B1契約文書の実データ利用・時点分離レビュー修正。実物受入/安全性テストNOT_RUN、2Markdown未コミット終了・静的検証だけという当時の状態は5.0内履歴・15.80.1・27へ保持
 - Previous review at v1.72: PR113 MERGED、PR114 OPEN。今回は既存PR114 P2のリモート確認根拠と2文書差分だけの再レビュー。方法A/B・年内分割/One-SE仕様案は未承認、選択/fit/H1-Uへ進まない。15.79/15.79.1参照
 - Previous code at v1.72: PR114 P2は既存成立性報告とMASTER PLANのMarkdown2件だけ。既存PHP・モデル・Solver・Decoder・Evaluator・Gate・設定・実行スクリプトは不変
 - Previous execution record at v1.72: PARENT_LAMBDA_SELECTION_FEASIBILITY_DOCUMENTED_AWAITING_REVIEW。初回設計時の35ファイルSTART/END、両モデルrestore、2022対象24394/170835/837開催のmetadata照合は保持。今回P2では再実行せず、Git同期確認と文書検証だけ。2023候補は親選択待ちのまま
@@ -238,7 +244,55 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: C1-2022-PARENT-LAMBDA-B1-CONTRACT-01
+## 5.0 最新工程: C1-2022-REAL-DATA-PREFLIGHT-01
+
+```yaml
+current_phase: C1-2022-REAL-DATA-PREFLIGHT-01
+current_engine_state: REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW
+next_allowed_action: REVIEW_C1_2022_REAL_DATA_PREFLIGHT_ONLY
+remote_main: 5a6d2867678666a28b1c40fe8e4683cbf4833293
+remote_main_verified_at: '2026-10-21T05:54:55+09:00'
+remote_main_verification: FETCH_LS_REMOTE_FF_ONLY_MAIN_AND_PR115_MERGE_HISTORY_MATCH
+pr115_status: MERGED
+preflight_start_head: 5a6d2867678666a28b1c40fe8e4683cbf4833293
+formal_data_policy: FIXED_2022_REAL_RACE_DATA_ONLY
+real_data_preflight_status: BLOCKED
+original_seal_and_internal_consistency_status: PASS
+saved_provenance_links_status: PASS
+independent_primary_source_provenance: NOT_ESTABLISHED
+formal_b1_data_acceptance_status: NOT_RUN
+safety_only_test_status: NOT_RUN
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+contract_frozen: false
+b1_execution_status: BLOCKED_PENDING_APPROVAL_AND_SAFE_B1_IMPLEMENTATION
+candidate_artifact_state: 2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING
+selected_lambda: NONE
+parent_selection_independent_of_2023_outcomes: NOT_ESTABLISHED
+final_selected_2023_oof: NOT_ESTABLISHED
+h1_u_training_use: PENDING_PARENT_SELECTION_REVIEW
+historical_as_of_available: false
+formal_adoption: false
+prediction_use: NOT_AUTHORIZED
+2026_holdout: FROZEN_NO_ACCESS
+```
+
+[今回のread-only事前監査](c1-2022-real-data-preflight-01.md)は固定2022原本18件のsealと全24,394race/170,835entry/837開催の内部整合を確認した。B1案の件数はtrain408/11926/83516、validation421/12282/85958、保留8/186/1361で過去記録と一致、交差0/全体被覆一致。正式foldや部分入力は作成・sealしない。元公式結果snapshot/固定STAT元行/履歴source行を開いて直接照合していないため、一次由来NOT_ESTABLISHED・総合BLOCKED、正式B1受入NOT_RUNと区別する。
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 2022事前監査報告レビュー待ち。由来の未確認を残し、全体PASSとしない |
+| next_allowed_action | 今回の報告/工程同期差分のレビューだけ。B1製造/学習/選択/H1-Uへ進まない |
+| completed_phases | PR115文書mergeを確認。事前監査の技術チェックと正式B1受入を分離 |
+| superseded_phases | 既存一覧を維持し、旧BT-03D等を復活させない |
+| blocked_phases | B1製造/実行、親選択、H1-U、正式採用、BT-04/BT-05-LIVEは未承認 |
+| frozen_contracts | C1/STAT39/Solver/Decoder/Evaluator/Gate、時系列・欠損・異常結果・128M・artifactを維持 |
+| unfrozen_contracts | B1方法/境界/単一層One-SE/安全I/O/予算は未承認、既存最終C1固定値は不変 |
+| holdout_status | 今回は指定2022対象だけ、2023〜2025結果/損失/選択ファイルと2026データは未読 |
+
+### v1.73時点のB1契約レビュー工程（履歴）
+
+以下はPR115作成/レビュー修正当時の状態。旧OPEN・未コミット・実物未確認を、今回のmerge後状態や実測へ読み替えない。
 
 ```yaml
 current_phase: C1-2022-PARENT-LAMBDA-B1-CONTRACT-01
@@ -1250,7 +1304,8 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
-| C1-2022-PARENT-LAMBDA-B1-CONTRACT-01 | B1製造前の分割・学習・単一層One-SE・非削除spool/隔離/予算の契約案 | PARENT_LAMBDA_B1_CONTRACT_DOCUMENTED_AWAITING_REVIEW | PROPOSED_NOT_APPROVED、方法/境界/契約は未凍結、fit/選択0。次は契約差分レビューだけ、15.80参照 |
+| C1-2022-REAL-DATA-PREFLIGHT-01 | 固定2022原本のread-only受入前監査 | REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW / BLOCKED | seal/内部整合/B1案件数PASS、一次由来NOT_ESTABLISHED、正式B1受入NOT_RUN。レビューだけ、15.81参照 |
+| C1-2022-PARENT-LAMBDA-B1-CONTRACT-01 | B1製造前の分割・学習・単一層One-SE・非削除spool/隔離/予算の契約案 | DOCUMENT_REVIEW_COMPLETED_PR115_MERGED | PROPOSED_NOT_APPROVED、方法/境界/契約は未凍結、fit/選択0。15.80の旧OPEN/レビュー待ちは履歴。今回事前監査は15.81 |
 | C1-2023-PARENT-LAMBDA-SELECTION-FEASIBILITY-01 | 2022情報だけの親lambda選択方法A/B・年内開催分割の成立性 | DOCUMENT_REVIEW_COMPLETED_PR114_MERGED | 成立性文書はmerge済み、A1/Bや境界/年内SEの採用承認ではない。lambda未選択、当時の履歴15.79、現在の契約案15.80 |
 | C1-2023-OOF-RECOVERY-01 | 保存2022モデルによる2023候補確率生成・独立検証 | 2023_CANDIDATES_GENERATED_PARENT_SELECTION_PENDING | PR113 MERGED、2候補各25197レース/179007出走の前工程実績は保持。最終OOF未認定、方法成立性は15.79の過去記録、現在のB1契約案レビューは15.80、候補生成記録は15.78 |
 | STAT-CATEGORY1-MVP-COMPLETION-01 | 既存DB対応16 STATのMVP製造・受入監査 | CODE_TESTED_AWAITING_REVIEW | STAT20新規・既存15再点検、正式DB保存未確認、配点/採用/2026未承認、15.77参照 |
@@ -4210,6 +4265,22 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.81 C1-2022-REAL-DATA-PREFLIGHT-01 / 2026-10-21
+
+PR115 MERGED。開始clean main `5a6d2867678666a28b1c40fe8e4683cbf4833293`、fetch/ls-remote/main ff-only同期後のmain/originとPR115 merge件名を照合、各exit0。同名local/remote未使用を確認し `audit/c1-2022-real-data-preflight-01` を作成。05:54:55 JSTにもHEAD/main/origin同SHA、main編集なし。過去15.80/15.80.1のOPEN・未コミット終了・未実物確認は当時の履歴として保持する。
+
+[監査報告](c1-2022-real-data-preflight-01.md)の指定rootにある主要5原本と、実manifest/契約から依存を確認した2022年子seal・生成/検証履歴等13件だけをread-onlyで確認した。全18件のSTART/END size/SHA一致、主要5件の指定過去値とexportの17件の子seal一致、入力24,394race/履歴170,835行/837開催の識別・順序・型・開催期間・年の整合PASS。重複/対応/期間矛盾0、NULLと観測0を保持。全aggregateはv1だが、未影響窓のv1保持というv2保存manifest契約と整合する。
+
+内部整合確認後、B1案の開催metadataだけを再集計。TRAIN408/11926/83516、VALIDATION421/12282/85958、HELD8/186/1361、保留年初2/29/191・7月3/120/924・年末3/37/246でPR114過去記録と一致。各meeting/race/entryの3区分交差0・全対象被覆一致、同race/開催の分離なし。正式fold seal・部分入力の作成はしない。
+
+保存契約→input report/コード台帳/検証記録→2022入力のsealリンクを確認し、生成関係8コードと保存台帳hashが一致した。before/afterの固定STAT fingerprintと履歴検証記録も一致するが、当時のDB検証実績を今回の再検証にしない。継承元別root、元公式結果snapshot2022/固定STAT元行/履歴cache source行との直接照合は未実施で、実データ由来の全連鎖はNOT_ESTABLISHED。重要な未確認を残すため総合real_data_preflight_status=BLOCKED、formal_b1_data_acceptance_status=NOT_RUNとする。データ破損/学習非収束/性能FAILを検出したという意味ではない。
+
+証跡は新規 `/home/shinya/neo-keirin-artifacts/c1-2022-real-data-preflight-01-20261021-0550-71d4b9`。監査本体は05:53:21〜05:53:24 JST、3.267322秒、PHP8.5.4/-n/128M、peak31,981,568bytes/RSS39,416KiB、exit0/stderr0。audit.stdout.json SHA `00e2efce7bf628043a36c89c96506e22cd0b4869106ba5df7721319d4e3162c2`。全18原本の証拠整理後のENDは05:54:10、metadata2件の補足も05:54:55に不変。bwrapの個別ro bind、ネットワーク分離/loのみ、home/.env/storage/run隔離、PDO/SQLiteなし、メモリ内ID集合/streamingを使用。起動前のnamespace/mount点エラーと抽出器のlist/dict取り違えも報告に保持し、原本欠落へ読み替えない。
+
+今回のリポジトリ変更は新規監査報告とMASTER PLANだけ。単発監査PHP/argv/stdout/stderr/終了コード/資源/原本path情報を上記永続rootへ保存した。アプリ/テスト/設定・モデル・旧artifactは不変。DB/HTTP/Raw/2026、移動/削除/原本複製、学習/NLL/One-SE/選択/予測/性能評価、PHPUnit/Pintは0。文書静的検証だけで、正式B1受入・安全性専用テストはNOT_RUN。
+
+方法B1/境界/One-SE/予算の未承認、親lambda未選択・2023親独立性/最終OOF未認定・H1-U保留、historical_as_of=false、formal_adoption=false、prediction_use=NOT_AUTHORIZED、2026_holdout=FROZEN_NO_ACCESSとCategory 1 MVP未レビュー事項を維持する。次はREVIEW_C1_2022_REAL_DATA_PREFLIGHT_ONLY。未コミットで停止し、commit/push/PR作成/mergeや次工程へ進まない。
+
 ## 15.80 C1-2022-PARENT-LAMBDA-B1-CONTRACT-01 / 2026-10-17
 
 ### 初回設計時の記録（2026-10-17）
@@ -4859,7 +4930,7 @@ run 6は正式完了済み。
 | #112 | C1能力下位選手の補正候補・成立性設計 | MERGED / ローカルmerge 447b096f9d472f893f95901a8837d1ae1ff60946。補正方式/親選択の承認ではない |
 | #113 | C1 2023候補確率生成・工程状態同期 | MERGED（初回設計時はユーザー報告/ローカルmerge確認・外部照会なし。PR114 P2当時はfetch後remote mainも同merge 0d57393c10ff046505bf85ab232e104dcbe8d6d3と照合）。候補生成実績は15.78、親選択は未確定。成立性は15.79、最新B1契約案レビューは15.80 |
 | #114 | 2023親lambda選択方法の成立性・P2同期根拠修正 | MERGED / fetch後main 4298c3883c81d907bf13285f002893f6f93f77dbで確認。過去OPENと10:32 base 0d57393c10ff046505bf85ab232e104dcbe8d6d3/head edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f、14:10 head 0706de9b704678903e20021efc6e3c64d3f12631は15.79.1/15.79.2の履歴。方法A/B承認ではなく、現在の契約案は15.80 |
-| #115 | B1製造前実行契約・実データ利用レビュー修正 | OPEN / 2026-10-20 06:14:38 JSTのGitHubメタデータでbase 4298c3883c81d907bf13285f002893f6f93f77db/head 675d34190dea806704156c9998a1e66d9e1a9992を照合。15.80.1の今回差分は未コミット。方法/製造/実行承認ではない |
+| #115 | B1製造前実行契約・実データ利用レビュー修正 | MERGED / 2026-10-21のfetch/ls-remote/main ff-only同期でmain 5a6d2867678666a28b1c40fe8e4683cbf4833293のPR115 merge件名と一致。10-20当時のOPEN/base 4298c3883c81d907bf13285f002893f6f93f77db/head 675d34190dea806704156c9998a1e66d9e1a9992・未コミット終了は15.80.1の履歴。方法/製造/実行承認ではない |
 
 Current remote `main` at the v1.2 update:
 
@@ -4969,6 +5040,22 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.74 / 2026-10-21
+
+```yaml
+document_version: 1.74
+updated_at: 2026-10-21
+remote_main_sha: 5a6d2867678666a28b1c40fe8e4683cbf4833293
+phase_changed: C1-2022-REAL-DATA-PREFLIGHT-01
+related_pr: PR115_MERGED_FETCH_LS_REMOTE_FF_ONLY_MAIN_CONFIRMED
+real_data_preflight_status: BLOCKED
+formal_b1_data_acceptance_status: NOT_RUN
+decision: REVIEW_C1_2022_REAL_DATA_PREFLIGHT_ONLY
+reason: Original seals and 2022 metadata verified; independent primary source linkage not established within the checked scope
+```
+
+冒頭metadata/5.0・8工程ゲート/工程表/15.81/PR115/27を同期し、旧5.0とv1.73・15.80/15.80.1を当時の履歴として保持。原本18件不変・24394/170835/837・B1案408/421/8開催は今回の実測として、過去実績と分けて記録した。一次由来NOT_ESTABLISHEDを残し総合BLOCKED、正式B1受入/安全性テストNOT_RUN。B1方法/境界/One-SE/予算は未承認、lambda未選択・2023最終OOF未認定・H1-U保留・historical_as_of=false・正式採用/2026/LIVE禁止を維持する。学習/損失/選択/予測/DB/HTTP/2026は0。
 
 ## v1.73 / 2026-10-17
 
@@ -5855,6 +5942,16 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+最新の正本は5.0・15.81と[2022事前監査報告](c1-2022-real-data-preflight-01.md)。PR115はMERGED、2026-10-21にfetch/ls-remote/main ff-only同期でmain `5a6d2867678666a28b1c40fe8e4683cbf4833293` のPR115 mergeを照合し、05:54:55 JSTにHEAD/main/origin一致を再確認。clean mainから未使用 `audit/c1-2022-real-data-preflight-01` を作成、main編集なし。
+
+今回の実測は2022原本18件START/END一致、24,394race/170,835entry/837開催の内部整合PASS。B1案のtrain408/11926/83516・validation421/12282/85958・保留8/186/1361、交差0/被覆一致。元公式結果snapshot/固定STAT元行/履歴source行は開いて直接照合しておらず、一次由来NOT_ESTABLISHED・real_data_preflight_status=BLOCKED、formal_b1_data_acceptance_status=NOT_RUN。seal一致を実データ由来の全証明やhistorical as-ofへ拡張しない。
+
+工程C1-2022-REAL-DATA-PREFLIGHT-01、REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW、次はREVIEW_C1_2022_REAL_DATA_PREFLIGHT_ONLY。B1方法/境界/One-SE/予算は未承認、method_selected=NONE/contract_frozen=false/selected_lambda=NONE、2023親独立性・最終OOF未認定、H1-U保留、historical_as_of=false/formal_adoption=false/prediction_use=NOT_AUTHORIZED/2026_holdout=FROZEN_NO_ACCESSを維持する。正式受入・製造・学習・選択へ自動移行しない。
+
+証跡は `/home/shinya/neo-keirin-artifacts/c1-2022-real-data-preflight-01-20261021-0550-71d4b9`、監査本体128M/peak31,981,568bytes/3.267322秒/exit0。今回の未コミット2Markdownだけをレビュー待ちで保持し、commit/push/PR作成/mergeなし。PR115文書mergeと、過去Codex終了時の未コミット記録と、今回の未コミット差分は別の時点である。
+
+### v1.73レビュー修正終了時の引継ぎ（2026-10-20の履歴）
 
 最新の正本は5.0・15.80.1と[B1契約案](c1-2022-parent-lambda-b1-contract-01.md)第4・7・8・13節。工程/状態/次の許可はB1契約レビュー待ちのまま。2026-10-20 06:14:38 JSTにPR115 OPEN/merged=false、base/main `4298c3883c81d907bf13285f002893f6f93f77db`、確認時head `675d34190dea806704156c9998a1e66d9e1a9992` をGitHubメタデータ・fetch/ls-remote/追跡参照で照合した。06:15:04 JSTにmain ff-only同期確認・既存PR branch復帰済み。将来の最新SHAとして固定しない。
 
