@@ -17,7 +17,7 @@ class Stat38Calculator
 {
     public const STAT_CODE = 'STAT-38';
 
-    public const CALCULATION_VERSION = 'STAT38-PLANNED-DISTANCE-MVP-v1';
+    public const CALCULATION_VERSION = 'STAT38-PLANNED-DISTANCE-MVP-v2-PR117';
 
     public function __construct(private readonly DeterministicJsonHasher $hasher) {}
 
@@ -100,7 +100,7 @@ class Stat38Calculator
         }
         $complete = $target !== null && $target['planned_distance_m'] !== null
             && $counts['past_rows'] > 0 && $counts['prediction_unknown'] === 0;
-        $retrospectiveKnown = $counts['retrospective_started'] > 0 && $counts['retrospective_unknown_participation'] === 0;
+        $retrospectiveKnown = $counts['retrospective_observed_entries'] > 0 && $counts['retrospective_unknown_participation'] === 0;
         $features = [
             'PLANNED_DISTANCE_M' => $target['planned_distance_m'] ?? null,
             'PLANNED_LAPS' => $target['planned_laps'] ?? null,

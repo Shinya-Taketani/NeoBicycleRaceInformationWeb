@@ -1,5 +1,7 @@
 # STAT38-DISTANCE-LAPS-MVP-01
 
+最新状態（2026-10-22）は末尾「PR117レビュー修正」。初版の件数・SHA・未接続・実行記録は当時の履歴として保持する。
+
 ## 状態・承認範囲
 
 2026-10-21。`CODE_AND_LIMITED_REAL_RAW_VERIFIED_AWAITING_REVIEW`。
@@ -174,3 +176,51 @@ PostgreSQLでのMigration/制約/型の実適用、正式取込み、本番保�
 既存Scraping/Parser/C1/STAT-35/既存モデル・成果物は不変。
 本番DB接続/HTTP/2026開催/B1学習/lambda選択/H1-U/性能評価/commit/push/PR作成/mergeは0。
 次はコードと限定受入差分のレビューだけ。本番適用や学習へ自動進行しない。
+
+## PR117レビュー修正（2026-10-22）
+
+`PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW`。開始はcleanな既存branch、HEAD/PR headは
+`f4fafffb73ef48166f7a45bf253b1bd440c9d475`、origin/mainは上記14f3927。新branch/main編集/Git書込みなし。
+今回の計算版は `STAT38-PLANNED-DISTANCE-MVP-v2-PR117`。観測保存契約v1と既存Migrationは変更しない。
+
+- P1: 既存`RaceResultImportService::syncAvailableResults()`の`race_results.fetched_at`は取込み処理時刻であり、HTTP取得時刻ではない。完全一致条件を廃止し、取得/log保存/import開始・保存/結果処理・更新を区別する。必要な保存時刻の最大値と取得日時がともにstrict `< input_as_of`でなければ予測利用できない。欠落時刻はNULL、不正な前後関係は拒否する。
+- 既存importerは正常取込みでも結果のentry/player IDを設定しない。ユーザー承認に従いrace＋車番で結果を読み、import/fetch-log/Rawのpath/サイズ/SHA/source/Parser、公式Rawの日付/場/番号・車番/登録番号・着順/結果状態を照合する。DB側IDが非NULLなら必ず一致、NULLは補完せず`result_identity_evidence`に元のNULLと照合先を別記する。DB/Rawの本人重複・不一致は拒否する。既存importer/業務DBは修正していない。
+- P2: 観測版は取得日時とRaw保存証拠（fetch-log作成日時）がともにcutoff前のものだけから決定的に選択する。不適格な最新版を除いて古い適格版を利用できる。100行ずつ走査し、同一取得時刻の競合は最新2件だけでなく全該当版で検査する。103版の人工境界試験も通過した。
+- P2: 過去観測があり、出走状態がすべて検証済みの欠場/取消なら参考実出走数0。未確認・未観測はNULL。予測用経験数との分離を維持する。
+- 業務テストから親`memory_limit`への依存を除き、別の`Stat38MemoryTest`が専用子PHPに`-d memory_limit=128M`を実際に指定する。子は実Raw取込み・結果照合・参考集計の3ケースを実行し、PID、設定、終了コード、JUnit、PHP peakを検査・保存する。閾値変更、skip、警告抑制はない。
+
+### 実資料と人工境界の区別
+
+既存2022/2023/2024/2025各1月のread-only保存snapshotについて、使用5表のmanifestとSTART/END sealを照合した。
+対象は初版と同じ6レース・39出走の公式PJ0326結果Raw6版だけ。実Rawのサイズ/SHA・変換SHA・対象・本人・結果を照合し、
+39件すべてで元のresult entry/player IDはNULLだった事実を保持した。race 37815の実記録は取得20:23:06 UTC、結果処理20:23:07 UTCで1秒差がある。
+既存サービスへ保存済み2022 Rawを隔離SQLiteで再投入しても処理時刻は取得時刻と異なり、本人照合が成功した。
+実資料の過去2レースは参考実出走数2、予測用経験数はNULL。事後取得のため予測用実データ受入は引き続きNOT_ESTABLISHED。
+取得/save境界・確認済み欠場0・ID/登録/状態/重複/改変/欠損は明示した人工制御・異常系であり、当時取得済みだった証明ではない。
+
+### 今回の検証
+
+| 実行 | ケース | assertions | 失敗/エラー/warnings/skip | exit |
+| --- | --- | --- | --- | --- |
+| STAT-38、Artisan/Collision、128M | 33 | 682 | すべて0 | 0 |
+| 同じ33件、通常の親memory_limit（子PHPUnitは-1） | 33 | 682 | すべて0 | 0 |
+| 既存STAT関連96件、128M | 96 | 812 | すべて0 | 0 |
+
+33件の内訳はFeature26/591、Calculator6/72、独立メモリ1/19。
+独立子のPHP peakは57,147,392 bytes（54.5MiB）、memory_limit=128M、親子PID別、exit0。OS RSSと混同しない。
+修正前コードで、通常起動の128M固定assert、適格旧版選択、全版不適格NULL、確認済み0件が失敗した記録を保持する。
+開始コミットのRepositoryだけを隔離子へread-only重ね合わせしたP1確認でも、通常import後の本人対応が失敗し、修正後は通過した。
+
+ユーザー実行の過去全体結果は1 failed /155 warnings /9 skipped /3791 passed /35356 assertions。
+今回は危険cleanupを含む対象外全体テストへ広げず、上表の安全な限定実行だけ。155 warningsの本文・原因・全解消は未確認で、今回の警告0と区別する。
+変更PHP6件の構文、限定Pint、diff検査を実施する。PHP8.5.4 / PHPUnit12.5.31。bwrap隔離方法は初版と同じ。
+
+今回の証跡: 上記永続rootの `pr117-review-20261022-075425-15b42fa7/`。
+`result-fixture.json` SHA: `706e5747f6383711055d1ded3c16575016cfc22148823cc75379117410ee3f11`。
+最終128M: `tests-bounded-20261022-080252-dNkSQDc3/logs/`、通常: `tests-default-limit-20261022-080304-Tx2KBCcp/logs/`、
+既存回帰: `tests-bounded-20261022-080226-uSN8G2Sn/logs/`。独立子の測定/実行/JUnitは各実行の人工Desktop/Trash内に保持する。
+stdout/stderr/イベント/実コマンド/時刻/exit、初期Fixtureのseal比較実装・JSON型・NULL IDに関する停止、テスト準備の失敗も消していない。
+旧18件/250 assertions、関連96/812、初版hashは初版時点の記録であり、修正後の実行へ読み替えない。
+
+本番DB接続・書込み/Migration正式適用/HTTP/2026開催/B1学習/lambda選択/H1-U/性能評価は0。
+本番適用と予測用経験数の正常実データ受入、独立CIへのprivate fixture供給は未成立。今回差分は未コミットで再レビュー待ち。

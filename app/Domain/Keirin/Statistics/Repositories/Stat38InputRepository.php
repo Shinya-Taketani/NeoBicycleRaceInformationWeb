@@ -8,6 +8,7 @@ use App\Domain\Keirin\Audit\Stat35DataReadiness\RawReader;
 use App\Domain\Keirin\Scraping\Parsers\RaceLiveResultParser;
 use App\Domain\Keirin\Scraping\Services\RaceDistanceObservationService;
 use App\Domain\Keirin\Statistics\DTO\Stat38InputDto;
+use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
 use App\Models\Race;
 use App\Models\RaceDistanceObservation;
 use App\Models\RaceEntry;
@@ -55,22 +56,23 @@ class Stat38InputRepository
             })->orderBy('race_entries.race_id')->orderBy('race_entries.id')->limit(100)->get();
             foreach ($chunk as $pastEntry) {
                 $past = Race::query()->whereKey($pastEntry->race_id)->whereBetween('race_date', ['2022-01-01', '2025-12-31'])->firstOrFail();
-                $results = RaceResult::query()->where('race_id', $past->id)->where('race_entry_id', $pastEntry->id)->limit(2)->get();
+                $results = RaceResult::query()->where('race_id', $past->id)->where('bike_number', $pastEntry->bike_number)->limit(2)->get();
                 if ($results->count() > 1) {
                     throw new RuntimeException('Duplicate STAT-38 historical result identity.');
                 }
                 $result = $results->first();
                 $import = $result === null ? null : RaceResultImport::query()->whereKey($result->race_result_import_id)->where('race_id', $past->id)->first();
-                $link = $result !== null && $result->player_id === $pastEntry->player_id
-                    && (int) $result->bike_number === $pastEntry->bike_number && $import !== null
+                $link = $result !== null && $import !== null
                     ? $this->resultLink($past, $pastEntry, $result, $import) : null;
                 yield ['race_id' => (int) $past->id, 'race_date' => $past->race_date->format('Y-m-d'),
                     'scheduled_start_at' => $past->scheduled_start_at?->format(DATE_ATOM),
                     'entry_id' => (int) $pastEntry->id, 'player_id' => $pastEntry->player_id,
                     'external_player_id' => $pastEntry->external_player_id, 'bike_number' => $pastEntry->bike_number,
                     'result_status' => $result?->result_status, 'result_link_verified' => $link !== null,
-                    'result_fetched_at' => $result?->fetched_at?->format(DATE_ATOM),
+                    'result_fetched_at' => $link['fetched_at'] ?? null,
+                    'result_processed_at' => $result?->fetched_at?->format(DATE_ATOM),
                     'result_saved_at' => $link['saved_at'] ?? null,
+                    'result_identity_evidence' => $link['identity'] ?? null,
                     'result_import_id' => $import?->id, 'result_source_sha256' => $import?->source_hash,
                     'observation' => $this->observation((int) $past->id, null),
                     'prediction_observation' => $this->observation((int) $past->id, $asOf)];
@@ -83,19 +85,48 @@ class Stat38InputRepository
     private function observation(int $raceId, ?DateTimeImmutable $asOf): ?array
     {
         $query = RaceDistanceObservation::query()->where('race_id', $raceId)->where('parser_version', RaceDistanceObservationService::VERSION);
-        if ($asOf !== null) {
-            $query->where('fetched_at', '<', $asOf);
+        $observation = null;
+        $selectedAt = $signature = null;
+        $conflicting = false;
+        $hasher = new DeterministicJsonHasher;
+        // Scan bounded ID chunks: save eligibility is timezone-aware, and every winning-time version must agree.
+        foreach ($query->lazyById(100) as $candidate) {
+            $fetchedAt = $candidate->fetched_at;
+            if ($asOf !== null) {
+                $stamp = $candidate->metadata['fetch_log_created_at'] ?? null;
+                if ($fetchedAt === null || $fetchedAt >= $asOf || $stamp === null) {
+                    continue;
+                }
+                if (! is_string($stamp) || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/D', $stamp) !== 1) {
+                    throw new RuntimeException('Invalid distance capture save timestamp.');
+                }
+                $savedAt = new DateTimeImmutable($stamp);
+                if (DateTimeImmutable::getLastErrors() !== false) {
+                    throw new RuntimeException('Invalid distance capture save date.');
+                }
+                if ($savedAt >= $asOf || $savedAt < $fetchedAt) {
+                    continue;
+                }
+            }
+            $newer = $observation === null || ($fetchedAt !== null && ($selectedAt === null || $fetchedAt > $selectedAt));
+            if (! $newer && $fetchedAt != $selectedAt) {
+                continue;
+            }
+            $content = $hasher->hash(['distance' => $candidate->planned_distance_m, 'laps' => $candidate->planned_laps,
+                'raw_fields' => $candidate->raw_fields, 'entrants' => $candidate->entrants,
+                'scheduled_start_at' => $candidate->scheduled_start_at?->format('U.u')]);
+            $conflicting = $newer ? false : ($conflicting || $signature !== $content);
+            $signature = $content;
+            $selectedAt = $fetchedAt;
+            $observation = $candidate;
         }
-        $versions = $query->orderByRaw('fetched_at DESC NULLS LAST')->orderByDesc('id')->limit(2)->get();
-        $observation = $versions->first();
         if ($observation === null) {
             return null;
         }
-        $this->observations->verifyStored($observation);
-        if ($versions->count() === 2 && $versions[1]->fetched_at == $observation->fetched_at
-            && ($versions[1]->planned_distance_m !== $observation->planned_distance_m || $versions[1]->planned_laps !== $observation->planned_laps)) {
+        if ($conflicting) {
             throw new RuntimeException('Conflicting distance observations at the same acquisition time.');
         }
+        $this->observations->verifyStored($observation);
 
         return ['observation_id' => (int) $observation->id, 'race_id' => (int) $observation->race_id,
             'race_date' => $observation->race_date->format('Y-m-d'), 'planned_distance_m' => $observation->planned_distance_m,
@@ -116,14 +147,42 @@ class Stat38InputRepository
     private function resultLink(Race $race, RaceEntry $entry, RaceResult $result, RaceResultImport $import): ?array
     {
         $log = ScrapingFetchLog::query()->find($import->scraping_fetch_log_id);
+        if ((int) $result->race_id !== (int) $race->id || (int) $entry->race_id !== (int) $race->id
+            || (int) $result->race_result_import_id !== (int) $import->id || (int) $import->race_id !== (int) $race->id
+            || (int) $result->bike_number !== (int) $entry->bike_number
+            || ($result->race_entry_id !== null && (int) $result->race_entry_id !== (int) $entry->id)
+            || ($result->player_id !== null && ($entry->player_id === null || (int) $result->player_id !== (int) $entry->player_id))) {
+            throw new RuntimeException('STAT-38 historical participation stored identity mismatch.');
+        }
+        $identities = RaceEntry::query()->where('race_id', $race->id)->where(function ($query) use ($entry): void {
+            $query->where('bike_number', $entry->bike_number)->orWhere('external_player_id', $entry->external_player_id);
+        })->limit(2)->get();
+        if ($identities->count() !== 1 || (int) $identities[0]->id !== (int) $entry->id) {
+            throw new RuntimeException('STAT-38 historical participation ambiguous stored identity mismatch.');
+        }
         if ($log === null || $log->source !== $race->source || (int) $log->http_status !== 200
             || $log->request_method !== 'POST' || $log->request_url !== rtrim((string) config('keirin.base_url'), '/').config('keirin.routes.race_live')
             || $import->import_status !== 'SUCCEEDED' || $import->error_type !== null
-            || $log->fetched_at != $result->fetched_at
+            || $import->source_url !== $log->request_url || $result->source_url !== $import->source_url
+            || ! is_string($import->parser_version) || $import->parser_version === '' || $log->parser_version !== $import->parser_version
             || $log->error_type !== null || $log->sha256 !== $import->source_hash
             || $log->raw_file_path !== $import->raw_file_path || (int) $log->response_size !== (int) $import->raw_response_size
-            || ! $import->utf8_conversion_succeeded || ($log->request_parameters['disp'] ?? null) !== 'PJ0326') {
+            || ! $import->utf8_conversion_succeeded || ! $log->utf8_conversion_succeeded
+            || ($log->request_parameters['disp'] ?? null) !== 'PJ0326') {
             return null;
+        }
+        // Result.fetched_at is the import processing time, not the HTTP acquisition time.
+        $acquiredAt = $log->fetched_at;
+        $saveTimes = [$log->created_at, $log->updated_at, $import->imported_at, $import->created_at,
+            $import->updated_at, $result->fetched_at, $result->updated_at];
+        foreach ($saveTimes as $stamp) {
+            if ($stamp !== null && $acquiredAt !== null && $stamp < $acquiredAt) {
+                throw new RuntimeException('STAT-38 historical participation acquisition/save chronology mismatch.');
+            }
+        }
+        if (($import->updated_at !== null && $import->imported_at !== null && $import->updated_at < $import->imported_at)
+            || ($result->updated_at !== null && $result->fetched_at !== null && $result->updated_at < $result->fetched_at)) {
+            throw new RuntimeException('STAT-38 historical participation processing/save chronology mismatch.');
         }
         $root = realpath(Storage::disk(config('keirin.raw_disk'))->path(''));
         $relative = $import->raw_file_path;
@@ -140,15 +199,27 @@ class Stat38InputRepository
             || $page->raceNumber !== (int) $race->race_number || ! $page->resultPage->resultParsingComplete) {
             throw new RuntimeException('STAT-38 historical participation Raw target mismatch.');
         }
+        $matched = null;
         foreach ($page->resultPage->results as $row) {
-            if ($row->bikeNumber === $entry->bike_number && $row->externalPlayerId === $entry->external_player_id
-                && $row->status->value === $result->result_status) {
-                $savedAt = $log->created_at !== null && $import->imported_at !== null ? max($log->created_at, $import->imported_at) : null;
-
-                return ['saved_at' => $savedAt?->format(DATE_ATOM)];
+            if ($row->bikeNumber === (int) $entry->bike_number || $row->externalPlayerId === $entry->external_player_id) {
+                if ($matched !== null || $row->bikeNumber !== (int) $entry->bike_number
+                    || $row->externalPlayerId !== $entry->external_player_id || $row->status->value !== $result->result_status
+                    || $row->rank !== $result->rank) {
+                    throw new RuntimeException('STAT-38 historical participation Raw identity/rank/status mismatch or duplicate.');
+                }
+                $matched = $row;
             }
         }
+        if ($matched === null) {
+            throw new RuntimeException('STAT-38 historical participation Raw entrant missing.');
+        }
+        $savedAt = in_array(null, $saveTimes, true) ? null : max($saveTimes);
 
-        throw new RuntimeException('STAT-38 historical participation Raw entrant/status mismatch.');
+        return ['fetched_at' => $acquiredAt?->format(DATE_ATOM), 'saved_at' => $savedAt?->format(DATE_ATOM),
+            'identity' => ['method' => 'OFFICIAL_RAW_VERIFIED', 'stored_race_entry_id' => $result->race_entry_id,
+                'stored_player_id' => $result->player_id, 'matched_entry_id' => (int) $entry->id,
+                'matched_player_id' => $entry->player_id, 'external_player_id' => $entry->external_player_id,
+                'bike_number' => (int) $entry->bike_number, 'fetch_log_id' => (int) $log->id,
+                'raw_sha256' => $log->sha256]];
     }
 }
