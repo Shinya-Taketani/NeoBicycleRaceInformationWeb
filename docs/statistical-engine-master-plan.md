@@ -1,5 +1,12 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-22 PR117レビュー修正：既存 `feature/stat38-distance-laps-mvp-01`、開始HEAD/PR head `f4fafffb73ef48166f7a45bf253b1bd440c9d475`、origin/mainは下記14f3927と照合済み。現在地は5.0・15.82.1、未コミット差分の再レビュー待ち。
+> 結果Rawの取得/取込み/保存時刻とNULL DB本人IDを分離照合し、適格観測版選択・確認済み0/未確認NULL・独立128MiB検証を修正。実保存結果6レース/39出走の照合は事後参考のみで、予測用経験数の実データ受入NOT_ESTABLISHED・B1未承認・2026凍結は不変。以下の初版・未コミット・未接続記録は各時点の履歴。
+
+> 2026-10-21 最新工程：`STAT38-DISTANCE-LAPS-MVP-01`。PR116 MERGED、fetch/main ff-only同期後のmain/origin/mainは `14f3927034fceb7883af5a0626479d1be1ad8e2d`。clean mainから `feature/stat38-distance-laps-mvp-01` を作成した。
+> 最新ユーザー承認により、PJ0315予定距離・周回数の追記型保存、保存Raw取込み、限定Calculator・Command・Migrationを製造する独立工程。B1監査の未確認・BLOCKEDは維持し、B1学習/親lambda選択/H1-Uを開始しない。現在地は5.0・15.82と[STAT-38実装記録](stat38-distance-laps-mvp-01.md)。
+> 実保存Rawの正常系と隔離SQLiteを検証する。事後取得の参考集計を予測用経験数へ混ぜず、証明不足はNULL、points/confidence=NULL、prediction_use=NOT_AUTHORIZED、2026開催凍結を維持。以下のPR116以前の状態・未コミット記録は当時の履歴である。
+
 > 2026-10-21 最新工程：`C1-2022-REAL-DATA-PREFLIGHT-01`。PR115 MERGED、fetch/ls-remote/main ff-only同期でmain/origin/mainは `5a6d2867678666a28b1c40fe8e4683cbf4833293`、PR115 merge件名を確認。clean mainから `audit/c1-2022-real-data-preflight-01` を作成した。
 > 固定2022原本18件のSTART/END・保存seal、24,394race/170,835entry/837開催の内部整合、B1案のtrain408/validation421/保留8開催をread-only/128Mで実測確認した。元公式結果snapshot/固定STAT元行/履歴source行の直接照合はNOT_ESTABLISHED、総合事前監査はBLOCKED。正式B1実データ受入はNOT_RUN。
 > 正本は5.0・15.81と[事前監査報告](c1-2022-real-data-preflight-01.md)。次は `REVIEW_C1_2022_REAL_DATA_PREFLIGHT_ONLY`。B1方法/境界/One-SE/予算は未承認、lambda未選択、最終2023 OOF/H1-U保留、historical_as_of=false・正式採用/2026/LIVE禁止を維持する。以下の2026-10-20以前のOPEN・未コミット・未実施記録は各確認時点の履歴である。
@@ -38,13 +45,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.74
+- Version: 1.75
 - Created: 2026-08-23
-- Updated: 2026-10-21
+- Updated: 2026-10-22
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `5a6d2867678666a28b1c40fe8e4683cbf4833293`（2026-10-21、fetch/ls-remote/main ff-only同期でPR115 mergeを確認。05:54:55 JSTにHEAD/main/origin/main再照合、15.81参照。確認時点の値）
+- Remote `main` at last update: `14f3927034fceb7883af5a0626479d1be1ad8e2d`（2026-10-21、fetch/main pull --ff-onlyで同期確認、PR116 merge件名と一致。今回開始時点の値）
+- Previous remote main at v1.74: `5a6d2867678666a28b1c40fe8e4683cbf4833293`（2026-10-21、fetch/ls-remote/main ff-only同期でPR115 mergeを確認。05:54:55 JSTにHEAD/main/origin/main再照合、15.81の当時の履歴）
 - Previous remote main at v1.73 review: `4298c3883c81d907bf13285f002893f6f93f77db`（2026-10-20 06:14:38 JST、fetch/ls-remote/PR115 base照合、06:15:04 JSTにmain ff-only同期確認・既存branch復帰。15.80.1の当時の履歴）
 - Initial B1 remote confirmation: 同SHAを2026-10-17 16:03:35 JSTにfetch/main ff-only同期後のHEAD/origin一致・PR114 merge履歴として確認した。15.80初回設計記録を保持
 - Previous remote main at v1.72: `0d57393c10ff046505bf85ab232e104dcbe8d6d3`（PR114 P2再確認: git fetch origin、ls-remote、PR base照合。2026-10-17 14:10:27 JST記録、main pull --ff-only/既存branch復帰確認14:10:38 JST。初回記録は15.79.1、再確認は15.79.2）
@@ -52,10 +60,14 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR115 MERGED。今回の2022事前監査報告/工程同期差分のレビュー待ち。方法B1・境界・One-SE・予算の採用/実行承認ではない
-- Current code: 新規監査報告とMASTER PLANのMarkdown2件だけ。単発read-only監査PHP/ログは新規のリポジトリ外証跡へ保存。アプリPHP・Migration・テスト・設定・Solver・Decoder・Evaluator・Gate・モデル不変
-- Current execution record: REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW。原本18件seal/2022内部整合/B1案件数はPASS、一次保存元の直接照合はNOT_ESTABLISHED、総合BLOCKED、正式B1受入NOT_RUN。新規fit/選択/予測/NLL/性能比較0
-- Current tests record: read-only監査本体128M/peak31,981,568bytes/3.267322秒/exit0。文書静的検証のみ、PHPUnit/Pint/アプリ起動なし。15.81と監査報告へ確認範囲を記録
+- Current review: PR117のP1/P2・環境依存assert修正の再レビュー待ち。PR116 MERGED、B1承認/本番適用ではない
+- Current code: STAT-38 Repository/Calculator・関連テスト/専用メモリ検証と記録2文書だけ。計算版v2-PR117、観測版v1。既存importer/共通helper/他STAT/モデル/Migration/設定は不変
+- Current execution record: PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。実保存公式結果6レース/39出走のRaw照合と隔離SQLite正常importを確認。事後参考実出走2、予測用経験数NULL。B1監査BLOCKED/正式受入NOT_RUNは独立して維持
+- Current tests record: Artisan/Collisionの限定33/682は128M・通常設定ともexit0、関連96/812も128M/exit0。各failure/error/warning/skip=0、独立128M子のPHP peak57,147,392bytes。全体未実行、過去ユーザー全体155 warningsの本文/原因/全解消は未確認（15.82.1）
+- Previous review at v1.74: PR115 MERGED。今回の2022事前監査報告/工程同期差分のレビュー待ち。方法B1・境界・One-SE・予算の採用/実行承認ではない
+- Previous code at v1.74: 新規監査報告とMASTER PLANのMarkdown2件だけ。単発read-only監査PHP/ログは新規のリポジトリ外証跡へ保存。アプリPHP・Migration・テスト・設定・Solver・Decoder・Evaluator・Gate・モデル不変
+- Previous execution record at v1.74: REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW。原本18件seal/2022内部整合/B1案件数はPASS、一次保存元の直接照合はNOT_ESTABLISHED、総合BLOCKED、正式B1受入NOT_RUN。新規fit/選択/予測/NLL/性能比較0
+- Previous tests record at v1.74: read-only監査本体128M/peak31,981,568bytes/3.267322秒/exit0。文書静的検証のみ、PHPUnit/Pint/アプリ起動なし。15.81と監査報告へ確認範囲を記録
 - Previous review/execution at v1.73: PR114 MERGED/PR115 OPEN、B1契約文書の実データ利用・時点分離レビュー修正。実物受入/安全性テストNOT_RUN、2Markdown未コミット終了・静的検証だけという当時の状態は5.0内履歴・15.80.1・27へ保持
 - Previous review at v1.72: PR113 MERGED、PR114 OPEN。今回は既存PR114 P2のリモート確認根拠と2文書差分だけの再レビュー。方法A/B・年内分割/One-SE仕様案は未承認、選択/fit/H1-Uへ進まない。15.79/15.79.1参照
 - Previous code at v1.72: PR114 P2は既存成立性報告とMASTER PLANのMarkdown2件だけ。既存PHP・モデル・Solver・Decoder・Evaluator・Gate・設定・実行スクリプトは不変
@@ -244,7 +256,43 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: C1-2022-REAL-DATA-PREFLIGHT-01
+## 5.0 最新工程: STAT38-DISTANCE-LAPS-MVP-01
+
+```yaml
+current_phase: STAT38-DISTANCE-LAPS-MVP-01
+current_engine_state: PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
+next_allowed_action: REVIEW_STAT38_PR117_FIX_ONLY
+remote_main: 14f3927034fceb7883af5a0626479d1be1ad8e2d
+pr116_status: MERGED
+production_migration: NOT_RUN_NOT_AUTHORIZED
+production_storage: NOT_RUN_NOT_AUTHORIZED
+prediction_experience_real_data_acceptance: NOT_ESTABLISHED
+retrospective_use: RETROSPECTIVE_ONLY
+real_data_preflight_status: BLOCKED
+formal_b1_data_acceptance_status: NOT_RUN
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+2026_holdout: FROZEN_NO_ACCESS
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 独立STAT-38 MVPのPR117修正・保存実Raw/独立128M限定検証を再レビュー待ち |
+| next_allowed_action | 今回差分のレビューだけ。本番適用・正式保存・学習へ自動移行しない |
+| completed_phases | PR116事前監査文書merge。内部整合確認とB1一次由来/正式受入は別 |
+| superseded_phases | 既存一覧・旧不採用判断を維持 |
+| blocked_phases | B1実行/親選択/H1-U、STAT-38本番適用/正式採用、BT-04/BT-05-LIVE |
+| frozen_contracts | 既存C1/STAT39/Solver/Decoder/Evaluator/Gate、時点・欠損・128MiB・原本保護 |
+| unfrozen_contracts | B1方法/境界/One-SE/予算、STAT-38交絡補正/配点/適性評価は未承認 |
+| holdout_status | 今回は2022〜2025開催の実保存資料だけ。2026年取得の過去年Rawと2026開催を分離 |
+
+### v1.74時点の2022事前監査工程（履歴・未解決事項は維持）
+
+以下の現在地・レビュー待ちはPR116作成前の履歴。PR116 mergeはB1の不足証拠解決や正式受入の承認ではない。
 
 ```yaml
 current_phase: C1-2022-REAL-DATA-PREFLIGHT-01
@@ -1304,6 +1352,7 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
+| STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
 | C1-2022-REAL-DATA-PREFLIGHT-01 | 固定2022原本のread-only受入前監査 | REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW / BLOCKED | seal/内部整合/B1案件数PASS、一次由来NOT_ESTABLISHED、正式B1受入NOT_RUN。レビューだけ、15.81参照 |
 | C1-2022-PARENT-LAMBDA-B1-CONTRACT-01 | B1製造前の分割・学習・単一層One-SE・非削除spool/隔離/予算の契約案 | DOCUMENT_REVIEW_COMPLETED_PR115_MERGED | PROPOSED_NOT_APPROVED、方法/境界/契約は未凍結、fit/選択0。15.80の旧OPEN/レビュー待ちは履歴。今回事前監査は15.81 |
 | C1-2023-PARENT-LAMBDA-SELECTION-FEASIBILITY-01 | 2022情報だけの親lambda選択方法A/B・年内開催分割の成立性 | DOCUMENT_REVIEW_COMPLETED_PR114_MERGED | 成立性文書はmerge済み、A1/Bや境界/年内SEの採用承認ではない。lambda未選択、当時の履歴15.79、現在の契約案15.80 |
@@ -4265,6 +4314,32 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.82 STAT38-DISTANCE-LAPS-MVP-01 / 2026-10-21
+
+PR116 MERGEDをローカルmerge履歴とfetch後main/origin `14f3927034fceb7883af5a0626479d1be1ad8e2d` で確認。pull --ff-onlyはAlready up to date。clean mainから指定未使用branchを作成し、mainは編集しない。最新ユーザー指示はB1の未完了監査と独立したSTAT-38製造の限定承認であり、B1方法/学習/選択の承認ではない。
+
+新設 `race_distance_observations` はrace/fetch-logのRESTRICT FK、capture＋parser版UNIQUE、予定値/NULL状態・同Raw予定時刻・取得日時・Raw SHA/サイズ・変換後SHA・source/Parser版・原値/本人対応を追記保存する。UPDATE/DELETEはDBトリガーで拒否し、入力済みdownも拒否。既存racesの現在値やFetcher/Parser/同期処理は変更しない。保存Raw専用importと独立したSTAT-38 buildを実装し、plan既定・明示execute/dry-run、dry-runはrun履歴も含め書込み0。
+
+今回の実資料確認は2022〜2025年の6レース・39出走・8取得版だけ。既存seal付きmetadataから対象を選び、実RawのSHA/サイズ/日付/場/レース番号/出走者を照合した。正常系を架空レースで代替せず、欠損/改変等だけ隔離した異常入力を使用。取得は2026年の事後取得で、予測用経験数はNULL/NOT_ESTABLISHEDを維持する。本人一致の過去2レースについて予定出走表の参考件数と同一距離一致を検証したが、出走確定/過去as-ofの証明に置き換えない。
+
+Calculatorは対象input_as_ofより厳密に前の取得・保存、本人・過去日・出走結果Raw対応を分離検査する。事後取得はRETROSPECTIVE_ONLY。履歴は保存2022〜2025年の前日までの範囲でcareer全体ではなく、同日先行レース・類似距離の推定・実際距離/周回数・交絡補正・適性点数は対象外。points/confidence=NULL、prediction_use=NOT_AUTHORIZED。発走前利用可能な実経験数とPostgreSQL適用は未検証で、SCR-STAT-38-01〜04をDONEにしない。
+
+128MiBの新規テスト、関連回帰、構文/限定Pint、実コマンド・ログ・原本sealは[実装記録](stat38-distance-laps-mvp-01.md)参照。旧モデル/成果物を変更せず、業務DB/HTTP/2026開催、B1/H1-U/学習/予測生成/性能評価は0。本番Migration/正式保存は未実施・未承認。未コミット差分をレビュー待ちに保持し、commit/push/PR作成/mergeなし。
+
+### 15.82.1 PR117レビュー修正 / 2026-10-22
+
+既存branch・clean・開始HEAD `f4fafffb73ef48166f7a45bf253b1bd440c9d475` を確認し、ls-remoteでPR headとorigin/mainを照合した。新branch/main編集/commit/push/mergeなし。詳細・実コマンド・seal・ログは[STAT-38実装記録のPR117節](stat38-distance-laps-mvp-01.md)へ追記し、15.82の初版実績は保持する。
+
+既存結果importは取得時刻ではなく取込み処理時刻を保存し、entry/player IDもNULLとなる。ユーザー承認に従いrace＋車番で結果を取得し、公式Rawの対象/本人/着順/状態とimport/fetch-log/Raw sealを照合する。非NULL IDは一致必須、NULLをDB補完せず元の状態とRaw照合先を分離記録する。取得・log保存・import・結果更新の時系列を検査し、strict cutoffを維持する。
+
+取得/保存ともcutoff前の適格観測を100行chunkで選択し、最新版不適格なら古い版を採用可能とした。同一取得時刻の競合は103版の人工試験でも拒否する。確認済み欠場/取消のみの履歴は参考実出走0、不足証拠/未観測はNULL。計算版v2-PR117、観測保存版v1・Migration・既存importer/C1/共通helperは不変。
+
+保存snapshotの5表/4対象月のSTART/END sealと公式結果Raw6レース/39出走を確認。全39件のNULL DBリンクとRaw本人対応を区別し、実2024記録の取得→処理1秒差、保存済み2022 Rawの既存importer正常処理を隔離SQLiteで検証した。過去2レースの参考実出走2は確認できたが、取得は2026年で予測用経験数はNULL/NOT_ESTABLISHEDのまま。人工時点境界を歴史的な予測利用可能性の証明にしない。
+
+Artisan/Collision限定33 passed/682 assertionsは128M・通常memory_limitの双方で成功、既存STAT関連96/812も128Mで成功。いずれもfailure/error/warning/skip=0/exit0。業務テストの親設定依存assertは独立子プロセスの128M指定・PID/JUnit/exit/peak検査へ移し、子3ケース/404 assertions、peak57,147,392bytesを記録した。PHP6件の構文/限定Pint/diff検査を確認する。
+
+ユーザーの過去全体結果1 failed/155 warnings/9 skipped/3791 passed/35356 assertionsと今回の限定成功を区別する。今回全体は安全未確認のcleanupへ拡大せず未実行。155 warningsの本文/原因/全解消は未確認。旧失敗/旧18件/250 assertions・旧hash・旧未接続記録は当時の履歴として残す。本番DB接続・正式保存/Migration/HTTP/2026開催/B1学習/lambda選択/H1-U/精度評価0。正式採用/holdout/LIVEは開放せず、次は差分レビューだけ。
+
 ## 15.81 C1-2022-REAL-DATA-PREFLIGHT-01 / 2026-10-21
 
 PR115 MERGED。開始clean main `5a6d2867678666a28b1c40fe8e4683cbf4833293`、fetch/ls-remote/main ff-only同期後のmain/originとPR115 merge件名を照合、各exit0。同名local/remote未使用を確認し `audit/c1-2022-real-data-preflight-01` を作成。05:54:55 JSTにもHEAD/main/origin同SHA、main編集なし。過去15.80/15.80.1のOPEN・未コミット終了・未実物確認は当時の履歴として保持する。
@@ -4931,6 +5006,7 @@ run 6は正式完了済み。
 | #113 | C1 2023候補確率生成・工程状態同期 | MERGED（初回設計時はユーザー報告/ローカルmerge確認・外部照会なし。PR114 P2当時はfetch後remote mainも同merge 0d57393c10ff046505bf85ab232e104dcbe8d6d3と照合）。候補生成実績は15.78、親選択は未確定。成立性は15.79、最新B1契約案レビューは15.80 |
 | #114 | 2023親lambda選択方法の成立性・P2同期根拠修正 | MERGED / fetch後main 4298c3883c81d907bf13285f002893f6f93f77dbで確認。過去OPENと10:32 base 0d57393c10ff046505bf85ab232e104dcbe8d6d3/head edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f、14:10 head 0706de9b704678903e20021efc6e3c64d3f12631は15.79.1/15.79.2の履歴。方法A/B承認ではなく、現在の契約案は15.80 |
 | #115 | B1製造前実行契約・実データ利用レビュー修正 | MERGED / 2026-10-21のfetch/ls-remote/main ff-only同期でmain 5a6d2867678666a28b1c40fe8e4683cbf4833293のPR115 merge件名と一致。10-20当時のOPEN/base 4298c3883c81d907bf13285f002893f6f93f77db/head 675d34190dea806704156c9998a1e66d9e1a9992・未コミット終了は15.80.1の履歴。方法/製造/実行承認ではない |
+| #116 | C1-2022実データ事前監査 | MERGED / fetch・main ff-only同期後14f3927034fceb7883af5a0626479d1be1ad8e2dのmerge件名と一致。15.81の未コミット/レビュー待ちは当時の履歴、B1のBLOCKED/NOT_RUNは維持 |
 
 Current remote `main` at the v1.2 update:
 
@@ -5040,6 +5116,20 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.75 / 2026-10-21
+
+```yaml
+document_version: 1.75
+updated_at: 2026-10-21
+remote_main_sha: 14f3927034fceb7883af5a0626479d1be1ad8e2d
+phase_changed: STAT38-DISTANCE-LAPS-MVP-01
+related_pr: PR116_MERGED
+decision: REVIEW_STAT38_MVP_CODE_AND_LIMITED_ACCEPTANCE_ONLY
+reason: User authorized an independent planned-distance/laps storage MVP, not B1 execution or prediction adoption
+```
+
+冒頭・5.0/8工程ゲート・工程表・15.82・PR116・引継ぎを同期。旧B1の監査結果/未承認/NULL選択、過去のSHA/実測値は保持する。追記型予定距離観測・実保存PJ0315取込み・限定Calculator/Service/Command/Migration/Testを製造。事後参考と厳格予測用経験数を分離し、予測利用/本番適用/2026は開放しない。
 
 ## v1.74 / 2026-10-21
 
@@ -5942,6 +6032,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+最新の正本は5.0・15.82.1と[STAT-38実装記録](stat38-distance-laps-mvp-01.md)PR117節。工程STAT38-DISTANCE-LAPS-MVP-01はPR117レビュー修正の再レビュー待ち。PR116 MERGED、main/origin `14f3927034fceb7883af5a0626479d1be1ad8e2d`、作業branchは `feature/stat38-distance-laps-mvp-01`、今回開始HEADはf4fafff。本番Migration/正式保存は未実施・未承認。
+
+原本は変更せず、2022〜2025開催の6レース/39出走/予定値8取得版と公式結果Raw6版を限定検証。Raw本人照合は成立したが、事後取得の予定値・出走確認件数はRETROSPECTIVE_ONLYで過去時点利用可能性の証明ではない。予測用経験数の実データ受入はNOT_ESTABLISHED。B1監査BLOCKED・正式受入NOT_RUN、method_b1_status=PROPOSED_NOT_APPROVED、method_selected=NONE、selected_lambda=NONE、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、2026_holdout=FROZEN_NO_ACCESSを維持する。次は今回差分レビューだけ。未コミットで保持し、commit/push/PR作成/mergeや本番適用へ進まない。
+
+### v1.74事前監査終了時の引継ぎ（履歴）
 
 最新の正本は5.0・15.81と[2022事前監査報告](c1-2022-real-data-preflight-01.md)。PR115はMERGED、2026-10-21にfetch/ls-remote/main ff-only同期でmain `5a6d2867678666a28b1c40fe8e4683cbf4833293` のPR115 mergeを照合し、05:54:55 JSTにHEAD/main/origin一致を再確認。clean mainから未使用 `audit/c1-2022-real-data-preflight-01` を作成、main編集なし。
 
