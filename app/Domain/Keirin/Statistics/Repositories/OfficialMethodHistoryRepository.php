@@ -30,9 +30,10 @@ class OfficialMethodHistoryRepository
             ->whereDate('ends_on', '>=', $date)->firstOrFail();
         $start = $meeting->starts_on->format('Y-m-d');
         $end = $meeting->ends_on->format('Y-m-d');
+        $asOf = Contract::inputAsOf($asOf, $start);
         if ($this->categories->classify($race->race_type) !== RaceCategory::Men || $day->race_date->format('Y-m-d') !== $date
             || $meeting->source !== $race->source || (int) $meeting->racetrack_id !== (int) $race->racetrack_id
-            || $date < $start || $date > $end || $start > $end || $asOf < Contract::date($start)) {
+            || $date < $start || $date > $end || $start > $end) {
             throw new RuntimeException('Invalid official history target meeting/category/cutoff.');
         }
         $target = ['race_id' => $raceId, 'race_date' => $date, 'meeting_id' => (int) $meeting->id,

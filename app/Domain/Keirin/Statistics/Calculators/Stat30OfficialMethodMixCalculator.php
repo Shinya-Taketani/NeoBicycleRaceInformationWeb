@@ -14,7 +14,7 @@ class Stat30OfficialMethodMixCalculator
 {
     public const STAT_CODE = 'STAT-30';
 
-    public const CALCULATION_VERSION = 'STAT30-OFFICIAL-TOP2-MIX-MVP-v1';
+    public const CALCULATION_VERSION = 'STAT30-OFFICIAL-TOP2-MIX-MVP-v2-PR119';
 
     public function __construct(private readonly DeterministicJsonHasher $hasher) {}
 

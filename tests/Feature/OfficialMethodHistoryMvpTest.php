@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Keirin\Scraping\DTO\StoredRawResponseDto;
+use App\Domain\Keirin\Scraping\Enums\RaceResultStatus;
+use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
+use App\Domain\Keirin\Scraping\Parsers\RaceLiveResultParser;
+use App\Domain\Keirin\Scraping\Services\RaceResultImportService;
+use App\Domain\Keirin\Scraping\Support\CharacterEncodingConverter;
 use App\Domain\Keirin\Statistics\Calculators\Stat19OfficialMethodHistoryCalculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat30OfficialMethodMixCalculator;
 use App\Domain\Keirin\Statistics\OfficialMethodHistory\Reader;
 use App\Domain\Keirin\Statistics\OfficialMethodHistory\WindowBuilder;
 use App\Domain\Keirin\Statistics\Repositories\OfficialMethodHistoryRepository;
 use App\Domain\Keirin\Statistics\Services\OfficialMethodHistoryBuildService;
+use App\Models\BatchRun;
+use App\Models\BatchRunItem;
 use App\Models\Player;
 use App\Models\Race;
 use App\Models\RaceDay;
@@ -191,7 +199,8 @@ final class OfficialMethodHistoryMvpTest extends TestCase
         $this->assertSame(10, StatisticFeatureResult::query()->count());
         foreach (StatisticFeatureResult::all() as $result) {
             $this->assertContains($result->stat_code, ['STAT-19', 'STAT-30']);
-            $this->assertStringContainsString('MVP-v1', $result->calculation_version);
+            $this->assertSame($result->stat_code === 'STAT-19' ? Stat19OfficialMethodHistoryCalculator::CALCULATION_VERSION
+                : Stat30OfficialMethodMixCalculator::CALCULATION_VERSION, $result->calculation_version);
             $this->assertNull($result->raw_points);
             $this->assertNull($result->confidence);
             $this->assertNull($result->effective_points);
@@ -299,6 +308,280 @@ final class OfficialMethodHistoryMvpTest extends TestCase
         iterator_to_array(app(OfficialMethodHistoryRepository::class)->inputs($race->id, new DateTimeImmutable('2026-01-01T00:00:00+09:00')));
     }
 
+    public function test_pr119_provisional_under_review_and_unknown_raw_never_confirm_db_results(): void
+    {
+        $case = $this->cases()[0];
+        [$race, $log, $import] = $this->seedSaved($case);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        foreach (['PROVISIONAL', 'UNDER_REVIEW', 'UNKNOWN'] as $status) {
+            $page = $this->statusControl($case, $log, $import, $status);
+            $this->assertSame($status === 'UNKNOWN' ? null : $status, $page->detectedStatus?->value);
+            if ($status === 'PROVISIONAL') {
+                $this->assertTrue($page->resultPage->resultParsingComplete);
+                $this->assertNotEmpty($page->resultPage->results);
+            }
+            $out = app(Reader::class)->read($race, $entry);
+            $this->assertFalse($out['evidence_verified']);
+            $this->assertSame('UNKNOWN', $out['participation']);
+            $this->assertNull($out['method']);
+            $this->assertContains('RESULT_FINALITY_UNVERIFIED', $out['issues']);
+        }
+    }
+
+    public function test_pr119_import_finality_metadata_must_match_the_saved_race(): void
+    {
+        [$race, , $import] = $this->seedSaved($this->cases()[0]);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->firstOrFail();
+        $original = $import->getAttributes();
+        foreach ([['requested_result_status' => 'PROVISIONAL'], ['parsed_page_status' => 'UNDER_REVIEW'],
+            ['requested_result_status' => 'CORRECTED']] as $change) {
+            $import->timestamps = false;
+            $import->forceFill($change)->save();
+            $out = app(Reader::class)->read($race, $entry);
+            $this->assertFalse($out['evidence_verified']);
+            $this->assertContains('RESULT_FINALITY_UNVERIFIED', $out['issues']);
+            $import->forceFill($original)->save();
+        }
+    }
+
+    public function test_pr119_legitimate_corrected_import_accepts_confirmed_or_corrected_raw(): void
+    {
+        $case = $this->cases()[0];
+        [$race, $log, $import] = $this->seedSaved($case);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', 1)->sole();
+        // Artificial correction boundary: the existing importer allows RESULTS_AVAILABLE + explicit CORRECTED.
+        $race->update(['result_status' => 'CORRECTED']);
+        $import->timestamps = false;
+        $import->requested_result_status = 'CORRECTED';
+        $import->save();
+        foreach (['CONFIRMED', 'CORRECTED'] as $status) {
+            $page = $this->statusControl($case, $log, $import, $status);
+            $this->assertSame($status, $page->detectedStatus->value);
+            $out = app(Reader::class)->read($race->fresh(), $entry);
+            $this->assertTrue($out['evidence_verified']);
+            $this->assertSame('SASHI', $out['method']);
+            $this->assertSame($status, $out['raw_detected_status']);
+            $this->assertSame('CORRECTED', $out['requested_result_status']);
+        }
+    }
+
+    public function test_pr119_cancelled_raw_with_zero_result_rows_and_null_schedule_is_verified(): void
+    {
+        $case = $this->cases()[0];
+        [$race, $log, $import] = $this->seedSaved($case);
+        $cancel = $this->cancelControl($case, $race, $log, $import);
+        $race->update(['scheduled_start_at' => null]);
+        $this->assertSame(0, RaceResult::query()->where('race_id', $race->id)->count());
+        $this->assertSame('SUCCEEDED', $cancel->import_status);
+        $this->assertSame('CANCELLED', $cancel->requested_result_status);
+        $this->assertSame('CANCELLED', $cancel->parsed_page_status);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->firstOrFail();
+        $out = app(Reader::class)->read($race->fresh(), $entry);
+        $this->assertTrue($out['evidence_verified']);
+        $this->assertSame('CANCELLED', $out['participation']);
+        $this->assertSame($cancel->id, $out['import_id']);
+        $this->assertSame($log->sha256, $out['raw_sha256']);
+        $this->assertNotNull($out['fetched_at']);
+        $this->assertNotNull($out['saved_at']);
+    }
+
+    public function test_pr119_db_only_cancelled_and_contradictory_cancel_raw_remain_unknown(): void
+    {
+        $case = $this->cases()[0];
+        [$race, $log, $import] = $this->seedSaved($case);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->firstOrFail();
+        $race->update(['result_status' => 'CANCELLED', 'scheduled_start_at' => null]);
+        $out = app(Reader::class)->read($race->fresh(), $entry);
+        $this->assertSame('UNKNOWN', $out['participation']);
+        $this->assertFalse($out['evidence_verified']);
+        $this->assertContains('CANCELLED_IMPORT_UNVERIFIED', $out['issues']);
+        $cancel = $this->cancelControl($case, $race, $log, $import);
+        $this->statusControl($case, $log, $cancel, 'CONFIRMED');
+        $out = app(Reader::class)->read($race->fresh(), $entry);
+        $this->assertSame('UNKNOWN', $out['participation']);
+        $this->assertFalse($out['evidence_verified']);
+        $this->assertContains('CANCELLED_RAW_STATE_UNVERIFIED', $out['issues']);
+    }
+
+    public function test_pr119_cancelled_import_missing_log_raw_or_timestamp_is_not_skipped(): void
+    {
+        $case = $this->cases()[0];
+        [$race, $log, $import] = $this->seedSaved($case);
+        $cancel = $this->cancelControl($case, $race, $log, $import);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->firstOrFail();
+        $original = $cancel->getAttributes();
+        foreach ([['scraping_fetch_log_id' => null], ['imported_at' => null], ['import_status' => 'FAILED']] as $bad) {
+            $cancel->timestamps = false;
+            $cancel->forceFill($bad)->save();
+            $out = app(Reader::class)->read($race->fresh(), $entry);
+            $this->assertSame('UNKNOWN', $out['participation']);
+            $this->assertFalse($out['evidence_verified']);
+            $cancel->forceFill($original)->save();
+        }
+        $cancel->raw_file_path = 'missing-cancelled-control.html';
+        $cancel->save();
+        $log->timestamps = false;
+        $log->raw_file_path = $cancel->raw_file_path;
+        $log->save();
+        $out = app(Reader::class)->read($race->fresh(), $entry);
+        $this->assertSame('UNKNOWN', $out['participation']);
+        $this->assertContains('CANCELLED_RAW_MISSING', $out['issues']);
+    }
+
+    public function test_pr119_unknown_cancel_occupies_history_slot_but_verified_cancel_is_excluded(): void
+    {
+        $this->seedAll();
+        $case = collect($this->cases())->first(fn ($c) => $c['race']['id'] === 37828);
+        $race = Race::query()->findOrFail(37828);
+        $import = RaceResultImport::query()->findOrFail($case['import']['id']);
+        $log = ScrapingFetchLog::query()->findOrFail($case['log']['id']);
+        $race->update(['result_status' => 'CANCELLED', 'scheduled_start_at' => null]);
+        $profile = $this->playerProfile(12542, '014236', '2025-01-01');
+        $this->assertSame(0, $profile->audit['cancelled']);
+        $this->assertSame(2, $profile->audit['candidate_starts']);
+        $this->assertContains('CANCELLED_IMPORT_UNVERIFIED', $profile->windows['LAST_3']['reasons']);
+        $this->assertNull($profile->windows['LAST_3']['method_counts']);
+        $this->cancelControl($case, $race, $log, $import);
+        $profile = $this->playerProfile(12542, '014236', '2025-01-01');
+        $this->assertSame(1, $profile->audit['cancelled']);
+        $this->assertSame(1, $profile->audit['candidate_starts']);
+        $this->assertNotContains('SCHEDULED_TIME_UNKNOWN', $profile->windows['LAST_3']['reasons']);
+    }
+
+    public function test_pr119_cancelled_source_identity_timing_and_raw_integrity_are_checked(): void
+    {
+        $case = $this->cases()[0];
+        [$race, $log, $import] = $this->seedSaved($case);
+        $cancel = $this->cancelControl($case, $race, $log, $import);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->firstOrFail();
+        $original = $log->getAttributes();
+        $original['request_parameters'] = $log->request_parameters;
+        foreach ([['sha256' => str_repeat('0', 64)], ['response_size' => 1], ['request_parameters' => ['disp' => 'PJ0315']],
+            ['fetched_at' => $cancel->imported_at->addSecond()]] as $bad) {
+            $log->timestamps = false;
+            $log->forceFill($bad)->save();
+            $out = app(Reader::class)->read($race->fresh(), $entry);
+            $this->assertSame('UNKNOWN', $out['participation']);
+            $this->assertFalse($out['evidence_verified']);
+            $log->forceFill($original)->save();
+        }
+        $this->statusControl($this->cases()[1], $log, $cancel, 'CANCELLED'); // Different real race inside an artificial cancellation control.
+        $out = app(Reader::class)->read($race->fresh(), $entry);
+        $this->assertSame('UNKNOWN', $out['participation']);
+        $this->assertContains('CANCELLED_RAW_IDENTITY_UNVERIFIED', $out['issues']);
+        $this->statusControl($case, $log, $cancel, 'CANCELLED');
+        $stream = fopen($this->temporary->path().'/raw/'.$log->raw_file_path, 'r+b');
+        fwrite($stream, '!');
+        fclose($stream);
+        $this->reject(fn () => app(Reader::class)->read($race->fresh(), $entry));
+    }
+
+    public function test_pr119_cancelled_import_does_not_fall_back_past_later_successful_contradiction(): void
+    {
+        $case = $this->cases()[0];
+        [$race, $log, $import] = $this->seedSaved($case);
+        $cancel = $this->cancelControl($case, $race, $log, $import);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->firstOrFail();
+        $this->assertSame('CANCELLED', app(Reader::class)->read($race->fresh(), $entry)['participation']);
+        $later = $cancel->replicate();
+        $later->forceFill(['imported_at' => $cancel->imported_at->addSecond(), 'requested_result_status' => 'CONFIRMED',
+            'parsed_page_status' => 'RESULTS_AVAILABLE'])->save();
+        $out = app(Reader::class)->read($race->fresh(), $entry);
+        $this->assertSame('UNKNOWN', $out['participation']);
+        $this->assertContains('CANCELLED_IMPORT_UNVERIFIED', $out['issues']);
+    }
+
+    public function test_pr119_same_instant_as_of_is_canonical_in_features_audit_run_and_storage(): void
+    {
+        $this->seedAll();
+        $service = app(OfficialMethodHistoryBuildService::class);
+        $jst = $service->build(12542, new DateTimeImmutable('2025-01-01T00:00:00+09:00'), true);
+        $utc = $service->build(12542, new DateTimeImmutable('2024-12-31T15:00:00Z'), true);
+        $this->assertSame($jst, $utc);
+        $this->artisan('keirin:statistics:build-official-method-history', ['--race-id' => '12542',
+            '--input-as-of' => '2024-12-31T15:00:00Z', '--execute' => true])->assertExitCode(0);
+        foreach (DB::table('statistic_feature_runs')->get() as $run) {
+            $this->assertSame('MEETING_START_JST_RETROSPECTIVE_ONLY', $run->input_as_of_policy);
+            $this->assertSame('2025-01-01T00:00:00+09:00', json_decode($run->parameters, true)['input_as_of']);
+        }
+        foreach (StatisticFeatureResult::all() as $row) {
+            $this->assertSame('2025-01-01T00:00:00+09:00', $row->evidence['input_as_of']);
+            $this->assertSame('2025-01-01 00:00:00+09:00', $row->getRawOriginal('input_as_of'));
+            $this->assertEquals(new DateTimeImmutable('2024-12-31T15:00:00Z'), new DateTimeImmutable($row->getRawOriginal('input_as_of')));
+        }
+    }
+
+    public function test_pr119_before_after_and_invalid_as_of_never_publish_either_statistic(): void
+    {
+        $this->seedAll();
+        foreach (['2024-12-31T23:59:59+09:00', '2025-01-01T00:00:01+09:00', '2025-01-04T00:00:00+09:00'] as $stamp) {
+            $this->reject(fn () => iterator_to_array(app(OfficialMethodHistoryRepository::class)->inputs(12542, new DateTimeImmutable($stamp))));
+            $this->reject(fn () => app(OfficialMethodHistoryBuildService::class)->build(12542, new DateTimeImmutable($stamp), false));
+        }
+        foreach (['2024-12-31T23:59:59+09:00', '2025-01-01T00:00:01+09:00', '2025-01-04T00:00:00+09:00',
+            '2025-02-30T00:00:00+09:00', '2025-01-01T00:00:00+00:99', 'not-a-date'] as $stamp) {
+            foreach ([[], ['--execute' => true], ['--execute' => true, '--dry-run' => true]] as $mode) {
+                $this->artisan('keirin:statistics:build-official-method-history', $mode + ['--race-id' => '12542',
+                    '--input-as-of' => $stamp])->assertExitCode(1);
+            }
+        }
+        $this->assertSame(0, DB::table('statistic_feature_runs')->count());
+        $this->assertSame(0, DB::table('statistic_feature_run_items')->count());
+        $this->assertSame(0, StatisticFeatureResult::query()->count());
+    }
+
+    public function test_pr119_plan_checks_target_cutoff_without_reading_raw(): void
+    {
+        $this->seedAll();
+        $this->mock(Reader::class)->shouldNotReceive('read');
+        $this->artisan('keirin:statistics:build-official-method-history', ['--race-id' => '12542',
+            '--input-as-of' => '2024-12-31T15:00:00Z'])->assertExitCode(0);
+        $this->assertSame(0, DB::table('statistic_feature_runs')->count());
+    }
+
+    /** Artificial page-state mutation only; never real cancellation/correction acceptance. */
+    private function statusControl(array $case, ScrapingFetchLog $log, RaceResultImport $import, string $status)
+    {
+        [$html] = app(CharacterEncodingConverter::class)->convertToUtf8(file_get_contents($case['fixture_root'].'/'.$case['fixture_file']), $case['log']['content_type']);
+        $extractor = app(EmbeddedJsonExtractor::class);
+        $pc = $extractor->extract($html, 'PC0201');
+        $pj = $extractor->extract($html, 'PJ0326');
+        $pc['C0201data']['flgRaceCancel'] = $status === 'CANCELLED';
+        $pc['C0201data']['flgSectionCancel'] = false;
+        $pj['status'] = ['PROVISIONAL' => '暫定', 'UNDER_REVIEW' => '審議中', 'CONFIRMED' => '確定', 'CORRECTED' => '訂正', 'CANCELLED' => '中止', 'UNKNOWN' => '不明'][$status];
+        if ($status === 'UNKNOWN') {
+            $pc['C0201data']['C0201race'] = [];
+        }
+        $body = '<!-- ARTIFICIAL PR119 PAGE-STATE BOUNDARY --><script>jsonData["PC0201"] = '.json_encode($pc, JSON_THROW_ON_ERROR)
+            .';jsonData["PJ0326"] = '.json_encode($pj, JSON_THROW_ON_ERROR).';</script>';
+        $path = 'pr119-status-'.bin2hex(random_bytes(8)).'.html';
+        $this->writeNew($this->temporary->path().'/raw/'.$path, $body);
+        $log->timestamps = false;
+        $log->forceFill(['raw_file_path' => $path, 'sha256' => hash('sha256', $body), 'response_size' => strlen($body),
+            'content_type' => 'text/html; charset=UTF-8'])->save();
+        $import->timestamps = false;
+        $import->forceFill(['raw_file_path' => $path, 'source_hash' => $log->sha256, 'raw_response_size' => strlen($body),
+            'converted_hash' => $log->sha256])->save();
+
+        return app(RaceLiveResultParser::class)->parse($body);
+    }
+
+    private function cancelControl(array $case, Race $race, ScrapingFetchLog $log, RaceResultImport $import): RaceResultImport
+    {
+        $page = $this->statusControl($case, $log, $import, 'CANCELLED');
+        $race->update(['result_status' => 'PROVISIONAL']); // Artificial state transition setup for the existing importer.
+        $run = BatchRun::query()->create(['type' => 'PR119_ARTIFICIAL_CANCELLATION', 'source' => 'keirin_jp',
+            'status' => 'RUNNING', 'lock_key' => bin2hex(random_bytes(8)), 'started_at' => now()]);
+        $item = BatchRunItem::query()->create(['batch_run_id' => $run->id, 'item_type' => 'RACE_RESULT',
+            'item_key' => 'PR119_CONTROL', 'status' => 'RUNNING', 'attempt_count' => 1, 'started_at' => now()]);
+        $body = file_get_contents($this->temporary->path().'/raw/'.$log->raw_file_path);
+        $out = app(RaceResultImportService::class)->importStoredResponse($race, $run, $item,
+            new StoredRawResponseDto($log->raw_file_path, $log->sha256, $log->response_size, 'UTF-8', true, $body, $log->id),
+            $page->resultPage, $log->request_url, RaceResultStatus::Cancelled);
+
+        return $out['import'];
+    }
+
     private function playerProfile(int $raceId, string $registration, string $start)
     {
         foreach (app(OfficialMethodHistoryRepository::class)->inputs($raceId, new DateTimeImmutable($start.'T00:00:00+09:00')) as $input) {
@@ -404,12 +687,13 @@ final class OfficialMethodHistoryMvpTest extends TestCase
 
     private function reject(callable $call): void
     {
+        $caught = null;
         try {
             $call();
-            $this->fail('Invalid isolated boundary accepted.');
-        } catch (RuntimeException) {
-            $this->addToAssertionCount(1);
+        } catch (RuntimeException $error) {
+            $caught = $error;
         }
+        $this->assertInstanceOf(RuntimeException::class, $caught, 'Invalid isolated boundary accepted.');
     }
 
     private function businessState(): array

@@ -17,9 +17,9 @@ class WindowBuilder
     public function build(OfficialMethodHistoryInputDto $input): OfficialMethodHistoryProfileDto
     {
         $target = $input->target;
-        $cutoff = Contract::date($target['meeting_start']);
+        $cutoff = Contract::inputAsOf($input->inputAsOf, $target['meeting_start']);
         $targetDate = Contract::date($target['race_date']);
-        if ($targetDate < $cutoff || $targetDate > Contract::date($target['meeting_end']) || $input->inputAsOf < $cutoff
+        if ($targetDate < $cutoff || $targetDate > Contract::date($target['meeting_end'])
             || $target['race_date'] < '2022-01-01' || $target['race_date'] > '2025-12-31'
             || ($target['race_id'] ?? 0) < 1 || ($target['meeting_id'] ?? 0) < 1
             || ($input->entry['entry_id'] ?? 0) < 1 || preg_match('/^[0-9]{6}$/D', $input->entry['external_player_id'] ?? '') !== 1) {
@@ -69,13 +69,13 @@ class WindowBuilder
             $audit['history_rows']++;
             if (($row['fetched_at'] ?? null) !== null) {
                 $fetched = new DateTimeImmutable($row['fetched_at']);
-                $audit['fetched_at_or_after_input'] += (int) ($fetched >= $input->inputAsOf);
+                $audit['fetched_at_or_after_input'] += (int) ($fetched >= $cutoff);
                 if ($audit['latest_fetched_at'] === null || $fetched > new DateTimeImmutable($audit['latest_fetched_at'])) {
                     $audit['latest_fetched_at'] = $fetched->format(DATE_ATOM);
                 }
             }
             $audit['corrected_results'] += (int) ($row['race_status'] === 'CORRECTED');
-            if ($row['participation'] === 'CANCELLED') {
+            if ($row['evidence_verified'] && $row['participation'] === 'CANCELLED') {
                 $audit['cancelled']++;
 
                 continue;
@@ -132,7 +132,7 @@ class WindowBuilder
             'data_role' => 'DEVELOPMENT_RETROSPECTIVE', 'historical_as_of_available' => false,
             'prediction_use' => 'NOT_AUTHORIZED', 'official_publication_at' => null, 'correction_effective_time_status' => 'UNKNOWN'];
 
-        return new OfficialMethodHistoryProfileDto($target, $input->entry, $input->inputAsOf, $windows,
+        return new OfficialMethodHistoryProfileDto($target, $input->entry, $cutoff, $windows,
             $this->finish($recent), $this->finish($baseline), $audit);
     }
 

@@ -14,7 +14,7 @@ class Stat19OfficialMethodHistoryCalculator
 {
     public const STAT_CODE = 'STAT-19';
 
-    public const CALCULATION_VERSION = 'STAT19-OFFICIAL-TOP2-METHOD-MVP-v1';
+    public const CALCULATION_VERSION = 'STAT19-OFFICIAL-TOP2-METHOD-MVP-v2-PR119';
 
     public function __construct(private readonly DeterministicJsonHasher $hasher) {}
 

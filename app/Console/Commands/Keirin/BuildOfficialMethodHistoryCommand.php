@@ -27,11 +27,13 @@ class BuildOfficialMethodHistoryCommand extends Command
                 throw new InvalidArgumentException('Explicit race ID and ISO input-as-of with offset required.');
             }
             $asOf = new DateTimeImmutable($stamp);
-            if (DateTimeImmutable::getLastErrors() !== false) {
+            $canonicalStamp = str_ends_with($stamp, 'Z') ? substr($stamp, 0, -1).'+00:00' : $stamp;
+            if (DateTimeImmutable::getLastErrors() !== false || $asOf->format('Y-m-d\TH:i:sP') !== $canonicalStamp
+                || abs($asOf->getOffset()) > 14 * 3600) {
                 throw new InvalidArgumentException('Invalid input-as-of date.');
             }
             $result = $this->option('execute') ? $service->build((int) $id, $asOf, (bool) $this->option('dry-run'))
-                : ['mode' => 'PLAN', 'race_id' => (int) $id, 'writes' => 0, 'prediction_use' => 'NOT_AUTHORIZED'];
+                : $service->plan((int) $id, $asOf);
             $this->line(json_encode($result, JSON_THROW_ON_ERROR));
 
             return self::SUCCESS;

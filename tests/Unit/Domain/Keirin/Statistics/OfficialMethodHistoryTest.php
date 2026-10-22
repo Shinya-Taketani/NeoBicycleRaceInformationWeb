@@ -139,12 +139,8 @@ final class OfficialMethodHistoryTest extends TestCase
         }
         $this->assertSame('UNKNOWN', Contract::outcome(null, 'UNKNOWN', null)['participation']);
         foreach ([[1, 'FINISHED', 'マーク'], [3, 'FINISHED', '逃げ'], [1, 'DISQUALIFIED', null], [null, 'FINISHED', null]] as $bad) {
-            try {
-                Contract::outcome(...$bad);
-                $this->fail('Contradictory official method accepted.');
-            } catch (RuntimeException $error) {
-                $this->assertStringContainsString('Contradictory', $error->getMessage());
-            }
+            $error = $this->reject(fn () => Contract::outcome(...$bad));
+            $this->assertStringContainsString('Contradictory', $error->getMessage());
         }
     }
 
@@ -202,12 +198,7 @@ final class OfficialMethodHistoryTest extends TestCase
         $forbidden = $rows;
         $forbidden[0]['race_date'] = '2026-01-01';
         foreach ([$duplicate, array_reverse($rows), $foreign, $forbidden] as $bad) {
-            try {
-                $this->build($bad);
-                $this->fail('Invalid artificial boundary accepted.');
-            } catch (RuntimeException) {
-                $this->addToAssertionCount(1);
-            }
+            $this->reject(fn () => $this->build($bad));
         }
     }
 
@@ -230,6 +221,46 @@ final class OfficialMethodHistoryTest extends TestCase
         $this->assertSame(5000, $profile->audit['history_rows']);
         $this->assertCount(20, $profile->audit['references']);
         $this->assertSame(20, $profile->windows['LAST_20']['verified_started_count']);
+    }
+
+    public function test_pr119_unknown_cancel_is_not_replaced_by_an_older_verified_start(): void
+    {
+        $rows = $this->rows(4);
+        $rows[0]['participation'] = 'UNKNOWN';
+        $rows[0]['evidence_verified'] = false;
+        $rows[0]['method'] = null;
+        $rows[0]['issues'] = ['CANCELLED_IMPORT_UNVERIFIED'];
+        $profile = $this->build($rows);
+        $this->assertSame(array_column(array_slice($rows, 0, 3), 'race_id'), $profile->windows['LAST_3']['race_ids']);
+        $this->assertSame(2, $profile->windows['LAST_3']['verified_started_count']);
+        $this->assertNull($profile->windows['LAST_3']['method_counts']);
+        $this->assertContains('CANCELLED_IMPORT_UNVERIFIED', $profile->windows['LAST_3']['reasons']);
+    }
+
+    public function test_pr119_window_requires_exact_cutoff_including_fractional_seconds(): void
+    {
+        $target = ['race_id' => 999, 'race_date' => '2025-01-01', 'meeting_id' => 999, 'meeting_start' => '2025-01-01', 'meeting_end' => '2025-01-03'];
+        $entry = ['entry_id' => 999, 'player_id' => 1, 'external_player_id' => '999999', 'bike' => 1];
+        $builder = new WindowBuilder(new DeterministicJsonHasher);
+        $a = $builder->build(new OfficialMethodHistoryInputDto($target, $entry, new DateTimeImmutable('2025-01-01T00:00:00+09:00'), $this->rows(20)));
+        $b = $builder->build(new OfficialMethodHistoryInputDto($target, $entry, new DateTimeImmutable('2024-12-31T15:00:00Z'), $this->rows(20)));
+        $this->assertEquals($a, $b);
+        foreach (['2024-12-31T23:59:59+09:00', '2025-01-01T00:00:01+09:00', '2025-01-01T00:00:00.000001+09:00', '2025-01-04T00:00:00+09:00'] as $stamp) {
+            $this->reject(fn () => $builder->build(new OfficialMethodHistoryInputDto($target, $entry, new DateTimeImmutable($stamp), $this->rows(20))));
+        }
+    }
+
+    private function reject(callable $call): RuntimeException
+    {
+        $caught = null;
+        try {
+            $call();
+        } catch (RuntimeException $error) {
+            $caught = $error;
+        }
+        $this->assertInstanceOf(RuntimeException::class, $caught, 'Invalid artificial boundary accepted.');
+
+        return $caught;
     }
 
     private function build(array $rows, string $start = '2025-01-01'): OfficialMethodHistoryProfileDto

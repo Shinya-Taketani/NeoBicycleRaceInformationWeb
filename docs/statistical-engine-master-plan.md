@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-23 PR119レビュー修正：cleanな既存 `feature/stat19-30-official-method-history-mvp-01`、開始HEAD/remote/PR head `882b7d79c9c4f3aa81ae78333900a56e84e86a10`、PR119 OPENを照合。新branch/main編集なし。現在地は5.0・15.84.1と[実装記録第7節](stat19-30-official-method-history-mvp-01.md#7-pr119-p2レビュー修正--2026-10-23)。
+> Raw確定状態・Raw中止証拠・開催開始00:00 JST固定をv2-PR119で修正し、対象36/2030・関連206/4371を隔離128M/exit0で確認。実6レース/39出走/上位12件は維持、実20走不足/L1=NULL・予測未承認は不変。以下の初版実行/未コミット記録は当時の履歴。
+
 > 2026-10-22 最新工程：`STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01`。PR118 MERGEDをGitHubで確認し、fetch/main pull --ff-only後のclean main/origin `73cb5717d149fc9e9d16b119cbdb1aa4d68f1b09` から `feature/stat19-30-official-method-history-mvp-01` を作成。現在地は5.0・15.84と[実装記録](stat19-30-official-method-history-mvp-01.md)。
 > 公式結果Reader・走数/日数窓・STAT19/30限定Calculator・既存統計テーブル保存Service/Commandを実装し、実Raw6レース/39出走と人工境界を隔離128Mで確認した。全値はDEVELOPMENT_RETROSPECTIVE、予測利用未承認。実20走の分布差は未算出、行動/戦法転換・正式採用・本番保存・B1・2026は開放しない。以下のPR118作成前・レビュー待ち記録は当時の履歴。
 
@@ -53,7 +56,7 @@
 - Document: 統計エンジン開発工程マスター
 - Version: 1.77
 - Created: 2026-08-23
-- Updated: 2026-10-22
+- Updated: 2026-10-23
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -68,10 +71,10 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR118 MERGED。公式決まり手履歴限定STAT19/30 MVPのコードレビュー待ち。本番保存/予測利用/行動指標/転換判定の承認ではない
-- Current code: 新規公式結果Reader/Repository/DTO/窓集計/STAT19・30 Calculator/Service/Command/Testだけ。新規Migrationなし、既存STAT17/38・C1・120日入力・通常同期・共通helperは不変
-- Current execution record: CODE_AND_LIMITED_REAL_RAW_VERIFIED_AWAITING_REVIEW。実保存PJ0326の6レース/39出走で公式上位決まり手12件を照合、本人の実過去2走は必要N不足・L1=NULL。隔離SQLiteで両STAT保存/dry-run非書込み・終端drift拒否を確認。予測効果未評価
-- Current tests record: 新規22/1321・関連172/3877、各128M/exit0・failure/error/warning/skip=0。新規peak59,244,544bytes、関連65,536,000bytes。危険cleanupのある旧群/全体は未実行、過去155 warningsの原因/全解消は未確認
+- Current review: PR119 OPEN、既存branchのP2修正を未コミットで再レビュー待ち。本番保存/予測利用/行動/転換判定の承認ではない
+- Current code: STAT19/30 Readerの確定・中止証拠、Repository/Window/Service/Commandの固定時点と専用v2版・関連テストだけ。新規Migration/共通基盤追加なし、STAT17/38・C1・120日入力・通常同期・共通helper不変
+- Current execution record: PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。実6レース/39出走/上位12件を回帰照合、本人2走のN不足/L1=NULLは維持。Raw検証済み中止だけ除外し、未知状態は枠を残す。予測効果未評価
+- Current tests record: 対象36/2030・関連206/4371、各128M/exit0・failure/error/warning/skip=0、peak61,341,696/67,633,152bytes。ユーザー全体3846 passed/155 warnings/9 skippedは別記録。Codex通常全体は未実施、155警告本文/原因/全解消は未確認
 - Previous review at v1.76: PR117 MERGED、PJ0315戦法共通基盤・STAT17限定MVPのコードレビュー待ちだった当時の状態。PR118 mergeで受入、予測利用/本番適用の承認ではない
 - Previous execution/tests at v1.76: 実Raw6レース/39出走/8版/51観測、新規17/2286・関連129/1494、各128M/exit0・failure/error/warning/skip=0、新規peak59,244,544bytes。15.83の過去実績で今回の実行結果へ読み替えない
 - Previous review at v1.75: PR117のP1/P2・環境依存assert修正の再レビュー待ち。PR116 MERGED、B1承認/本番適用ではない
@@ -274,10 +277,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 ```yaml
 current_phase: STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01
-current_engine_state: CODE_AND_LIMITED_REAL_RAW_VERIFIED_AWAITING_REVIEW
-next_allowed_action: REVIEW_OFFICIAL_METHOD_HISTORY_MVP_ONLY
+current_engine_state: PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW
+next_allowed_action: REVIEW_PR119_OFFICIAL_METHOD_HISTORY_FIX_ONLY
 remote_main: 73cb5717d149fc9e9d16b119cbdb1aa4d68f1b09
 pr118_status: MERGED
+pr119_status: OPEN
+input_as_of_policy: MEETING_START_JST_RETROSPECTIVE_ONLY
 production_storage: NOT_RUN_NOT_AUTHORIZED
 data_role: DEVELOPMENT_RETROSPECTIVE
 official_publication_at: null
@@ -294,7 +299,7 @@ formal_adoption: false
 
 | 制御項目 | 最新の扱い |
 | --- | --- |
-| current_engine_state | 公式決まり手履歴ReaderとSTAT19/30限定MVPのコード/限定実Raw検証レビュー待ち |
+| current_engine_state | PR119の確定/中止証拠・固定時点修正を未コミットで再レビュー待ち |
 | next_allowed_action | 今回差分レビューのみ。本番保存/正式採用/学習へ進まない |
 | completed_phases | PR118 merge確認。行動指標・戦法転換・過去as-of・本番受入の完成ではない |
 | superseded_phases | 旧一覧・PJ0315 pilot保留・STAT17/STAT39等の不採用を維持 |
@@ -1440,7 +1445,7 @@ BT-03E-02以降で利用する場合は、
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
-| STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 | 公式上位決まり手の走数/日数窓・非重複5対15走分布 | CODE_AND_LIMITED_REAL_RAW_VERIFIED_AWAITING_REVIEW | PR118 merge後の独立製造。6実レース/39出走・上位12件、本人過去2走はN不足/L1=NULL。15.84参照 |
+| STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 | 公式上位決まり手の走数/日数窓・非重複5対15走分布 | PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 確定/中止Raw・固定Tをv2で修正。6実レース/39出走・上位12件は回帰維持、本人2走N不足/L1=NULL。15.84.1参照 |
 | STAT17-19-30-TACTIC-SNAPSHOTS-01 | PJ0315表示7回数の取得版履歴保存とSTAT17限定分布 | PR118_MERGED | PR117 merge後の独立製造。6実レース/39出走/8版/51観測は当時の実績。集計窓UNKNOWN、予測未承認。15.83参照 |
 | C1-2022-REAL-DATA-PREFLIGHT-01 | 固定2022原本のread-only受入前監査 | REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW / BLOCKED | seal/内部整合/B1案件数PASS、一次由来NOT_ESTABLISHED、正式B1受入NOT_RUN。レビューだけ、15.81参照 |
 | C1-2022-PARENT-LAMBDA-B1-CONTRACT-01 | B1製造前の分割・学習・単一層One-SE・非削除spool/隔離/予算の契約案 | DOCUMENT_REVIEW_COMPLETED_PR115_MERGED | PROPOSED_NOT_APPROVED、方法/境界/契約は未凍結、fit/選択0。15.80の旧OPEN/レビュー待ちは履歴。今回事前監査は15.81 |
@@ -4417,6 +4422,18 @@ STAT19は公式上位決まり手プロフィールだけで積極性NULL。STAT
 
 本番DB/HTTP/新規取得/本番保存/学習/選択/H1-U/性能評価/2026開催参照0。SCR19/30各01〜03はOPEN、行動/転換の確定・正式採用ではない。旧pilot保留/B1未承認/2026凍結は不変。未コミットで差分レビューだけを待ち、Git書込み/PR操作・次工程へ進まない。
 
+### 15.84.1 PR119 P2レビュー修正 / 2026-10-23
+
+同一PR branch・開始clean・HEAD/remote/GitHub PR head882b7d7、origin/main/PR base73cb571を照合。PR119 OPEN/merged=false。新branch・main編集・commit/push/merge/PR更新なし。初版15.84の実績/hash/未コミット記録は当時の履歴として保持する。
+
+v2-PR119ではRaw detectedStatusの確定/訂正とimport requested/parsed・現在race状態を照合し、暫定/審議/不明はUNKNOWNで件数へ加えない。明示CORRECTED取込みに対するCONFIRMED Rawは既存契約に従い許容する。中止は同race最新SUCCEEDED import（結果0件可）とfetch-log/Raw対象/SHA/サイズ/中止状態/取得保存時刻を検証した場合だけ除外。証拠不足はUNKNOWN＋理由でN枠を残し、古い結果で埋めない。Raw改変などの致命的エラーは停止する。
+
+input_as_ofは開催開始00:00 Asia/Tokyoと同一瞬間だけを受け付け、JST/UTC同瞬間は同じJST値へ正規化。planでも対象metadataを照合（Raw/書込み0）し、保存値・run policy・監査を統一する。不正時点は両STAT書込み0。公式決まり手の数式・N/日数・L1仕様は不変。
+
+追加14ケースと既存の対象2テスト内の例外assertを強化。修正前11件は10failed/1passed/441assertions/exit2で不具合を再現。修正後対象36/2030、関連206/4371は128M/exit0・failure/error/warning/skip=0、peak61,341,696/67,633,152bytes。実Raw6レース/39出走/上位12件の正常系と人工中止/暫定/訂正・20走/L1を分離。ユーザー全体3846passed/155warnings/9skippedは別の結果で、警告本文/原因/全解消は未確認。Codex通常全体は旧cleanupの安全未確認により未実施。
+
+本番DB/正式保存/HTTP/学習/性能評価/2026開催参照0。用途DEVELOPMENT_RETROSPECTIVEのみ、historical_as_of=false・prediction_use=NOT_AUTHORIZED・points/confidence=NULL、B1/正式採用禁止を維持する。実中止の新規探索/全履歴受入/本番保存は未確認。ログ/実コマンド/原本seal/差分は[実装記録第7節](stat19-30-official-method-history-mvp-01.md#7-pr119-p2レビュー修正--2026-10-23)。未コミット再レビュー待ちで停止する。
+
 ## 15.83 STAT17-19-30-TACTIC-SNAPSHOTS-01 / 2026-10-22
 
 clean main/origin `0b07b29ed7c5666e56aa1b69b9ff1e22813c36ad`、fetch/ff-onlyとPR117 merge件名を確認し、指定未使用branchを作成。主眼は文書監査ではなく、戦法/BHS7項目の観測保存基盤とSTAT17分布MVPの製造。既存STAT38・通常同期・共通helper/C1/C2/BT/モデルは変更しない。
@@ -5233,6 +5250,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+### PR119レビュー修正 / 2026-10-23（v1.77追記）
+
+同一工程内の確定/中止証拠・固定Tの3件だけをv2-PR119で修正。冒頭/5.0/工程表/15.84.1/27を再レビュー待ちへ同期した。初版の実測/版/SHA・学習不採用履歴は不変。ユーザー全体結果と今回の限定検証を分離し、155 warningsの原因/全解消を断定しない。予測利用・本番保存・2026を開放しない。
 
 ## v1.77 / 2026-10-22
 
@@ -6177,6 +6198,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+現在はPR119 OPEN、同branchの開始HEAD882b7d7に対するP2修正の再レビュー待ち。正本は5.0・15.84.1と[実装記録第7節](stat19-30-official-method-history-mvp-01.md#7-pr119-p2レビュー修正--2026-10-23)。確定/中止Rawの検証、UNKNOWN枠維持、Tとの瞬間一致/保存正規化をv2で修正し、対象36/2030・関連206/4371を128M/exit0・警告等0で確認した。実6レース/39出走/上位12件維持、実20走不足/L1=NULL、予測利用未承認。
+
+未コミットでユーザーのPR更新と再レビューを待つ。Codexのcommit/push/PR操作なし。本番/学習/評価/2026/B1へ進まない。ユーザー全体3846passed/155warnings/9skippedとCodex限定結果は別で、155警告未確認を維持する。
+
+### v1.77初版終了時の引継ぎ（履歴）
 
 最新の正本は5.0・15.84と[公式決まり手履歴MVP記録](stat19-30-official-method-history-mvp-01.md)。PR118 MERGED、開始main/originは73cb571、branchは `feature/stat19-30-official-method-history-mvp-01`。公式結果Reader/窓/STAT19・30/Service/Commandを実装し、6実レース/39出走、上位決まり手12件を照合。実本人2走は必要N不足・L1=NULL。新規22/1321、関連172/3877、各128M/exit0、警告等0。
 

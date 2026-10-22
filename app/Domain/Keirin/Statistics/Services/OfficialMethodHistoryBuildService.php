@@ -6,6 +6,7 @@ namespace App\Domain\Keirin\Statistics\Services;
 
 use App\Domain\Keirin\Statistics\Calculators\Stat19OfficialMethodHistoryCalculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat30OfficialMethodMixCalculator;
+use App\Domain\Keirin\Statistics\OfficialMethodHistory\Contract;
 use App\Domain\Keirin\Statistics\OfficialMethodHistory\WindowBuilder;
 use App\Domain\Keirin\Statistics\Repositories\OfficialMethodHistoryRepository;
 use App\Models\StatisticFeatureResult;
@@ -21,6 +22,15 @@ class OfficialMethodHistoryBuildService
     public function __construct(private readonly OfficialMethodHistoryRepository $inputs, private readonly WindowBuilder $windows,
         private readonly Stat19OfficialMethodHistoryCalculator $stat19, private readonly Stat30OfficialMethodMixCalculator $stat30) {}
 
+    public function plan(int $raceId, DateTimeImmutable $asOf): array
+    {
+        foreach ($this->inputs->inputs($raceId, $asOf) as $input) {
+            return ['mode' => 'PLAN', 'race_id' => $raceId, 'input_as_of' => $input->inputAsOf->format(DATE_ATOM),
+                'input_as_of_policy' => Contract::INPUT_AS_OF_POLICY, 'writes' => 0, 'prediction_use' => 'NOT_AUTHORIZED'];
+        }
+        throw new RuntimeException('No official history target entries.');
+    }
+
     public function build(int $raceId, DateTimeImmutable $asOf, bool $dryRun): array
     {
         return DB::transaction(function () use ($raceId, $asOf, $dryRun): array {
@@ -30,13 +40,14 @@ class OfficialMethodHistoryBuildService
             if (array_column($rows, 'hashes') !== array_column($end, 'hashes')) {
                 throw new RuntimeException('Official history end integrity mismatch.');
             }
+            $asOf = $rows[0]['input_as_of'];
             $runs = [];
             foreach ([0, 1] as $position) {
                 $prototype = $rows[0]['results'][$position];
                 $run = $dryRun ? null : StatisticFeatureRun::query()->create([
                     'run_uuid' => (string) Str::uuid(), 'stat_code' => $prototype->statCode, 'calculation_version' => $prototype->version,
                     'mode' => 'BACKFILL', 'status' => 'PARTIALLY_SUCCEEDED', 'history_from' => '2022-01-01',
-                    'target_race_id' => $raceId, 'input_as_of_policy' => 'MEETING_START_JST_RETROSPECTIVE_ONLY',
+                    'target_race_id' => $raceId, 'input_as_of_policy' => Contract::INPUT_AS_OF_POLICY,
                     'parameters' => ['input_as_of' => $asOf->format(DATE_ATOM), 'prediction_use' => 'NOT_AUTHORIZED'],
                     'target_race_count' => 1, 'processed_race_count' => 1, 'target_entry_count' => count($rows),
                     'partial_count' => count($rows), 'started_at' => now(), 'finished_at' => now(),
@@ -45,7 +56,10 @@ class OfficialMethodHistoryBuildService
                     $entry = $row['entry'];
                     $result = $row['results'][$position];
                     if ($run !== null) {
-                        StatisticFeatureResult::query()->create([
+                        // Keep the offset on this writer's values, independent of the DB session timezone.
+                        $record = new StatisticFeatureResult;
+                        $record->setDateFormat('Y-m-d H:i:sP');
+                        $record->fill([
                             'feature_run_id' => $run->id, 'stat_code' => $result->statCode, 'calculation_version' => $result->version,
                             'subject_type' => 'RACE_ENTRY', 'subject_key' => 'race_entry:'.$entry['entry_id'],
                             'race_id' => $raceId, 'race_entry_id' => $entry['entry_id'], 'player_id' => $entry['player_id'],
@@ -54,7 +68,7 @@ class OfficialMethodHistoryBuildService
                             'source_fetched_at' => $result->evidence['latest_fetched_at'], 'features' => $result->features,
                             'evidence' => $result->evidence, 'input_hash' => $result->inputHash, 'raw_points' => null,
                             'confidence' => null, 'effective_points' => null, 'calculated_at' => now(),
-                        ]);
+                        ])->save();
                     }
                 }
                 if ($run !== null) {
@@ -79,7 +93,7 @@ class OfficialMethodHistoryBuildService
         foreach ($this->inputs->inputs($raceId, $asOf) as $input) {
             $profile = $this->windows->build($input);
             $results = [$this->stat19->calculate($profile), $this->stat30->calculate($profile)];
-            $rows[] = ['entry' => $input->entry, 'results' => $results, 'hashes' => array_map(fn ($r) => $r->inputHash, $results)];
+            $rows[] = ['entry' => $input->entry, 'input_as_of' => $profile->inputAsOf, 'results' => $results, 'hashes' => array_map(fn ($r) => $r->inputHash, $results)];
         }
         if ($rows === []) {
             throw new RuntimeException('No official history target entries.');

@@ -12,7 +12,9 @@ use RuntimeException;
 
 final class Contract
 {
-    public const VERSION = 'OFFICIAL-TOP2-METHOD-HISTORY-v1';
+    public const VERSION = 'OFFICIAL-TOP2-METHOD-HISTORY-v2-PR119';
+
+    public const INPUT_AS_OF_POLICY = 'MEETING_START_JST_RETROSPECTIVE_ONLY';
 
     public const METHODS = ['逃げ' => 'ESCAPE', '捲り' => 'MAKURI', '差し' => 'SASHI', 'マーク' => 'MARK'];
 
@@ -24,6 +26,16 @@ final class Contract
         }
 
         return $date;
+    }
+
+    public static function inputAsOf(DateTimeImmutable $value, string $meetingStart): DateTimeImmutable
+    {
+        $cutoff = self::date($meetingStart);
+        if ($value != $cutoff) {
+            throw new RuntimeException('input_as_of must equal meeting start at 00:00 Asia/Tokyo.');
+        }
+
+        return $cutoff;
     }
 
     public static function outcome(?int $rank, string $status, ?string $method): array

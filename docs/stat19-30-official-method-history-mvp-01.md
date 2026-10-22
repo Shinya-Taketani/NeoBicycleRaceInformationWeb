@@ -1,5 +1,7 @@
 # STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01
 
+> 2026-10-23 PR119レビュー修正の現在地は第7節。以下のv1・22/1321・172/3877・未コミット記載は初版作業終了時の履歴。ユーザーがcommit/push/PR作成後、cleanな同一ブランチで修正を再開した。
+
 ## 1. 範囲と現在地
 
 2026-10-22。PR118はGitHubでMERGED（merge `73cb5717d149fc9e9d16b119cbdb1aa4d68f1b09`、merged_at `2026-10-22T03:39:36Z`）。fetch/main pull --ff-only後のclean main/originが同SHAであることを確認し、`feature/stat19-30-official-method-history-mvp-01` を作成した。
@@ -87,3 +89,33 @@ STAT19の行動率/積極性、STAT30の持続的転換/開始日時/成績改�
 SCR-STAT19/30各01〜03をDONEにしない。PR118保存基盤、STAT17/38、C1/C2/120日入力・旧成果物/モデル/Solver/Decoder/Gateは不変。業務DB/HTTP/新規取得/本番Migration/正式保存/学習/親lambda選択/H1-U/性能評価/2026開催参照は0。旧pilot保留・B1未承認・正式採用禁止も維持する。
 
 未コミットのコード・テスト・文書差分をレビュー待ちとし、commit/push/PR作成/merge、本番実行や次工程へ進まない。
+
+## 7. PR119 P2レビュー修正 / 2026-10-23
+
+開始branchは `feature/stat19-30-official-method-history-mvp-01`、HEAD/remote branch/GitHub PR headは `882b7d79c9c4f3aa81ae78333900a56e84e86a10` で一致、worktree clean。fetch後のorigin/mainとPR baseは `73cb5717d149fc9e9d16b119cbdb1aa4d68f1b09`。PR119はOPEN/merged=false。新branch・main編集・commit/push/merge/PR更新なし。
+
+### 原因と修正
+
+1. **確定状態**: 旧ReaderはresultParsingCompleteだけを見ていたが、既存RaceLiveResultParserはPROVISIONALも解析する。v2ではRaw detectedStatusがCONFIRMED/CORRECTED、Raw/importのpage statusがRESULTS_AVAILABLE、requested_result_statusがCONFIRMED/CORRECTEDかつ現在race.result_statusと一致する場合だけ本人・結果照合後に数える。暫定/審議/不明やmetadata矛盾はUNKNOWN＋RESULT_FINALITY_UNVERIFIEDとし、N枠は残す。取込み契約ではRESULTS_AVAILABLEを明示的CORRECTEDとして保存できるため、Raw CONFIRMED＋requested/race CORRECTEDも受け付ける。Raw状態と要求/保存状態は別fieldに記録する。
+2. **中止**: DBのCANCELLEDだけでは除外しない。既存syncCancelled()は結果を消し、0結果/0払戻のSUCCEEDED importを残す。v2は同raceの最新SUCCEEDED importをimported_at（NULLS FIRST）/IDの降順で選び、CANCELLED要求/parsed status/0件、fetch-log、Raw対象/サイズ/SHA/状態、取得・保存・取込みの時系列を検査する。後続成功importと矛盾したとき古い中止へ戻らない。欠損/状態・対応・時刻未確認はUNKNOWN＋CANCELLED_*理由で枠を残す。SHA改変・不正path・構文破損等の致命的エラーは従来どおり例外停止。Raw確認済み中止だけevidence_verified=true/CANCELLEDとして除外し、予定時刻NULLでも正常履歴を汚染しない。
+3. **固定時点**: Repository/WindowBuilderは `Contract::inputAsOf()` でDateTimeの瞬間を値比較し、開催開始00:00 JSTとの完全一致を要求する（マイクロ秒差も拒否）。同じ瞬間のJST/UTCは受理してJSTに正規化する。Serviceはその固定値をrun parameters/result input_as_of/evidenceへ保存し、run policyは共通定数MEETING_START_JST_RETROSPECTIVE_ONLY。Eloquentの標準日時変換はoffsetを落とすため、このServiceが保存する結果インスタンスだけoffset付き書式にし、DBセッションのタイムゾーンに依存させない。共通Model/DB設定は不変。Commandは不正日付・不正offsetを拒否し、planでも対象metadataの時点を照合する（DB読取りあり、Raw読取り/書込みなし）。不正時点はexecute/dry-runとも両STAT書込み0。
+
+契約版は `OFFICIAL-TOP2-METHOD-HISTORY-v2-PR119`、計算版は `STAT19-OFFICIAL-TOP2-METHOD-MVP-v2-PR119` / `STAT30-OFFICIAL-TOP2-MIX-MVP-v2-PR119`。v1の成果物・manifest・実行時hash・数値を改名/再seal/上書きしていない。公式決まり手分布/窓/L1の数式は不変。
+
+### 回帰結果・証跡
+
+追加14ケース（Feature12/Unit2）。最初の修正前実行では対象2クラスの例外assertがPHPUnit自身の失敗もRuntimeExceptionとして捕捉していたため、assertをcatchの外へ出して強化した。その後の修正前11ケースは **10 failed / 1 passed / 441 assertions / exit2** で3系統の不具合を再現。UNKNOWN枠保持の純粋集計1件は元から成功していた。失敗証跡は `pr119-tests-20261023-055652-0aA1l779/logs/` に保持する。
+
+修正後は **対象36 passed / 2030 assertions**、関連STAT17/38・既存統計・状態遷移・Parserは **206 passed / 4371 assertions**。各failure/error/warning/skip=0、exit0、Artisan/Collision・PHP8.5.4・PHPUnit12.5.31。対象peak61,341,696bytes（58.50MiB）、関連67,633,152bytes（64.50MiB）、親/子とも128Mを適用し既存bootstrapで確認した。
+
+保存実Rawの6レース/39出走/上位12件（ESCAPE2/MAKURI4/SASHI3/MARK3）を再照合した。本人の実2走は依然N不足/L1=NULL。中止/暫定/訂正・20走/L1の人工ケースを実Raw正常受入へ読み替えていない。中止の人工正常系は実際の既存importStoredResponse()/syncCancelled()を通し、結果行0件の保存契約と照合した。
+
+対象ログは `/home/shinya/neo-keirin-artifacts/stat19-30-official-method-history-mvp-01/pr119-tests-20261023-060340-ZmpryM0i/logs/`、関連は同rootの `pr119-tests-20261023-055953-gjfvnjjm/logs/`。完全なコマンド/runner.sh、stdout/stderr/JUnit/events/終了コード/日時/メモリ、実Raw受入JSONを保持した。途中の人工Fixture復帰時JSONキャスト二重化による失敗も保持し、Fixture側を修正した。
+
+実行は第5節と同じbwrap read-only/network遮断・人工SQLite/.env/storage/Desktop/Trash。永久削除は行わず、既存helperが記録した人工rootだけをretireした。変更PHP10件の構文・限定Pint・diff checkと変更範囲/原本sealを確認し、同rootの一意なpr119-final-checksへ差分/manifest/検証記録を保存する。
+
+ユーザー実行の全体結果 **3846 passed / 155 warnings / 9 skipped** は別の検証記録。今回のCodex限定検証を全体実行と呼ばず、155 warningsの本文/原因/全解消は未確認。通常全体は未監査の旧cleanupを無理に実行せず未実施。
+
+### 未実施・終了状態
+
+本番DB接続/正式保存/Migration/バックフィル/競輪HTTP/取得/学習/性能評価/2026開催参照0。STAT17/38/TacticalHistory/C1/C2/BT・モデル・旧資料不変。用途はRETROSPECTIVE_ONLY相当のDEVELOPMENT_RETROSPECTIVE、as-of=false、prediction_use=NOT_AUTHORIZED、points/confidence=NULLを維持する。実中止Rawの新規探索・全履歴受入・本番PostgreSQL保存・全体警告原因は今回未確認。状態は `PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW`。未コミットでユーザーによるPR更新・再レビューだけを待つ。
