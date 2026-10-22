@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-22 最新工程：`STAT17-19-30-TACTIC-SNAPSHOTS-01`。PR117 MERGED、fetch/pull --ff-only後のclean main/origin `0b07b29ed7c5666e56aa1b69b9ff1e22813c36ad` から新branch `feature/stat17-19-30-tactic-snapshots-01` を作成。現在地は5.0・15.83と[実装記録](stat17-19-30-tactic-snapshots-01.md)。
+> ユーザーの製造承認に従い、PJ0315戦法/BHS7項目の追記型保存とSTAT-17表示4回数分布MVPを実装・限定実Raw検証した。用途はRETROSPECTIVE_ONLY、集計窓/基準/公開時点UNKNOWN、予測利用未承認。旧pilot保留・旧STAT17比較不採用・B1未承認・2026凍結は維持する。以下のPR117未コミット/レビュー待ちは当時の履歴。
+
 > 2026-10-22 PR117レビュー修正：既存 `feature/stat38-distance-laps-mvp-01`、開始HEAD/PR head `f4fafffb73ef48166f7a45bf253b1bd440c9d475`、origin/mainは下記14f3927と照合済み。現在地は5.0・15.82.1、未コミット差分の再レビュー待ち。
 > 結果Rawの取得/取込み/保存時刻とNULL DB本人IDを分離照合し、適格観測版選択・確認済み0/未確認NULL・独立128MiB検証を修正。実保存結果6レース/39出走の照合は事後参考のみで、予測用経験数の実データ受入NOT_ESTABLISHED・B1未承認・2026凍結は不変。以下の初版・未コミット・未接続記録は各時点の履歴。
 
@@ -45,13 +48,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.75
+- Version: 1.76
 - Created: 2026-08-23
 - Updated: 2026-10-22
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `14f3927034fceb7883af5a0626479d1be1ad8e2d`（2026-10-21、fetch/main pull --ff-onlyで同期確認、PR116 merge件名と一致。今回開始時点の値）
+- Remote `main` at last update: `0b07b29ed7c5666e56aa1b69b9ff1e22813c36ad`（2026-10-22、fetch/main pull --ff-onlyとPR117 merge件名を確認。今回開始時点の値）
+- Previous remote main at v1.75: `14f3927034fceb7883af5a0626479d1be1ad8e2d`（2026-10-21、fetch/main pull --ff-onlyで同期確認、PR116 merge件名と一致。当時の開始時点の値）
 - Previous remote main at v1.74: `5a6d2867678666a28b1c40fe8e4683cbf4833293`（2026-10-21、fetch/ls-remote/main ff-only同期でPR115 mergeを確認。05:54:55 JSTにHEAD/main/origin/main再照合、15.81の当時の履歴）
 - Previous remote main at v1.73 review: `4298c3883c81d907bf13285f002893f6f93f77db`（2026-10-20 06:14:38 JST、fetch/ls-remote/PR115 base照合、06:15:04 JSTにmain ff-only同期確認・既存branch復帰。15.80.1の当時の履歴）
 - Initial B1 remote confirmation: 同SHAを2026-10-17 16:03:35 JSTにfetch/main ff-only同期後のHEAD/origin一致・PR114 merge履歴として確認した。15.80初回設計記録を保持
@@ -60,10 +64,14 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR117のP1/P2・環境依存assert修正の再レビュー待ち。PR116 MERGED、B1承認/本番適用ではない
-- Current code: STAT-38 Repository/Calculator・関連テスト/専用メモリ検証と記録2文書だけ。計算版v2-PR117、観測版v1。既存importer/共通helper/他STAT/モデル/Migration/設定は不変
-- Current execution record: PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。実保存公式結果6レース/39出走のRaw照合と隔離SQLite正常importを確認。事後参考実出走2、予測用経験数NULL。B1監査BLOCKED/正式受入NOT_RUNは独立して維持
-- Current tests record: Artisan/Collisionの限定33/682は128M・通常設定ともexit0、関連96/812も128M/exit0。各failure/error/warning/skip=0、独立128M子のPHP peak57,147,392bytes。全体未実行、過去ユーザー全体155 warningsの本文/原因/全解消は未確認（15.82.1）
+- Current review: PR117 MERGED。PJ0315戦法スナップショット共通基盤・STAT17限定MVPのコードレビュー待ち。本番適用/予測利用の承認ではない
+- Current code: 専用観測DTO/Model/Repository/Service/Command/Migration、STAT17限定Calculator/DTO/InputRepository/BuildService/Commandとテスト。既存STAT36/38・C1・通常同期・共通helperは不変
+- Current execution record: CODE_AND_LIMITED_REAL_RAW_VERIFIED_AWAITING_REVIEW。2022〜2025実Raw6レース/39出走/8取得版を隔離SQLiteへ延べ51観測として保存・再読込み・計算。事後参考のみ、集計窓/基準/公開時点UNKNOWN
+- Current tests record: 新規17/2286・関連129/1494、各128M/exit0・failure/error/warning/skip=0。新規子PHP peak59,244,544bytes。危険cleanupがある旧STAT36群/全体は未実行。過去155 warningsの原因/全解消は未確認のまま
+- Previous review at v1.75: PR117のP1/P2・環境依存assert修正の再レビュー待ち。PR116 MERGED、B1承認/本番適用ではない
+- Previous code at v1.75: STAT-38 Repository/Calculator・関連テスト/専用メモリ検証と記録2文書だけ。計算版v2-PR117、観測版v1。既存importer/共通helper/他STAT/モデル/Migration/設定は不変
+- Previous execution record at v1.75: PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。実保存公式結果6レース/39出走のRaw照合と隔離SQLite正常importを確認。事後参考実出走2、予測用経験数NULL。B1監査BLOCKED/正式受入NOT_RUNは独立して維持
+- Previous tests record at v1.75: Artisan/Collisionの限定33/682は128M・通常設定ともexit0、関連96/812も128M/exit0。各failure/error/warning/skip=0、独立128M子のPHP peak57,147,392bytes。全体未実行、過去ユーザー全体155 warningsの本文/原因/全解消は未確認（15.82.1）
 - Previous review at v1.74: PR115 MERGED。今回の2022事前監査報告/工程同期差分のレビュー待ち。方法B1・境界・One-SE・予算の採用/実行承認ではない
 - Previous code at v1.74: 新規監査報告とMASTER PLANのMarkdown2件だけ。単発read-only監査PHP/ログは新規のリポジトリ外証跡へ保存。アプリPHP・Migration・テスト・設定・Solver・Decoder・Evaluator・Gate・モデル不変
 - Previous execution record at v1.74: REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW。原本18件seal/2022内部整合/B1案件数はPASS、一次保存元の直接照合はNOT_ESTABLISHED、総合BLOCKED、正式B1受入NOT_RUN。新規fit/選択/予測/NLL/性能比較0
@@ -256,7 +264,45 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: STAT38-DISTANCE-LAPS-MVP-01
+## 5.0 最新工程: STAT17-19-30-TACTIC-SNAPSHOTS-01
+
+```yaml
+current_phase: STAT17-19-30-TACTIC-SNAPSHOTS-01
+current_engine_state: CODE_AND_LIMITED_REAL_RAW_VERIFIED_AWAITING_REVIEW
+next_allowed_action: REVIEW_TACTIC_SNAPSHOTS_AND_STAT17_PROFILE_ONLY
+remote_main: 0b07b29ed7c5666e56aa1b69b9ff1e22813c36ad
+pr117_status: MERGED
+production_migration: NOT_RUN_NOT_AUTHORIZED
+production_storage: NOT_RUN_NOT_AUTHORIZED
+aggregation_period_status: UNKNOWN
+aggregation_basis_status: UNKNOWN
+official_publication_at: null
+retrospective_use: RETROSPECTIVE_ONLY
+real_data_preflight_status: BLOCKED
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+2026_holdout: FROZEN_NO_ACCESS
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | PJ0315戦法/BHS共通保存基盤・STAT17限定分布MVPのコード/限定実Raw検証レビュー待ち |
+| next_allowed_action | 今回差分レビューのみ。本番適用/正式保存/モデル接続へ進まない |
+| completed_phases | PR117 merge確認。STAT38の本番適用・時点証明やB1受入の完了ではない |
+| superseded_phases | 旧一覧を維持。旧PJ0315 pilot保留・STAT17 C1比較NOT_ADOPTEDは維持 |
+| blocked_phases | 本番Migration/正式保存、STAT17/19/30正式採用、B1/親選択/H1-U、BT-04/BT-05-LIVE |
+| frozen_contracts | C1/C2/既存STAT/Solver/Decoder/Evaluator/Gate、時点・欠損・128MiB・原本保護 |
+| unfrozen_contracts | 正確な集計窓/基準/分母、STAT17有効性/役割、STAT19/30変化判定、配点/信頼度 |
+| holdout_status | 2022〜2025開催の限定保存Rawだけ。2026年事後取得と2026開催holdoutを区別 |
+
+### v1.75時点のSTAT38工程（履歴）
+
+以下はPR117修正終了時の履歴。PR117は今回開始前にmerge済み。
 
 ```yaml
 current_phase: STAT38-DISTANCE-LAPS-MVP-01
@@ -1353,6 +1399,7 @@ BT-03E-02以降で利用する場合は、
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
+| STAT17-19-30-TACTIC-SNAPSHOTS-01 | PJ0315表示7回数の取得版履歴保存とSTAT17限定分布 | CODE_AND_LIMITED_REAL_RAW_VERIFIED_AWAITING_REVIEW | PR117 merge後の独立製造。6実レース/39出走/8版/51観測を隔離確認。集計窓UNKNOWN、予測未承認。15.83参照 |
 | C1-2022-REAL-DATA-PREFLIGHT-01 | 固定2022原本のread-only受入前監査 | REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW / BLOCKED | seal/内部整合/B1案件数PASS、一次由来NOT_ESTABLISHED、正式B1受入NOT_RUN。レビューだけ、15.81参照 |
 | C1-2022-PARENT-LAMBDA-B1-CONTRACT-01 | B1製造前の分割・学習・単一層One-SE・非削除spool/隔離/予算の契約案 | DOCUMENT_REVIEW_COMPLETED_PR115_MERGED | PROPOSED_NOT_APPROVED、方法/境界/契約は未凍結、fit/選択0。15.80の旧OPEN/レビュー待ちは履歴。今回事前監査は15.81 |
 | C1-2023-PARENT-LAMBDA-SELECTION-FEASIBILITY-01 | 2022情報だけの親lambda選択方法A/B・年内開催分割の成立性 | DOCUMENT_REVIEW_COMPLETED_PR114_MERGED | 成立性文書はmerge済み、A1/Bや境界/年内SEの採用承認ではない。lambda未選択、当時の履歴15.79、現在の契約案15.80 |
@@ -4314,6 +4361,20 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.83 STAT17-19-30-TACTIC-SNAPSHOTS-01 / 2026-10-22
+
+clean main/origin `0b07b29ed7c5666e56aa1b69b9ff1e22813c36ad`、fetch/ff-onlyとPR117 merge件名を確認し、指定未使用branchを作成。主眼は文書監査ではなく、戦法/BHS7項目の観測保存基盤とSTAT17分布MVPの製造。既存STAT38・通常同期・共通helper/C1/C2/BT/モデルは変更しない。
+
+`race_tactic_observations`はrace/entry/player(NULL可)/fetch-logのRESTRICT FK、取得版＋entry＋観測版UNIQUE、INDEX、値域/年/用途CHECK、不変トリガーを持つ。既存Parser/RawReader/STAT38 prepareのsource検証を再利用し、原値/型/存在/NULLと0、本人・出走集合、Raw/取得保存時刻/Parser版を照合して追記保存する。再処理は追加0、別取得版は保持し、公開前driftはrollbackする。Migrationの適用と保存は隔離SQLiteだけ。
+
+STAT17は明示した保存取得版の4表示回数を分母とした構成比・観測戦法数のみ。全0は構成比未定義、一部欠損は分母/構成比NULL、欠損理由を保持する。集計期間/基準/公式公開はUNKNOWN/NULL、RETROSPECTIVE_ONLY、points/confidence=NULL、prediction_use=NOT_AUTHORIZED。生涯累計・試行回数・成功率・時系列差分を推測しない。旧120日決まり手C1とは別定義で、旧STAT17 NOT_ADOPTEDを変更しない。
+
+2022〜2025実Raw6レース/39出走/8取得版をSHA/対象/本人/7値で確認し、延べ51観測を隔離DB保存・再読込み・計算した。例4/5/1/0の合計10・構成比0.4/0.5/0.1/0・戦法数3、実Raw全0の構成比NULLも確認。取得は2026年の過去年事後資料で、当時利用可能だった証明ではない。
+
+新規17 tests/2286 assertions・関連129/1494は各128M/exit0、failure/error/warning/skip=0。PHP14件の構文/限定Pint/diffを確認する。既存STAT36群と全体はdeleteDirectory/unlinkの危険cleanupを実行せず未実施、過去155 warnings未確認は維持する。詳細のclass/Command/実数値・原本seal・実行ログは[実装記録](stat17-19-30-tactic-snapshots-01.md)。
+
+STAT17役割/有効性・STAT19直近変化・STAT30転換/訂正履歴判定は未実装。SCR各01〜03はOPEN、本番適用・正式保存・予測利用/学習/性能評価/2026開催参照0、B1未承認/正式受入NOT_RUNは不変。未コミットで今回差分のレビューだけを待ち、Git commit/push/PR作成/mergeや次工程へ進まない。
+
 ## 15.82 STAT38-DISTANCE-LAPS-MVP-01 / 2026-10-21
 
 PR116 MERGEDをローカルmerge履歴とfetch後main/origin `14f3927034fceb7883af5a0626479d1be1ad8e2d` で確認。pull --ff-onlyはAlready up to date。clean mainから指定未使用branchを作成し、mainは編集しない。最新ユーザー指示はB1の未完了監査と独立したSTAT-38製造の限定承認であり、B1方法/学習/選択の承認ではない。
@@ -5116,6 +5177,20 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.76 / 2026-10-22
+
+```yaml
+document_version: 1.76
+updated_at: 2026-10-22
+remote_main_sha: 0b07b29ed7c5666e56aa1b69b9ff1e22813c36ad
+phase_changed: STAT17-19-30-TACTIC-SNAPSHOTS-01
+related_pr: PR117_MERGED
+decision: REVIEW_TACTIC_SNAPSHOTS_AND_STAT17_PROFILE_ONLY
+reason: User authorized isolated manufacture of shared displayed-count history and a limited STAT17 profile, not prediction use or production application
+```
+
+冒頭metadata/5.0・8工程ゲート/工程表/15.83/27を同期。PR117の旧レビュー待ち・実測・SHAを当時の履歴として保持し、新規保存基盤とSTAT17限定分布を区別する。集計窓/基準/公開時点UNKNOWN、事後参考のみ、旧pilot保留/STAT17不採用/B1未承認/2026凍結は維持する。本番適用・学習・性能評価へ進まない。
 
 ## v1.75 / 2026-10-21
 
@@ -6032,6 +6107,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+最新の正本は5.0・15.83と[STAT17/19/30保存基盤記録](stat17-19-30-tactic-snapshots-01.md)。PR117 MERGED、開始main/originは0b07b29、branchは `feature/stat17-19-30-tactic-snapshots-01`。戦法/BHS取得版保存とSTAT17限定表示分布MVPを実装し、6実レース/39出走/8版/51観測を隔離確認した。次は未コミットコード差分レビューだけ。
+
+集計窓/基準/公式公開UNKNOWN、RETROSPECTIVE_ONLY、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、points/confidence=NULL。本番Migration/正式保存未実施、STAT19/30本体未実装、旧STAT17不採用・旧pilot保留・B1未承認と2026凍結は不変。以下のPR117レビュー待ちはv1.75当時の履歴である。
+
+### v1.75 STAT38レビュー終了時の引継ぎ（履歴）
 
 最新の正本は5.0・15.82.1と[STAT-38実装記録](stat38-distance-laps-mvp-01.md)PR117節。工程STAT38-DISTANCE-LAPS-MVP-01はPR117レビュー修正の再レビュー待ち。PR116 MERGED、main/origin `14f3927034fceb7883af5a0626479d1be1ad8e2d`、作業branchは `feature/stat38-distance-laps-mvp-01`、今回開始HEADはf4fafff。本番Migration/正式保存は未実施・未承認。
 
