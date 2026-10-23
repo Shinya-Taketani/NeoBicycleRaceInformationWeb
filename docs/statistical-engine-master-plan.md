@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-23 最新工程：`STAT46-ROSTER-SNAPSHOT-01`。PR119 MERGEDをユーザー承認とfetch/main pull --ff-only後のclean main/origin `87a8a17ac620cd92723ee38f092153feba39e88f`・merge件名で確認し、`feature/stat46-roster-snapshot-01`を新規作成。現在地は5.0・15.85と[実装記録](stat46-roster-snapshot-01.md)。
+> PJ0315全出走者の取得版別不変保存と純粋差分Calculatorを製造。実6レース/39出走/8版を隔離保存し、2組4版の車番・登録番号差分0、枠番NULLにより完全比較NOT_ESTABLISHEDを確認。予測利用/公式変更理由/本番保存は未承認。以下のPR119 OPEN・未コミット・再レビュー待ちは当時の履歴として保持する。
+
 > 2026-10-23 PR119レビュー修正：cleanな既存 `feature/stat19-30-official-method-history-mvp-01`、開始HEAD/remote/PR head `882b7d79c9c4f3aa81ae78333900a56e84e86a10`、PR119 OPENを照合。新branch/main編集なし。現在地は5.0・15.84.1と[実装記録第7節](stat19-30-official-method-history-mvp-01.md#7-pr119-p2レビュー修正--2026-10-23)。
 > Raw確定状態・Raw中止証拠・開催開始00:00 JST固定をv2-PR119で修正し、対象36/2030・関連206/4371を隔離128M/exit0で確認。実6レース/39出走/上位12件は維持、実20走不足/L1=NULL・予測未承認は不変。以下の初版実行/未コミット記録は当時の履歴。
 
@@ -54,13 +57,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.77
+- Version: 1.78
 - Created: 2026-08-23
 - Updated: 2026-10-23
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `73cb5717d149fc9e9d16b119cbdb1aa4d68f1b09`（2026-10-22、fetch/main pull --ff-only・GitHub PR118 MERGEDを照合。今回開始時点の値）
+- Remote `main` at last update: `87a8a17ac620cd92723ee38f092153feba39e88f`（2026-10-23、fetch/main pull --ff-only後のmain/origin一致・PR119 merge件名を照合。今回開始時点の値）
+- Previous remote main at v1.77: `73cb5717d149fc9e9d16b119cbdb1aa4d68f1b09`（2026-10-22、fetch/main pull --ff-only・GitHub PR118 MERGEDを照合。当時の開始時点の値）
 - Previous remote main at v1.76: `0b07b29ed7c5666e56aa1b69b9ff1e22813c36ad`（2026-10-22、fetch/main pull --ff-onlyとPR117 merge件名を確認。当時の開始時点の値）
 - Previous remote main at v1.75: `14f3927034fceb7883af5a0626479d1be1ad8e2d`（2026-10-21、fetch/main pull --ff-onlyで同期確認、PR116 merge件名と一致。当時の開始時点の値）
 - Previous remote main at v1.74: `5a6d2867678666a28b1c40fe8e4683cbf4833293`（2026-10-21、fetch/ls-remote/main ff-only同期でPR115 mergeを確認。05:54:55 JSTにHEAD/main/origin/main再照合、15.81の当時の履歴）
@@ -71,10 +75,14 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR119 OPEN、既存branchのP2修正を未コミットで再レビュー待ち。本番保存/予測利用/行動/転換判定の承認ではない
-- Current code: STAT19/30 Readerの確定・中止証拠、Repository/Window/Service/Commandの固定時点と専用v2版・関連テストだけ。新規Migration/共通基盤追加なし、STAT17/38・C1・120日入力・通常同期・共通helper不変
-- Current execution record: PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。実6レース/39出走/上位12件を回帰照合、本人2走のN不足/L1=NULLは維持。Raw検証済み中止だけ除外し、未知状態は枠を残す。予測効果未評価
-- Current tests record: 対象36/2030・関連206/4371、各128M/exit0・failure/error/warning/skip=0、peak61,341,696/67,633,152bytes。ユーザー全体3846 passed/155 warnings/9 skippedは別記録。Codex通常全体は未実施、155警告本文/原因/全解消は未確認
+- Current review: PR119 MERGED。STAT46出走表履歴MVPの未コミット差分レビュー待ち。本番適用/正式保存/予測利用の承認ではない
+- Current code: 全出走者Reader・不変スナップショットModel/Repository/Service/Migration・純粋差分Calculator・明示Command・新規テスト。既存Parser/通常同期/STAT17/19/30/38/C1/モデル/安全helper不変
+- Current execution record: STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW。実6レース/39出走/8版を隔離SQLite保存、2組4版の本人/車番差分0、枠比較未成立。元fixtureにlog保存日時なし、過去as-of/公式変更/予測効果を認定しない
+- Current tests record: 新規47/768・関連86/4998、各128M/exit0・failure/error/warning/skip=0、peak59,244,544/65,536,000bytes。通常全体は安全未確認の旧cleanupへ拡大せず未実施
+- Previous review at v1.77: PR119 OPEN、既存branchのP2修正を未コミットで再レビュー待ち。本番保存/予測利用/行動/転換判定の承認ではなかった
+- Previous code at v1.77: STAT19/30 Readerの確定・中止証拠、Repository/Window/Service/Commandの固定時点と専用v2版・関連テストだけ。新規Migration/共通基盤追加なし、STAT17/38・C1・120日入力・通常同期・共通helper不変
+- Previous execution record at v1.77: PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。実6レース/39出走/上位12件を回帰照合、本人2走のN不足/L1=NULLは維持。Raw検証済み中止だけ除外し、未知状態は枠を残す。予測効果未評価
+- Previous tests record at v1.77: 対象36/2030・関連206/4371、各128M/exit0・failure/error/warning/skip=0、peak61,341,696/67,633,152bytes。ユーザー全体3846 passed/155 warnings/9 skippedは別記録。Codex通常全体は未実施、155警告本文/原因/全解消は未確認
 - Previous review at v1.76: PR117 MERGED、PJ0315戦法共通基盤・STAT17限定MVPのコードレビュー待ちだった当時の状態。PR118 mergeで受入、予測利用/本番適用の承認ではない
 - Previous execution/tests at v1.76: 実Raw6レース/39出走/8版/51観測、新規17/2286・関連129/1494、各128M/exit0・failure/error/warning/skip=0、新規peak59,244,544bytes。15.83の過去実績で今回の実行結果へ読み替えない
 - Previous review at v1.75: PR117のP1/P2・環境依存assert修正の再レビュー待ち。PR116 MERGED、B1承認/本番適用ではない
@@ -273,7 +281,44 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01
+## 5.0 最新工程: STAT46-ROSTER-SNAPSHOT-01
+
+```yaml
+current_phase: STAT46-ROSTER-SNAPSHOT-01
+current_engine_state: STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW
+next_allowed_action: REVIEW_STAT46_ROSTER_SNAPSHOT_CODE_AND_LIMITED_TESTS_ONLY
+remote_main: 87a8a17ac620cd92723ee38f092153feba39e88f
+pr119_status: MERGED
+production_migration: NOT_RUN_NOT_AUTHORIZED
+production_storage: NOT_RUN_NOT_AUTHORIZED
+data_role: DEVELOPMENT_RETROSPECTIVE
+official_entry_change_type: null
+official_publication_at: null
+real_data_preflight_status: BLOCKED
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+2026_holdout: FROZEN_NO_ACCESS
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | STAT46出走表履歴の限定MVP・実保存Raw/人工差分検証のレビュー待ち |
+| next_allowed_action | 今回差分レビューのみ。本番適用/正式保存/モデル接続へ進まない |
+| completed_phases | PR119 merge確認。公式補充判定・STAT46全体完成・過去as-of・本番受入ではない |
+| superseded_phases | 旧一覧・旧不採用・PJ0315 pilot保留を維持 |
+| blocked_phases | 本番Migration/正式保存、STAT正式採用、B1/親選択/H1-U、BT-04/BT-05-LIVE |
+| frozen_contracts | C1/C2/120日入力/既存STAT/Solver/Decoder/Evaluator/Gate、欠損・128MiB・原本保護 |
+| unfrozen_contracts | 公式変更理由/連鎖・公表/時計・本人補正/構造影響/不確実性・配点/性能評価 |
+| holdout_status | 今回実行は2022〜2025開催の既存保存資料だけ。2026開催凍結、過去年の2026取得と区別 |
+
+### v1.77 PR119レビュー修正時点の工程（履歴）
+
+以下は当時の再レビュー待ち。今回開始前にPR119はmerge済み。
 
 ```yaml
 current_phase: STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01
@@ -1445,7 +1490,8 @@ BT-03E-02以降で利用する場合は、
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
-| STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 | 公式上位決まり手の走数/日数窓・非重複5対15走分布 | PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 確定/中止Raw・固定Tをv2で修正。6実レース/39出走・上位12件は回帰維持、本人2走N不足/L1=NULL。15.84.1参照 |
+| STAT46-ROSTER-SNAPSHOT-01 | PJ0315全出走者の取得版保存・純粋構成差分 | STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW | 実6レース/8版を保存、2組の本人/車番差分0・枠比較未成立。公式変更/予測利用/本番未承認。15.85参照 |
+| STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 | 公式上位決まり手の走数/日数窓・非重複5対15走分布 | PR119_MERGED | 確定/中止Raw・固定Tのv2修正を受入。実測/再レビュー待ち記録は15.84.1の当時の履歴。本人2走N不足/L1=NULLは不変 |
 | STAT17-19-30-TACTIC-SNAPSHOTS-01 | PJ0315表示7回数の取得版履歴保存とSTAT17限定分布 | PR118_MERGED | PR117 merge後の独立製造。6実レース/39出走/8版/51観測は当時の実績。集計窓UNKNOWN、予測未承認。15.83参照 |
 | C1-2022-REAL-DATA-PREFLIGHT-01 | 固定2022原本のread-only受入前監査 | REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW / BLOCKED | seal/内部整合/B1案件数PASS、一次由来NOT_ESTABLISHED、正式B1受入NOT_RUN。レビューだけ、15.81参照 |
 | C1-2022-PARENT-LAMBDA-B1-CONTRACT-01 | B1製造前の分割・学習・単一層One-SE・非削除spool/隔離/予算の契約案 | DOCUMENT_REVIEW_COMPLETED_PR115_MERGED | PROPOSED_NOT_APPROVED、方法/境界/契約は未凍結、fit/選択0。15.80の旧OPEN/レビュー待ちは履歴。今回事前監査は15.81 |
@@ -4408,6 +4454,18 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.85 STAT46-ROSTER-SNAPSHOT-01 / 2026-10-23
+
+PR119 MERGED、fetch/main pull --ff-only後のclean main/origin87a8a17とmerge件名を照合し、指定未使用branchを作成。旧15.84/15.84.1・OPEN/未コミット終了は当時の履歴として保持。8工程ゲートとSTAT46/SCR46-01〜04を照合し、ユーザー承認範囲の出走表履歴MVPだけを製造した。
+
+1取得版1行のrace_roster_snapshotsに全出走者・原field状態・Raw seal・取得/log保存/同Raw予定時刻・Parser/生成版を追記保存。現在race_entries/entrant_countとの不一致は過去資料を拒否する理由にせず、Raw内部のPC0201/PJ0315集合とレース識別を照合する。冪等/競合拒否/終端drift rollback、RESTRICT FK/UNIQUE/CHECK/不変トリガー、plan/execute/dry-run/読取り比較を実装。DB適用・保存は隔離SQLiteだけ。
+
+純粋Calculatorは人数・登録番号増減・同車番の本人/同本人の車番/既知枠の変更を比較し、配列順だけの変化は無視する。1版は不足、同時刻異内容/時刻不明は順序未確定、枠証拠不足は未成立。公式変更区分/本人補正/構造影響/不確実性/points/confidenceはNULL、事後参考のみ・as-of=false・予測未承認。
+
+既存seal付き実PJ0315は6レース/39出走/8版/延べ51出走者。実2組4版は本人/車番差分0だが全枠NULLで完全な変更なしとはしない。取得は2026年の過去年事後資料で、log.created_atは元fixture未収録のためNULL維持。当時の保存/発走前利用の証明にしない。人工差分と実変更イベントを分離する。
+
+新規47/768・関連86/4998は隔離128M/exit0、failure/error/warning/skip=0、peak59,244,544/65,536,000bytes。詳細の実コマンド/証跡・制約は[実装記録](stat46-roster-snapshot-01.md)。旧全体/旧監査/Raw全走査/学習/予測/評価は再実行しない。SCR46-01〜04はOPEN、本番接続/Migration正式適用/保存/HTTP/2026開催参照0、B1未承認/正式受入NOT_RUN/不採用判断は不変。未コミットでコードレビュー待ち、Git書込み/PR操作なし。
+
 ## 15.84 STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 / 2026-10-22
 
 PR118 MERGEDをGitHub（merge73cb571/merged_at2026-10-22T03:39:36Z）とfetch/main ff-only履歴で照合。指定clean mainから独立branchを作成し、既存保存基盤・C1/120日入力・STAT17/38・モデルは変更しない。詳細・原本seal・コマンドは[実装記録](stat19-30-official-method-history-mvp-01.md)。
@@ -5141,6 +5199,7 @@ run 6は正式完了済み。
 | #114 | 2023親lambda選択方法の成立性・P2同期根拠修正 | MERGED / fetch後main 4298c3883c81d907bf13285f002893f6f93f77dbで確認。過去OPENと10:32 base 0d57393c10ff046505bf85ab232e104dcbe8d6d3/head edcc5a75b8a6bed35dd0a9b0f74b4bf69aee540f、14:10 head 0706de9b704678903e20021efc6e3c64d3f12631は15.79.1/15.79.2の履歴。方法A/B承認ではなく、現在の契約案は15.80 |
 | #115 | B1製造前実行契約・実データ利用レビュー修正 | MERGED / 2026-10-21のfetch/ls-remote/main ff-only同期でmain 5a6d2867678666a28b1c40fe8e4683cbf4833293のPR115 merge件名と一致。10-20当時のOPEN/base 4298c3883c81d907bf13285f002893f6f93f77db/head 675d34190dea806704156c9998a1e66d9e1a9992・未コミット終了は15.80.1の履歴。方法/製造/実行承認ではない |
 | #116 | C1-2022実データ事前監査 | MERGED / fetch・main ff-only同期後14f3927034fceb7883af5a0626479d1be1ad8e2dのmerge件名と一致。15.81の未コミット/レビュー待ちは当時の履歴、B1のBLOCKED/NOT_RUNは維持 |
+| #119 | STAT19/30公式決まり手履歴MVP・確定/中止/固定時点修正 | MERGED / 2026-10-23のfetch/main ff-only同期後87a8a17ac620cd92723ee38f092153feba39e88fのmerge件名と一致。15.84.1のOPEN/再レビュー待ちは当時の履歴。予測利用/本番受入は未承認 |
 
 Current remote `main` at the v1.2 update:
 
@@ -5250,6 +5309,20 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.78 / 2026-10-23
+
+```yaml
+document_version: 1.78
+updated_at: 2026-10-23
+remote_main_sha: 87a8a17ac620cd92723ee38f092153feba39e88f
+phase_changed: STAT46-ROSTER-SNAPSHOT-01
+related_pr: PR119_MERGED
+decision: REVIEW_STAT46_ROSTER_SNAPSHOT_CODE_AND_LIMITED_TESTS_ONLY
+reason: User authorized saved PJ0315 roster history and pure differences, not official replacement inference or prediction use
+```
+
+冒頭/5.0・8工程ゲート/工程表/15.85/PR119/27を同期。旧PR119レビュー修正・実測/hashは当時の履歴として保持する。出走表履歴MVPの限定受入と、枠/公表/保存時点証拠不足・公式変更未判定を分離し、B1/モデル/正式採用/2026/LIVEは開放しない。
 
 ### PR119レビュー修正 / 2026-10-23（v1.77追記）
 
@@ -6198,6 +6271,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+現在はPR119 MERGED、STAT46-ROSTER-SNAPSHOT-01のコード・限定実Raw/人工差分テストのレビュー待ち。正本は5.0・15.85と[実装記録](stat46-roster-snapshot-01.md)。開始main/originは87a8a17、branchはfeature/stat46-roster-snapshot-01。実6レース/8版の保存と2組の本人/車番差分0を確認し、NULL枠と保存時刻証拠不足は未成立として保持する。新規47/768・関連86/4998、128M/exit0、警告等0。
+
+未コミットでコードレビューのみを待つ。本番適用/正式保存/HTTP/学習/予測/性能評価/2026/B1へ進まず、commit/push/PR作成/mergeはユーザーが行う。旧不採用、H1-U保留、prediction_use=NOT_AUTHORIZED・historical_as_of=falseを維持する。
+
+### v1.77 PR119レビュー修正終了時の引継ぎ（履歴）
 
 現在はPR119 OPEN、同branchの開始HEAD882b7d7に対するP2修正の再レビュー待ち。正本は5.0・15.84.1と[実装記録第7節](stat19-30-official-method-history-mvp-01.md#7-pr119-p2レビュー修正--2026-10-23)。確定/中止Rawの検証、UNKNOWN枠維持、Tとの瞬間一致/保存正規化をv2で修正し、対象36/2030・関連206/4371を128M/exit0・警告等0で確認した。実6レース/39出走/上位12件維持、実20走不足/L1=NULL、予測利用未承認。
 
