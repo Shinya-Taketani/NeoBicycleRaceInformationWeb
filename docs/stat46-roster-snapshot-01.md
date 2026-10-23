@@ -1,5 +1,7 @@
 # STAT46-ROSTER-SNAPSHOT-01
 
+最新状態は末尾「PR120 P1カテゴリー受入修正」（2026-10-24）。初版の版・SHA・件数・未コミット記録は当時の履歴として保持する。
+
 ## 範囲と開始条件
 
 2026-10-23。PR119 MERGEDをユーザー承認、fetch/main pull --ff-only後のmain/origin一致、
@@ -134,3 +136,57 @@ SCR-STAT-46-01〜04はOPENのまま。今回SCR46-02の全出走者・車番/枠
 PostgreSQLの実適用、独立CIへのprivate fixture供給、発走前の実取得/時計・公開証拠の接続は未成立。
 B1未承認/正式受入NOT_RUN、lambda未選択、H1-U保留、旧不採用、2026凍結/LIVE禁止は不変。
 次は未コミット差分と限定テスト証跡のレビューだけ。本番適用・取得・学習・評価へ自動移行しない。
+
+## PR120 P1カテゴリー受入修正 / 2026-10-24
+
+開始はcleanな既存branch、HEAD/origin branch/remote PR120 headは
+`faa260df3f17a4f4ea345ba3faf9f09d6f2aa7c7`、origin/main/remote mainは上記87a8a17と一致した。
+Git ls-remoteで照合し、新branch/main編集/commit/push/PR操作はない。
+
+原因はReader/Serviceにカテゴリー検査がなかったこと。既存RaceCategoryPolicy/RaceCategoryを変更せず再利用する。
+PJ0315の`C0201racedtl.syumoku`を既存Parserが`RaceDetailPageDto::raceType`へ投影する。
+DBの`Race::race_type`はJSJ017同期とPJ0315詳細更新で保存される現在値で、過去Rawを男子へ補完する根拠にはしない。
+
+| Rawの分類 | DBの分類 | 判定 |
+| --- | --- | --- |
+| MEN | MEN / UNKNOWN | Rawを根拠として保存可能。出走人数から分類しない |
+| GIRLS | GIRLS / UNKNOWN | SKIPPED_UNSUPPORTED_CATEGORY / UNSUPPORTED_RACE_CATEGORY、保存0 |
+| UNKNOWN | MEN / GIRLS / UNKNOWN | SKIPPED_UNSUPPORTED_CATEGORY / RAW_CATEGORY_UNKNOWN、保存0。DBから補完しない |
+| MEN / GIRLS | 対立する既知分類 | ROSTER_CATEGORY_MISMATCHで停止、保存0 |
+
+Reader自身が対象外の専用例外を送出し、Serviceがその例外だけを明示的skip結果へ変換する。
+skipにはrace/fetch ID、Raw/DB分類、理由、予定保存0、snapshot_id=NULL、dry_runを記録する。致命的エラーをskipへ一括変換しない。
+比較時も非男子Rawを拒否する。公開前にDB race_typeの不変性も照合し、途中変更はrollbackする。
+カテゴリー受入版は`STAT46-ROSTER-CATEGORY-ACCEPTANCE-v1-PR120`。
+保存形式v1、差分計算v1、Migration、既存カテゴリーPolicy/Enum・他STAT/C1/モデル・旧成果物は変更しない。
+
+追加の最初の14回帰ケースは修正前14 failed /16 assertions /exit1、修正後14 passed /262 assertions /exit0。
+ガールズ/L級、未知/null/空、Raw/DB矛盾、Reader直接呼出し、反復処理、Command execute/dry-runを確認した。
+その後、field欠落・公開前カテゴリーdrift拒否・実男子5/7/9車の3ケースを追加した。カテゴリー変更Fixtureは隔離異常系のみ。
+
+元の実6レース/39固有出走者/8取得版/延べ51出走者の保存・冪等性・現在DBと異なる過去Raw保持を維持した。
+男子9車の正常系は人工補完せず、同じ既存封印済み資料から選んだ実1レース/1版を別枠で確認した。
+対象は2025-01-04 race12901 / fetch40546 / Rawの種目「Ｓ級一予選」。当時の発走前利用を証明した資料ではない。
+元資料3ファイルのSTART/END sealと日付/場/番号/9車番/9登録番号、対応request/log/Rawサイズ・SHAを照合した。
+private fixtureは `pr120-nine-20261024-073534-oHV4inO8/fixtures/nine-fixture.json`、
+5,605bytes / SHA `039c77ad09f052144ba07287b0bdaee039b7c75aaebe7887ce327f9f87e47b1f`。Gitには追加しない。
+
+| 今回の最終128MiB / Artisan・Collision | passed | assertions | failure/error/warnings/skip | exit | PHP peak bytes |
+| --- | ---: | ---: | --- | ---: | ---: |
+| STAT46 Feature32＋既存純粋Unit32 | 64 | 1,049 | 全て0 | 0 | 61,341,696 |
+| 既存STAT17/19/30/38の7クラス | 86 | 4,998 | 全て0 | 0 | 65,536,000 |
+
+PHP8.5.4 / PHPUnit12.5.31、親子128M。既存bwrap隔離・SQLite・人工.env/storage/Desktop/Trashを再利用した。
+原本はread-only、network遮断、既存helperの記録済みpathだけをrename-only退避。変更PHP4件の構文・限定Pint・diffを確認する。
+ユーザーの全体結果3907 passed /155 warnings /9 skippedは別記録。今回通常全体は実行せず、155警告の本文/原因/全解消は未確認。
+
+証跡は初版と同じ永続root配下の新規ディレクトリだけ。
+修正前 `pr120-tests-20261024-073414-NGETP3SW/logs/`、14件修正後 `pr120-tests-20261024-073448-iE3FAnuL/logs/`、
+最終64件 `pr120-tests-20261024-073619-8Nc4kMdB/logs/`、関連86件 `pr120-tests-20261024-073653-YCjC6Cxb/logs/`。
+runner/実コマンド/stdout/stderr/JUnit/events/時刻/exit/メモリ/原本START・END SHAを保持する。
+今回の `roster-real-raw-acceptance.json` は158,767bytes / SHA
+`f3091e255c89924aaf47bae7d523d6a09973c6b0b564adb3f1d88ae8e7cfb6d4`。初版SHAとは別の今回の実行記録で、旧記録を再sealしない。
+
+実ガールズ資料の新規調査・受入/本番DB接続・Migration・正式取込み・HTTP/2026開催参照/学習/予測/評価は0。
+historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、正式採用禁止、旧B1/holdout制約を維持する。
+状態は **PR120_CATEGORY_FIX_VERIFIED_AWAITING_REVIEW**。未コミットで今回差分の再レビューだけを待つ。

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
 use App\Domain\Keirin\Scraping\Parsers\RaceDetailParser;
+use App\Domain\Keirin\Scraping\RosterSnapshots\Reader;
 use App\Domain\Keirin\Scraping\Services\RaceRosterSnapshotService;
 use App\Domain\Keirin\Scraping\Support\CharacterEncodingConverter;
 use App\Models\Race;
@@ -22,6 +23,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\CompositionResultTemporaryDirectory;
 use Tests\TestCase;
@@ -394,6 +396,174 @@ final class RosterSnapshotMvpTest extends TestCase
         $log->update(['raw_file_path' => 'never-created.html']);
         $this->expectException(ModelNotFoundException::class);
         app(RaceRosterSnapshotService::class)->import($race->id, $log->id, false);
+    }
+
+    #[DataProvider('unsupportedCategories')]
+    public function test_unsupported_raw_category_is_explicitly_skipped_without_snapshot_or_other_writes(?string $rawType, ?string $databaseType, string $category): void
+    {
+        [$race, $log, $html] = $this->seedCapture($this->cases()[0]);
+        [$pc, $pj] = $this->documents($html);
+        // Category alterations are rejection fixtures, never real Girls acceptance evidence.
+        $pc['C0201data']['C0201racedtl']['syumoku'] = $rawType;
+        $control = $this->control($log, $pc, $pj);
+        $race->update(['race_type' => $databaseType]);
+        $before = $this->oldState();
+        $writes = [];
+        DB::listen(function ($query) use (&$writes): void {
+            if (preg_match('/^\s*(insert|update|delete|create|alter|drop|replace)\b/i', $query->sql)) {
+                $writes[] = true;
+            }
+        });
+        foreach ([false, false, true] as $dryRun) {
+            $out = app(RaceRosterSnapshotService::class)->import($race->id, $control->id, $dryRun);
+            $this->assertSame('SKIPPED_UNSUPPORTED_CATEGORY', $out['status'] ?? null);
+            $this->assertSame($category, $out['raw_category']);
+            $this->assertSame(0, $out['planned_new_snapshots']);
+            $this->assertNull($out['snapshot_id']);
+            $this->assertSame($dryRun, $out['dry_run']);
+            $this->assertSame('NOT_AUTHORIZED', $out['prediction_use']);
+            $this->assertFalse($out['historical_as_of_available']);
+            $this->assertSame($category === 'UNKNOWN' ? 'RAW_CATEGORY_UNKNOWN' : 'UNSUPPORTED_RACE_CATEGORY', $out['reason']);
+        }
+        $this->assertSame(0, RaceRosterSnapshot::query()->count());
+        $this->assertSame([], $writes);
+        $this->assertSame($before, $this->oldState());
+    }
+
+    public static function unsupportedCategories(): iterable
+    {
+        yield 'Girls qualifying, DB unknown' => ['ガールズ予選', null, 'GIRLS'];
+        yield 'L class only' => ['L級予選', null, 'GIRLS'];
+        yield 'fullwidth L class' => ['Ｌ級予選', 'Ｌ級ガールズ予選', 'GIRLS'];
+        yield 'Girls both sources' => ['ガールズ予選', 'L級予選', 'GIRLS'];
+        yield 'unknown text, DB Men is not fallback' => ['カテゴリ未定', 'A級予選', 'UNKNOWN'];
+        yield 'null type, DB Men is not fallback' => [null, 'S級予選', 'UNKNOWN'];
+        yield 'empty type, DB unknown' => ['', null, 'UNKNOWN'];
+        yield 'both unknown' => ['未定', '未定', 'UNKNOWN'];
+        yield 'unknown Raw, Girls DB' => ['未定', 'L級予選', 'UNKNOWN'];
+    }
+
+    #[DataProvider('conflictingCategories')]
+    public function test_known_raw_and_database_category_conflict_stops_before_storage(string $rawType, string $databaseType): void
+    {
+        [$race, $log, $html] = $this->seedCapture($this->cases()[0]);
+        [$pc, $pj] = $this->documents($html);
+        $pc['C0201data']['C0201racedtl']['syumoku'] = $rawType;
+        $control = $this->control($log, $pc, $pj);
+        $race->update(['race_type' => $databaseType]);
+        $before = $this->oldState();
+        $this->expectExceptionMessage('ROSTER_CATEGORY_MISMATCH');
+        try {
+            app(RaceRosterSnapshotService::class)->import($race->id, $control->id, false);
+        } finally {
+            $this->assertSame(0, RaceRosterSnapshot::query()->count());
+            $this->assertSame($before, $this->oldState());
+        }
+    }
+
+    public static function conflictingCategories(): iterable
+    {
+        yield 'Raw Girls DB Men' => ['ガールズ予選', 'A級予選'];
+        yield 'Raw L class DB Men' => ['L級予選', 'S級予選'];
+        yield 'Raw Men DB Girls' => ['A級予選', 'ガールズ予選'];
+    }
+
+    public function test_reader_itself_does_not_project_unsupported_raw_into_a_mens_snapshot(): void
+    {
+        [$race, $log, $html] = $this->seedCapture($this->cases()[0]);
+        [$pc, $pj] = $this->documents($html);
+        $pc['C0201data']['C0201racedtl']['syumoku'] = 'ガールズ予選';
+        $control = $this->control($log, $pc, $pj);
+        $body = file_get_contents($this->temporary->path().'/raw/'.$control->raw_file_path);
+        $page = app(RaceDetailParser::class)->parse($body);
+        $this->expectExceptionMessage('UNSUPPORTED_RACE_CATEGORY');
+        app(Reader::class)->project($body, ['race_id' => $race->id, 'race_date' => $race->race_date->format('Y-m-d'),
+            'track_code' => $page->trackCode, 'race_number' => $page->raceNumber],
+            ['scraping_fetch_log_id' => $control->id, 'fetched_at' => $control->fetched_at->format(DATE_ATOM)]);
+    }
+
+    public function test_category_skip_and_conflict_are_visible_through_execute_and_dry_run_commands(): void
+    {
+        [$race, $log, $html] = $this->seedCapture($this->cases()[0]);
+        [$pc, $pj] = $this->documents($html);
+        $pc['C0201data']['C0201racedtl']['syumoku'] = 'ガールズ予選';
+        $control = $this->control($log, $pc, $pj);
+        $options = ['--race-id' => (string) $race->id, '--fetch-log-id' => [(string) $control->id], '--execute' => true];
+        $writes = [];
+        DB::listen(function ($query) use (&$writes): void {
+            if (preg_match('/^\s*(insert|update|delete|create|alter|drop|replace)\b/i', $query->sql)) {
+                $writes[] = true;
+            }
+        });
+        foreach ([[], ['--dry-run' => true]] as $mode) {
+            $this->artisan('keirin:rosters:import-snapshots', $options + $mode)
+                ->expectsOutputToContain('SKIPPED_UNSUPPORTED_CATEGORY')->assertExitCode(0);
+        }
+        $this->assertSame([], $writes);
+        $race->update(['race_type' => 'S級予選']);
+        $writes = [];
+        foreach ([[], ['--dry-run' => true]] as $mode) {
+            $this->artisan('keirin:rosters:import-snapshots', $options + $mode)
+                ->expectsOutputToContain('ROSTER_CATEGORY_MISMATCH')->assertExitCode(1);
+        }
+        $this->assertSame([], $writes);
+        $this->assertSame(0, RaceRosterSnapshot::query()->count());
+    }
+
+    public function test_missing_raw_category_is_unknown_even_if_database_says_men(): void
+    {
+        [$race, $log, $html] = $this->seedCapture($this->cases()[0]);
+        [$pc, $pj] = $this->documents($html);
+        unset($pc['C0201data']['C0201racedtl']['syumoku']);
+        $control = $this->control($log, $pc, $pj);
+        $race->update(['race_type' => 'A級予選']);
+        $out = app(RaceRosterSnapshotService::class)->import($race->id, $control->id, false);
+        $this->assertSame('SKIPPED_UNSUPPORTED_CATEGORY', $out['status']);
+        $this->assertSame('RAW_CATEGORY_UNKNOWN', $out['reason']);
+        $this->assertSame('UNKNOWN', $out['raw_category']);
+        $this->assertSame(0, RaceRosterSnapshot::query()->count());
+    }
+
+    public function test_database_category_drift_before_publication_rolls_back_snapshot(): void
+    {
+        [$race, $log] = $this->seedCapture($this->cases()[0]);
+        $changed = false;
+        DB::listen(function ($query) use ($race, &$changed): void {
+            if (! $changed && str_starts_with($query->sql, 'insert into "race_roster_snapshots"')) {
+                $changed = true;
+                Race::query()->whereKey($race->id)->update(['race_type' => 'L級予選']);
+            }
+        });
+        $this->expectExceptionMessage('metadata changed before publication');
+        try {
+            app(RaceRosterSnapshotService::class)->import($race->id, $log->id, false);
+        } finally {
+            $this->assertTrue($changed);
+            $this->assertSame(0, RaceRosterSnapshot::query()->count());
+        }
+    }
+
+    public function test_real_mens_five_seven_and_nine_entry_rosters_are_accepted_without_count_based_category_inference(): void
+    {
+        $path = getenv('STAT46_NINE_FIXTURE') ?: '/home/shinya/neo-keirin-artifacts/stat46-roster-snapshot-01/pr120-nine-20261024-073534-oHV4inO8/fixtures/nine-fixture.json';
+        if (! is_file($path) || hash_file('sha256', $path) !== '039c77ad09f052144ba07287b0bdaee039b7c75aaebe7887ce327f9f87e47b1f') {
+            throw new RuntimeException('Required real nine-entry PJ0315 fixture missing or seal mismatch.');
+        }
+        $nine = json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR)['cases'][0];
+        $nine['fixture_root'] = dirname($path);
+        $cases = $this->cases();
+        foreach ([5 => $cases[0], 7 => $cases[3], 9 => $nine] as $count => $case) {
+            [$race, $log, $html] = $this->seedCapture($case);
+            $page = app(RaceDetailParser::class)->parse($html);
+            // Same-category DB evidence is isolated test setup; Raw category is unchanged real data.
+            $race->update(['race_type' => $page->raceType]);
+            $before = $this->oldState();
+            $out = app(RaceRosterSnapshotService::class)->import($race->id, $log->id, false);
+            $this->assertSame(1, $out['planned_new_snapshots']);
+            $this->assertSame($count, RaceRosterSnapshot::query()->findOrFail($out['snapshot_id'])->entrant_count);
+            $this->assertSame($before, $this->oldState());
+        }
+        $this->assertSame(3, RaceRosterSnapshot::query()->count());
     }
 
     private function cases(): array

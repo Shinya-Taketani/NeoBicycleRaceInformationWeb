@@ -7,6 +7,7 @@ namespace App\Domain\Keirin\Scraping\Services;
 use App\Domain\Keirin\Audit\Stat35DataReadiness\RawReader;
 use App\Domain\Keirin\Scraping\DTO\RaceRosterSnapshotDto;
 use App\Domain\Keirin\Scraping\RosterSnapshots\Reader;
+use App\Domain\Keirin\Scraping\RosterSnapshots\UnsupportedCategory;
 use App\Domain\Keirin\Statistics\Calculators\Stat46RosterDifferenceCalculator;
 use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
 use App\Models\Race;
@@ -36,8 +37,13 @@ class RaceRosterSnapshotService
             $query = $this->developmentRace($raceId);
             $race = ($dryRun ? $query : $query->lockForUpdate())->firstOrFail();
             [$dto, $source] = $this->read($race, ScrapingFetchLog::query()->findOrFail($fetchLogId));
+            if ($dto instanceof UnsupportedCategory) {
+                return [...$dto->result(), 'race_id' => $raceId, 'fetch_log_id' => $fetchLogId,
+                    'snapshot_id' => null, 'planned_new_snapshots' => 0, 'dry_run' => $dryRun,
+                    'prediction_use' => 'NOT_AUTHORIZED', 'historical_as_of_available' => false];
+            }
             $result = $this->snapshots->append($dto, $dryRun);
-            $this->verifyEnd($race, $dto, $source);
+            $this->verifyEnd($race, $dto->attributes, $source);
 
             return [...$result, 'race_id' => $raceId, 'fetch_log_id' => $fetchLogId, 'dry_run' => $dryRun,
                 'entrant_count' => $dto->attributes['entrant_count'], 'timing_status' => $dto->attributes['timing_status'],
@@ -52,13 +58,16 @@ class RaceRosterSnapshotService
         foreach (array_unique([$firstId, $secondId]) as $id) {
             $row = RaceRosterSnapshot::query()->where('race_id', $raceId)->findOrFail($id);
             [$dto, $source] = $this->read($race, ScrapingFetchLog::query()->findOrFail($row->scraping_fetch_log_id));
+            if ($dto instanceof UnsupportedCategory) {
+                throw $dto;
+            }
             $this->snapshots->verify($row, $dto);
-            $this->verifyEnd($race, $dto, $source);
+            $this->verifyEnd($race, $dto->attributes, $source);
             $captures[] = [$dto, $source];
         }
         $result = $this->calculator->calculate($captures[0][0], $captures[1][0] ?? null, $inputAsOf);
         foreach ($captures as [$dto, $source]) {
-            $this->verifyEnd($race, $dto, $source);
+            $this->verifyEnd($race, $dto->attributes, $source);
         }
 
         return $result;
@@ -70,6 +79,7 @@ class RaceRosterSnapshotService
         return Race::query()->whereKey($raceId)->whereBetween('race_date', ['2022-01-01', '2025-12-31']);
     }
 
+    /** @return array{RaceRosterSnapshotDto|UnsupportedCategory, array} */
     private function read(Race $race, ScrapingFetchLog $log): array
     {
         $expectedUrl = rtrim((string) config('keirin.base_url'), '/').config('keirin.routes.race_live');
@@ -101,7 +111,13 @@ class RaceRosterSnapshotService
             'raw_bytes' => (int) $log->response_size, 'converted_sha256' => hash('sha256', $html),
             'source_metadata_hash' => $this->metadataHash($log), 'source_parser_version' => $log->parser_version];
 
-        return [$this->reader->project($html, $expected, $capture), $source];
+        try {
+            return [$this->reader->project($html, $expected, $capture, $race->race_type), $source];
+        } catch (UnsupportedCategory $skipped) {
+            $this->verifyEnd($race, [...$expected, ...$capture], $source);
+
+            return [$skipped, $source];
+        }
     }
 
     private function raceIdentity(Race $race): array
@@ -117,12 +133,13 @@ class RaceRosterSnapshotService
             'track_code' => $track->external_track_id, 'race_number' => (int) $race->race_number];
     }
 
-    private function verifyEnd(Race $race, RaceRosterSnapshotDto $dto, array $source): void
+    private function verifyEnd(Race $race, array $attributes, array $source): void
     {
         $this->raw->verify($source);
-        $attributes = $dto->attributes;
+        $freshRace = $race->fresh();
         if ($this->metadataHash(ScrapingFetchLog::query()->findOrFail($attributes['scraping_fetch_log_id'])) !== $attributes['source_metadata_hash']
-            || $this->raceIdentity($race->fresh()) !== array_intersect_key($attributes, array_flip(['race_id', 'race_date', 'track_code', 'race_number']))) {
+            || $this->raceIdentity($freshRace) !== array_intersect_key($attributes, array_flip(['race_id', 'race_date', 'track_code', 'race_number']))
+            || $freshRace->race_type !== $race->race_type) {
             throw new RuntimeException('Roster metadata changed before publication.');
         }
     }

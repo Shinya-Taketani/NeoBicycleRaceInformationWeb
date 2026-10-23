@@ -5,23 +5,40 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Scraping\RosterSnapshots;
 
 use App\Domain\Keirin\Scraping\DTO\RaceRosterSnapshotDto;
+use App\Domain\Keirin\Scraping\Enums\RaceCategory;
 use App\Domain\Keirin\Scraping\Parsers\RaceDetailParser;
 use App\Domain\Keirin\Scraping\PrestartEvidence\RawObservationDecoder;
+use App\Domain\Keirin\Scraping\Support\RaceCategoryPolicy;
 use DateTimeImmutable;
 use DateTimeZone;
 use RuntimeException;
 
 final class Reader
 {
-    public function __construct(private readonly RaceDetailParser $parser, private readonly RawObservationDecoder $json) {}
+    public const CATEGORY_POLICY_VERSION = 'STAT46-ROSTER-CATEGORY-ACCEPTANCE-v1-PR120';
+
+    public function __construct(
+        private readonly RaceDetailParser $parser,
+        private readonly RawObservationDecoder $json,
+        private readonly RaceCategoryPolicy $categories,
+    ) {}
 
     /** The expected race identity is fixed by the caller, never the current roster. */
-    public function project(string $html, array $expected, array $capture): RaceRosterSnapshotDto
+    public function project(string $html, array $expected, array $capture, ?string $databaseRaceType = null): RaceRosterSnapshotDto
     {
         $page = $this->parser->parse($html);
         if ($page->raceDate !== str_replace('-', '', $expected['race_date']) || $page->trackCode !== $expected['track_code']
             || $page->raceNumber !== $expected['race_number']) {
             throw new RuntimeException('PJ0315 roster race/date/track/number mismatch.');
+        }
+        $rawCategory = $this->categories->classify($page->raceType);
+        $databaseCategory = $this->categories->classify($databaseRaceType);
+        if ($rawCategory !== RaceCategory::Unknown && $databaseCategory !== RaceCategory::Unknown && $rawCategory !== $databaseCategory) {
+            throw new RuntimeException('ROSTER_CATEGORY_MISMATCH: raw='.$rawCategory->value.', database='.$databaseCategory->value);
+        }
+        // Only the historical Raw can establish this capture as Men; current DB is never a fallback.
+        if ($rawCategory !== RaceCategory::Men) {
+            throw new UnsupportedCategory($rawCategory, $databaseCategory);
         }
         $pc = $this->json->embedded($html, 'PC0201')['C0201data'];
         $detail = $pc->C0201racedtl;

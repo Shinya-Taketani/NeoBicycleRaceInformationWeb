@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-24 PR120 P1修正：cleanな既存`feature/stat46-roster-snapshot-01`で開始HEAD/remote branch/PR head `faa260df3f17a4f4ea345ba3faf9f09d6f2aa7c7`、main/origin/remote87a8a17を照合。Readerの既存カテゴリーPolicy適用、対象外/未知の保存0・既知矛盾停止を修正。現在地は5.0・15.85.1と[実装記録PR120節](stat46-roster-snapshot-01.md#pr120-p1カテゴリー受入修正--2026-10-24)。
+> 対象64/1049・関連86/4998を隔離128M/exit0・警告等0で確認。既存男子6レース/8版と、別枠の実男子9車1レースを維持。保存形式/Migration/差分計算・他STAT/モデルは不変。以下の初版実行値/未コミット終了は当時の履歴。
+
 > 2026-10-23 最新工程：`STAT46-ROSTER-SNAPSHOT-01`。PR119 MERGEDをユーザー承認とfetch/main pull --ff-only後のclean main/origin `87a8a17ac620cd92723ee38f092153feba39e88f`・merge件名で確認し、`feature/stat46-roster-snapshot-01`を新規作成。現在地は5.0・15.85と[実装記録](stat46-roster-snapshot-01.md)。
 > PJ0315全出走者の取得版別不変保存と純粋差分Calculatorを製造。実6レース/39出走/8版を隔離保存し、2組4版の車番・登録番号差分0、枠番NULLにより完全比較NOT_ESTABLISHEDを確認。予測利用/公式変更理由/本番保存は未承認。以下のPR119 OPEN・未コミット・再レビュー待ちは当時の履歴として保持する。
 
@@ -59,7 +62,7 @@
 - Document: 統計エンジン開発工程マスター
 - Version: 1.78
 - Created: 2026-08-23
-- Updated: 2026-10-23
+- Updated: 2026-10-24
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -75,10 +78,11 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR119 MERGED。STAT46出走表履歴MVPの未コミット差分レビュー待ち。本番適用/正式保存/予測利用の承認ではない
-- Current code: 全出走者Reader・不変スナップショットModel/Repository/Service/Migration・純粋差分Calculator・明示Command・新規テスト。既存Parser/通常同期/STAT17/19/30/38/C1/モデル/安全helper不変
-- Current execution record: STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW。実6レース/39出走/8版を隔離SQLite保存、2組4版の本人/車番差分0、枠比較未成立。元fixtureにlog保存日時なし、過去as-of/公式変更/予測効果を認定しない
-- Current tests record: 新規47/768・関連86/4998、各128M/exit0・failure/error/warning/skip=0、peak59,244,544/65,536,000bytes。通常全体は安全未確認の旧cleanupへ拡大せず未実施
+- Current review: PR120 P1カテゴリー修正の未コミット再レビュー待ち。開始head faa260d、mainは87a8a17。本番適用/正式保存/予測利用の承認ではない
+- Current code: STAT46 Reader/Service・対象外専用例外・関連テストだけ。既存カテゴリーPolicy/Enum、保存形式/Migration/差分Calculator、他STAT/C1/モデル/安全helperは不変
+- Current execution record: PR120_CATEGORY_FIX_VERIFIED_AWAITING_REVIEW。Girls/未知は明示skip/保存0、Raw/DB既知矛盾は停止。男子6レース/39出走/8版と別枠の実9車1レースを確認、過去as-of/予測利用未承認は維持
+- Current tests record: 対象64/1049・関連86/4998、各128M/exit0・failure/error/warning/skip=0、peak61,341,696/65,536,000bytes。ユーザー全体3907 passed/155 warnings/9 skippedは別記録。通常全体は未実施、155警告の原因/全解消は未確認
+- Previous execution/tests at v1.78 initial: STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW。実6レース/39出走/8版を隔離SQLite保存、2組4版の本人/車番差分0、枠比較未成立。新規47/768・関連86/4998、各128M/exit0・警告等0、peak59,244,544/65,536,000bytes。初版15.85の当時の実績
 - Previous review at v1.77: PR119 OPEN、既存branchのP2修正を未コミットで再レビュー待ち。本番保存/予測利用/行動/転換判定の承認ではなかった
 - Previous code at v1.77: STAT19/30 Readerの確定・中止証拠、Repository/Window/Service/Commandの固定時点と専用v2版・関連テストだけ。新規Migration/共通基盤追加なし、STAT17/38・C1・120日入力・通常同期・共通helper不変
 - Previous execution record at v1.77: PR119_REVIEW_FIX_VERIFIED_AWAITING_REVIEW。実6レース/39出走/上位12件を回帰照合、本人2走のN不足/L1=NULLは維持。Raw検証済み中止だけ除外し、未知状態は枠を残す。予測効果未評価
@@ -285,8 +289,8 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 ```yaml
 current_phase: STAT46-ROSTER-SNAPSHOT-01
-current_engine_state: STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW
-next_allowed_action: REVIEW_STAT46_ROSTER_SNAPSHOT_CODE_AND_LIMITED_TESTS_ONLY
+current_engine_state: PR120_CATEGORY_FIX_VERIFIED_AWAITING_REVIEW
+next_allowed_action: REVIEW_PR120_STAT46_CATEGORY_FIX_ONLY
 remote_main: 87a8a17ac620cd92723ee38f092153feba39e88f
 pr119_status: MERGED
 production_migration: NOT_RUN_NOT_AUTHORIZED
@@ -307,7 +311,7 @@ formal_adoption: false
 
 | 制御項目 | 最新の扱い |
 | --- | --- |
-| current_engine_state | STAT46出走表履歴の限定MVP・実保存Raw/人工差分検証のレビュー待ち |
+| current_engine_state | PR120カテゴリー受入修正・男子実Raw正常回帰の再レビュー待ち |
 | next_allowed_action | 今回差分レビューのみ。本番適用/正式保存/モデル接続へ進まない |
 | completed_phases | PR119 merge確認。公式補充判定・STAT46全体完成・過去as-of・本番受入ではない |
 | superseded_phases | 旧一覧・旧不採用・PJ0315 pilot保留を維持 |
@@ -1490,7 +1494,7 @@ BT-03E-02以降で利用する場合は、
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
-| STAT46-ROSTER-SNAPSHOT-01 | PJ0315全出走者の取得版保存・純粋構成差分 | STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW | 実6レース/8版を保存、2組の本人/車番差分0・枠比較未成立。公式変更/予測利用/本番未承認。15.85参照 |
+| STAT46-ROSTER-SNAPSHOT-01 | PJ0315全出走者の取得版保存・純粋構成差分 | PR120_CATEGORY_FIX_VERIFIED_AWAITING_REVIEW | Girls/未知skip、既知矛盾停止を修正。実6レース/8版・実9車正常系は維持、予測/本番未承認。15.85.1参照 |
 | STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 | 公式上位決まり手の走数/日数窓・非重複5対15走分布 | PR119_MERGED | 確定/中止Raw・固定Tのv2修正を受入。実測/再レビュー待ち記録は15.84.1の当時の履歴。本人2走N不足/L1=NULLは不変 |
 | STAT17-19-30-TACTIC-SNAPSHOTS-01 | PJ0315表示7回数の取得版履歴保存とSTAT17限定分布 | PR118_MERGED | PR117 merge後の独立製造。6実レース/39出走/8版/51観測は当時の実績。集計窓UNKNOWN、予測未承認。15.83参照 |
 | C1-2022-REAL-DATA-PREFLIGHT-01 | 固定2022原本のread-only受入前監査 | REAL_DATA_PREFLIGHT_REPORTED_AWAITING_REVIEW / BLOCKED | seal/内部整合/B1案件数PASS、一次由来NOT_ESTABLISHED、正式B1受入NOT_RUN。レビューだけ、15.81参照 |
@@ -4466,6 +4470,16 @@ PR119 MERGED、fetch/main pull --ff-only後のclean main/origin87a8a17とmerge�
 
 新規47/768・関連86/4998は隔離128M/exit0、failure/error/warning/skip=0、peak59,244,544/65,536,000bytes。詳細の実コマンド/証跡・制約は[実装記録](stat46-roster-snapshot-01.md)。旧全体/旧監査/Raw全走査/学習/予測/評価は再実行しない。SCR46-01〜04はOPEN、本番接続/Migration正式適用/保存/HTTP/2026開催参照0、B1未承認/正式受入NOT_RUN/不採用判断は不変。未コミットでコードレビュー待ち、Git書込み/PR操作なし。
 
+### 15.85.1 PR120 P1カテゴリー受入修正 / 2026-10-24
+
+開始はcleanな既存branch、HEAD/origin branch/remote PR120 head=faa260d、main/origin/remote=87a8a17。8工程ゲートと最新の限定修正承認を照合。新branch/main編集/commit/push/PR操作なし。
+
+既存RaceCategoryPolicy/RaceCategoryを再利用し、Raw raceTypeがMENの場合だけ保存可能とした。DB現在race_typeはUNKNOWNのRawを男子に補完しない。Girls/L級と未知は理由・Raw/DB分類付きSKIPPED_UNSUPPORTED_CATEGORYで保存0、両方既知で対立する場合はROSTER_CATEGORY_MISMATCHで停止。Reader直接呼出し・比較経路も拒否し、公開前のDBカテゴリーdriftはrollbackする。保存形式v1/Migration/差分計算v1・既存Parser/他STAT/C1/モデルは不変。
+
+最初の追加14回帰は修正前14failed/16assertions/exit1、修正後14passed/262assertions/exit0。欠落/drift/実5・7・9車も追加後、最終対象64/1049・既存STAT17/19/30/38関連86/4998は128M/exit0・failure/error/warning/skip=0、peak61,341,696/65,536,000bytes。既存男子6実レース/39出走/8版は維持し、実9車は同じ封印資料から2025-01-04 race12901/fetch40546の1版だけを別枠で確認した。人工カテゴリー変更は拒否試験で、実ガールズ受入とはしない。
+
+ユーザー全体3907passed/155warnings/9skippedは別記録。今回通常全体は未実施、155警告の本文/原因/全解消は未確認。証跡と実コマンドは[実装記録PR120節](stat46-roster-snapshot-01.md#pr120-p1カテゴリー受入修正--2026-10-24)。初版15.85の版・SHA・実測は当時の履歴を保持する。本番DB/正式適用/HTTP/2026開催/学習/予測/評価0、historical_as_of=false・prediction_use=NOT_AUTHORIZED・正式採用/B1/holdout禁止は不変。未コミットで今回差分の再レビューだけを待つ。
+
 ## 15.84 STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 / 2026-10-22
 
 PR118 MERGEDをGitHub（merge73cb571/merged_at2026-10-22T03:39:36Z）とfetch/main ff-only履歴で照合。指定clean mainから独立branchを作成し、既存保存基盤・C1/120日入力・STAT17/38・モデルは変更しない。詳細・原本seal・コマンドは[実装記録](stat19-30-official-method-history-mvp-01.md)。
@@ -5309,6 +5323,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+### PR120 P1レビュー修正 / 2026-10-24（v1.78追記）
+
+カテゴリー受入だけを既存Policy/Enumに整合させ、冒頭/5.0/工程表/15.85.1/27を再レビュー待ちへ同期した。初版の保存/差分版・実績/hashは保持し、今回の限定結果とユーザー全体の未確認155警告を区別する。正式採用・本番保存・2026を開放しない。
 
 ## v1.78 / 2026-10-23
 
@@ -6271,6 +6289,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+現在はPR120 P1カテゴリー受入修正の再レビュー待ち。正本は5.0・15.85.1と[実装記録PR120節](stat46-roster-snapshot-01.md#pr120-p1カテゴリー受入修正--2026-10-24)。開始HEADはfaa260d、branchはfeature/stat46-roster-snapshot-01。Girls/未知の保存0・既知矛盾停止、実男子6レース/8版・別枠実9車の正常系、対象64/1049・関連86/4998を128M/exit0・警告等0で確認した。
+
+未コミットで今回差分のChatGPT再レビューのみを待つ。本番/2026/学習/予測/評価/正式採用/B1禁止は維持。ユーザー全体3907passed/155warnings/9skippedは別で、155警告未確認を維持する。以下の初版未コミット終了は当時の履歴。
+
+### v1.78初版終了時の引継ぎ（履歴）
 
 現在はPR119 MERGED、STAT46-ROSTER-SNAPSHOT-01のコード・限定実Raw/人工差分テストのレビュー待ち。正本は5.0・15.85と[実装記録](stat46-roster-snapshot-01.md)。開始main/originは87a8a17、branchはfeature/stat46-roster-snapshot-01。実6レース/8版の保存と2組の本人/車番差分0を確認し、NULL枠と保存時刻証拠不足は未成立として保持する。新規47/768・関連86/4998、128M/exit0、警告等0。
 
