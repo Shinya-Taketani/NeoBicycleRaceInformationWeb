@@ -60,6 +60,13 @@ class RaceResultSyncBoundedMemoryTest extends TestCase
         $this->assertStringContainsString('"races"."id" >', $candidateQueries[2]);
         $this->assertStringNotContainsString(' offset ', strtolower($candidateQueries[1]));
         $this->assertStringNotContainsString(' offset ', strtolower($candidateQueries[2]));
+        $this->assertSame(
+            205,
+            BatchRunItem::query()
+                ->where('batch_run_id', BatchRun::query()->latest('id')->value('id'))
+                ->where('attempt_count', 1)
+                ->count(),
+        );
         Http::assertNothingSent();
         $this->assertSame(0, BatchRun::query()->where('status', 'RUNNING')->count());
     }
