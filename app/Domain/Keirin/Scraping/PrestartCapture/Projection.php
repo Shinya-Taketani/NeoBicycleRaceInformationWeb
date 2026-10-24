@@ -52,16 +52,12 @@ final class Projection
         if ($integrity !== 'VERIFIED' || $response->body === '') {
             $reasons[] = 'RAW_ABSENT_EMPTY_OR_SEAL_MISMATCH';
         }
-        $historical = $response->historicalSource;
-        if ($response->timingProvenance === 'HISTORICAL_FETCH_LOG') {
-            if ($request->mode !== 'HISTORICAL_RAW_REPLAY' || $response->requestStartedAt !== null || $historical === null
-                || ! is_int($historical['fetch_log_id']) || $historical['fetch_log_id'] < 1
-                || ! is_string($historical['source_parser_version']) || $historical['source_parser_version'] === ''
-                || preg_match('/^[a-f0-9]{64}$/D', $historical['reference_sha256']) !== 1
-                || $seal !== ['bytes' => $historical['raw_bytes'], 'sha256' => $historical['raw_sha256']]
-                || Contract::instant($historical['fetched_at']) != Contract::instant($response->responseReceivedAt)) {
+        if ($request->mode === 'HISTORICAL_RAW_REPLAY') {
+            if (! $this->historicalSourceMatches($response, $seal)) {
                 $reasons[] = 'HISTORICAL_SOURCE_BINDING_NOT_ESTABLISHED';
             }
+        } elseif ($response->timingProvenance === 'HISTORICAL_FETCH_LOG' || $response->historicalSource !== null) {
+            $reasons[] = 'HISTORICAL_SOURCE_BINDING_NOT_ESTABLISHED';
         }
         $started = Contract::instant($response->requestStartedAt);
         $received = Contract::instant($response->responseReceivedAt);
@@ -146,5 +142,24 @@ final class Projection
                 'current_copy_saved_vs_input_as_of' => $saved === null || $asOf === null ? 'UNKNOWN' : ($saved < $asOf ? 'BEFORE' : 'AT_OR_AFTER'),
                 'prediction_input_availability' => 'NOT_ESTABLISHED', 'clock_trust' => 'UNKNOWN', 'clock_error_seconds' => null,
                 'actual_start_at' => null, 'official_publication_at' => null], ...Contract::restrictions()];
+    }
+
+    private function historicalSourceMatches(CaptureResponse $response, ?array $rawSeal): bool
+    {
+        $historical = $response->historicalSource;
+        if ($response->timingProvenance !== 'HISTORICAL_FETCH_LOG' || $response->requestStartedAt !== null || $historical === null
+            || ! is_int($historical['fetch_log_id']) || $historical['fetch_log_id'] < 1
+            || ! is_string($historical['source_parser_version']) || trim($historical['source_parser_version']) === ''
+            || ! is_string($historical['reference_sha256']) || preg_match('/^[a-f0-9]{64}$/D', $historical['reference_sha256']) !== 1
+            || $rawSeal !== ['bytes' => $historical['raw_bytes'], 'sha256' => $historical['raw_sha256']]
+            || ! is_string($historical['fetched_at']) || $response->responseReceivedAt === null) {
+            return false;
+        }
+        try {
+            return Contract::instant($historical['fetched_at']) == Contract::instant($response->responseReceivedAt);
+        } catch (RuntimeException) {
+            // Invalid historical clock evidence is a failed binding, never a replacement timestamp.
+            return false;
+        }
     }
 }

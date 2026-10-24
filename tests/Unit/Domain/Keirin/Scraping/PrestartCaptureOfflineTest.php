@@ -132,6 +132,91 @@ final class PrestartCaptureOfflineTest extends TestCase
         yield 'unknown received' => [['responseReceivedAt' => null], 'UNKNOWN', 'UNKNOWN'];
     }
 
+    #[DataProvider('invalidHistoricalBindings')]
+    public function test_historical_request_mode_requires_bound_log_evidence_despite_response_flags(array $responseChanges, array $sourceChanges): void
+    {
+        $request = $this->request(['mode' => 'HISTORICAL_RAW_REPLAY']);
+        $response = $this->response($request, array_replace([
+            'requestStartedAt' => null, 'timingProvenance' => 'HISTORICAL_FETCH_LOG',
+            'historicalSource' => array_replace($this->historicalSource(), $sourceChanges),
+        ], $responseChanges));
+        $saved = (new OfflineBridge(new FixtureTransport($response), new CaptureStore($this->root())))->capture($request);
+        $this->assertSame($this->raw(), EvidenceFiles::read($saved->path, 'raw.bin'));
+        $this->assertSame('FAILED', $saved->validation['status']);
+        $this->assertContains('HISTORICAL_SOURCE_BINDING_NOT_ESTABLISHED', $saved->validation['reasons']);
+        $this->assertNull($saved->validation['roster']);
+        $this->assertFileExists($saved->path.'/FAILED.json');
+        $this->assertFileDoesNotExist($saved->path.'/COMPLETE.json');
+        $this->assertSame($saved->validation, (new CaptureVerifier)->verify($saved->path, $saved->manifestSha256));
+        foreach (Contract::restrictions() as $key => $value) {
+            $this->assertSame($value, $saved->validation[$key]);
+        }
+    }
+
+    public static function invalidHistoricalBindings(): iterable
+    {
+        foreach (['SIMULATED_SCENARIO', 'UNKNOWN'] as $provenance) {
+            yield $provenance.' null start' => [['timingProvenance' => $provenance], []];
+            yield $provenance.' invented start' => [['timingProvenance' => $provenance, 'requestStartedAt' => '2025-01-01T09:00:00+09:00'], []];
+            yield $provenance.' no source' => [['timingProvenance' => $provenance, 'historicalSource' => null], []];
+        }
+        yield 'no source' => [['historicalSource' => null], []];
+        yield 'non-null historical request start' => [['requestStartedAt' => '2025-01-01T09:00:00+09:00'], []];
+        yield 'different receipt instant' => [[], ['fetched_at' => '2025-01-01T09:01:01+09:00']];
+        yield 'missing receipt' => [['responseReceivedAt' => null], []];
+        yield 'both receipt timestamps null' => [['responseReceivedAt' => null], ['fetched_at' => null]];
+        yield 'invalid timestamp' => [[], ['fetched_at' => '2025-02-30T09:01:00+09:00']];
+        yield 'timestamp without offset' => [[], ['fetched_at' => '2025-01-01T09:01:00']];
+        yield 'invalid log ID' => [[], ['fetch_log_id' => 0]];
+        yield 'log ID wrong type' => [[], ['fetch_log_id' => '1']];
+        yield 'empty parser version' => [[], ['source_parser_version' => '']];
+        yield 'blank parser version' => [[], ['source_parser_version' => ' ']];
+        yield 'invalid reference hash' => [[], ['reference_sha256' => 'unverified']];
+        yield 'reference hash wrong type' => [[], ['reference_sha256' => []]];
+        yield 'source raw SHA mismatch' => [[], ['raw_sha256' => str_repeat('0', 64)]];
+        yield 'source raw size mismatch' => [[], ['raw_bytes' => 1]];
+    }
+
+    public function test_historical_request_mode_accepts_only_bound_evidence_and_equivalent_offset_instants(): void
+    {
+        $request = $this->request(['mode' => 'HISTORICAL_RAW_REPLAY']);
+        $response = $this->response($request, ['requestStartedAt' => null, 'timingProvenance' => 'HISTORICAL_FETCH_LOG',
+            'historicalSource' => $this->historicalSource()]);
+        $saved = (new OfflineBridge(new FixtureTransport($response), new CaptureStore($this->root())))->capture($request);
+        $this->assertSame('2025-01-01T00:01:00Z', $response->historicalSource['fetched_at']);
+        $this->assertSame('2025-01-01T09:01:00+09:00', $response->responseReceivedAt);
+        $this->assertSame('VERIFIED', $saved->validation['status']);
+        $this->assertSame('HISTORICAL_RAW_REPLAY', $saved->validation['mode']);
+        $this->assertNull($saved->validation['timing']['request_started_at']);
+        $this->assertSame($saved->validation, (new CaptureVerifier)->verify($saved->path, $saved->manifestSha256));
+        $this->assertSame($this->raw(), EvidenceFiles::read($saved->path, 'raw.bin'));
+        $this->assertFileExists($saved->path.'/COMPLETE.json');
+        $this->assertFileDoesNotExist($saved->path.'/FAILED.json');
+    }
+
+    #[DataProvider('invalidSimulatedBindings')]
+    public function test_simulated_request_mode_cannot_claim_historical_source_evidence(string $provenance, bool $withSource): void
+    {
+        $request = $this->request();
+        $response = $this->response($request, ['requestStartedAt' => null, 'timingProvenance' => $provenance,
+            'historicalSource' => $withSource ? $this->historicalSource() : null]);
+        $saved = (new OfflineBridge(new FixtureTransport($response), new CaptureStore($this->root())))->capture($request);
+        $this->assertSame('FAILED', $saved->validation['status']);
+        $this->assertContains('HISTORICAL_SOURCE_BINDING_NOT_ESTABLISHED', $saved->validation['reasons']);
+        $this->assertSame($this->raw(), EvidenceFiles::read($saved->path, 'raw.bin'));
+        $this->assertFileExists($saved->path.'/FAILED.json');
+        $this->assertFileDoesNotExist($saved->path.'/COMPLETE.json');
+        $this->assertSame($saved->validation, (new CaptureVerifier)->verify($saved->path, $saved->manifestSha256));
+    }
+
+    public static function invalidSimulatedBindings(): iterable
+    {
+        yield 'simulated with historical source' => ['SIMULATED_SCENARIO', true];
+        yield 'unknown with historical source' => ['UNKNOWN', true];
+        yield 'historical provenance and source' => ['HISTORICAL_FETCH_LOG', true];
+        yield 'historical provenance without source' => ['HISTORICAL_FETCH_LOG', false];
+    }
+
     #[DataProvider('unsupported')]
     public function test_overview_category_is_checked_before_any_mens_detail_parser(?string $type, ?string $dbType, string $status, string $reason): void
     {
@@ -385,6 +470,13 @@ final class PrestartCaptureOfflineTest extends TestCase
             'requestStartedAt' => '2025-01-01T09:00:00+09:00', 'responseReceivedAt' => '2025-01-01T09:01:00+09:00',
             'httpStatus' => 200, 'effectiveUri' => $request->requestUri, 'redirectDetected' => false, 'body' => $this->raw(),
             'contentType' => 'text/html; charset=UTF-8', 'timingProvenance' => 'SIMULATED_SCENARIO'], $changes));
+    }
+
+    private function historicalSource(): array
+    {
+        return ['fetch_log_id' => 1, 'fetched_at' => '2025-01-01T00:01:00Z',
+            'raw_bytes' => strlen($this->raw()), 'raw_sha256' => hash('sha256', $this->raw()),
+            'reference_sha256' => str_repeat('a', 64), 'source_parser_version' => 'SYNTHETIC-PJ0315-TEST-v1'];
     }
 
     private function raw(?string $type = 'A級予選', bool $includeDetails = true): string

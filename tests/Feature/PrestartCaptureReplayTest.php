@@ -16,6 +16,7 @@ use App\Domain\Keirin\Scraping\PrestartEvidence\EvidenceFiles;
 use App\Domain\Keirin\Statistics\Calculators\Stat46RosterDifferenceCalculator;
 use DateTimeImmutable;
 use DateTimeZone;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -158,6 +159,36 @@ final class PrestartCaptureReplayTest extends TestCase
         $this->assertNull($saved->validation['roster']);
     }
 
+    #[DataProvider('unboundReplayProvenances')]
+    public function test_real_raw_replay_with_unbound_timing_stays_failed_in_a_separate_verifier(string $provenance): void
+    {
+        // The Raw is real; the contradictory response metadata is an isolated rejection fixture only.
+        $case = $this->cases()[0];
+        $target = $this->target($case);
+        $allowed = ['version' => 'OFFLINE-ROSTER-TARGETS-v1', 'targets' => [$target]];
+        $request = new CaptureRequest(bin2hex(random_bytes(16)), bin2hex(random_bytes(16)), $target,
+            $case['log']['request_url'], $case['log']['request_parameters'], $allowed, hash('sha256', EvidenceFiles::json($allowed)),
+            'historical-response-provenance-rejection', 'HISTORICAL_RAW_REPLAY');
+        $raw = $this->realRaw($case);
+        $response = new CaptureResponse($request->captureId, $request->attemptId, null,
+            (new DateTimeImmutable($case['log']['fetched_at']))->format('Y-m-d\TH:i:s.uP'), 200,
+            $request->requestUri, false, $raw, $case['log']['content_type'], $provenance);
+        $saved = (new OfflineBridge(new FixtureTransport($response), new CaptureStore($this->temporaryRoot())))->capture($request);
+        $this->assertSame($raw, EvidenceFiles::read($saved->path, 'raw.bin'));
+        $this->assertSame('FAILED', $saved->validation['status']);
+        $this->assertContains('HISTORICAL_SOURCE_BINDING_NOT_ESTABLISHED', $saved->validation['reasons']);
+        $this->assertFileExists($saved->path.'/FAILED.json');
+        $this->assertFileDoesNotExist($saved->path.'/COMPLETE.json');
+        $this->assertSame($saved->validation, (new CaptureVerifier)->verify($saved->path, $saved->manifestSha256));
+        $this->independent($saved->path, $saved->manifestSha256, 'FAILED');
+    }
+
+    public static function unboundReplayProvenances(): iterable
+    {
+        yield 'simulated flag' => ['SIMULATED_SCENARIO'];
+        yield 'unknown flag' => ['UNKNOWN'];
+    }
+
     private function cases(): array
     {
         $path = getenv('STAT38_TEST_FIXTURE') ?: '/home/shinya/neo-keirin-artifacts/stat38-distance-laps-mvp-01-20261021-01/actual-fixture.json';
@@ -223,7 +254,7 @@ final class PrestartCaptureReplayTest extends TestCase
                 'source_parser_version' => $case['log']['parser_version']]);
     }
 
-    private function independent(string $directory, string $hash): array
+    private function independent(string $directory, string $hash, string $expectedStatus = 'VERIFIED'): array
     {
         $code = 'require $argv[1]."/vendor/autoload.php"; if (ini_get("memory_limit")!=="128M") {throw new RuntimeException("Wrong verifier memory limit");} '
             .'$r=(new App\\Domain\\Keirin\\Scraping\\PrestartCapture\\CaptureVerifier)->verify($argv[2],$argv[3]); '
@@ -234,7 +265,7 @@ final class PrestartCaptureReplayTest extends TestCase
         $this->assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         $this->assertSame('', $process->getErrorOutput());
         $report = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
-        $this->assertSame('VERIFIED', $report['status']);
+        $this->assertSame($expectedStatus, $report['status']);
         $this->assertNotSame(getmypid(), $report['pid']);
         $this->assertLessThanOrEqual(128 * 1024 * 1024, $report['peak_memory_bytes']);
 

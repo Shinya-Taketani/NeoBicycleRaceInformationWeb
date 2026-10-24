@@ -1,5 +1,7 @@
 # PRESTART-CAPTURE-OFFLINE-BRIDGE-01
 
+> 第1〜7節は初回製造終了時の履歴。PR121作成後のP2修正・現在の未コミット状態は[第8節](#8-pr121-p2履歴再生の時刻証拠検証--2026-10-24)を参照する。初回の実測・SHA・未コミット終了を今回の実行結果へ読み替えない。
+
 ## 1. 範囲と状態
 
 2026-10-24、ユーザーの限定製造承認によるオフライン接続基盤。PR120 MERGEDはユーザー指示と、fetch/main pull --ff-only後のclean main/origin `77347e4507449f52878872dfa2cafe874b04c95f`・merge件名で確認した。未使用の `feature/prestart-capture-offline-bridge-01` を作成。終了時のHEADも同じで、今回のPHP・テスト・文書差分は未コミット。
@@ -139,3 +141,40 @@ PHP `/usr/bin/php` 8.5.4、PHPUnit12.5.31。Artisan/Collision経路で各PHPプ�
 - 既存契約D1（対象/上限）、D2（先行時間/間隔/retry上限）、D3（利用条件/許可URI/負荷/429）、D4（二源優先/矛盾）、D5（延期/中止/欠場/再取得）、D6（時計/TZ/誤差）、D7（運用保存/容量/保持/回復）、D8（最終適格性/版選択）は未決のまま。本工程の模擬routeや専用root受入を、実運用承認へ拡張しない。
 - 公表/実発走/旧保存完了/時計根拠はUNKNOWN/NULL。今回の事後再生からhistorical_as_ofや予測入力を承認しない。予測精度への影響は `NOT_MEASURED_THIS_CHANGE`。
 - 次の許可作業は今回未コミット差分のレビューのみ。自動で実取得・正式保存・モデル接続へ進まない。
+
+## 8. PR121 P2履歴再生の時刻証拠検証 / 2026-10-24
+
+開始はcleanな既存 `feature/prestart-capture-offline-bridge-01`。fetch後HEAD/origin branch/GitHub PR121 headが `8bce686a14efa5b63f18b428420b353d8adf9c68` で一致、PR121 OPEN/未merge、base/origin mainは77347e4。新branch/main編集なし。今回の差分だけを未コミットで再レビュー待ちとする。
+
+原因はProjectionの履歴専用検査が応答の `timingProvenance === HISTORICAL_FETCH_LOG` だけを入口としていたこと。要求modeを主条件に変更し、SIMULATED要求への履歴出典/資料混入も同じ `HISTORICAL_SOURCE_BINDING_NOT_ESTABLISHED` で拒否する。DTO・Verifier・保存器は変更せず、保存前評価・公開前評価・独立Verifierが共有するProjectionで一貫して検査する。
+
+| 要求mode | 応答timingProvenance | historicalSource | 扱い |
+| --- | --- | --- | --- |
+| HISTORICAL_RAW_REPLAY | HISTORICAL_FETCH_LOG | 必須・全照合成立 | 他の既存Raw/本人/カテゴリー検査も成立した場合だけVERIFIED |
+| HISTORICAL_RAW_REPLAY | SIMULATED_SCENARIO / UNKNOWN | 有無を問わない | FAILED。開始時刻NULLでも非NULLでも回避不可 |
+| HISTORICAL_RAW_REPLAY | HISTORICAL_FETCH_LOG | 欠落/不正/不一致 | FAILED |
+| SIMULATED_SCENARIO | SIMULATED_SCENARIO / UNKNOWN | NULL必須 | 既存の人工時刻検査を維持。UNKNOWNを履歴実証にしない |
+| SIMULATED_SCENARIO | HISTORICAL_FETCH_LOG | 有無を問わない | FAILED |
+| SIMULATED_SCENARIO | SIMULATED_SCENARIO / UNKNOWN | 非NULL | FAILED |
+
+履歴要求では応答出典HISTORICAL_FETCH_LOG、要求開始NULL、正の整数log ID、空白だけでないParser版、64桁小文字hexのreference SHA、実Rawと同一bytes/SHA、有効なoffset付き取得日時と受信日時の同一瞬間を必須とした。両日時NULLを同一瞬間とは認定しない。不正な履歴日時/型は証拠不成立であり、時刻を補完せずFAILED束を保持する。
+
+修正前に追加28ケースを実行し、13 passed / 12 assertion failures / 3 errors / 173 assertions / warnings0 / skipped0 / exit2で不具合を再現した。指定4経路（SIMULATED/UNKNOWN × 開始NULL/非NULL）は全てFAILED期待に対してVERIFIED。実Rawに矛盾メタデータだけを与えた2ケースもVERIFIEDだった。人工メタデータは異常系で、実取得の正常受入証拠ではない。
+
+修正後の同28ケースを含む最終結果：
+
+| 128MiB隔離実行 | ケース | assertions | failure/error | warning対象 | skipped | exit | PHP peak bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 対象Unit72＋Feature4 | 76 | 883 | 0 | 0 | 0 | 0 | 29,884,416 |
+| PR120・STAT17/19/30/38 | 150 | 6,047 | 0 | 0 | 0 | 0 | 67,633,152 |
+| 旧PrestartEvidence/STAT39属性 | 252 | 1,560 | 0 | 155 | 0 | 0 | 38,273,024 |
+
+異常な応答でも原bytesを保持し、FAILEDあり/COMPLETEなし、保存後Verifierでも同じFAILEDを確認した。実Raw6レース8版＋別枠9車1版の正常再生・別プロセス独立検証9束、STAT46出走表8版・差分2組の一致は維持。実Rawの異常メタデータ2束も別プロセスでFAILEDを確認し、独立子のexitは全0・最大peak10,485,760bytes。SIMULATED正常系/人工時計UNKNOWN、Girls/UNKNOWN skip、2026対象拒否、Raw/manifest改変拒否、旧code seal不変も対象テストで回帰確認した。
+
+旧252ケースは97 clean passed＋155 warning対象。イベント2,125件は未変更EvidenceFiles.php:149のlstatで、今回修正・抑制していない。ユーザー全体3972 passed / 41738 assertions / 155 warnings / 9 skipped / 失敗0は修正前の別記録。今回通常全体は未実施で、過去全警告の原因や全解消を断定しない。
+
+証跡rootは既存の `/home/shinya/neo-keirin-artifacts/prestart-capture-offline-bridge-01/` 内の新規ディレクトリ。修正前 `pr121-review-20261024-095727-WeedBuwk`、修正後 `pr121-review-20261024-095754-qVyCKZzZ`、STAT回帰 `pr121-review-20261024-095806-hNpiLGeC`、旧証拠回帰 `pr121-review-20261024-095815-xBeorlFs`。各logsにrunner/command/stdout/stderr/JUnit/events/exit/開始終了/128M計測/source START/ENDを保持。修正後logsの `pr121-verification-summary.json` に再現ケース別結果、構文3PHP・code sealを保存する。実再生報告 `logs/replay-evidence/real-replay-verification.json` SHAは `ebe79f9baca5207032f95b0c62046c008638d729281065d5f2d7a79d2fcd0fd5`。
+
+対象コマンドは第6節と同じ2クラスのArtisan/Collision経路・128M指定。修正前だけ `--filter 'historical_request_mode|simulated_request_mode|real_raw_replay_with_unbound_timing'` を追加した。PHP8.5.4、原本read-only/通信遮断/人工.env・storage/SQLite隔離/既存安全helper・人工Trashを維持。全実行の原資料START/END比較exit0、PHP構文3件・限定Pint・git diff --check成功。旧Raw/証拠/STAT46履歴を上書き・再sealしない。
+
+保存形式/プログラム版v1は不変、今回の検査修正はProjectionの新code sealで識別する。初版束は初版コードの記録として保持し、修正版で再生成した成果へ読み替えない。本番DB/競輪サイトHTTP/2026開催/学習/選択/予測/評価0。固定6制限、B1未承認、D1〜D8未決は維持する。状態は `PR121_HISTORICAL_BINDING_FIX_VERIFIED_AWAITING_REVIEW`。commit/push/PR操作/mergeなし、次は同PR差分の再レビューのみ。

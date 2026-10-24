@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-24 PR121 P2修正：cleanな既存branchでHEAD/origin branch/PR head `8bce686a14efa5b63f18b428420b353d8adf9c68`、PR121 OPEN、base/main77347e4を照合。履歴要求modeを主条件に時刻出典・履歴証拠を必須化し、応答フラグ変更による検査回避を修正。現在地は5.0・15.86.1と[実装記録第8節](prestart-capture-offline-bridge-01.md#8-pr121-p2履歴再生の時刻証拠検証--2026-10-24)。
+> 対象76/883・STAT回帰150/6047は128M/exit0・警告等0、実9版/独立検証・旧STAT46照合を維持。旧証拠警告は別問題として保持。以下の初回HEAD/未コミット/実測/hashは各時点の履歴で、今回も実HTTP/予測利用/B1/2026は開放しない。
+
 > 2026-10-24 最新工程：`PRESTART-CAPTURE-OFFLINE-BRIDGE-01`。PR120 MERGEDをユーザー指示とfetch/main pull --ff-only後のclean main/origin `77347e4507449f52878872dfa2cafe874b04c95f`・merge件名で確認し、`feature/prestart-capture-offline-bridge-01` を作成。現在地は5.0・15.86と[実装記録](prestart-capture-offline-bridge-01.md)。
 > 新規PHP10ファイル・テスト2件でオフライン要求/応答/不変保存/独立検証を製造。既存実Raw6レース/8版/39固有出走者と別枠9車1版を事後再生し、旧出走表・2組差分と照合。実HTTP/発走前利用/予測改善の成功ではない。以下のPR120再レビュー待ち・未コミット終了は当時の履歴として保持する。
 
@@ -82,10 +85,11 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR120 MERGED、今回のオフライン基盤を未コミットでレビュー待ち。実HTTP・本番保存・予測利用は未承認
-- Current code: PrestartCapture新namespace10PHP・新Unit/Feature2件。既存PrestartEvidence/code seal・Fetcher/Parser・STAT/C1/モデル/Migration/安全helperは不変
-- Current execution record: OFFLINE_BRIDGE_VERIFIED_AWAITING_REVIEW。実6レース/8版/39固有出走者/51観測と別枠9車1版をHISTORICAL_RAW_REPLAYで保存・別Verifier9プロセス検証。旧出走表/2組差分一致、発走前実取得ではない
-- Current tests record: 新規48/553・STAT回帰150/6047は128M/exit0・警告等0。旧証拠回帰252/1560はexit0・失敗/skip0、155 warning対象ケース（未変更EvidenceFiles.php:149のlstatイベント2125件）。過去全体155警告の全原因/解消は未確認
+- Current review: PR121 OPEN、開始HEAD8bce686のP2修正を未コミットで再レビュー待ち。実HTTP/本番保存/予測利用は未承認
+- Current code: Projectionの要求mode主条件・履歴証拠照合と関連テスト2件。保存形式v1/DTO/Verifier/旧証拠/STAT/モデル/安全helperは不変、修正版はcode sealで識別
+- Current execution record: PR121_HISTORICAL_BINDING_FIX_VERIFIED_AWAITING_REVIEW。応答SIMULATED/UNKNOWNでも履歴専用検査を回避不可、異常Raw保持/FAILED/独立検証を確認。実9版と旧出走表/2組差分一致は維持
+- Current tests record: 対象76/883・STAT回帰150/6047は128M/exit0・警告等0。旧証拠252/1560は失敗/skip0・exit0、155 warning対象/lstat2125件。ユーザー修正前全体3972passed/41738assertions/155warnings/9skippedは別記録、全体再実行なし
+- Previous execution/tests at v1.79 initial: OFFLINE_BRIDGE_VERIFIED_AWAITING_REVIEW。実6レース/8版/39固有出走者/51観測＋別枠9車を照合、新規48/553・STAT150/6047・旧証拠252/1560。初版15.86・実装記録1〜7節の実績/hash/未コミット終了は当時の履歴
 - Previous review/code at v1.78 PR120: P1カテゴリー修正の未コミット再レビュー待ち、開始head faa260d/main87a8a17。既存PolicyによるGirls/未知skip・既知矛盾停止を修正した当時の状態。今回開始前にmerge済み
 - Previous tests record at v1.78 PR120: 対象64/1049・関連86/4998、各128M/exit0・failure/error/warning/skip=0、peak61,341,696/65,536,000bytes。ユーザー全体3907 passed/155 warnings/9 skippedは別記録
 - Previous execution/tests at v1.78 initial: STAT46_ROSTER_SNAPSHOT_READY_FOR_REVIEW。実6レース/39出走/8版を隔離SQLite保存、2組4版の本人/車番差分0、枠比較未成立。新規47/768・関連86/4998、各128M/exit0・警告等0、peak59,244,544/65,536,000bytes。初版15.85の当時の実績
@@ -295,10 +299,12 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 ```yaml
 current_phase: PRESTART-CAPTURE-OFFLINE-BRIDGE-01
-current_engine_state: OFFLINE_BRIDGE_VERIFIED_AWAITING_REVIEW
-next_allowed_action: REVIEW_PRESTART_CAPTURE_OFFLINE_BRIDGE_ONLY
+current_engine_state: PR121_HISTORICAL_BINDING_FIX_VERIFIED_AWAITING_REVIEW
+next_allowed_action: REVIEW_PR121_HISTORICAL_BINDING_FIX_ONLY
 remote_main: 77347e4507449f52878872dfa2cafe874b04c95f
 pr120_status: MERGED
+pr121_status: OPEN
+pr121_head_at_review_fix_start: 8bce686a14efa5b63f18b428420b353d8adf9c68
 real_http_capture: NOT_RUN_NOT_AUTHORIZED
 production_storage: NOT_RUN_NOT_AUTHORIZED
 data_role: HISTORICAL_RAW_REPLAY_AND_SIMULATED_SCENARIO_SEPARATED
@@ -318,8 +324,8 @@ confidence: null
 
 | 制御項目 | 最新の扱い |
 | --- | --- |
-| current_engine_state | オフライン基盤の製造・限定実Raw再生/独立Verifier検証済み、未コミットレビュー待ち |
-| next_allowed_action | 今回差分レビューのみ。HTTP収集/本番保存/予測利用へ進まない |
+| current_engine_state | PR121履歴時刻証拠P2修正・限定回帰検証済み、未コミット再レビュー待ち |
+| next_allowed_action | PR121今回差分レビューのみ。HTTP収集/本番保存/予測利用へ進まない |
 | completed_phases | PR120 merge確認。新基盤のオフライン限定検証であり、発走前実取得・STAT46全体完成ではない |
 | superseded_phases | 旧一覧・旧不採用・旧PJ0315 pilot保留を維持。旧SYNTHETIC証拠を実Raw形式へ変更しない |
 | blocked_phases | 実HTTP/本番保存、STAT正式採用、B1/親選択/H1-U、BT-04/BT-05-LIVE |
@@ -1538,7 +1544,7 @@ BT-03E-02以降で利用する場合は、
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
-| PRESTART-CAPTURE-OFFLINE-BRIDGE-01 | オフライン要求/応答・不変証拠・独立検証 | OFFLINE_BRIDGE_VERIFIED_AWAITING_REVIEW | 事後Raw9版を再生照合。実HTTP/過去利用可能性/予測利用は未承認。15.86参照 |
+| PRESTART-CAPTURE-OFFLINE-BRIDGE-01 | オフライン要求/応答・不変証拠・独立検証 | PR121_HISTORICAL_BINDING_FIX_VERIFIED_AWAITING_REVIEW | 履歴mode主条件のP2修正、事後Raw9版照合維持。実HTTP/過去利用可能性/予測利用未承認。15.86.1参照 |
 | STAT46-ROSTER-SNAPSHOT-01 | PJ0315全出走者の取得版保存・純粋構成差分 | PR120_MERGED | カテゴリー受入修正を含めmerge済み。15.85/15.85.1の実測・再レビュー待ちは当時の履歴、予測/本番未承認は維持 |
 | STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 | 公式上位決まり手の走数/日数窓・非重複5対15走分布 | PR119_MERGED | 確定/中止Raw・固定Tのv2修正を受入。実測/再レビュー待ち記録は15.84.1の当時の履歴。本人2走N不足/L1=NULLは不変 |
 | STAT17-19-30-TACTIC-SNAPSHOTS-01 | PJ0315表示7回数の取得版履歴保存とSTAT17限定分布 | PR118_MERGED | PR117 merge後の独立製造。6実レース/39出走/8版/51観測は当時の実績。集計窓UNKNOWN、予測未承認。15.83参照 |
@@ -4515,6 +4521,16 @@ PR120 MERGED、fetch/main ff-only同期後のclean main/origin77347e4から指�
 
 旧証拠回帰252/1560は失敗/skip0・exit0だが155 warning対象ケース（97 clean passed）、イベント2125件は未変更EvidenceFiles.php:149の存在前lstat。警告抑制/旧API改変はせず、過去全体155警告の全原因とは断定しない。失敗履歴・最終実コマンド・source START/END比較・code seal・証跡は[実装記録](prestart-capture-offline-bridge-01.md)。通常全体/旧全量監査/DB/HTTP/2026開催/学習/予測/性能評価0。historical_as_of=false・予測/正式採用禁止、D1〜D8未決は不変。未コミットでレビュー待ち、Git書込み/PR操作なし。
 
+### 15.86.1 PR121 P2履歴再生の時刻証拠検証 / 2026-10-24
+
+cleanな既存branch、HEAD/origin branch/GitHub PR121 head8bce686・PR121 OPEN・base/main77347e4をfetch後照合。8工程ゲート/B1未承認/2026凍結を維持し、新branch/main編集なし。Projectionの応答出典だけによる検査入口を、要求HISTORICAL_RAW_REPLAY主条件へ修正。HISTORICAL_FETCH_LOG/開始NULL/有効log・Parser・reference seal/実Raw seal/取得受信の有効同一瞬間を必須とし、SIMULATED要求への履歴出典/資料混入も拒否。正当な人工時計UNKNOWNは維持する。
+
+追加28ケースの修正前再現は12 assertion failures＋3 errors/13passed/173assertions/exit2。指定4回避経路と実Raw異常メタデータ2件はVERIFIEDとなることを確認。修正後は対象76/883、STAT回帰150/6047が128M/exit0・失敗/警告/skip0。旧証拠252/1560は失敗/skip0・exit0だが既存lstat警告155対象/2125イベントは別問題として維持する。peakは29,884,416/67,633,152/38,273,024bytes、別Verifier最大10,485,760bytes。
+
+実6レース8版＋別枠9車1版・STAT46出走表8版/差分2組の一致、異常Raw保持/FAILEDあり/COMPLETEなし・独立VerifierでFAILED維持を確認。元資料START/ENDは全一致。詳細・組合せ表・実コマンド・新規証跡は[実装記録第8節](prestart-capture-offline-bridge-01.md#8-pr121-p2履歴再生の時刻証拠検証--2026-10-24)。初版code seal/保存実績/hashは変更せず、今回の修正版と分離する。
+
+ユーザー修正前全体3972passed/41738assertions/155warnings/9skipped/失敗0は別記録。今回通常全体/本番DB/競輪サイトHTTP/2026開催/学習/予測/評価0、固定6制限・D1〜D8未決・B1未承認は不変。PHP構文3件/限定Pint/diff check成功。未コミットでPR121再レビュー待ち、commit/push/PR操作/mergeなし。
+
 ## 15.85 STAT46-ROSTER-SNAPSHOT-01 / 2026-10-23
 
 PR119 MERGED、fetch/main pull --ff-only後のclean main/origin87a8a17とmerge件名を照合し、指定未使用branchを作成。旧15.84/15.84.1・OPEN/未コミット終了は当時の履歴として保持。8工程ゲートとSTAT46/SCR46-01〜04を照合し、ユーザー承認範囲の出走表履歴MVPだけを製造した。
@@ -5380,6 +5396,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+### PR121 P2レビュー修正 / 2026-10-24（v1.79追記）
+
+履歴要求modeを主条件とした時刻証拠検査と関連テストだけを修正し、現在地/15.86.1へ同期。保存形式v1・初版成果物/hashは保持し、修正版code sealと実測を分離する。旧証拠警告・ユーザー全体結果を別記録とし、実HTTP/予測利用/B1/2026は開放しない。
 
 ## v1.79 / 2026-10-24
 
@@ -6360,6 +6380,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+現在はPR121 OPEN、同branch `feature/prestart-capture-offline-bridge-01` のP2差分を未コミットで再レビュー待ち。開始/終了HEAD8bce686、main77347e4。正本は5.0・15.86.1と[実装記録第8節](prestart-capture-offline-bridge-01.md#8-pr121-p2履歴再生の時刻証拠検証--2026-10-24)。履歴要求が応答SIMULATED/UNKNOWNで専用検査を回避できないこと、異常Raw保持/FAILED/独立検証と正常実9版の照合を確認した。
+
+対象76/883・STAT150/6047は128M/exit0・警告等0、旧証拠252/1560は失敗0・既存lstat警告155対象を保持。ユーザー全体3972/41738/155warnings/9skippedは修正前の別記録、今回全体未実施。次は同PR差分レビューのみ。固定禁止値/B1未承認/D1〜D8未決/2026凍結は不変、commit/push/PR/mergeなし。
+
+### v1.79初回製造終了時の引継ぎ（履歴）
 
 現在はPR120 MERGED、PRESTART-CAPTURE-OFFLINE-BRIDGE-01の未コミットレビュー待ち。開始main/origin/終了HEADは77347e4、branchはfeature/prestart-capture-offline-bridge-01。正本は5.0・15.86と[実装記録](prestart-capture-offline-bridge-01.md)。新PHP10・テスト2でオフライン保存/独立検証を製造し、実6レース8版と別枠9車を事後再生した。旧出走表・2組差分一致、旧版/原本は不変。
 
