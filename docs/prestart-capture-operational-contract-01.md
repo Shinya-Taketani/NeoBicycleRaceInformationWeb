@@ -2,10 +2,10 @@
 
 ## 1. 状態と開始根拠
 
-- 作成日・外部情報参照日: 2026-10-24（Asia/Tokyo）。文書版: DRAFT-v1。
+- 作成日・外部情報参照日: 2026-10-24（Asia/Tokyo）。改訂日: 2026-10-26、文書版: DRAFT-v2（PR122 P2/P3文書修正）。外部情報を今回再取得した日付ではない。
 - 状態: `OPERATIONAL_CONTRACT_DRAFT_AWAITING_REVIEW`。本書の運用案・数値・新状態名・クラス名はすべて `PROPOSED_NOT_APPROVED`。未確認の根拠は `UNVERIFIED`、未決の値は `UNRESOLVED`。
 - fetch/main pull --ff-only後のclean main/origin/main: `cbff8c5b6ce685bfc6d024fef9afdde3d14ff6a2`。GitHubでもPR121 MERGED、merge SHA一致、merged_at `2026-10-24T03:49:25Z`を確認。PR headはbf4d9e54。以前のOPEN・未コミット終了は当時の履歴。
-- mainから未使用の `design/prestart-capture-operational-contract-01` を作成。今回の変更は本書とMASTER PLANのみ。PHP・設定・テスト・Migration・既存成果物は変更しない。
+- 初版作業ではmainから未使用の `design/prestart-capture-operational-contract-01` を作成した。PR122修正は同じ既存branchで、cleanな開始HEAD/ローカルorigin branch/GitHub PR head `9bd3dede7573eabd12a016ce28f6603ff8490979` を照合。新branch/main編集なし。今回の変更は本書とMASTER PLANのみ。PHP・設定・テスト・Migration・既存成果物は変更しない。
 - 本書のレビュー承認だけで、実装・運用有効化・HTTP試行・本番保存・予測接続を許可しない。D1〜D8の決定、限定実装の別承認、コード受入、具体的な実行承認を分離する。
 
 ```yaml
@@ -30,6 +30,8 @@ confidence: null
 
 確定要件原本は `/home/shinya/ダウンロード/%E7%B5%B1%E8%A8%88%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%B3%E8%A6%81%E4%BB%B6%E5%AE%9A%E7%BE%A9_STAT-01-46%E7%A2%BA%E5%AE%9A_v1.0(2).md`。表題内の初期版表記ではなく、各STAT節と末尾の確定状況を区別して確認した。
 
+2026-10-26に上記パスの実在を再確認した。`%E7...` はURLとして復号する表記ではなく、ローカルに実在するファイル名の一部。6,062行、SHA-256 `73b4846b7cdeeb090dbb1c4410e12cb8ba717020f07c77de15e1fee28b7bc4ab`。未確認の復号後パスへ置き換えない。
+
 | 根拠 | 本契約への制約 |
 | --- | --- |
 | STAT-01、11〜86行 | 当時取得可能だった公式得点と入力snapshot。事後更新を遡及せず、欠損を0にしない |
@@ -39,7 +41,7 @@ confidence: null
 | STAT-39、4969〜5088行 | 予測時点の車番/枠番履歴と制度根拠。Raw枠欠落から公式非適用を推定せず、生勝率で加点しない |
 | STAT-46、5904〜6051行 | 決定/公表/取得/予測/発走を区別し、本人影響/構造影響/不確実性を分離。差分だけで補充理由を断定しない |
 
-残タスク原本 `/home/shinya/ダウンロード/スクレイピング残タスク_統計エンジン連携_STAT-01-46確定_v1.0(2).md` の2864〜2940行を照合した。
+残タスク原本 `/home/shinya/ダウンロード/スクレイピング残タスク_統計エンジン連携_STAT-01-46確定_v1.0(2).md` のSTAT-46関連節2864〜2937行を照合した。2026-10-26のローカル確認では全2,938行（末尾2938行は空行）、SHA-256 `963ae1d64b6f04f1eccbefc039c7228710b950d7d22bcb413cdf17ea921471c3`。4項目の内容・OPEN状態と参照範囲はユーザー提示の説明と整合する。共有側ファイルの同一bytes/hashまでは未照合。旧記載の終端2940行は実在範囲を超えるため訂正した。
 
 | ID | 原本の完了条件と今回の境界 | 状態 |
 | --- | --- | --- |
@@ -170,6 +172,10 @@ S0→S1の差分は変更の観測であり、変更後再確認は常に可能�
 | 現Bridge対応 | 非対応。旧SYNTHETIC JSJ017処理は実資料の受入ではない | v1オフラインのみ対応 |
 
 初回パイロットはPJ0315のみを推奨するが、優位性が確認済みという意味ではない。JSJ017併用案ではday単位2slot分を追加し、最大4 PJ＋2 JS＝6 HTTP試行/日の案になる。既定の4枠で勝手にJSを追加せず、D1/D2/D4を再承認する。day Rawが他raceを含んでも対象集合を増やさず、対象外部分は入力へ投影しない。
+
+初回PJ0315単独工程の受入は、第12節の `PILOT_PJ0315_REQUIRED` と `EXISTING_REGRESSION_REQUIRED` に限定する。JSJ017のHTTP取得実装、共有Raw契約、複数race投影は初回の製造・受入条件ではない。一方、未承認JSJ017へのアクセスを送信前に拒否するT03と、第二情報源未取得を二源一致と認定しないT15aは初回必須。片源の研究用観測が受け入れられても、二源整合や予測利用が成立したとはしない。
+
+T14とT15bは `FUTURE_JSJ017_CONDITIONAL`。D1/D2/D4とJSJ017用の別契約・別工程が承認された時点で、その工程の必須受入へ追加する。現在は別工程未承認、今回未実装・未実行であり、成功済み・不要とは扱わない。初回の承認記録にはこの条件付き残件を明示する。
 
 両源がある場合は同race/slotの各capture ID・取得実時刻・manifestを別に保持する。値を多数決・最新到着順・現在DBで統合しない。時刻・本人・脚質が矛盾すれば `SOURCE_CONFLICT`（案）とし、各原値と比較不能理由を保持する。非同時取得による更新差の可能性があっても、更新時刻証拠なしに「後者が訂正」と断定しない。片源だけなら `SECOND_SOURCE_NOT_CAPTURED`（案）、源がfieldを提供しなければSOURCE_NOT_PROVIDEDであって値欠落/0とは別。
 
@@ -304,36 +310,57 @@ JS/PJの到着順が逆でも、それぞれの実取得/保存/公開時刻を�
 
 全てFixture/Mockでネットワーク不要。実HTTPを禁止するMockで送信回数・転送先0件・DB/モデル書込み0をassertする。人工時計/カテゴリー変更等は実競輪正常受入と呼ばない。
 
-| ID | 入力/境界 | 必須期待結果 |
-| --- | --- | --- |
-| T01 | allowlist外/期限切れ/対象改訂未承認 | HTTP0、旧manifest不変 |
-| T02 | 人工2026対象 | Raw/DB/HTTP I/Oより前に拒否。実2026資料は使わない |
-| T03 | 未承認source・extra parameter・別host/path | HTTP0。部分URL一致で通さない |
-| T04 | 3race/2場/別日など上限超過 | 全対象を送信前拒否。都合のよい2raceだけ勝手に切出さない |
-| T05 | 3回目/race・5回目/日・二重起動・別run | 上限超過/重複拒否、同時実行1、失敗予約も消費維持 |
-| T06 | slot期限外/間隔60秒未満/予定変更 | HTTP0又は未送信slot保留、取り返し取得0 |
-| T07 | 429＋Retry-After | 元失敗証拠保持、全scope停止、次送信0、自動sleep再開0 |
-| T08 | 5xx/timeout/接続失敗 | 1試行のみ、body有無別記録、retry0、残slot停止 |
-| T09 | 全3xx・同host/別host Location | 非追従、Location先HTTP0、FAILED |
-| T10 | effective URI不一致/欠落 | Rawが正しくても拒否。元URLで補完しない |
-| T11 | Raw1byte/size/SHA/書込み/fsync失敗 | 原本保持、FAILED/partial、COMPLETEなし、/tmp fallback0 |
-| T12 | MEN/GIRLS/L/UNKNOWN・既知矛盾 | 概要先行、対象外は男子詳細Parser未呼出し、矛盾停止 |
-| T13 | PJ概要/詳細の不一致・重複・先頭0・欠番 | 不一致拒否、正常先頭0/非連番を保持 |
-| T14 | JS day/race本人・複数race・共有Raw | 1Raw参照、許可raceのみ投影、race別時点分類、day/race encp混同拒否 |
-| T15 | 二源の予定/脚質/本人矛盾、到着順反転 | SOURCE_CONFLICT/未確認保持、多数決/後着遡及0 |
-| T16 | 追加/消失/車番変更、A→B→A | 全版と差分再現、補充理由NULL、無承認期待集合変更0 |
-| T17 | 欠場/中止/順延/未公開/空配列 | 公式根拠と対象照合、空=中止としない、race/day再承認、追加取得0 |
-| T18 | 開始=受信/逆転・単調時計逆転 | 順序不成立を保持、正常実時計へ補正しない |
-| T19 | 同期/TZ/精度不明・誤差区間接触 | TIMING_UNKNOWN、前候補/0誤差にしない |
-| T20 | 前/等値/後、受信前・保存/公開後cutoff | strict境界・完了時計を別assert、候補と利用適格を混同しない |
-| T21 | 再取得/同ID衝突/途中中断/旧bundle | 新ID履歴保持、上書き/再seal0、原本START/END SHA一致 |
-| T22 | 未承認予測接続・属性欠損/NULL/空/不正型 | NOT_AUTHORIZED、C1/STAT/モデル更新0、原値/存在/型保持 |
-| T23 | 上限停止後再起動/台帳破損/取消承認 | HTTP0、予算復元不能は停止、同slot再送0 |
-| T24 | 容量/permission/link/mount/Trash移動失敗 | 保護path不操作、人工領域だけ検証、原本保持、永久削除/fallback0 |
-| T25 | 要求modeと応答出典/履歴Source混入 | PR121 P2の全回避経路拒否、正当な人工UNKNOWN・履歴再生9版は維持 |
-| T26 | 保存資料だけの独立Verifier/receipt/code drift | DB/ネットワーク不要、外部期待hash/再投影/公開時計一致、旧版不変 |
+### 12.1 適用工程と承認条件
 
-受入はテスト件数だけでなく全期待結果の成立、別PHP128MiBでの有限保存/独立検証、stderr/警告/skip/exit/peakの記録、原本read-only・人工.env/storage・SQLite隔離・既存安全helperでの限定回帰までを条件とする。旧cleanupを安全確認せず通常全体を起動しない。必要な既存回帰はPrestartCaptureのUnit/Feature、PrestartEvidence/属性、AutomatedRaceParser、STAT46、関連HTTP/storage/serviceのMockテスト。警告を抑制して受入しない。
+| 区分 | 初回PJ0315単独工程への適用 | 対象・実装状態 |
+| --- | --- | --- |
+| PILOT_PJ0315_REQUIRED | 必須 | T01〜T13、T15a、T16〜T26の新運用PJ部分。製造/受入は別承認待ち、今回は未実装・未実行 |
+| EXISTING_REGRESSION_REQUIRED | 必須 | T25/T26の既存契約部分と、本節末尾に列挙する既存限定回帰。既存成功記録で次工程の実行を代用しない |
+| FUTURE_JSJ017_CONDITIONAL | 初回の受入条件ではない | T14/T15b。JSJ017用の別契約・別工程とD1/D2/D4承認後に必須追加。現在は別工程未承認・未実装・未実行で、不要/成功済みではない |
+
+T15はT15a/T15bへ分割し、旧T15の二源比較目的はT15bに全て保持する。T01〜T26の検証目的を残した27仕様行であり、自動テスト実装件数や実行件数ではない。他節のID範囲参照もこの適用表に従い、初回にT14/T15bを暗黙に必須化しない。
+
+T25/T26の区分併記は、任意選択ではなく両方が必須という意味。新運用PJの出典混入拒否/独立VerifierはPILOT、既存PR121のmode契約・独立検証・旧seal不変性はEXISTINGとして、別のassertionと実行記録で確認する。既存回帰にSYNTHETIC JSJ017が含まれても、旧契約の維持だけであり、実取得JSJ017/共有Raw/複数raceの新契約製造を要求しない。
+
+### 12.2 ID別の期待結果
+
+| ID | 適用区分 | 入力/境界 | 当該工程での必須期待結果 |
+| --- | --- | --- | --- |
+| T01 | PILOT_PJ0315_REQUIRED | allowlist外/期限切れ/対象改訂未承認 | HTTP0、旧manifest不変 |
+| T02 | PILOT_PJ0315_REQUIRED | 人工2026対象 | Raw/DB/HTTP I/Oより前に拒否。実2026資料は使わない |
+| T03 | PILOT_PJ0315_REQUIRED | 未承認JSJ017を含むsource・extra parameter・別host/path | 全不許可ケースを送信前拒否、HTTP0。未承認JSJ017はMock送信も0。部分URL一致やmanifestへの自己追加で通さない |
+| T04 | PILOT_PJ0315_REQUIRED | 3race/2場/別日など上限超過 | 全対象を送信前拒否。都合のよい2raceだけ勝手に切出さない |
+| T05 | PILOT_PJ0315_REQUIRED | 3回目/race・5回目/日・二重起動・別run | 上限超過/重複拒否、同時実行1、失敗予約も消費維持 |
+| T06 | PILOT_PJ0315_REQUIRED | slot期限外/間隔60秒未満/予定変更 | HTTP0又は未送信slot保留、取り返し取得0 |
+| T07 | PILOT_PJ0315_REQUIRED | 429＋Retry-After | 元失敗証拠保持、全scope停止、次送信0、自動sleep再開0 |
+| T08 | PILOT_PJ0315_REQUIRED | 5xx/timeout/接続失敗 | 1試行のみ、body有無別記録、retry0、残slot停止 |
+| T09 | PILOT_PJ0315_REQUIRED | 全3xx・同host/別host Location | 非追従、Location先HTTP0、FAILED |
+| T10 | PILOT_PJ0315_REQUIRED | effective URI不一致/欠落 | Rawが正しくても拒否。元URLで補完しない |
+| T11 | PILOT_PJ0315_REQUIRED | Raw1byte/size/SHA/書込み/fsync失敗 | 原本保持、FAILED/partial、COMPLETEなし、/tmp fallback0 |
+| T12 | PILOT_PJ0315_REQUIRED | MEN/GIRLS/L/UNKNOWN・既知矛盾 | 概要先行、対象外は男子詳細Parser未呼出し、矛盾停止 |
+| T13 | PILOT_PJ0315_REQUIRED | PJ概要/詳細の不一致・重複・先頭0・欠番 | 不一致拒否、正常先頭0/非連番を保持 |
+| T14 | FUTURE_JSJ017_CONDITIONAL | JS day/race本人・複数race・共有Raw | 別契約承認後、1Raw参照、許可raceのみ投影、race別時点分類、day/race encp混同拒否 |
+| T15a | PILOT_PJ0315_REQUIRED | PJ単独、第二情報源は未取得 | SECOND_SOURCE_NOT_CAPTUREDを保持し、二源一致/比較済みにしない。JS補完取得0、予測利用NOT_AUTHORIZED |
+| T15b | FUTURE_JSJ017_CONDITIONAL | 二源の予定/脚質/本人矛盾、到着順反転 | 別契約承認後、SOURCE_CONFLICT/未確認保持、多数決/後着遡及0 |
+| T16 | PILOT_PJ0315_REQUIRED | 追加/消失/車番変更、A→B→A | 全版と差分再現、補充理由NULL、無承認期待集合変更0 |
+| T17 | PILOT_PJ0315_REQUIRED | 欠場/中止/順延/未公開/空配列 | 公式根拠と対象照合、空=中止としない、race/day再承認、追加取得0 |
+| T18 | PILOT_PJ0315_REQUIRED | 開始=受信/逆転・単調時計逆転 | 順序不成立を保持、正常実時計へ補正しない |
+| T19 | PILOT_PJ0315_REQUIRED | 同期/TZ/精度不明・誤差区間接触 | TIMING_UNKNOWN、前候補/0誤差にしない |
+| T20 | PILOT_PJ0315_REQUIRED | 前/等値/後、受信前・保存/公開後cutoff | strict境界・完了時計を別assert、候補と利用適格を混同しない |
+| T21 | PILOT_PJ0315_REQUIRED | 再取得/同ID衝突/途中中断/旧bundle | 新ID履歴保持、上書き/再seal0、原本START/END SHA一致 |
+| T22 | PILOT_PJ0315_REQUIRED | 未承認予測接続・属性欠損/NULL/空/不正型 | NOT_AUTHORIZED、C1/STAT/モデル更新0、原値/存在/型保持 |
+| T23 | PILOT_PJ0315_REQUIRED | 上限停止後再起動/台帳破損/取消承認 | HTTP0、予算復元不能は停止、同slot再送0 |
+| T24 | PILOT_PJ0315_REQUIRED | 容量/permission/link/mount/Trash移動失敗 | 保護path不操作、人工領域だけ検証、原本保持、永久削除/fallback0 |
+| T25 | PILOT_PJ0315_REQUIRED / EXISTING_REGRESSION_REQUIRED | 要求modeと応答出典/履歴Source混入 | 新運用版への履歴/人工出典混入を拒否。既存PR121 P2の全回避経路拒否、正当な人工UNKNOWN・履歴再生9版は維持 |
+| T26 | PILOT_PJ0315_REQUIRED / EXISTING_REGRESSION_REQUIRED | 保存資料だけの独立Verifier/receipt/code drift | 新PJ束はDB/ネットワーク不要、外部期待hash/再投影/公開時計一致。既存Verifier・旧版sealの不変性も別に確認 |
+
+### 12.3 工程ごとの完了判定
+
+受入はテスト件数だけでなく、**当該承認工程に割り当てられた必須テストの全期待結果の成立**、別PHP128MiBでの有限保存/独立検証、stderr/警告/skip/exit/peakの記録、原本read-only・人工.env/storage・SQLite隔離・既存安全helperでの限定回帰までを条件とする。初回PJ0315単独ではPILOTとEXISTINGの双方が必要で、T14/T15bの未実装は「別工程未承認の条件付き残件」と記録する。省略/skipで成功へ読み替えず、承認済み範囲の完了と条件付き残件を別々に報告する。
+
+JSJ017併用が承認された工程ではT14/T15bを必須追加し、既存の共通制御・PJ受入・限定回帰を維持する。共有Raw/複数race/二源比較が未実装・未検証のままJSJ017工程を完了にしない。二源の実HTTPはMock受入とは別承認であり、テストのためにも通信しない。
+
+EXISTINGの必要な限定回帰はPrestartCaptureのUnit/Feature、PrestartEvidence/属性、AutomatedRaceParser、STAT46、関連HTTP/storage/serviceのMockテスト。旧cleanupを安全確認せず通常全体を起動しない。警告を抑制して受入しない。
 
 ## 13. 後続実装候補と実HTTP有効化条件
 
@@ -348,17 +375,29 @@ JS/PJの到着順が逆でも、それぞれの実取得/保存/公開時刻を�
 | Operational/TimingEvidence.php、CaptureVerifier.php | 時計根拠/誤差・同Raw本人/属性・receiptの独立再検証、DB/HTTP依存なし |
 | config/prestart_capture.php | 独立設定候補。既定無効、承認manifest必須、既存keirin設定から許可を継承しない |
 | 専用Artisan Command候補 | plan既定（DB/HTTP/Rawアクセス0）と明示executeを分離。Scheduler/Queue登録なし |
-| 専用Unit/Feature Test | T01〜26と既存回帰。HTTP fake/ネットワーク遮断、人工時計を出典付きで扱う |
+| 専用Unit/Feature Test | 初回は第12節のPILOT/EXISTING、T15aを含む。T14/T15bはJS別工程承認後。HTTP fake/ネットワーク遮断、人工時計を出典付きで扱う |
 
-実HTTP有効化には、D1〜D8の決定台帳の署名/記録、具体日/場/raceの許可manifest、D3の根拠・当日有効な許諾/負荷条件、時計/TZ根拠、保存/容量/保持/backup条件、別版実装・Mock受入/コードレビュー、実行コマンド/停止/担当者の明示承認がすべて必要。特に2026禁止と現v1の過去年制限のまま実HTTPを開始する経路はない。
+初回PJ0315専用の製造・Mock受入・有効化条件に、JSJ017のTransport、共有Raw契約、複数race投影、二源比較の実装を含めない。未承認JSJ017の送信前拒否と第二情報源未取得の明示はT03/T15aとして必須。JS対応の新Request/Projection/共有Raw形式はD1/D2/D4と別契約・別工程の承認後だけ製造・受入対象とし、その時点でT14/T15bを追加する。これらは現在未実装・未実行であり、旧SYNTHETIC回帰の成功を新JS実装の受入に代用しない。
+
+実HTTP有効化には、D1〜D8の決定台帳の署名/記録、具体日/場/raceの許可manifest、D3の根拠・当日有効な許諾/負荷条件、時計/TZ根拠、保存/容量/保持/backup条件、当該承認工程の別版実装・第12節の工程別Mock受入/コードレビュー、実行コマンド/停止/担当者の明示承認がすべて必要。特に2026禁止と現v1の過去年制限のまま実HTTPを開始する経路はない。
 
 文書の承認、コード製造の承認、限定パイロット送信の承認、観測資料の受入、最終予測利用承認を同じチェックボックスにしない。今回の次の許可作業は本書とMASTER PLANのレビューだけ。
 
 ## 14. 確認結果
 
+### 14.1 初版文書作成時 / 2026-10-24（履歴）
+
 本工程は文書作成と読取り確認のみ。PHPUnit/Pint/Artisan/DB/データ取得HTTP/Raw再解析/再生/学習/予測/評価/2026開催参照は各0。新しい統計計算は行わず、9節の保存bytesの算術集計だけを実施した。静的ポリシー独立閲覧とrobots確認不能は5節の範囲で記録した。
 
 文書検証はexit0。D1〜D8の全台帳欄・未承認表示、受入仕様26項目、相対参照5文書の実在、コード区切りと末尾空白を確認した。MASTER PLANの旧15.86/15.86.1本文は開始HEADと完全一致し、git diff --checkはexit0。新規文書とMASTER PLAN以外の変更はない。過去の76/883・150/6047・旧証拠警告、ユーザー全体3972/41738/155warnings/9skippedは過去記録で、今回成功したテストとは報告しない。commit/push/PR作成/mergeなし、設計branchの未コミットレビュー待ちで停止する。
+
+### 14.2 PR122 P2/P3文書修正 / 2026-10-26
+
+P2はD4・12・13・決定台帳を工程別に同期し、T15をa/bへ分割した。旧T01〜T26の目的は保持した27仕様行で、初回PJの必須範囲に未承認JS実装を含めない。T03/T15aと既存回帰は初回必須、T14/T15bは別工程承認後に必須。P3はローカル原本の行数・STAT46節/OPEN状態・実ファイル名・SHAを確認して2.1節を訂正した。
+
+文書検証はexit0。27仕様行の網羅性・重複なし・適用区分（初回PJ適用25行、将来条件付き2行、T25/T26の既存回帰部分）、相対参照5文書・表の列数・コード区切りを確認した。変更していない23の旧期待結果（旧T15はT15bに継承）を照合し、拡張したT03/T25/T26の元の拒否・検証目的も差分レビューで確認。D4/12/13/決定台帳は同じ適用規則で、推奨数値・MASTER PLANの8ゲート・旧15.86/15.86.1本文は開始HEADと一致、git diff --checkはexit0。これは文書の確認結果で、自動テストの実行結果ではない。
+
+今回の文書検証とユーザーによる修正前全体テスト `4000 passed / 42068 assertions / 155 warnings / 9 skipped` は別記録。PHPUnit/Pint/Artisan/実データHTTP/静的ポリシー再閲覧/DB/Raw再生/学習/予測/評価/2026開催参照は全て未実施。GitHub PR metadataの読取り照合以外のPR操作はなく、commit/push/mergeなし。数値案/JS工程/実送信/予測利用の未承認は不変。文書差分の再レビューだけを待つ。
 
 ## 15. D1〜D8決定台帳（文書末尾・全項目未承認）
 
@@ -378,7 +417,7 @@ JS/PJの到着順が逆でも、それぞれの実取得/保存/公開時刻を�
 | 承認が必要な値（ユーザー判断） | 実年/日/場/番号と期限、基準snapshot/seal、同raceの新出走者差分観測可否。全てUNRESOLVED |
 | 現在の状態 | PROPOSED_NOT_APPROVED / UNRESOLVED。2026禁止は確定 |
 | 承認後の実装（技術選択） | Operational/Contract・CaptureRequest・CaptureService、対象manifest検証テスト |
-| 受入基準 | T01〜04/T12〜17/T25、対象外/2026送信0・基準改竄/自動再固定0 |
+| 受入基準 | 初回はT01〜04/T12〜13/T15a/T16〜17/T25、対象外/2026/未承認JS送信0・基準改竄/自動再固定0。T14/T15bはJS別工程承認後 |
 
 ### D2: slot・予算・障害停止
 
@@ -421,12 +460,12 @@ JS/PJの到着順が逆でも、それぞれの実取得/保存/公開時刻を�
 | 推奨案 | PJのみ技術パイロット、二源未検証を明示。両源追加後も矛盾はSOURCE_CONFLICTで保留 |
 | 代替案 | day共有JSを先行する案、又はPJ4＋JS2の6試行案。予算/対象の再承認が必要 |
 | 推奨理由 | 現実装の受入範囲を限定できるが、情報源の鮮度優位は主張しない |
-| 想定される影響 | JS採用なら1capture複数race・race別時点/Pointer・共有Rawの新形式が必要 |
+| 想定される影響 | 初回はPJ単独の製造/受入。JS採用の別契約・別工程が承認された場合だけ1capture複数race・race別時点/Pointer・共有Rawの新形式が必要 |
 | 未確認の根拠 | 二源の更新/公表順、公式の優先関係、ライン提供情報源はUNVERIFIED |
 | 承認が必要な値（ユーザー判断） | 初回source、JS併用範囲/予算、単一源未確認を許す研究範囲、矛盾時保留方針 |
 | 現在の状態 | PROPOSED_NOT_APPROVED。予測用source選択はUNRESOLVED |
-| 承認後の実装（技術選択） | Operationalのsource別Request/Projection/Verifier、JS用共有Raw観測契約 |
-| 受入基準 | T14/T15、取得順逆転でも非遡及、片源欠落を一致としない、ライン推定0 |
+| 承認後の実装（技術選択） | 初回はOperationalのPJ用Request/Projection/Verifier。JS用共有Raw/複数race/二源比較は別契約・別工程承認後、現在未実装・未実行 |
+| 受入基準 | 初回はPILOTのT03/T13/T15aとEXISTINGの既存source回帰が必須。未承認JS送信0・第二情報源未取得を二源一致としない。JS併用承認後はFUTUREのT14/T15bを必須追加し、取得順逆転でも非遡及・SOURCE_CONFLICT保持・ライン推定0 |
 
 ### D5: 変更・中止・延期
 
@@ -490,4 +529,4 @@ JS/PJの到着順が逆でも、それぞれの実取得/保存/公開時刻を�
 | 承認が必要な値（ユーザー判断） | 研究限定範囲、将来Gate工程/入力用途/版選択・競合/不明の扱い。正式利用は本書の対象外 |
 | 現在の状態 | PROPOSED_NOT_APPROVED / 最終Gate UNRESOLVED。prediction_use=NOT_AUTHORIZED維持 |
 | 承認後の実装（技術選択） | 今回は記録設計のみ。最終Gate/予測接続のクラスは別工程で決定し、Operational/Verifierを流用して自動許可しない |
-| 受入基準 | T15/T20/T22/T26、追跡と保留理由が再現可能、未承認入力/モデル書込み0 |
+| 受入基準 | 初回はT15a/T20/T22/T26、追跡と保留理由が再現可能、未承認入力/モデル書込み0。二源比較T15bはJS別工程承認後 |

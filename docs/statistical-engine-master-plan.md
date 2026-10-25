@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-26 PR122 P2/P3文書修正：cleanな既存 `design/prestart-capture-operational-contract-01` の開始HEAD/origin branch/GitHub PR head `9bd3dede7573eabd12a016ce28f6603ff8490979`、PR122 OPEN・base/main cbff8c5を照合。初回PJ必須/将来JS条件付き/既存回帰の受入範囲と原本参照を修正。15.87.1と[運用契約案](prestart-capture-operational-contract-01.md)を参照。
+> 現在地と次の許可は運用契約案の文書再レビューのみ。T14/T15bはJS別工程承認後の必須残件、T03/T15aは初回必須。数値案/実送信/本番保存/予測利用/B1/2026は開放せず、以下の初版確認・実測・未コミット終了は当時の履歴として保持する。
+
 > 2026-10-24 最新工程：`PRESTART-CAPTURE-OPERATIONAL-CONTRACT-01`。PR121 MERGEDをGitHubのmerge SHAと、fetch/main pull --ff-only後のclean main/origin `cbff8c5b6ce685bfc6d024fef9afdde3d14ff6a2`・merge件名で確認し、`design/prestart-capture-operational-contract-01` をmainから作成。現在地は5.0・15.87と[運用契約案](prestart-capture-operational-contract-01.md)。
 > D1〜D8の判断根拠・選択肢・上限案・停止/受入条件を文書化しただけで、取得を有効化していない。推奨値はPROPOSED_NOT_APPROVED、未確認はUNVERIFIED、未決はUNRESOLVED。以下のPR121 OPEN・未コミット・限定テスト結果は当時の履歴として保持する。
 
@@ -71,7 +74,7 @@
 - Document: 統計エンジン開発工程マスター
 - Version: 1.80
 - Created: 2026-08-23
-- Updated: 2026-10-24
+- Updated: 2026-10-26
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -89,10 +92,11 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR121 MERGED、D1〜D8運用契約草案の文書レビュー待ち。対象/数値/実装/実送信/予測利用は未承認
-- Current code: コード製造・変更なし。新規運用契約案とMASTER PLANの2Markdownだけ。旧版/原Raw/STAT/モデル/設定/安全helperは不変
-- Current execution record: OPERATIONAL_CONTRACT_DRAFT_AWAITING_REVIEW。静的公式ポリシーを独立閲覧、robots取得不能・自動収集許諾/API等は未確認。固定9版レポートのbytesだけ参考再集計、実Raw再生なし
+- Current review: PR122 OPEN、P2/P3文書修正を未コミットで再レビュー待ち。PR121 MERGED、対象/数値/実装/実送信/予測利用は未承認
+- Current code: コード製造・変更なし。運用契約案とMASTER PLANの2Markdownだけ。旧版/原Raw/STAT/モデル/設定/安全helperは不変
+- Current execution record: OPERATIONAL_CONTRACT_DRAFT_AWAITING_REVIEW。初回PJ必須/将来JS条件付き/既存回帰を区分し、原本2938行・STAT46節2864〜2937行と実ファイル名を確認。新規の外部ポリシー閲覧/Raw再集計なし
 - Current tests record: 文書の参照/状態/式/変更範囲とdiff checkのみ。PHPUnit/Pint/Artisan/本番DB/データ取得HTTP/2026開催/学習/予測/評価0
+- Previous execution at v1.80 initial: 2026-10-24の静的公式ポリシー独立閲覧、robots取得不能・自動収集許諾/API等未確認、固定9版レポートbytes参考再集計は初版の記録。今回の再実行結果へ読み替えない
 - Previous review/code at v1.79 PR121: PR121 OPEN、開始HEAD8bce686のP2修正を未コミットで再レビュー待ち。Projectionと関連テストだけを修正した当時の状態。今回開始前にmerge済み
 - Previous execution/tests at v1.79 PR121: PR121_HISTORICAL_BINDING_FIX_VERIFIED_AWAITING_REVIEW。実9版・旧出走表/2組差分一致、対象76/883・STAT150/6047・旧証拠252/1560とlstat警告は15.86.1の過去実績。ユーザー全体3972/41738/155warnings/9skippedも別記録として保持
 - Previous execution/tests at v1.79 initial: OFFLINE_BRIDGE_VERIFIED_AWAITING_REVIEW。実6レース/8版/39固有出走者/51観測＋別枠9車を照合、新規48/553・STAT150/6047・旧証拠252/1560。初版15.86・実装記録1〜7節の実績/hash/未コミット終了は当時の履歴
@@ -308,6 +312,8 @@ current_phase: PRESTART-CAPTURE-OPERATIONAL-CONTRACT-01
 current_engine_state: OPERATIONAL_CONTRACT_DRAFT_AWAITING_REVIEW
 next_allowed_action: REVIEW_PRESTART_CAPTURE_OPERATIONAL_CONTRACT_ONLY
 pr121_status: MERGED
+pr122_status: OPEN
+pr122_head_at_document_review_fix_start: 9bd3dede7573eabd12a016ce28f6603ff8490979
 remote_main: cbff8c5b6ce685bfc6d024fef9afdde3d14ff6a2
 operational_decisions: PROPOSED_NOT_APPROVED
 real_http_capture: NOT_RUN_NOT_AUTHORIZED
@@ -325,6 +331,8 @@ points: null
 confidence: null
 2026_holdout: FROZEN_NO_ACCESS
 ```
+
+PR122 P2/P3の現在地は15.87.1。受入範囲は初回PJのPILOT_PJ0315_REQUIRED＋EXISTING_REGRESSION_REQUIREDとし、T14/T15bはJS別契約・別工程承認後のFUTURE_JSJ017_CONDITIONAL。区分は文書案であり、製造/実行承認ではない。
 
 | 制御項目 | 最新の扱い |
 | --- | --- |
@@ -1588,7 +1596,7 @@ BT-03E-02以降で利用する場合は、
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
-| PRESTART-CAPTURE-OPERATIONAL-CONTRACT-01 | D1〜D8運用条件/受入の文書設計 | OPERATIONAL_CONTRACT_DRAFT_AWAITING_REVIEW | 推奨値・root・将来版/実取得・最終Gateは未承認。15.87参照 |
+| PRESTART-CAPTURE-OPERATIONAL-CONTRACT-01 | D1〜D8運用条件/受入の文書設計 | OPERATIONAL_CONTRACT_DRAFT_AWAITING_REVIEW | PR122 P2/P3でPJ必須/JS条件付き/既存回帰を整理。推奨値・root・実取得・最終Gateは未承認。15.87.1参照 |
 | PRESTART-CAPTURE-OFFLINE-BRIDGE-01 | オフライン要求/応答・不変証拠・独立検証 | PR121_MERGED | P2修正を含め受入。15.86/15.86.1の実測/hash/再レビュー待ちは当時の履歴。実HTTP/予測利用未承認は維持 |
 | STAT46-ROSTER-SNAPSHOT-01 | PJ0315全出走者の取得版保存・純粋構成差分 | PR120_MERGED | カテゴリー受入修正を含めmerge済み。15.85/15.85.1の実測・再レビュー待ちは当時の履歴、予測/本番未承認は維持 |
 | STAT19-30-OFFICIAL-METHOD-HISTORY-MVP-01 | 公式上位決まり手の走数/日数窓・非重複5対15走分布 | PR119_MERGED | 確定/中止Raw・固定Tのv2修正を受入。実測/再レビュー待ち記録は15.84.1の当時の履歴。本人2走N不足/L1=NULLは不変 |
@@ -4564,6 +4572,16 @@ PR121 MERGED・merge cbff8c5をGitHubとfetch/main ff-only後のclean main/origi
 
 変更は新規契約案とMASTER PLANの2Markdownだけ。PHPUnit/Pint/Artisan/本番DB/2026開催/学習/予測/性能評価0、文書参照/状態/式・変更範囲/diff checkのみ確認。D1〜D8文書レビュー→必要値/根拠決定→限定製造承認→Mock/コード受入→具体送信承認→観測受入→別予測Gateを分離する。B1未承認/親未選択/H1-U保留・全STAT配点・旧C1/C2・holdout/正式採用/LIVE禁止は不変。未コミットで文書レビュー待ち、commit/push/PR/mergeなし。
 
+### 15.87.1 PR122 P2/P3: 工程別受入・原本参照修正 / 2026-10-26
+
+cleanな既存design branch、開始HEAD/origin branch/GitHub PR head9bd3dede・PR122 OPEN/base cbff8c5を照合。新branch/fetch/commit/push/PR更新/mergeなし。文書2件だけを修正し、5.0の工程/次の許可と8ゲート・B1未承認・親未選択・holdout凍結・予測利用禁止は不変。
+
+初回PJ0315単独はPILOT（T01〜T13/T15a/T16〜T26の新PJ部分）とEXISTING（T25/T26の既存契約部分・関連限定回帰）の双方を必須とする。未承認JS送信拒否T03/第二情報源未取得を一致としないT15aは初回必須。T14と旧T15の二源比較を保持するT15bはFUTUREとして、D1/D2/D4・JS別契約/別工程承認後に必須追加する。初回に共有Raw/複数race/二源実装を要求しないが、将来条件付き残件は不要/成功済み/skipと扱わない。旧26目的を維持した27仕様行で、実装/実行テスト数ではない。
+
+残タスク原本は実在する日本語ファイル名を確認し、wc -l=2938、STAT46節2864〜2937（4件OPEN）、末尾2938は空行。確定要件のURLエンコード文字列も実際のローカルファイル名であり、架空の復号後pathへ置換しない。行数/実path/SHAを運用契約2.1へ記録し、旧終端2940を訂正。共有側の同一bytesまでは未照合。
+
+文書の適用表/27仕様行のID網羅（初回PJ適用25行・将来条件付き2行）・D4/決定台帳/13節・相対リンク/表/コード区切り・固定状態と変更範囲を確認し、文書検証/差分検査はexit0。推奨数値・8ゲート・旧実行記録は不変。ユーザーによる修正前全体4000 passed/42068 assertions/155 warnings/9 skippedは別記録。今回PHPUnit/Pint/HTTP実取得/DB/Raw再生/学習/予測/評価/2026参照なし。未コミットの文書再レビュー待ち、実装・実取得に進まない。
+
 ## 15.86 PRESTART-CAPTURE-OFFLINE-BRIDGE-01 / 2026-10-24
 
 PR120 MERGED、fetch/main ff-only同期後のclean main/origin77347e4から指定新branchを作成。8工程ゲートを照合し、旧D1〜D8未決・B1 BLOCKED/未承認・holdout凍結を維持する。旧15.85/15.85.1の実測/hash/未コミット終了は当時の履歴。
@@ -5451,6 +5469,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+### PR122 P2/P3レビュー修正 / 2026-10-26（v1.80追記）
+
+初回PJ単独の必須受入と将来JS別承認の条件付き受入を区分。T15a/T15bで片源未取得/二源矛盾を分離し、旧T01〜T26の目的を維持。原本の実在名/2938行・STAT46参照範囲を照合して訂正した。2Markdownの文書修正のみ、工程ゲート・未承認数値・禁止事項は維持。15.87.1参照。
 
 ## v1.80 / 2026-10-24
 
@@ -6449,6 +6471,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+PR122 OPEN、既存design branchのP2/P3文書差分を未コミットで再レビュー待ち。開始HEAD/PR head9bd3dede、base/main cbff8c5。正本は5.0・15.87.1と[運用契約案](prestart-capture-operational-contract-01.md)DRAFT-v2。初回PJはPILOT＋EXISTING、未承認JS送信拒否/片源未取得は必須。T14/T15bのJS共有Raw/複数race/二源比較は別工程承認後の必須残件で、初回受入条件には含めない。
+
+次は文書再レビューのみ。D1〜D8数値・実対象/許諾/時計/保存・backup/最終Gateは未承認/未確認、実装・実HTTP・本番保存・予測利用・B1/2026は開放しない。原本参照範囲だけをローカル確認し、テスト・旧監査・Raw再生は再実行していない。ユーザー修正前全体4000/42068/155warnings/9skippedとは別記録。commit/push/PR更新/mergeなし。以下は初版終了時点の履歴。
+
+### v1.80 初版文書作成終了時の引継ぎ（履歴）
 
 現在はPR121 MERGED、PRESTART-CAPTURE-OPERATIONAL-CONTRACT-01の文書レビュー待ち。開始main/origin/終了HEADはcbff8c5、branchはdesign/prestart-capture-operational-contract-01。正本は5.0・15.87と[運用契約案](prestart-capture-operational-contract-01.md)。コード/設定/テスト製造はなく、D1〜D8の推奨/代替/根拠/未決/受入を2Markdownだけへ記録した。
 
