@@ -80,6 +80,18 @@ final class ApprovalPreflightFixture
             'race_date' => '2025-01-01', 'track_code' => '11', 'request_started_at' => $at, 'state' => $state];
     }
 
+    public static function futureRequest(): array
+    {
+        $input = self::make();
+        foreach (['request_started_at', 'response_received_at', 'raw_saved_at', 'validation_completed_at',
+            'publication_completed_at', 'prediction_input_as_of'] as $key) {
+            $input['timing'][$key] = (new DateTimeImmutable($input['timing'][$key]))->modify('+30 seconds')->format(DATE_ATOM);
+        }
+        $input['budget']['planned_attempt']['request_started_at'] = $input['timing']['request_started_at'];
+
+        return $input;
+    }
+
     public static function document(array &$input, string $ref, array $document): string
     {
         $bytes = json_encode(['scope' => Contract::SIMULATED, ...$document], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);

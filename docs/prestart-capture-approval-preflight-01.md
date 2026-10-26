@@ -188,3 +188,58 @@ FeatureはHTTP fakeの送信0と、DB/Redis/filesystem/HTTP取得・Raw保存・
 ユーザー決定が必要なのは、具体対象年/日/場/レースと本人/route根拠、slot/上限/停止再開責任、利用許諾/負荷/共有、JS別承認、公式変更情報源、同期方式/TZ/誤差上限、private root/容量/保持期限/backup責任、独立した予測利用Gate。今回の人工値・参照や成功を実承認へ昇格しない。
 
 次は `REVIEW_APPROVAL_PREFLIGHT_CODE_AND_LIMITED_TESTS_ONLY`。PHP/テスト/文書を未コミットでレビュー待ちとし、自動で取得・本番保存・モデル接続へ進まない。DB/Migration/HTTP/2026開催/Raw再生/学習/親lambda選択/性能評価、commit/push/PR作成/mergeは未実施。
+
+## 8. PR123 P2: 履歴全体の間隔・予定試行時点の期限 / 2026-10-27
+
+### 8.1 開始状態と修正前再現
+
+fetch後のHEAD/origin branch/GitHub PR123 headは `f449c032a377d3edd07169a804472aa2f8994ca2`、PR123 OPEN、base/origin/mainは `10e8f11d10e7c7ef91c2eba85288afcc1ec4c1db`。cleanな既存feature branchを継続し、main編集・新branch作成・commit/push/PR操作/mergeはしない。第1〜7節の未コミット終了・101/364等は初版時点の履歴であり、今回の開始状態/実測とは区別する。
+
+修正前PHPで先に追加回帰36ケースを実行し、28 failed / 8 passed / 258 assertions、errors/warnings/skipped=0、exit1、128M/PHP peak31,981,568bytesを記録した。
+
+- 履歴23:55:00/23:55:01、予定00:00:00、最短60秒は誤ってOFFLINE_SIMULATION_VALIDATED。59.999999秒/同時刻/別race/逆順/FAILED・INTERRUPTEDでも履歴間違反を見逃した。
+- 評価00:00:00、D2期限00:00:10、予定・人工時計00:00:30以降も誤って人工成功。D2〜D8各承認の予定前/等値失効、policy予定前/等値失効を再現した。
+- D1/manifestの予定時刻失効は既存トップレベルで拒否できたが、個別判定にはその理由が残らなかった。今回ここも回帰対象とした。
+- 期限変更後の人工証拠bytes/別anchor/record SHAを正しく再封印し、全8承認の独立検証成功をassertした上で失効を検査した。SHA不一致による失敗を期限検証と扱っていない。
+
+### 8.2 修正した条件と理由
+
+| 対象 | 修正内容 |
+| --- | --- |
+| BudgetPreflight | 全履歴と予定試行のUTC整数microsecondsを検証用コピーへ収集・整数比較でソートし、隣接する全時刻を検査。異なるrace/全状態も同じscopeに含める。入力配列は不変 |
+| ApprovalPreflight | 全D1〜D8で `approved_at <= evaluation_at < expires_at` と `approved_at <= planned_request_started_at < expires_at` を独立検査。評価時刻を予定時刻に置き換えない |
+| Preflight | 予定開始を一度解析し、評価時計とは別引数として承認・D1 manifest・D3 policyへ渡す。予定が評価より過去/manifest期限外等の既存ガードは維持 |
+| TargetManifestPreflight | D1の両時点承認と、manifestの予定時刻期限を個別判定へ反映 |
+| SourcePolicyPreflight | D3の両時点承認と、policyの評価・予定時刻期限を検査。予定失効も不足証拠一覧へ反映 |
+
+間隔は非負の整数差に対し `intdiv(delta_microseconds, 1000000) >= min_interval_seconds` を要求する。浮動小数点や上限秒数の乗算を使わず、60秒ちょうどは成立、59.999999秒/同時刻は不成立。未来の過去試行、時刻不明、重複ID/slot、scope上限の既存拒否を保持する。
+
+予定時刻での承認失効は `APPROVAL_EXPIRED_AT_PLANNED_REQUEST`、未開始は `APPROVAL_NOT_YET_VALID_AT_PLANNED_REQUEST`。policy/manifestはそれぞれ `POLICY_EXPIRED_AT_PLANNED_REQUEST` / `MANIFEST_EXPIRED_AT_PLANNED_REQUEST`。予定時刻不明は `PLANNED_REQUEST_TIME_UNKNOWN`。日時不正/逆転と評価時刻での失効理由も保持し、期限と同一瞬間は必ず拒否する。各decision/source/manifestに理由が残り、全体のstatusはNOT_AUTHORIZEDになる。
+
+### 8.3 修正後検証と証跡
+
+| 今回実行したクラス | cases | assertions | failures/errors | warnings | skipped | exit | PHP peak bytes |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| ApprovalPreflightTest | 137 | 720 | 0/0 | 0 | 0 | 0 | 同一プロセス合計55,050,240 |
+| PrestartApprovalPreflightCommandTest | 8 | 109 | 0/0 | 0 | 0 | 0 | 上記と同じ |
+| PrestartCaptureOfflineTest | 72 | 569 | 0/0 | 0 | 0 | 0 | 関連プロセス合計29,884,416 |
+| Stat46RosterDifferenceCalculatorTest | 32 | 91 | 0/0 | 0 | 0 | 0 | 上記と同じ |
+| 計（独立2実行） | 249 | 1,489 | 0/0 | 0 | 0 | 全0 | peakは合算しない |
+
+新規回帰は44ケース（既存101ケースは維持）。同scope履歴全体/逆順/60秒・microsecond境界/別offset、各D1〜D8の予定前・等値失効、policy/manifest境界・不正期限、評価時点未開始と予定時点未開始、正常な将来予定を確認した。Command経路も間隔・予定失効の拒否と入力SHA/HTTP0を検査。OPERATIONAL_READINESSは正常な人工入力でもNOT_AUTHORIZEDを維持する。
+
+第6節と同じ既存隔離runner・Artisan/Collision、`/usr/bin/php` 8.5.4 / PHPUnit12.5.31を使用。両実行に `-d memory_limit=128M`、既存memory bootstrap、`--display-all-issues`、JUnit/eventsを指定した。修正前再現はUnitに `--filter='test_scope_wide_history_intervals|test_all_eight_resealed_approvals|test_resealed_policy_and_manifest'` を追加。原本read-only・ネットワーク遮断・人工.env/storage/Desktop/Trash・SQLite設定、既存安全helperを維持した。
+
+証跡は第6節の同じ永続root内の新規directoryだけに保存した。
+
+| 実行 | directory |
+| --- | --- |
+| 修正前36ケース（失敗証拠保持） | validation-20261027-055357-g8SgR8sn |
+| 修正後Unit/Command 145件 | validation-20261027-055431-FzhOucVW |
+| 旧Bridge/STAT46人工回帰104件 | validation-20261027-055503-kCWwB37U |
+
+各logsにコマンド、PHP版、stdout/stderr、JUnit/events、開始終了/exit、128M/peak、旧seal START/ENDを保持。修正後145件のlogsへ今回8PHPの構文/限定Pint、開始HEADとの差分/ソースSHA、旧Bridge24ファイルのHEAD/START-END一致の静的検証も保存した。旧code seal/原本の再封印はしない。今回のコード差分はOperational5PHPと関連テスト/Fixture3PHP、文書2件だけで、既存Command/Bridge v1/STAT46/モデル/設定/安全helperは不変。
+
+ユーザーによる修正前の通常全体 `4101 passed / 42432 assertions / 155 warnings / 9 skipped / 失敗0` は別の過去記録。今回の限定実行と混同せず、155警告の本文・原因・全解消は未確認。通常全体、実Raw9版の再生、DB/実HTTP/モデル更新/学習/予測/2026開催参照は0。実Raw/旧bundle全件の再hashは実施せず、隔離で書込み・参照経路を遮断した。
+
+人工契約v1のP2修正を開始コードSHAと今回ソースSHAで識別する。初版の101/364、旧実Raw/束/hash/再現実績を修正後コードの実行結果へ読み替えない。運用25仕様の未実装、D1〜D8運用値/実許諾/実trust store/HTTP/永続予約/保存/JS/実時計/最終予測Gateの未承認・未製造は第7節のまま。次は同じPR123の修正差分レビューだけであり、実取得・本番保存・予測利用・B1/親lambda/H1-Uへ進まない。

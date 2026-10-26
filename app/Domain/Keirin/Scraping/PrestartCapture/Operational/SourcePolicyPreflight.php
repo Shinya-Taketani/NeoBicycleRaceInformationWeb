@@ -10,14 +10,14 @@ use App\Domain\Keirin\Scraping\PrestartEvidence\SourceValidator;
 
 final class SourcePolicyPreflight
 {
-    public function evaluate(array $source, ?DecisionRecord $decision, ApprovalEvidence $evidence, string $scenario, int $now): array
+    public function evaluate(array $source, ?DecisionRecord $decision, ApprovalEvidence $evidence, string $scenario, int $now, ?int $planned): array
     {
         $reasons = [];
         if (array_diff(array_keys($source), ['source', 'request_uri', 'parameters', 'binding_sha256', 'policy_reference', 'policy_sha256']) !== []) {
             $reasons[] = 'SOURCE_BINDING_MISMATCH';
         }
         if (($source['source'] ?? null) !== 'PJ0315' || $decision === null
-            || (new ApprovalPreflight)->evaluate([$decision], $evidence, $scenario, $now)['D3']['validation_result'] !== 'SIMULATED_APPROVAL_VALIDATED') {
+            || (new ApprovalPreflight)->evaluate([$decision], $evidence, $scenario, $now, $planned)['D3']['validation_result'] !== 'SIMULATED_APPROVAL_VALIDATED') {
             $reasons[] = 'SOURCE_NOT_APPROVED';
         }
         $uri = $source['request_uri'] ?? null;
@@ -51,9 +51,15 @@ final class SourcePolicyPreflight
             if ($expires === null || $now >= $expires) {
                 $reasons[] = 'POLICY_EXPIRED';
             }
+            if ($planned === null) {
+                $reasons[] = 'PLANNED_REQUEST_TIME_UNKNOWN';
+            } elseif ($expires !== null && $planned >= $expires) {
+                $reasons[] = 'POLICY_EXPIRED_AT_PLANNED_REQUEST';
+            }
         }
 
         return Contract::result($reasons, ['scope' => 'REQUEST_POLICY_ONLY_NO_HTTP_OBSERVATION', 'http_calls' => 0,
-            'missing_evidence' => array_intersect($reasons, ['POLICY_UNVERIFIED', 'POLICY_EXPIRED']) === [] ? [] : ['CURRENT_SOURCE_POLICY_PERMISSION']]);
+            'missing_evidence' => array_intersect($reasons, ['POLICY_UNVERIFIED', 'POLICY_EXPIRED', 'POLICY_EXPIRED_AT_PLANNED_REQUEST']) === []
+                ? [] : ['CURRENT_SOURCE_POLICY_PERMISSION']]);
     }
 }

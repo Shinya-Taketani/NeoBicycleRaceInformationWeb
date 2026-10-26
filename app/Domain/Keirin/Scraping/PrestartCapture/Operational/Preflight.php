@@ -44,7 +44,8 @@ final class Preflight
         $evidence = $scenario === Contract::SIMULATED
             ? new ApprovalEvidence($proofs['anchors'] ?? [], $proofs['documents'] ?? []) : new ApprovalEvidence;
         $now = Contract::instant($at->format('Y-m-d\TH:i:s.uP'));
-        $decisions = (new ApprovalPreflight)->evaluate(array_values($records), $evidence, $scenario, $now);
+        $planned = Contract::instant($input['budget']['planned_attempt']['request_started_at'] ?? null);
+        $decisions = (new ApprovalPreflight)->evaluate(array_values($records), $evidence, $scenario, $now, $planned);
         $manifest = $input['manifest'] ?? [];
         $target = is_array($manifest['target'] ?? null) ? $manifest['target'] : [];
         $reasons = [];
@@ -52,7 +53,6 @@ final class Preflight
             || ! Contract::sha($manifest['request_binding_sha256'] ?? null)) {
             $reasons[] = 'TARGET_SOURCE_BINDING_MISMATCH';
         }
-        $planned = Contract::instant($input['budget']['planned_attempt']['request_started_at'] ?? null);
         $expiry = Contract::instant($manifest['expires_at'] ?? null);
         if ($planned === null || $expiry === null || $planned >= $expiry || $planned < $now) {
             $reasons[] = 'PLANNED_ATTEMPT_OUTSIDE_VALIDITY';
@@ -72,9 +72,9 @@ final class Preflight
         }
 
         return new PreflightReport($scenario, $decisions,
-            (new TargetManifestPreflight)->evaluate($manifest, $records['D1'] ?? null, $evidence, $scenario, $now),
+            (new TargetManifestPreflight)->evaluate($manifest, $records['D1'] ?? null, $evidence, $scenario, $now, $planned),
             (new BudgetPreflight)->evaluate($input['budget'] ?? [], $records['D2']->approvedValue ?? [], $target),
-            (new SourcePolicyPreflight)->evaluate($input['source'] ?? [], $records['D3'] ?? null, $evidence, $scenario, $now),
+            (new SourcePolicyPreflight)->evaluate($input['source'] ?? [], $records['D3'] ?? null, $evidence, $scenario, $now, $planned),
             (new TimingPreflight)->evaluate($timing, $scenario), $reasons);
     }
 }

@@ -11,7 +11,7 @@ use InvalidArgumentException;
 
 final class TargetManifestPreflight
 {
-    public function evaluate(array $manifest, ?DecisionRecord $decision, ApprovalEvidence $evidence, string $scenario, int $now): array
+    public function evaluate(array $manifest, ?DecisionRecord $decision, ApprovalEvidence $evidence, string $scenario, int $now, ?int $planned): array
     {
         $target = $manifest['target'] ?? [];
         // No evidence resolver, parser, filesystem or network is consulted for the forbidden year.
@@ -19,7 +19,7 @@ final class TargetManifestPreflight
             return Contract::result(['TARGET_YEAR_FORBIDDEN']);
         }
         $reasons = [];
-        if ($decision === null || (new ApprovalPreflight)->evaluate([$decision], $evidence, $scenario, $now)['D1']['validation_result'] !== 'SIMULATED_APPROVAL_VALIDATED') {
+        if ($decision === null || (new ApprovalPreflight)->evaluate([$decision], $evidence, $scenario, $now, $planned)['D1']['validation_result'] !== 'SIMULATED_APPROVAL_VALIDATED') {
             $reasons[] = 'TARGET_APPROVAL_NOT_VERIFIED';
         }
         $approved = $decision?->approvedValue ?? [];
@@ -79,6 +79,11 @@ final class TargetManifestPreflight
         $expires = Contract::instant($manifest['expires_at'] ?? null);
         if ($expires === null || $now >= $expires || $expires > (Contract::instant($decision?->expiresAt) ?? 0)) {
             $reasons[] = 'MANIFEST_EXPIRED_OR_INVALID';
+        }
+        if ($planned === null) {
+            $reasons[] = 'PLANNED_REQUEST_TIME_UNKNOWN';
+        } elseif ($expires !== null && $planned >= $expires) {
+            $reasons[] = 'MANIFEST_EXPIRED_AT_PLANNED_REQUEST';
         }
         $ref = $manifest['identity_evidence_reference'] ?? null;
         $sha = $manifest['identity_evidence_sha256'] ?? null;

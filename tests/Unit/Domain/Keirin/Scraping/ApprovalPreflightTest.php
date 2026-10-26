@@ -433,6 +433,159 @@ final class ApprovalPreflightTest extends TestCase
         $this->assertContains('PLANNED_REQUEST_CLOCK_MISMATCH', $this->report($input)['blocking_reasons']);
     }
 
+    #[DataProvider('historyIntervals')]
+    public function test_scope_wide_history_intervals_include_every_attempt_without_reordering_input(
+        string $second, int $secondRace, bool $reverse, bool $valid, string $state = 'RESERVED',
+    ): void {
+        $input = Fixture::make();
+        $input['budget']['attempts'] = [Fixture::attempt(42, 1, '2024-12-31T23:55:00Z', 'FAILED'),
+            Fixture::attempt($secondRace, 2, $second, $state)];
+        if ($reverse) {
+            $input['budget']['attempts'] = array_reverse($input['budget']['attempts']);
+        }
+        $original = $input;
+        $report = $this->report($input);
+        $this->assertSame($valid ? 'OFFLINE_SIMULATION_VALIDATED' : 'NOT_AUTHORIZED', $report['status']);
+        $this->assertSame($valid ? [] : ['ATTEMPT_INTERVAL_OR_ORDER_INVALID'], $report['budget_validation']['failure_reasons']);
+        $this->assertSame(3, $report['budget_validation']['would_be_attempt_count']);
+        $this->assertSame($original, $input);
+    }
+
+    public static function historyIntervals(): iterable
+    {
+        yield 'one second' => ['2024-12-31T23:55:01Z', 42, false, false];
+        yield 'exactly sixty seconds' => ['2024-12-31T23:56:00Z', 42, false, true];
+        yield 'one microsecond short' => ['2024-12-31T23:55:59.999999Z', 42, false, false];
+        yield 'same instant' => ['2024-12-31T23:55:00Z', 42, false, false];
+        yield 'different race' => ['2024-12-31T23:55:01Z', 41, false, false];
+        yield 'reversed violating history' => ['2024-12-31T23:55:01Z', 42, true, false];
+        yield 'reversed valid history' => ['2024-12-31T23:56:00Z', 42, true, true];
+        yield 'future historical attempt' => ['2025-01-01T00:01:00Z', 42, false, false];
+        yield 'equivalent offset same instant' => ['2025-01-01T08:55:00+09:00', 42, false, false];
+        yield 'offset exact boundary' => ['2025-01-01T08:56:00+09:00', 42, false, true];
+        yield 'failed attempt' => ['2024-12-31T23:55:01Z', 42, false, false, 'FAILED'];
+        yield 'interrupted attempt' => ['2024-12-31T23:55:01Z', 42, false, false, 'INTERRUPTED'];
+    }
+
+    #[DataProvider('plannedApprovalExpirations')]
+    public function test_all_eight_resealed_approvals_must_remain_valid_at_planned_request(int $index, string $expiry): void
+    {
+        $input = Fixture::futureRequest();
+        $input['decisions'][$index]['expires_at'] = $expiry;
+        if ($index === 0) {
+            $input['manifest']['expires_at'] = $expiry;
+            $input['decisions'][0]['approved_value']['manifest_sha256'] = Contract::digest($input['manifest']);
+        }
+        Fixture::sealApprovals($input);
+        $this->assertApprovalProofsVerified($input);
+        $report = $this->report($input);
+        $id = Contract::DECISIONS[$index];
+        $this->assertSame('NOT_AUTHORIZED', $report['status']);
+        $this->assertSame([$id], $report['missing_decisions']);
+        $this->assertSame(['APPROVAL_EXPIRED_AT_PLANNED_REQUEST'], $report['decision_results'][$id]['failure_reasons']);
+        $this->assertNotContains('PLANNED_REQUEST_CLOCK_MISMATCH', $report['blocking_reasons']);
+        $this->assertSame('VALIDATED', $report['timing_validation']['validation_result']);
+        $this->assertSame('NOT_AUTHORIZED', (new Preflight)->evaluate($input, Contract::OPERATIONAL, Fixture::now())->jsonSerialize()['status']);
+    }
+
+    public static function plannedApprovalExpirations(): iterable
+    {
+        foreach (Contract::DECISIONS as $index => $id) {
+            yield $id.' before planned' => [$index, '2025-01-01T00:00:10Z'];
+            yield $id.' equal planned' => [$index, '2025-01-01T09:00:30+09:00'];
+        }
+    }
+
+    #[DataProvider('plannedDocumentExpirations')]
+    public function test_resealed_policy_and_manifest_report_their_own_planned_expiration(string $component, ?string $expiry, string $reason): void
+    {
+        $input = Fixture::futureRequest();
+        if ($component === 'source') {
+            $proof = json_decode($input['simulation_evidence']['documents']['synthetic-policy'], true, flags: JSON_THROW_ON_ERROR);
+            $proof['expires_at'] = $expiry;
+            $sha = Fixture::document($input, 'synthetic-policy', $proof);
+            $input['source']['policy_sha256'] = $input['decisions'][2]['approved_value']['policy_sha256'] = $sha;
+        } else {
+            $input['manifest']['expires_at'] = $expiry;
+            $input['decisions'][0]['approved_value']['manifest_sha256'] = Contract::digest($input['manifest']);
+        }
+        Fixture::sealApprovals($input);
+        $this->assertApprovalProofsVerified($input);
+        $report = $this->report($input);
+        $this->assertSame('NOT_AUTHORIZED', $report['status']);
+        $this->assertSame([], $report['missing_decisions']);
+        $this->assertSame([$reason], $report[$component === 'source' ? 'source_validation' : 'manifest_validation']['failure_reasons']);
+        $this->assertSame('VALIDATED', $report['timing_validation']['validation_result']);
+    }
+
+    public static function plannedDocumentExpirations(): iterable
+    {
+        foreach (['source' => 'POLICY', 'manifest' => 'MANIFEST'] as $component => $prefix) {
+            yield $component.' before planned' => [$component, '2025-01-01T00:00:10Z', $prefix.'_EXPIRED_AT_PLANNED_REQUEST'];
+            yield $component.' equal planned' => [$component, '2025-01-01T09:00:30+09:00', $prefix.'_EXPIRED_AT_PLANNED_REQUEST'];
+            $invalid = $component === 'source' ? 'POLICY_EXPIRED' : 'MANIFEST_EXPIRED_OR_INVALID';
+            yield $component.' missing expiry' => [$component, null, $invalid];
+            yield $component.' invalid expiry' => [$component, 'invalid', $invalid];
+        }
+    }
+
+    #[DataProvider('approvalTimeFailures')]
+    public function test_evaluation_and_planned_approval_times_are_checked_independently(?string $start, ?string $expiry, array $reasons): void
+    {
+        $input = Fixture::futureRequest();
+        $input['decisions'][1]['approved_at'] = $start;
+        $input['decisions'][1]['expires_at'] = $expiry;
+        Fixture::sealApprovals($input);
+        $this->assertApprovalProofsVerified($input);
+        $report = $this->report($input);
+        $this->assertSame('NOT_AUTHORIZED', $report['status']);
+        $this->assertSame($reasons, $report['decision_results']['D2']['failure_reasons']);
+    }
+
+    public static function approvalTimeFailures(): iterable
+    {
+        yield 'starts between evaluation and planned' => ['2025-01-01T00:00:10Z', '2025-01-02T00:00:00Z', ['APPROVAL_TIME_INVALID']];
+        yield 'starts after planned' => ['2025-01-01T00:00:31Z', '2025-01-02T00:00:00Z',
+            ['APPROVAL_TIME_INVALID', 'APPROVAL_NOT_YET_VALID_AT_PLANNED_REQUEST']];
+        yield 'already expired' => ['2024-12-31T00:00:00Z', '2025-01-01T00:00:00Z', ['EXPIRED', 'APPROVAL_EXPIRED_AT_PLANNED_REQUEST']];
+        yield 'missing expiry' => ['2024-12-31T00:00:00Z', null, ['APPROVAL_TIME_INVALID']];
+        yield 'invalid expiry' => ['2024-12-31T00:00:00Z', 'invalid', ['APPROVAL_TIME_INVALID']];
+        yield 'reversed validity' => ['2025-01-01T00:01:00Z', '2024-12-31T00:00:00Z', ['APPROVAL_TIME_INVALID']];
+    }
+
+    public function test_future_request_accepts_equivalent_offsets_and_all_valid_approvals_but_never_authorizes_operation(): void
+    {
+        $input = Fixture::futureRequest();
+        $first = $this->report($input);
+        $this->assertSame('OFFLINE_SIMULATION_VALIDATED', $first['status']);
+        foreach ($input['decisions'] as &$record) {
+            foreach (['approved_at', 'expires_at'] as $key) {
+                $record[$key] = (new \DateTimeImmutable($record[$key]))->setTimezone(new \DateTimeZone('Asia/Tokyo'))->format(DATE_ATOM);
+            }
+        }
+        unset($record);
+        $input['manifest']['expires_at'] = '2025-01-02T09:00:00+09:00';
+        $input['decisions'][0]['approved_value']['manifest_sha256'] = Contract::digest($input['manifest']);
+        $proof = json_decode($input['simulation_evidence']['documents']['synthetic-policy'], true, flags: JSON_THROW_ON_ERROR);
+        $proof['expires_at'] = '2025-01-02T09:00:00+09:00';
+        $sha = Fixture::document($input, 'synthetic-policy', $proof);
+        $input['source']['policy_sha256'] = $input['decisions'][2]['approved_value']['policy_sha256'] = $sha;
+        $input['budget']['planned_attempt']['request_started_at'] = '2025-01-01T09:00:30+09:00';
+        Fixture::sealApprovals($input);
+        $this->assertApprovalProofsVerified($input);
+        $this->assertSame($first, (new Preflight)->evaluate($input, Contract::SIMULATED,
+            new \DateTimeImmutable('2025-01-01T09:00:00+09:00'))->jsonSerialize());
+        $this->assertSame('NOT_AUTHORIZED', (new Preflight)->evaluate($input, Contract::OPERATIONAL, Fixture::now())->jsonSerialize()['status']);
+    }
+
+    private function assertApprovalProofsVerified(array $input): void
+    {
+        $evidence = new ApprovalEvidence($input['simulation_evidence']['anchors'], $input['simulation_evidence']['documents']);
+        foreach ($input['decisions'] as $record) {
+            $this->assertTrue($evidence->verifies(DecisionRecord::fromArray($record), Contract::SIMULATED));
+        }
+    }
+
     private function report(array $input): array
     {
         return (new Preflight)->evaluate($input, Contract::SIMULATED, Fixture::now())->jsonSerialize();

@@ -53,7 +53,7 @@ final class BudgetPreflight
             return Contract::result(['PLANNED_ATTEMPT_TARGET_OR_SLOT_INVALID'], $extra);
         }
         $reasons = $ids = $slots = $races = $dates = $tracks = [];
-        $perRace = [];
+        $perRace = $times = [];
         foreach ([...$snapshot['attempts'], $planned] as $index => $attempt) {
             if (! is_array($attempt) || ! $this->attempt($attempt)) {
                 return Contract::result(['BUDGET_HISTORY_UNVERIFIED'], $extra);
@@ -73,7 +73,15 @@ final class BudgetPreflight
             if ($perRace[$race] > $limits['slots_per_race'] || $attempt['slot_id'] > $limits['slots_per_race']) {
                 $reasons[] = 'RACE_SLOT_LIMIT_EXCEEDED';
             }
-            if ($index < count($snapshot['attempts']) && ($time > $planTime || ($planTime - $time) / 1000000 < $limits['min_interval_seconds'])) {
+            $times[] = $time;
+            if ($index < count($snapshot['attempts']) && $time > $planTime) {
+                $reasons[] = 'ATTEMPT_INTERVAL_OR_ORDER_INVALID';
+            }
+        }
+        // Sort a validation-only copy; all scope attempts, including failures, share the interval limit.
+        usort($times, static fn (int $a, int $b): int => $a <=> $b);
+        for ($index = 1; $index < count($times); $index++) {
+            if (intdiv($times[$index] - $times[$index - 1], 1000000) < $limits['min_interval_seconds']) {
                 $reasons[] = 'ATTEMPT_INTERVAL_OR_ORDER_INVALID';
             }
         }

@@ -14,7 +14,7 @@ final class ApprovalPreflight
         'D7' => 'DECIDE_PRIVATE_STORAGE_RETENTION_CAPACITY_AND_RECOVERY', 'D8' => 'KEEP_PREDICTION_DISCONNECTED_AND_DEFINE_SEPARATE_GATE'];
 
     /** @param list<DecisionRecord> $records */
-    public function evaluate(array $records, ApprovalEvidence $evidence, string $scenario, int $now): array
+    public function evaluate(array $records, ApprovalEvidence $evidence, string $scenario, int $now, ?int $planned): array
     {
         Contract::scenario($scenario);
         $byId = [];
@@ -54,10 +54,21 @@ final class ApprovalPreflight
                 }
                 $approved = Contract::instant($record->approvedAt);
                 $expires = Contract::instant($record->expiresAt);
-                if ($approved === null || $expires === null || $approved >= $expires || $approved > $now) {
+                if ($approved === null || $expires === null || $approved >= $expires) {
                     $reasons[] = 'APPROVAL_TIME_INVALID';
-                } elseif ($now >= $expires) {
-                    $reasons[] = 'EXPIRED';
+                } else {
+                    if ($approved > $now) {
+                        $reasons[] = 'APPROVAL_TIME_INVALID';
+                    } elseif ($now >= $expires) {
+                        $reasons[] = 'EXPIRED';
+                    }
+                    if ($planned === null) {
+                        $reasons[] = 'PLANNED_REQUEST_TIME_UNKNOWN';
+                    } elseif ($planned < $approved) {
+                        $reasons[] = 'APPROVAL_NOT_YET_VALID_AT_PLANNED_REQUEST';
+                    } elseif ($planned >= $expires) {
+                        $reasons[] = 'APPROVAL_EXPIRED_AT_PLANNED_REQUEST';
+                    }
                 }
                 if ($missing !== []) {
                     $reasons[] = 'APPROVAL_METADATA_MISSING';

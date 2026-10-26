@@ -100,6 +100,30 @@ final class PrestartApprovalPreflightCommandTest extends TestCase
         $this->assertSafe(json_decode($first, true, flags: JSON_THROW_ON_ERROR));
     }
 
+    public function test_history_interval_and_future_expiration_are_blocked_through_the_command(): void
+    {
+        foreach (['history', 'expiry'] as $case) {
+            $input = $case === 'history' ? Fixture::make() : Fixture::futureRequest();
+            if ($case === 'history') {
+                $input['budget']['attempts'] = [Fixture::attempt(42, 1, '2024-12-31T23:55:00Z', 'FAILED'),
+                    Fixture::attempt(42, 2, '2024-12-31T23:55:01Z', 'INTERRUPTED')];
+            } else {
+                $input['decisions'][1]['expires_at'] = '2025-01-01T00:00:10Z';
+                Fixture::sealApprovals($input);
+            }
+            $path = $this->input($input, $case.'.json');
+            $sha = hash_file('sha256', $path);
+            $this->assertSame(0, Artisan::call('keirin:prestart:approval-preflight',
+                ['--input' => $path, '--scenario' => Contract::SIMULATED, '--at' => Fixture::now()->format(DATE_ATOM)]));
+            $result = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame('NOT_AUTHORIZED', $result['status']);
+            $this->assertContains($case === 'history' ? 'budget:ATTEMPT_INTERVAL_OR_ORDER_INVALID' : 'D2:APPROVAL_EXPIRED_AT_PLANNED_REQUEST',
+                $result['blocking_reasons']);
+            $this->assertSame($sha, hash_file('sha256', $path));
+            $this->assertSafe($result);
+        }
+    }
+
     public function test_operational_input_cannot_use_synthetic_approval_even_when_every_record_says_approved(): void
     {
         $this->assertSame(0, Artisan::call('keirin:prestart:approval-preflight', ['--input' => $this->input(Fixture::make())]));
