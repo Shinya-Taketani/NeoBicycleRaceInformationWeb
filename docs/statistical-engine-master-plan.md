@@ -1,5 +1,8 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-28 最新工程：`PRESTART-CAPTURE-PJ0315-REAL-HTTP-01`。clean main/HEAD/ローカルorigin `d96f55188e698c780933eed4bba5e4a7badd7c8a` とPR124 merge履歴を確認し、未使用の `feature/prestart-capture-pj0315-real-http-01` を作成した。最新ユーザー承認による2025年男子1件への技術検証で、実POST1回/HTTP200・原bytes保存・9名照合・保存資料だけの再検証に成功。現在地は5.0・15.90と[実装記録](prestart-capture-pj0315-real-http-01.md)。
+> 利用許諾UNVERIFIED、historical_as_of=false・予測/正式採用禁止・2026凍結・B1保留は不変。定期取得/運用D1〜D8の承認ではない。新規26/225・関連285/1949を隔離128Mで確認し、今回の差分だけを未コミットでレビュー待ち。以下の実HTTP未承認/未実施や旧レビュー待ちは当時の履歴として保持する。
+
 > 2026-10-27 最新工程：`PRESTART-CAPTURE-DECISION-EVIDENCE-01`。PR123 MERGED、merge SHAとfetch/main pull --ff-only後のclean main/origin `adfd52af53988d0e3337c78278b1e3a6bab84cf9` を照合し、未使用の `design/prestart-capture-decision-evidence-01` をmainから作成した。現在地は5.0・15.89と[D1〜D8判断資料](prestart-capture-decision-evidence-01.md)。
 > 今回は2Markdownだけ。静的公式ポリシーの閲覧、ホストchrony同期の点観測、既存親領域の容量/権限をread-only確認して未決条件を整理した。実対象・許諾・誤差上限/証拠TTL・専用root/保持/backup責任は未承認。実HTTP/予約/本番保存/予測利用は一切有効化せず、次はD1〜D8判断資料のレビューのみ。以下のPR123 OPEN・P2差分未コミット・旧テスト値は各時点の履歴として保持する。
 
@@ -81,13 +84,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.82
+- Version: 1.83
 - Created: 2026-08-23
-- Updated: 2026-10-27（D1〜D8判断資料・PR123マージ同期）
+- Updated: 2026-10-28（PJ0315実HTTP単一技術検証・PR124マージ同期）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `adfd52af53988d0e3337c78278b1e3a6bab84cf9`（2026-10-27、fetch/main pull --ff-only後のclean main/origin・PR123 merge件名/GitHub merge SHAを照合。今回開始時点の値）
+- Remote `main` at last update: `d96f55188e698c780933eed4bba5e4a7badd7c8a`（2026-10-28開始時のclean main/HEAD/ローカルorigin一致・PR124 merge件名を確認。今回fetch/外部Git照会なし）
+- Previous remote main at v1.82: `adfd52af53988d0e3337c78278b1e3a6bab84cf9`（2026-10-27、fetch/main pull --ff-only後のclean main/origin・PR123 merge件名/GitHub merge SHAを照合した当時の開始値）
 - Previous remote main at v1.81: `10e8f11d10e7c7ef91c2eba85288afcc1ec4c1db`（2026-10-26の初版開始値。2026-10-27のPR123 P2修正時も同base/origin/main、旧記録を保持）
 - Previous remote main at v1.80: `cbff8c5b6ce685bfc6d024fef9afdde3d14ff6a2`（2026-10-24、PR121 merge照合。15.87の当時の開始値、PR122文書修正時のbaseも同値）
 - Previous remote main at v1.79: `77347e4507449f52878872dfa2cafe874b04c95f`（2026-10-24、PR120 merge照合。15.86の当時の開始値）
@@ -103,10 +107,12 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR123 MERGED、D1〜D8の具体的判断資料を未コミットでユーザーレビュー待ち。運用承認/実行承認ではない
-- Current code: 判断資料とMASTER PLANの2Markdownだけ。PHP/テスト/設定/Migration・旧Bridge/STAT/モデル/既存証跡/安全helperは変更しない
-- Current execution record: OPERATIONAL_DECISIONS_AWAITING_USER_REVIEW。公式静的2URL、ホスト時計・親容量/権限のread-only確認と質問文案だけ。実HTTP/予約/本番root作成/保存/予測接続は0
-- Current tests record: 文書静的検証のみ。今回PHPUnit/Pint/既存監査/Raw再生/学習/予測は未実施。過去145/829・104/660とユーザー全体4101/42432/155warnings/9skippedは今回の実績と区別
+- Current review: PR124 MERGEDをローカル履歴で確認。今回の単一PJ0315技術チェックのコード/実測/限定テストを未コミットでレビュー待ち。運用許諾/正式発走前観測/予測利用の承認ではない
+- Current code: 新規Pj0315Probe5クラス・明示execute Command・人工Fixture/Unit/Feature。旧Bridge/Operational/Fetcher/Parser/Raw保存器/STAT/モデル/設定/Migration/安全helperは不変
+- Current execution record: REAL_HTTP_PJ0315_VERIFIED_AWAITING_REVIEW。2025-01-04/場28/1R/9名、実POST1回/HTTP200、93,721bytes原RawとSHA保存、独立ネットワーク遮断検証exit0。利用許諾UNVERIFIED、事後取得でありas-of/予測利用不可
+- Current tests record: 新規26/225・関連285/1949を隔離128M/exit0・failure/error/warning/skip0、peak52,953,088/59,244,544bytes。新規PHP構文/限定Pint・diff check。通常全体/旧監査/学習/予測/2026は未実施
+- Previous review/code at v1.82: PR123 MERGED、D1〜D8判断資料とMASTER PLANだけを未コミットでレビュー待ちだった当時の記録。後にPR124で保存/mergeされた
+- Previous execution/tests at v1.82: OPERATIONAL_DECISIONS_AWAITING_USER_REVIEW、静的2URL・時計/親容量のread-only調査と文書検証のみ。実データHTTP/テスト等0だった当時の履歴、15.89参照
 - Previous review at v1.81 PR123 P2: PR123 OPEN、開始head f449c032a377d3edd07169a804472aa2f8994ca2のP2修正を未コミットで再レビュー待ち。PR122 MERGED。D1〜D8運用値/実送信/本番保存/予測利用は未承認
 - Previous code at v1.81 PR123 P2: Operational5PHPのscope全履歴間隔・評価/予定両時点期限と関連テスト/Fixture3PHPを修正。旧Bridge v1/依存24ファイル・Command/Parser/STAT/C1/設定/安全helperは不変
 - Previous execution record at v1.81 PR123 P2: OFFLINE_APPROVAL_PREFLIGHT_READY_FOR_REVIEW。独立した人工承認/SHA・固定target/revision・人工予算・policy・UTC誤差区間を検査。人工成功はOFFLINE_SIMULATION_VALIDATEDまで、実運用入力はNOT_AUTHORIZED、通信/予約/保存/予測接続なし
@@ -322,7 +328,46 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: PRESTART-CAPTURE-DECISION-EVIDENCE-01
+## 5.0 最新工程: PRESTART-CAPTURE-PJ0315-REAL-HTTP-01
+
+```yaml
+current_phase: PRESTART-CAPTURE-PJ0315-REAL-HTTP-01
+current_engine_state: REAL_HTTP_PJ0315_VERIFIED_AWAITING_REVIEW
+next_allowed_action: REVIEW_PJ0315_SINGLE_REAL_HTTP_CODE_AND_EVIDENCE_ONLY
+pr124_status: MERGED_LOCAL_HISTORY_VERIFIED
+remote_main: d96f55188e698c780933eed4bba5e4a7badd7c8a
+operational_decisions: PROPOSED_NOT_APPROVED
+real_http_capture: SINGLE_2025_TECHNICAL_POST_VERIFIED
+permission_status: UNVERIFIED
+production_storage: NOT_RUN_NOT_AUTHORIZED
+real_data_preflight_status: BLOCKED
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+official_publication_at: null
+points: null
+confidence: null
+2026_holdout: FROZEN_NO_ACCESS
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 2025男子1件の現時点POST/保存/既存Parser本人照合・独立再検証とコードを未コミットでレビュー待ち |
+| next_allowed_action | 今回差分と1取得証拠のレビューのみ。追加送信/定期取得/正式発走前観測/予測接続へ進まない |
+| completed_phases | PR124文書工程merge、今回の単一技術Transport/保存/人工テスト/実HTTP。運用全仕様や許諾受入とは別 |
+| superseded_phases | v1.82以前の文書限定/実HTTP未実施・旧レビュー待ちは当時の履歴。今回だけの最新承認を遡及しない |
+| blocked_phases | D1〜D8の運用根拠/許諾/時計誤差TTL/保持backup・継続取得/本番保存、B1/親lambda/H1-U・正式採用/BT-04/BT-05-LIVE |
+| frozen_contracts | 旧Bridge/Operational/24依存seal、Raw/bundle/STAT/C1/C2/BT/モデル/Solver/Decoder/Evaluator/Gate・原本保護/安全helper |
+| unfrozen_contracts | 今回新規Pj0315Probe専用仕様/Command/人工テスト。将来の運用trust/台帳/時計/保存と最終予測Gateは別承認 |
+| holdout_status | 2026開催はmetadata/Rawを含めFROZEN_NO_ACCESS。2026年に現在取得した2025年資料を2026開催と混同しない |
+
+正本は15.90と[実装記録](prestart-capture-pj0315-real-http-01.md)。今回の技術検証は利用許諾確認・当時の発走前可用性・正式予測承認ではない。以下の旧現在地は当時の履歴。
+
+### v1.82 判断資料作成時点の工程（履歴）
 
 ```yaml
 current_phase: PRESTART-CAPTURE-DECISION-EVIDENCE-01
@@ -1691,7 +1736,8 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
-| PRESTART-CAPTURE-DECISION-EVIDENCE-01 | D1〜D8判断資料とD3/時計/親容量の限定根拠確認 | OPERATIONAL_DECISIONS_AWAITING_USER_REVIEW | PR123 MERGEDを同期。対象/許諾/誤差上限TTL/root保持backupは未決、実HTTP/本番保存/予測利用を有効化しない。15.89参照 |
+| PRESTART-CAPTURE-PJ0315-REAL-HTTP-01 | 2025男子1件の単一POST・原bytes保存・既存Parser照合 | REAL_HTTP_PJ0315_VERIFIED_AWAITING_REVIEW | 実POST1/HTTP200/9名一致、独立再検証exit0。許諾未確認/as-of=false/予測未承認/2026凍結・B1保留、15.90参照 |
+| PRESTART-CAPTURE-DECISION-EVIDENCE-01 | D1〜D8判断資料とD3/時計/親容量の限定根拠確認 | PR124_MERGED_DECISIONS_STILL_PROPOSED | 文書工程はmerge済み。対象/許諾/誤差上限TTL/root保持backupの運用判断は未決。実HTTP未実施の記録は15.89の当時の履歴 |
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
 | PRESTART-CAPTURE-APPROVAL-PREFLIGHT-01 | D1〜D8/固定PJ/人工予算・policy・時計の承認前検証 | PR123_MERGED | P2込みコード受入。15.88/.1の再レビュー待ち/実測は履歴。人工成功と実運用NOT_AUTHORIZEDを分離、運用値/実取得/予約/保存/予測利用は未承認 |
 | PRESTART-CAPTURE-OPERATIONAL-CONTRACT-01 | D1〜D8運用条件/受入の文書設計 | PR122_MERGED_DOCUMENT_ONLY | PJ必須/JS条件付き/既存回帰の文書案を受入。15.87/15.87.1は当時の記録で、運用数値・root・実取得・最終Gateは未承認 |
@@ -4660,6 +4706,20 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.90 PRESTART-CAPTURE-PJ0315-REAL-HTTP-01 / 2026-10-28
+
+開始clean main/HEAD/ローカルorigin/main d96f55188e698c780933eed4bba5e4a7badd7c8a、PR124 merge件名を確認し、未使用の指定feature branchを作成。fetch/外部Git照会なし。AGENTS/5.0の8ゲート・現Raw/取得ログ/HTTP/Parser/Bridge/Operational/安全helperを確認した。旧15.89の実HTTP未承認/未実施・文書未コミット状態は当時の履歴として保持し、今回の明示的1試行承認と区別する。
+
+新規Pj0315Probe5クラス、明示execute Command、人工Fixture/Unit/Featureを追加。2025単一caseの外部期待SHA/保存Raw/要求/log/日場番号/本人/男子カテゴリーを照合。旧clientのretry・Raw保存のDB書込み経路は使わず、HTTPS固定POST・retry0・redirectfalse・connect5/total20・同時1・未指定時無送信、専用0700/0600・排他attempt/原bytes sink/保存後解析/FAILED保持を製造。旧24依存seal/Operational/Fetcher/Parser/STAT/モデル/設定/Migrationは不変。
+
+実対象は保存済み2025-01-04/場28/1R/race12901、9名・fetch_log40546の証拠だけ。DB接続なし。2026-10-28 06:09:03 JSTにPOST1回、HTTP200・実効URI https://keirin.jp/pc/racelive、UTF-8 HTML内PC0201/PJ0315を取得。開始UTC21:09:03.395109/受信.733211/保存.735250、93,721bytes/SHA e46900fe80a06c67e989d666d7a6eefcfac8c08508542df9ea1a3a48c71f7e36。日場番号/9名の車番登録番号一致、既存DTO9race/21entry項目のNULL欠損0。公式初回公開/当時の取得可能性/許諾・ライン/初手は証明していない。
+
+新規実行root `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-real-http-01/execute-20261028-060903-9GbWsyyO/` にprivate原Raw/要求応答/result/manifest/COMPLETEとログを保持。manifest SHA9819156e418680565563b7ad05ddec2d1f9f17662411d79bb10aa1eb689d158a。保存5ファイルseal/marker/時刻順/本人/解析一致をネットワーク遮断の別PHPで再検証しexit0。実通信128M/peak33,554,432bytes、独立確認10,485,760bytes。元target/baselineとcodeのSTART/END不変、追加送信0。
+
+人工新規26/225・関連Bridge/Approval/Command/STAT46/Parser/旧HTTP fake285/1949をArtisan/Collision・隔離128Mで確認、各exit0/failure/error/warning/skip0、peak52,953,088/59,244,544bytes。PHP8.5.4であり8.4検証ではない。原本read-only/人工.env/storage/Trash/ネットワーク遮断、既存安全helperを維持。初回人工URIテスト失敗と未送信planの隔離不備ログも保持。新規PHP構文/限定Pint/diff checkを確認、通常全体/旧監査/学習/性能評価/2026開催は未実行。過去全警告の解消は未確認。
+
+現サイトのPOST/Parser形式はこの1件で互換と確認しただけ。利用許諾UNVERIFIED、D1〜D8運用値PROPOSED_NOT_APPROVED、正式発走前観測/継続取得/本番保存/予測接続の承認ではない。as-of=false/予測・正式採用禁止/B1方法未承認・method/lambdaNONE/正式B1受入NOT_RUN/H1-U保留/2026凍結を維持。実装/コマンド/残件は[実装記録](prestart-capture-pj0315-real-http-01.md)。次は今回差分・実証拠のレビューだけ。未コミットで停止しcommit/push/PR/mergeなし。
+
 ## 15.89 PRESTART-CAPTURE-DECISION-EVIDENCE-01 / 2026-10-27
 
 06:28 JST、fetch/main switch/pull --ff-only後のclean main/origin/mainとGitHub PR123のmerge SHA adfd52af53988d0e3337c78278b1e3a6bab84cf9を照合。PR123 MERGED、merged_at=2026-10-26T21:20:17Z、merge時head06d6bf5。未使用のdesign/prestart-capture-decision-evidence-01をmainから作成した。旧15.88/.1・v1.81のOPEN/未コミット/実測/hashは当時の履歴として本文を保持する。
@@ -5605,6 +5665,21 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.83 / 2026-10-28
+
+```yaml
+document_version: 1.83
+updated_at: 2026-10-28
+remote_main_sha: d96f55188e698c780933eed4bba5e4a7badd7c8a
+phase_changed: PRESTART-CAPTURE-PJ0315-REAL-HTTP-01
+related_pr: PR124_MERGED_LOCAL_HISTORY_VERIFIED
+related_run: execute-20261028-060903-9GbWsyyO
+decision: REVIEW_PJ0315_SINGLE_REAL_HTTP_CODE_AND_EVIDENCE_ONLY
+reason: User explicitly authorized one current PJ0315 technical POST for a verified 2025 male race, not permission confirmation or prediction use
+```
+
+5.0/metadata/工程表/15.90/27を同期。実HTTP1/HTTP200/原bytes保存/9名照合・別プロセス検証と人工テストを分離記録。旧文書/未実施履歴・未承認D1〜D8/B1・予測禁止/2026凍結・旧code seal/原本を維持する。
 
 ## v1.82 / 2026-10-27
 
@@ -6640,6 +6715,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+PR124 MERGEDをローカル履歴で確認し、開始clean main/ローカルorigin d96f55188e698c780933eed4bba5e4a7badd7c8aからfeature/prestart-capture-pj0315-real-http-01を作成した。今回の実装/限定テスト/実HTTP1件の証拠を未コミットでレビュー待ち。正本は5.0・15.90と[実装記録](prestart-capture-pj0315-real-http-01.md)、次はREVIEW_PJ0315_SINGLE_REAL_HTTP_CODE_AND_EVIDENCE_ONLY。
+
+保存証拠に基づく2025男子1件だけにPOST1回、HTTP200/9名一致、原Raw93,721bytes/SHA e46900fe80a06c67e989d666d7a6eefcfac8c08508542df9ea1a3a48c71f7e36、保存後独立検証exit0。新規26/225・関連285/1949は隔離128M/exit0・警告等0。利用許諾未確認、定期運用/正式発走前観測/本番保存/予測利用は未承認。旧seal/原本.env/storage/モデルを変更せず、DB/2026開催/学習/予測/評価0。追加取得せず停止し、commit/push/PR/mergeなし。
+
+### v1.82 判断資料作成終了時の引継ぎ（履歴）
 
 PR123 MERGED。新しいdesign/prestart-capture-decision-evidence-01でD1〜D8判断資料と工程同期だけを未コミットでユーザーレビュー待ち。開始main/origin/HEADはadfd52af53988d0e3337c78278b1e3a6bab84cf9。正本は5.0・15.89と[判断資料](prestart-capture-decision-evidence-01.md)。次はREVIEW_D1_D8_DECISION_EVIDENCE_ONLY。
 
