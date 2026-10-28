@@ -133,3 +133,59 @@ php -d memory_limit=128M artisan test tests/Unit/Domain/Keirin/Scraping/Pj0315Re
 次に実際の発走前観測をするには、D1〜D8の実対象/slot/許諾/時計/保存責任等の個別根拠と、対象工程のテスト・コード受入・具体的実行承認が必要。今回新しい観測を予約/自動継続しない。JS別承認・2026凍結・予測禁止も維持する。
 
 DB/Redis/実Raw原本の変更、Migration、学習、予測、性能評価、repackage、2026開催参照は0。`git diff --check`と変更範囲/新規PHP構文・限定Pintを確認し、feature branchに未コミットでレビュー待ち。commit/push/PR/mergeなし。
+
+## 8. PR125 P2/P3レビュー修正 / 2026-10-28
+
+開始はcleanな既存 `feature/prestart-capture-pj0315-real-http-01`、HEADとローカルorigin branchは `aca1d150df6718e0daf7caa690e2b6f2aa25da1f`、origin/mainはd96f551。新branch/外部Git照会/PR操作なし。上記1〜7節の実HTTP・件数・hash・テスト・未コミット終了は初版時点の履歴であり、その後PR125で保存された。**今回の追加実HTTPは0回**。
+
+### P2: 固定技術scopeの単一試行
+
+旧v1のインスタンス内usedと出力root内attemptだけでは、別インスタンス/別rootで再送できた。v2は専用 `ScopeAttempt` を追加し、Commandのscope保存先を次に固定する。CLIからscope/root/承認識別子を変更するオプションはない。テストでのみDIにより人工scopeを渡す。
+
+`/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-real-http-01/technical-scope-attempt-01/registry`
+
+scopeは `PRESTART-CAPTURE-PJ0315-REAL-HTTP-01`、検証IDは `SINGLE_2025_PJ0315_ENDPOINT_CHECK_01`、上限1。対象と保存証拠・要求bindingのSHAを予約へ記録する。scopeには一つのslotしかなく、証拠/対象を変えても同じ検証の予算を増やさない。既存scopeと出力rootの重複/親子関係も拒否する。新しい運用全体のAttemptLedgerや承認trust storeではない。
+
+既存0700専用scopeディレクトリのinodeに対するnon-blocking flockで排他し、reservation.jsonを排他作成/flush/fsyncしてから出力作成・送信へ進む。全予約を保守的に予算消費済みとし、dispatch.json、outcome.jsonは別の追記専用記録。例外/timeout/中断で予算を解放せず、ファイル削除・上書き・再試行・別rootへの切替なし。プロセス再起動後も同じ記録を読む。scope未初期化/不正/不明をAVAILABLEと推定しない。
+
+| scope state | 意味 | 追加送信 |
+| --- | --- | --- |
+| AVAILABLE | 正しい初期化資料だけがあり予約がない人工テストscope | 上限1の予約に成功した呼出しだけ |
+| RESERVED | 予約済み、送信開始を確認できない | 拒否。未送信と決めて予算を戻さない |
+| INTERRUPTED_OR_UNKNOWN | dispatch記録あり、終端不明。進行中/中断を未送信と推定しない | 拒否 |
+| HTTP_SUCCEEDED | 通信HTTP200。Parser/保存/予測利用の承認とは別 | 拒否 |
+| HTTP_FAILED | 429等の非200応答 | 拒否 |
+| TIMEOUT / TRANSPORT_FAILED | timeout / 接続等の通信失敗 | 拒否 |
+| UNKNOWN | 未初期化・破損・孤立記録・矛盾・読取り不能等 | 拒否、予算消費済みとして扱う |
+
+実scopeは初期化済みのAVAILABLEに戻していない。旧v1実証拠の9ファイル（attempt/private要求応答/result/Raw/manifest/COMPLETE、実行時code START/END）を読取り専用で照合し、旧probeコードは記録済みsealと開始コミットaca1d15の内容、旧24依存は従来sealと一致。保存Rawも再解析一致。旧1回を `IMPORTED_VERIFIED_V1_NO_HTTP` と明示した新しい参照記録として上記scopeへ登録し、HTTP_SUCCEEDED/budget_consumed=true・追加予約拒否を確認した。これは再通信・旧束の再sealではない。
+
+確認ログ: `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-real-http-01/pr125-legacy-verification-20261028-064409-RBxG2iBR/logs/report.json`。exit0、128M/peak10,485,760bytes。旧Raw SHA e46900fe80a06c67e989d666d7a6eefcfac8c08508542df9ea1a3a48c71f7e36、manifest SHA9819156e418680565563b7ad05ddec2d1f9f17662411d79bb10aa1eb689d158aは保持。旧v1の有効性を現在v2のcode sealとの不一致だけで失効としない。保存版と当時のコードを基準に確認する。検証時点のv2 sealと最終修正コードのsealはそれぞれの新規記録へ分離する。
+
+### P3: 例外時の保持表示
+
+旧Commandの無条件 `evidence_retained=true` を廃止。`ProbeFailure` に保持状態の確認事実を載せる。Commandは入力検証前と処理開始後も区別し、未知の処理例外では未生成と断定しない。
+
+| evidence_status | evidence_retained | output_write_started | failed_evidence_confirmed |
+| --- | --- | --- | --- |
+| NOT_CREATED | false | false | false |
+| WRITE_STARTED_RETENTION_UNCONFIRMED | null | true | false |
+| FAILED_EVIDENCE_CONFIRMED | true | true | true |
+| RETENTION_UNKNOWN | null | null | false |
+
+`evidence_scope=CURRENT_INVOCATION_OUTPUT_ONLY`。NOT_CREATEDは**今回の呼出しが新しい出力証拠を生成していない**という意味であり、以前のroot/Raw/成功束が失われたという意味ではない。FAILED資料は今回のattempt_idを含むマーカーを安全なReaderで読取り確認できた時だけtrue。保存失敗・読取り不能を隠すためのtrue/false補完はしない。生の例外本文/encpは出力しない。
+
+### 今回の限定回帰
+
+| 対象 | tests / assertions | failures / errors / warnings / skipped | exit | PHP peak bytes |
+| --- | --- | --- | --- | --- |
+| Probe Unit23＋scope Unit10＋Command8 | 41 / 326 | 0 / 0 / 0 / 0 | 0 | 55,050,240 |
+| 既存Bridge/Approval/Command/STAT46/Parser/旧HTTP fake | 285 / 1949 | 0 / 0 / 0 / 0 | 0 | 59,244,544 |
+
+人工scopeで最初の1回だけ成立、同root/別root/別Transport/新Command/新PHPプロセスの再送拒否、同時2プロセスの送信合計1、429/timeout後の拒否、予約残留/送信中断/破損/未初期化の拒否を確認。SHA不一致・output未指定は未生成、書込み開始後の失敗はFAILED読取り確認の有無でtrue/nullを区別した。人工2026/JS入力は外部期待SHAを再計算した場合も予約前に拒否する。
+
+PHPUnit本体と子プロセスは128M、PHP8.5.4、原本read-only・ネットワーク遮断・人工.env/storage/Desktop/Trash・既存安全helperを維持。子プロセスのHTTPはすべてfakeで、人工制御記録は各テスト自身の記録済みrootだけに保存/退避。既存テスト削除/緩和/skip追加なし。初回にテスト出力を二度消費して失敗した1/成功25の開発ログも保持し、期待値を緩和せず修正した。
+
+最終ログは専用root直下 `test-20261028-064739-fxXYS0qp/logs/` と `test-20261028-064743-P82JCld4/logs/`。実行形は第6節の隔離runnerにscopeテスト `tests/Unit/Domain/Keirin/Scraping/Pj0315ScopeAttemptTest.php` を追加したもの。stdout/stderr/JUnit/events/exit/128M peak・旧24依存START/END一致を保存。変更9PHPの構文・限定Pint・diff checkを確認した。通常全体/旧監査/実HTTP/DB/2026開催/学習/予測/評価は再実行しない。
+
+新コードは `PJ0315-REAL-HTTP-PROBE-v2`、旧実通信はv1のまま。旧attempt/Raw/manifest/COMPLETE/code sealは上書き・再封印・削除なし。今回の最終状態は `PR125_SCOPE_AND_RETENTION_FIX_AWAITING_REVIEW`。D1〜D8未承認、利用許諾UNVERIFIED、as-of=false、予測/正式採用禁止、2026凍結、B1/親lambda/H1-U保留を維持する。実HTTPを再実行せず、既存branchの未コミット差分で停止し、commit/push/PR/mergeなし。

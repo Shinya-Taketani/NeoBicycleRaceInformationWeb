@@ -11,9 +11,10 @@ use Throwable;
 
 class Probe
 {
-    public const VERSION = 'PJ0315-REAL-HTTP-PROBE-v1';
+    public const VERSION = 'PJ0315-REAL-HTTP-PROBE-v2';
 
-    public function __construct(private readonly SinglePostTransport $transport, private readonly Inspector $inspector = new Inspector) {}
+    public function __construct(private readonly SinglePostTransport $transport, private readonly ScopeAttempt $scope,
+        private readonly Inspector $inspector = new Inspector) {}
 
     public function run(Target $target, ?string $root, bool $execute): array
     {
@@ -25,16 +26,24 @@ class Probe
         if (! $execute) {
             return [...$base, 'status' => 'PLAN_ONLY_NO_HTTP'];
         }
-        if ($root === null) {
-            throw new RuntimeException('An existing dedicated private output root is required.');
-        }
-        $identity = EvidenceFiles::writableRoot($root);
-        $code = self::codeSeal();
-        // Exclusive marker is deliberately retained on every exit, preventing re-dispatch in this root.
-        $this->write($root, 'attempt.json', [...$base, 'started_at' => OfflineContract::now(), 'code_seal' => $code]);
+        $writeStarted = false;
+        $attemptId = null;
         $transfer = null;
         $raw = null;
         try {
+            if ($root === null) {
+                throw new RuntimeException('An existing dedicated private output root is required.');
+            }
+            $identity = EvidenceFiles::writableRoot($root);
+            if (file_exists($root.'/attempt.json') || is_link($root.'/attempt.json')) {
+                throw new RuntimeException('Existing output attempt cannot be overwritten.');
+            }
+            $code = self::codeSeal();
+            $reservation = $this->scope->reserve($target, $root);
+            $attemptId = $reservation['attempt_id'];
+            $writeStarted = true;
+            $this->write($root, 'attempt.json', [...$base, 'attempt_id' => $attemptId,
+                'scope' => ScopeAttempt::definition(), 'started_at' => OfflineContract::now(), 'code_seal' => $code]);
             $this->write($root, 'private-request.json', ['uri' => Target::URI, 'method' => 'POST',
                 'parameters' => $target->parameters, 'expected_entries' => $target->entries]);
             if (file_exists($root.'/raw.bin') || is_link($root.'/raw.bin')) {
@@ -44,8 +53,10 @@ class Probe
             if ($raw === false || ! chmod($root.'/raw.bin', 0600)) {
                 throw new RuntimeException('Cannot exclusively create Raw sink.');
             }
+            $this->scope->dispatching($reservation);
             $received = $this->transport->exchange($target, $raw);
             $transfer = $received->metadata;
+            $this->scope->complete($reservation, $transfer);
             if (! is_resource($raw) || ! fflush($raw) || ! fsync($raw)) {
                 throw new RuntimeException('Cannot persist original response bytes.');
             }
@@ -82,7 +93,7 @@ class Probe
                 'raw_complete' => $transfer['failure'] === null, 'effective_uri_sha256' => $transfer['effective_uri'] === null
                     ? null : hash('sha256', $transfer['effective_uri']), 'curl_request_size' => $transfer['curl_request_size'],
                 'status' => $reasons === [] ? 'FETCH_AND_PARSE_VERIFIED' : 'FAILED', 'reasons' => $reasons,
-                'parser' => $analysis];
+                'parser' => $analysis, 'scope_attempt' => $this->scope->status()];
             $this->write($root, 'result.json', $result);
             if (EvidenceFiles::writableRoot($root) !== $identity || self::codeSeal() !== $code
                 || EvidenceFiles::seal(EvidenceFiles::read($root, 'raw.bin')) !== $seal) {
@@ -94,18 +105,35 @@ class Probe
             }
             $this->write($root, 'manifest.json', ['version' => self::VERSION, 'files' => $files, 'code_seal' => $code]);
             $marker = $reasons === [] ? 'COMPLETE' : 'FAILED';
-            $this->write($root, $marker.'.json', ['state' => $marker, 'manifest_sha256' => hash_file('sha256', $root.'/manifest.json')]);
+            $this->write($root, $marker.'.json', ['state' => $marker, 'attempt_id' => $attemptId,
+                'manifest_sha256' => hash_file('sha256', $root.'/manifest.json')]);
 
             return self::summary($result);
         } catch (Throwable $error) {
             if (is_resource($raw)) {
                 fclose($raw);
             }
-            if (! file_exists($root.'/FAILED.json') && ! is_link($root.'/FAILED.json')) {
-                $this->write($root, 'FAILED.json', ['state' => 'FAILED', 'reason' => 'PERSISTENCE_OR_INTEGRITY_FAILURE',
-                    'exception_class' => $error::class, 'http_dispatch_count' => $transfer['http_dispatch_count'] ?? 0]);
+            $facts = ['evidence_status' => 'NOT_CREATED', 'evidence_retained' => false,
+                'output_write_started' => $writeStarted, 'failed_evidence_confirmed' => false];
+            if ($writeStarted) {
+                $facts['evidence_status'] = 'WRITE_STARTED_RETENTION_UNCONFIRMED';
+                $facts['evidence_retained'] = null;
+                try {
+                    if (! file_exists($root.'/FAILED.json') && ! is_link($root.'/FAILED.json')) {
+                        $this->write($root, 'FAILED.json', ['state' => 'FAILED', 'attempt_id' => $attemptId,
+                            'reason' => 'PERSISTENCE_OR_INTEGRITY_FAILURE', 'exception_class' => $error::class,
+                            'http_dispatch_count' => $transfer['http_dispatch_count'] ?? null]);
+                    }
+                    $failed = EvidenceFiles::object(EvidenceFiles::read($root, 'FAILED.json'));
+                    if (($failed['state'] ?? null) === 'FAILED' && ($failed['attempt_id'] ?? null) === $attemptId) {
+                        $facts = ['evidence_status' => 'FAILED_EVIDENCE_CONFIRMED', 'evidence_retained' => true,
+                            'output_write_started' => true, 'failed_evidence_confirmed' => true];
+                    }
+                } catch (Throwable) {
+                    // Inability to confirm retention must stay UNKNOWN, never assumed true or deleted.
+                }
             }
-            throw new RuntimeException('Probe failed; original and partial evidence retained.', 0, $error);
+            throw new ProbeFailure([...$facts, 'scope_attempt' => $this->scope->status()], $error);
         }
     }
 

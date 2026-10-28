@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use App\Domain\Keirin\Scraping\PrestartCapture\Contract;
+use App\Domain\Keirin\Scraping\PrestartCapture\Pj0315Probe\ScopeAttempt;
 use App\Domain\Keirin\Scraping\PrestartCapture\Pj0315Probe\Target;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -14,6 +15,17 @@ use Illuminate\Http\Client\Factory;
 /** Entirely synthetic 2025 test material; never evidence of a successful real HTTP request. */
 final class Pj0315ProbeFixture
 {
+    public static function scope(string $parent): ScopeAttempt
+    {
+        $path = $parent.'/scope';
+        if (! mkdir($path, 0700)) {
+            throw new \RuntimeException('Cannot create synthetic scope.');
+        }
+        Contract::writeNew($path, 'scope.json', json_encode(ScopeAttempt::definition(), JSON_THROW_ON_ERROR));
+
+        return new ScopeAttempt($path);
+    }
+
     public static function html(): string
     {
         return str_replace(['20260616', '"selKjyoCd":"56"'], ['20250104', '"selKjyoCd":"28"'],

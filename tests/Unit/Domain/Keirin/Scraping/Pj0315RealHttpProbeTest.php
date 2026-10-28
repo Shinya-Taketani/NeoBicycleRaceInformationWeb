@@ -41,7 +41,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
         Fixture::fake($http, Fixture::html(), $status, options: $options);
         $root = $this->root();
         $seal = Contract::codeSeal();
-        $result = (new Probe(new SinglePostTransport($http)))->run(Fixture::target(), $root, true);
+        $result = $this->probe($http)->run(Fixture::target(), $root, true);
         $this->assertSame($status === 200 ? 'FETCH_AND_PARSE_VERIFIED' : 'FAILED', $result['status']);
         $this->assertSame(1, $result['http_dispatch_count']);
         $this->assertSame($status, $result['http_status']);
@@ -80,7 +80,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
         $http = new Factory;
         Fixture::fake($http, $body);
         $root = $this->root();
-        $result = (new Probe(new SinglePostTransport($http)))->run(Fixture::target(), $root, true);
+        $result = $this->probe($http)->run(Fixture::target(), $root, true);
         $this->assertSame('HTTP_200_RECEIVED', $result['fetch_status']);
         $this->assertSame('FAILED', $result['status']);
         $this->assertSame($reason, $result['parser']['status']);
@@ -108,7 +108,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
             throw new ConnectionException($message);
         });
         $root = $this->root();
-        $result = (new Probe(new SinglePostTransport($http)))->run(Fixture::target(), $root, true);
+        $result = $this->probe($http)->run(Fixture::target(), $root, true);
         $this->assertSame(1, $calls);
         $this->assertSame('FAILED', $result['status']);
         $this->assertContains($reason, $result['reasons']);
@@ -129,7 +129,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
     {
         $http = new Factory;
         Fixture::fake($http, Fixture::html());
-        $probe = new Probe(new SinglePostTransport($http));
+        $probe = $this->probe($http);
         $root = $this->root();
         $before = scandir($root);
         $this->assertSame('PLAN_ONLY_NO_HTTP', $probe->run(Fixture::target(), $root, false)['status']);
@@ -137,7 +137,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
         $http->assertNothingSent();
         $probe->run(Fixture::target(), $root, true);
         try {
-            (new Probe(new SinglePostTransport($http)))->run(Fixture::target(), $root, true);
+            $this->probe($http)->run(Fixture::target(), $root, true);
             $this->fail('Existing probe must not be re-dispatched.');
         } catch (RuntimeException) {
             $http->assertSentCount(1);
@@ -177,7 +177,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
         $http = new Factory;
         Fixture::fake($http, Fixture::html());
         $root = $this->root();
-        $probe = new class(new SinglePostTransport($http)) extends Probe
+        $probe = new class(new SinglePostTransport($http), Fixture::scope($this->root())) extends Probe
         {
             protected function write(string $root, string $name, array $data): void
             {
@@ -203,7 +203,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
         $http = new Factory;
         Fixture::fake($http, Fixture::html());
         $root = $this->root();
-        $probe = new class(new SinglePostTransport($http)) extends Probe
+        $probe = new class(new SinglePostTransport($http), Fixture::scope($this->root())) extends Probe
         {
             protected function write(string $root, string $name, array $data): void
             {
@@ -235,7 +235,7 @@ final class Pj0315RealHttpProbeTest extends TestCase
                 // Array stubs avoid Factory::fake's automatic requested-URI transfer stats.
                 return ['synthetic_response' => 'UNVERIFIED_SOURCE'];
             });
-            $result = (new Probe(new SinglePostTransport($http)))->run(Fixture::target(), $this->root(), true);
+            $result = $this->probe($http)->run(Fixture::target(), $this->root(), true);
             $this->assertContains('EFFECTIVE_URI_NOT_VERIFIED', $result['reasons']);
             $http->assertSentCount(1);
         }
@@ -249,13 +249,18 @@ final class Pj0315RealHttpProbeTest extends TestCase
         $root = $this->root();
         Contract::writeNew($root, 'raw.bin', 'SYNTHETIC_EXISTING_BYTES');
         try {
-            (new Probe(new SinglePostTransport($http)))->run(Fixture::target(), $root, true);
+            $this->probe($http)->run(Fixture::target(), $root, true);
             $this->fail('Existing Raw must not be overwritten.');
         } catch (RuntimeException) {
             $http->assertNothingSent();
             $this->assertSame('SYNTHETIC_EXISTING_BYTES', file_get_contents($root.'/raw.bin'));
             $this->assertFileExists($root.'/FAILED.json');
         }
+    }
+
+    private function probe(Factory $http): Probe
+    {
+        return new Probe(new SinglePostTransport($http), Fixture::scope($this->root()));
     }
 
     private function root(): string
