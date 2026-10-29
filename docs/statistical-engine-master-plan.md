@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-29 PR126 P2/P3修正：cleanな既存feature branch・HEAD/ローカルorigin branch `878169d7e1f9152b3bd19861fe4f877d111eadf6` を確認。比較束の正確な4ファイル終端検査と固定race_id12901照合を追加し、新規15/52・既存625/4314を隔離128Mで確認した。failure/error/skip0・exit0、新規warning0、旧Evidence系155 warning付きtestは別管理。旧Raw/比較束/旧Probe/固定依存sealはSTART-END不変。正本は5.0・15.91.1、今回差分だけを未コミットで再レビュー待ち。以下の初版実比較・件数/hash・未コミット記録は当時の履歴として保持する。
+
 > 2026-10-29 最新工程：`PRESTART-CAPTURE-PJ0315-OBSERVATION-RUNNER-01`。fetch/main pull --ff-only後のclean main/HEAD/origin `69c3abbd5c826c4673d3b86345021c53c9055893`・PR125 MERGEDをローカルmerge履歴で確認し、指定の未使用feature branchを作成。新Runner/Command/slot/永続台帳/保存/独立Verifierを製造し、新規39/159・既存586/4155を隔離128Mで検証した。失敗/error/skip0・exit0、新規警告0、旧Evidence系155 warning付きtestは別管理。
 > 指定2025年Raw 2版はrace/9名・投影198項目が一致し、Raw差は投影範囲でHTML_ONLY。追加実HTTP0、旧Raw/旧Probe v1成功束・消費済みscope・旧Probe v2/Operational/24依存sealを保持。実運用承認・実時計/公開receipt・公式中止順延・一部T受入は未完了。正本は5.0・15.91と[実装記録](prestart-capture-pj0315-observation-runner-01.md)。次は今回差分レビューだけ。以下のPR125未コミット/再レビュー待ち・旧実測は当時の履歴として保持する。
 
@@ -344,8 +346,8 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 ```yaml
 current_phase: PRESTART-CAPTURE-PJ0315-OBSERVATION-RUNNER-01
-current_engine_state: OBSERVATION_RUNNER_OFFLINE_VERIFIED_AWAITING_REVIEW
-next_allowed_action: REVIEW_OBSERVATION_RUNNER_CODE_LIMITED_TESTS_AND_SAVED_RAW_COMPARISON_ONLY
+current_engine_state: PR126_COMPARISON_VALIDATION_FIX_AWAITING_REVIEW
+next_allowed_action: REVIEW_PR126_COMPARISON_VALIDATION_DIFF_AND_LIMITED_TESTS_ONLY
 start_main_sha: 69c3abbd5c826c4673d3b86345021c53c9055893
 remote_main: 69c3abbd5c826c4673d3b86345021c53c9055893
 pr125_status: MERGED_LOCAL_HISTORY_VERIFIED
@@ -373,16 +375,16 @@ confidence: null
 
 | 制御項目 | 最新の扱い |
 | --- | --- |
-| current_engine_state | 新RunnerのPHP/限定オフライン検証・指定2025年2版比較を未コミットでレビュー待ち |
-| next_allowed_action | 今回差分/テスト/比較/未完了T台帳のレビューだけ。実送信・運用台帳provision・予測接続は開始しない |
-| completed_phases | PR125 MERGED、新版39人工ケース、既存586限定回帰、実2版/198項目比較と独立再検証 |
-| superseded_phases | 旧PR125再レビュー待ちは履歴。旧実HTTP成功・旧版hash/件数を新Runnerの実通信実績へ読み替えない |
+| current_engine_state | PR126の比較束inventory/固定ID修正・限定回帰を未コミットで再レビュー待ち（15.91.1） |
+| next_allowed_action | 今回差分/限定テストのレビューだけ。実送信・実比較再生成・運用台帳provision・予測接続は開始しない |
+| completed_phases | PR125 MERGED、初版39人工/既存586・実2版198項目比較は履歴。今回15人工/既存625限定回帰と原本不変を確認 |
+| superseded_phases | 初版の未コミット記録・旧PR125再レビュー待ちは履歴。旧実HTTP/実比較の成功・hash/件数を今回コードの実行実績へ読み替えない |
 | blocked_phases | 運用D1〜D8/実trust/時計誤差TTL/公開receipt/公式中止順延/未完了T・実HTTP/本番保存、B1/親lambda/H1-U・正式採用/LIVE |
 | frozen_contracts | 旧Probe v2/技術scope・Operational・Bridge/24依存、Raw/bundle/STAT/C1/C2/BT/モデル/Solver/Decoder/Evaluator/Gate・設定/安全helper |
-| unfrozen_contracts | 今回の新Observation PHP/Command/人工Fixture/限定テストと2文書だけ。実取得許可/旧scope再初期化/JS製造/モデル変更は含まない |
+| unfrozen_contracts | 今回はHistoricalComparisonのP2/P3・人工回帰と2文書だけ。実取得許可/旧scope再初期化/JS製造/モデル変更は含まない |
 | holdout_status | 2026開催はmetadata/Rawを含めFROZEN_NO_ACCESS。2026年取得の2025年資料の事後比較だけを別扱い |
 
-正本は15.91と[実装記録第7節のT台帳](prestart-capture-pj0315-observation-runner-01.md#7-t01t26受入台帳)。T14/T15bは別JS工程未承認、T17未実装、T04/10〜13/16/18〜20/23〜24/26には限定範囲/未受入を残す。新版の製造・人工成功は運用全仕様受入/許諾/歴史的as-of/予測利用の承認ではない。以下は当時の工程履歴。
+正本は15.91.1と[実装記録第10節](prestart-capture-pj0315-observation-runner-01.md#10-pr126-p2p3比較束検証修正--2026-10-29)、未完了範囲は[第7節のT台帳](prestart-capture-pj0315-observation-runner-01.md#7-t01t26受入台帳)。T14/T15bは別JS工程未承認、T17未実装、T04/10〜13/16/18〜20/23〜24/26には限定範囲/未受入を残す。新版の製造・人工成功は運用全仕様受入/許諾/歴史的as-of/予測利用の承認ではない。以下は当時の工程履歴。
 
 ### v1.83 PR125修正時点の工程（履歴）
 
@@ -4782,6 +4784,18 @@ IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generaliza
 最終限定625 cases/4314 assertions、failure/error/skip0・exit0、Artisan表示470 passed/155 warnings。新規39/159は警告0、既存586/4155のうち旧EvidenceFiles.php:149のlstat警告155 test/2125 eventを別管理し、抑制/旧コード修正なし。PHP8.5.4/PHPUnit12.5.31、PHPUnit本体/独立子128M、最大peak71,827,456bytes。T25/T26既存Bridge/実9版独立検証/旧STAT46保存・2組差分照合を実行し、新テストで代替していない。原本read-only/ネットワーク遮断/人工.env/storage/Desktop/Trashと既存retire helperを維持。旧原本/.env/消費済みregistry/Probe v2/24依存のSTART-END SHAは一致。通常全体/危険cleanup経路は未実行。新規PHP構文/限定Pint/diffを確認する。
 
 未完了Tは[実装記録第7節](prestart-capture-pj0315-observation-runner-01.md#7-t01t26受入台帳)。特に公式中止/順延、実clock/単調時計/誤差TTL、公開完了receipt、全容量故障/backup/復旧、実trust/provisionは未実装/未受入。T14/T15bは別工程未承認。運用D1〜D8/許諾/as-of/予測/正式採用/2026/B1制限は不変。実HTTP/DB/学習/予測/評価/次工程への自動移行は0。次は今回コード/限定検証/比較/残件レビューだけ。未コミットで停止し、commit/push/PR/mergeなし。
+
+### 15.91.1 PR126 P2/P3: 比較束終端・固定内部ID検査 / 2026-10-29
+
+開始cleanな既存feature branch/HEAD/ローカルorigin branch 878169d7e1f9152b3bd19861fe4f877d111eadf6、origin/main69c3abbd5c826c4673d3b86345021c53c9055893を確認。新branch/main編集/外部Git照会/commit/push/PR/mergeなし。上記15.91の実Raw比較・625/4314・旧manifest/code sealは初版の履歴として保持する。
+
+HistoricalComparisonのverify開始/成功返却前に実inventoryを4ファイル完全一致・通常ファイル検証とし、追加FAILED/JSON/ディレクトリ・欠落・不正種別を拒否。compareはTarget::loadの本人/要求bindingを維持し、日場番号に加え内部race_id12901を固定する。Raw固定SHA/サイズや旧24依存/APIは変更しない。人工終端テストの比較演算だけpartial mockへ分離するため当該クラスのfinalを解除し、Commandにoverride経路は追加しない。
+
+修正前の人工束は追加FAILED/JSON/ディレクトリでもVERIFIED（3拒否期待が失敗）。内部参照/外部SHAを整えた12902は実Target::load・固定対象チェックを通り、旧Probe版検査まで到達（完全な実Raw比較成功ではない）。ID拒否期待を含め4 failed/exit1を記録。修正後の新規15/52は正常VERIFIEDと全拒否・人工証拠不変を確認、failure/error/warning/skip0・exit0。既存625/4314を加え640/4366、failure/error/skip0・exit0、Artisan485 passed/155 warnings。旧EvidenceFiles.php:149のlstatは155 test/2125 eventのまま別管理し、警告抑制/旧コード変更なし。
+
+ログ `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-observation-runner-01/pr126-tests-20261029-083408-ergxe5LT/logs/`。PHP8.5.4/PHPUnit12.5.31・Artisan/Collision/128M・peak71,827,456bytes、ネットワーク遮断/原本read-only/人工.env/storage/cache/Desktop/Trashと既存rename-only helperを維持。既存Bridge実9版の独立検証・STAT46保存値/2組差分も成功。旧Raw・旧Probe束/実行時コード・消費済みscope・旧比較4ファイル・.env・Probe v2/Bridge24依存はSTART-END一致。旧比較manifest SHA1161b25ca00129efc14aedface914e1e5c89f39507c38068489b0e7708f31be4を保持し、新code sealへ再封印/旧実績読み替えはしない。
+
+変更PHP2件の構文/限定Pint/diff checkを確認。実HTTP/本番DB/新規実比較/学習/予測/評価/2026開催参照は0、通常全体は未実行。未完了T・許諾/運用D1〜D8・B1/lambda/H1-U・歴史的as-of=false・予測/正式採用禁止は不変。次は今回差分/限定回帰の再レビューだけ、未コミットで停止する。詳細は[実装記録第10節](prestart-capture-pj0315-observation-runner-01.md#10-pr126-p2p3比較束検証修正--2026-10-29)。
 
 ## 15.90 PRESTART-CAPTURE-PJ0315-REAL-HTTP-01 / 2026-10-28
 

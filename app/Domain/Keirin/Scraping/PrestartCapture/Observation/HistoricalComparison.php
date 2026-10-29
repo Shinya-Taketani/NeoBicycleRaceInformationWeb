@@ -10,16 +10,19 @@ use App\Domain\Keirin\Scraping\PrestartEvidence\EvidenceFiles;
 use RuntimeException;
 
 /** Read-only comparison of the two explicitly authorized 2025 sources, never historical prediction input. */
-final class HistoricalComparison
+class HistoricalComparison
 {
     public const BASELINE_SHA = '2041ed47a61c47de039cfc23f81f81240022e734d2cf5154fc76a2a532b710b7';
 
     public const PROBE_SHA = 'e46900fe80a06c67e989d666d7a6eefcfac8c08508542df9ea1a3a48c71f7e36';
 
+    private const FILES = ['private-sources.json', 'comparison.json', 'manifest.json', 'COMPLETE.json'];
+
     public function compare(string $baseline, string $baselineSha, string $probe, string $probeManifestSha): array
     {
         $target = Target::load($baseline, $baselineSha);
-        if ($target->race['race_date'] !== '2025-01-04' || $target->race['track_code'] !== '28' || $target->race['race_number'] !== 1) {
+        if ($target->race['race_id'] !== 12901 || $target->race['race_date'] !== '2025-01-04'
+            || $target->race['track_code'] !== '28' || $target->race['race_number'] !== 1) {
             throw new RuntimeException('Historical comparison is restricted to the authorized saved 2025 race.');
         }
         $source = ObservationContract::readDocument($baseline, $baselineSha)['cases'][0];
@@ -117,6 +120,7 @@ final class HistoricalComparison
 
     public function verify(string $directory, string $sha): array
     {
+        $this->verifyInventory($directory);
         $manifest = ObservationContract::readDocument($directory.'/manifest.json', $sha);
         if (($manifest['version'] ?? null) !== ObservationContract::VERSION || ($manifest['kind'] ?? null) !== 'HISTORICAL_COMPARISON'
             || $manifest['code_seal'] !== ObservationContract::codeSeal()
@@ -134,7 +138,23 @@ final class HistoricalComparison
             || EvidenceFiles::object(EvidenceFiles::read($directory, 'COMPLETE.json')) !== ['state' => 'COMPLETE', 'manifest_sha256' => $sha]) {
             throw new RuntimeException('Comparison reproduction or receipt mismatch.');
         }
+        $this->verifyInventory($directory);
 
         return ['status' => 'VERIFIED', 'http_calls' => 0, 'historical_as_of_available' => false];
+    }
+
+    private function verifyInventory(string $directory): void
+    {
+        EvidenceFiles::directory($directory);
+        $names = array_values(array_diff(scandir($directory) ?: throw new RuntimeException('Cannot inspect comparison directory.'), ['.', '..']));
+        $expected = self::FILES;
+        sort($names);
+        sort($expected);
+        if ($names !== $expected) {
+            throw new RuntimeException('Unexpected comparison directory inventory.');
+        }
+        foreach (self::FILES as $name) {
+            EvidenceFiles::read($directory, $name);
+        }
     }
 }

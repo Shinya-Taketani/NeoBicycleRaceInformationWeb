@@ -189,3 +189,30 @@ php -d memory_limit=128M artisan test <上記2クラスと限定既存13クラ�
 次は今回のPHP/限定テスト/実2版比較/未完了T台帳のレビューだけ。実運用trust/正当な具体対象・D1〜D8/時計/容量保持backup・公開完了receipt・公式中止順延契約・未完了受入が揃うまで実送信を有効化しない。JSは別承認のまま。問い合わせ回答を待つことを今回の製造停止理由にはしていないが、許諾確認済みとはしない。
 
 通常全体・実HTTP・本番DB/正式保存・Migration・Scheduler/Queue登録・2026開催参照・学習・予測・性能評価・B1/lambda/H1-U・commit/push/PR/mergeは各0。性能影響 `NOT_MEASURED_THIS_CHANGE`。旧不採用/Gate・C1/C2/STATモデルは不変。変更を未コミットで保持し、レビュー待ちで停止する。
+
+## 10. PR126 P2/P3比較束検証修正 / 2026-10-29
+
+開始時の既存feature branch・HEAD/ローカルorigin branchは `878169d7e1f9152b3bd19861fe4f877d111eadf6`、origin/mainは `69c3abbd5c826c4673d3b86345021c53c9055893`、作業ツリーclean。新branch/main編集/外部Git照会なし。同PRの追加修正だけを未コミットで再レビュー待ちにする。第5・8節の実比較・旧実測・hashは当時の履歴であり、今回コードの実Raw再比較結果ではない。
+
+- P2: `HistoricalComparison::verify()` の開始時と成功返却直前に、実inventoryが `private-sources.json` / `comparison.json` / `manifest.json` / `COMPLETE.json` の4件だけであることを検査する。各項目は既存 `EvidenceFiles::read()` で通常ファイル・単一link・サイズ/所在を検証し、追加FAILED/JSON/ディレクトリ、欠落、同名ディレクトリ等を拒否する。seal/再計算/COMPLETE照合も維持する。
+- P3: `Target::load()` 後の許可対象をrace_id=12901・2025-01-04・場28・1Rの全一致に固定する。本人/要求binding・固定RawのSHA/サイズは緩和しない。
+- 新規 `HistoricalComparisonTest` は15人工ケース。終端検査は比較演算だけをpartial mockに置換し、実Raw固定SHAとは独立して人工束を検証する。そのため当該クラスのfinalだけを解除した。Commandの生成経路・本番の比較演算/固定SHAにoverrideオプションは追加していない。固定IDの2ケースはmockを使わず、実際の `Target::load()` と `compare()` を通す。人工Rawを実資料の受入根拠にはしない。
+
+修正前ログ: `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-observation-runner-01/pr126-tests-20261029-083325-49wDTNsl/logs/`。
+人工比較束へFAILED.json・extra.json・余分なディレクトリを加えてもverifyはVERIFIEDとなり、拒否期待3件が失敗した。全内部race_id参照を12902へ整え外部SHAを再計算した人工targetは `Target::load()` に合格し、compareの固定対象検査も通過して後段の旧Probe版検査まで到達した（完全な実Raw比較成功を示すものではない）。ID拒否期待も失敗し、計4 failed/15 cases/69 assertions/exit1。欠落ファイルの旧read経路由来の4 warning付きtestも記録。最初の人工テスト構築中ログも上書きせず保持している。
+
+修正後は新規15 cases/52 assertions、failure/error/warning/skip0・exit0。正常人工束のVERIFIED、全4種の欠落、追加FAILED/JSON/ディレクトリ、4種の同名ディレクトリ、比較JSONのseal不一致を検証した。各拒否の前後で人工証拠のinventory/bytes/SHA不変を確認。再binding済み12902は固定対象で拒否し、12901は同検査を通るが人工Probeを実v1として受理しない。
+
+最終限定ログ: `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-observation-runner-01/pr126-tests-20261029-083408-ergxe5LT/logs/`。
+
+| 今回の限定検証 | cases | assertions | failures/errors | warning付きtest | skipped | exit |
+| --- | ---: | ---: | --- | ---: | ---: | ---: |
+| 新規HistoricalComparison | 15 | 52 | 0/0 | 0 | 0 | 0 |
+| 既存Runner/Verifier/Probe/Bridge/Approval/STAT46等 | 625 | 4,314 | 0/0 | 155 | 0 | 0 |
+| 合計 | 640 | 4,366 | 0/0 | 155 | 0 | 0 |
+
+Artisan表示485 passed/155 warnings。警告は既存EvidenceFiles.php:149のlstat、2,125イベントであり、抑制・旧コード修正なし。PHP8.5.4/PHPUnit12.5.31・Artisan/Collision・128M、PHP peak71,827,456bytes。正確な16 pathと全optionはcommand.txt、stdout/stderr/JUnit/events/exit/measurementを保持する。bwrapの原本read-only・ネットワーク遮断・人工.env/storage/cache/Desktop/Trashを維持し、作成記録を保持した人工rootだけを既存helperでrename-only退避。既存Bridgeの実9取得版の独立Verifier、STAT46保存値/2組差分照合も成功した。
+
+旧Raw・旧Probe v1束/実行時code記録・消費済みscope・旧比較束4ファイル・.env・旧Probe v2/Bridge24依存はSTART/END一致。旧比較manifest SHA `1161b25ca00129efc14aedface914e1e5c89f39507c38068489b0e7708f31be4` は不変。今回のHistoricalComparison変更でObservationのcode sealは変わるが、旧束を再封印せず、第5節の成功を新コードで再実行したとは記載しない。今回の人工束は今回コードのsealで生成して検証する。
+
+変更PHP2件の構文・限定Pint・diff checkを確認。通常全体・実HTTP・本番DB・新規実比較生成/再seal・学習/予測/評価・2026開催参照は未実施。第7節の未完了T、許諾UNVERIFIED、D1〜D8未承認、実send=false、historical_as_of=false、予測/正式採用禁止、B1保留は不変。次はPR126の今回差分レビューのみ。
