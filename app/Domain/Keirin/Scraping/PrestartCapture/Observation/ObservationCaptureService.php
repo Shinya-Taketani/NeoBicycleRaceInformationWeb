@@ -62,7 +62,8 @@ final class ObservationCaptureService
                 $analysis = self::analyze($manifest->target($race), $bytes, $response);
                 $state = $analysis['status'] === 'OBSERVATION_VERIFIED' ? 'SUCCEEDED'
                     : (($response['failure'] ?? null) === 'TIMEOUT' ? 'TIMEOUT' : 'FAILED');
-                $ledger->outcome($reservation, $ended, $state, $response['http_status'], hash('sha256', $bytes));
+                $ledger->outcome($reservation, $ended, $state, $response['http_status'], hash('sha256', $bytes),
+                    $analysis['stop_scope'], $analysis['stop_reason']);
                 if ($analysis['stop_scope']) {
                     $ledger->stop($analysis['stop_reason'], $ended);
                 }

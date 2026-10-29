@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-29 PR126追加P2修正：開始cleanな既存feature branch/HEADとGitHub OPEN/merged=falseのhead `f3b3c45d84fcb6053d9cd73303b01aeac7c3da49` を照合。本人差分/予定改定のOUTCOME保存後・STOP前の中断を実Service＋HTTP fakeで再現し、台帳v2のOUTCOMEへ停止要否/理由を必須永続化した。新規30/204＋既存344/2026を隔離128Mで確認、failure/error/warning/skip0・exit0。原本/HistoricalComparison/旧固定依存は不変、未完了T/実運用未承認は維持。正本は5.0・15.91.2と実装記録第11節、今回差分を未コミットで再レビュー待ち。以下の旧実測/未コミット記録は当時の履歴。
+
 > 2026-10-29 PR126 P2/P3修正：cleanな既存feature branch・HEAD/ローカルorigin branch `878169d7e1f9152b3bd19861fe4f877d111eadf6` を確認。比較束の正確な4ファイル終端検査と固定race_id12901照合を追加し、新規15/52・既存625/4314を隔離128Mで確認した。failure/error/skip0・exit0、新規warning0、旧Evidence系155 warning付きtestは別管理。旧Raw/比較束/旧Probe/固定依存sealはSTART-END不変。正本は5.0・15.91.1、今回差分だけを未コミットで再レビュー待ち。以下の初版実比較・件数/hash・未コミット記録は当時の履歴として保持する。
 
 > 2026-10-29 最新工程：`PRESTART-CAPTURE-PJ0315-OBSERVATION-RUNNER-01`。fetch/main pull --ff-only後のclean main/HEAD/origin `69c3abbd5c826c4673d3b86345021c53c9055893`・PR125 MERGEDをローカルmerge履歴で確認し、指定の未使用feature branchを作成。新Runner/Command/slot/永続台帳/保存/独立Verifierを製造し、新規39/159・既存586/4155を隔離128Mで検証した。失敗/error/skip0・exit0、新規警告0、旧Evidence系155 warning付きtestは別管理。
@@ -346,12 +348,15 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 ```yaml
 current_phase: PRESTART-CAPTURE-PJ0315-OBSERVATION-RUNNER-01
-current_engine_state: PR126_COMPARISON_VALIDATION_FIX_AWAITING_REVIEW
-next_allowed_action: REVIEW_PR126_COMPARISON_VALIDATION_DIFF_AND_LIMITED_TESTS_ONLY
+current_engine_state: PR126_STOP_OUTCOME_PERSISTENCE_FIX_AWAITING_REVIEW
+next_allowed_action: REVIEW_PR126_STOP_OUTCOME_PERSISTENCE_DIFF_AND_LIMITED_TESTS_ONLY
 start_main_sha: 69c3abbd5c826c4673d3b86345021c53c9055893
 remote_main: 69c3abbd5c826c4673d3b86345021c53c9055893
 pr125_status: MERGED_LOCAL_HISTORY_VERIFIED
 observation_contract: PJ0315-OBSERVATION-RUNNER-v1
+observation_ledger_contract: PJ0315-OBSERVATION-LEDGER-v2
+pr126_head_at_stop_persistence_fix_start: f3b3c45d84fcb6053d9cd73303b01aeac7c3da49
+pr126_status_at_stop_persistence_fix_start: OPEN_NOT_MERGED
 operational_acceptance: NOT_COMPLETED
 operational_decisions: PROPOSED_NOT_APPROVED
 permission_status: UNVERIFIED
@@ -375,16 +380,16 @@ confidence: null
 
 | 制御項目 | 最新の扱い |
 | --- | --- |
-| current_engine_state | PR126の比較束inventory/固定ID修正・限定回帰を未コミットで再レビュー待ち（15.91.1） |
-| next_allowed_action | 今回差分/限定テストのレビューだけ。実送信・実比較再生成・運用台帳provision・予測接続は開始しない |
-| completed_phases | PR125 MERGED、初版39人工/既存586・実2版198項目比較は履歴。今回15人工/既存625限定回帰と原本不変を確認 |
-| superseded_phases | 初版の未コミット記録・旧PR125再レビュー待ちは履歴。旧実HTTP/実比較の成功・hash/件数を今回コードの実行実績へ読み替えない |
+| current_engine_state | PR126の停止要否OUTCOME永続化・中断再開拒否・限定回帰を未コミットで再レビュー待ち（15.91.2） |
+| next_allowed_action | 今回差分/人工限定回帰のレビューだけ。実送信・実比較再生成・実運用台帳provision/移行・予測接続は開始しない |
+| completed_phases | PR125 MERGED、初版/比較束修正の実測は履歴。今回30人工/既存344限定回帰・停止拒否/正常継続・原本不変を確認 |
+| superseded_phases | 15.91/15.91.1の旧未コミット状態は履歴。旧実HTTP/実比較の成功・hash/件数を今回コードの実行実績へ読み替えない |
 | blocked_phases | 運用D1〜D8/実trust/時計誤差TTL/公開receipt/公式中止順延/未完了T・実HTTP/本番保存、B1/親lambda/H1-U・正式採用/LIVE |
-| frozen_contracts | 旧Probe v2/技術scope・Operational・Bridge/24依存、Raw/bundle/STAT/C1/C2/BT/モデル/Solver/Decoder/Evaluator/Gate・設定/安全helper |
-| unfrozen_contracts | 今回はHistoricalComparisonのP2/P3・人工回帰と2文書だけ。実取得許可/旧scope再初期化/JS製造/モデル変更は含まない |
+| frozen_contracts | HistoricalComparisonのP2/P3、旧Probe v2/技術scope・Operational・Bridge/24依存、Raw/bundle/STAT/C1/C2/BT/モデル/Solver/Decoder/Evaluator/Gate・設定/安全helper |
+| unfrozen_contracts | 今回はObservation Service/Ledger/Contract/Verifierの停止永続化・必要な人工回帰と2文書だけ。実取得許可/旧scope再初期化/JS製造/モデル変更は含まない |
 | holdout_status | 2026開催はmetadata/Rawを含めFROZEN_NO_ACCESS。2026年取得の2025年資料の事後比較だけを別扱い |
 
-正本は15.91.1と[実装記録第10節](prestart-capture-pj0315-observation-runner-01.md#10-pr126-p2p3比較束検証修正--2026-10-29)、未完了範囲は[第7節のT台帳](prestart-capture-pj0315-observation-runner-01.md#7-t01t26受入台帳)。T14/T15bは別JS工程未承認、T17未実装、T04/10〜13/16/18〜20/23〜24/26には限定範囲/未受入を残す。新版の製造・人工成功は運用全仕様受入/許諾/歴史的as-of/予測利用の承認ではない。以下は当時の工程履歴。
+正本は15.91.2と[実装記録第11節](prestart-capture-pj0315-observation-runner-01.md#11-pr126追加p2-停止判定のoutcome永続化--2026-10-29)、未完了範囲は[第7節のT台帳](prestart-capture-pj0315-observation-runner-01.md#7-t01t26受入台帳)。T14/T15bは別JS工程未承認、T17未実装、T04/10〜13/16/18〜20/23〜24/26には限定範囲/未受入を残す。新版の製造・人工成功は運用全仕様受入/許諾/歴史的as-of/予測利用の承認ではない。以下は当時の工程履歴。
 
 ### v1.83 PR125修正時点の工程（履歴）
 
@@ -4797,6 +4802,20 @@ HistoricalComparisonのverify開始/成功返却前に実inventoryを4ファイ�
 
 変更PHP2件の構文/限定Pint/diff checkを確認。実HTTP/本番DB/新規実比較/学習/予測/評価/2026開催参照は0、通常全体は未実行。未完了T・許諾/運用D1〜D8・B1/lambda/H1-U・歴史的as-of=false・予測/正式採用禁止は不変。次は今回差分/限定回帰の再レビューだけ、未コミットで停止する。詳細は[実装記録第10節](prestart-capture-pj0315-observation-runner-01.md#10-pr126-p2p3比較束検証修正--2026-10-29)。
 
+### 15.91.2 PR126追加P2: 停止判定の永続化・再起動予約拒否 / 2026-10-29
+
+開始branch feature/prestart-capture-pj0315-observation-runner-01、clean、HEAD/ローカルorigin branch/GitHub PR126 head f3b3c45d84fcb6053d9cd73303b01aeac7c3da49、PRはOPEN/merged=false・base/main69c3abbd5c826c4673d3b86345021c53c9055893をread-only確認。前回比較束修正は開始HEADへ反映済み、15.91.1の未コミット状態は当時の履歴。今回は既存branchで追加差分だけを未コミットに保持する。
+
+旧Serviceは本人差分/予定改定でも観測成功としてSUCCEEDEDのOUTCOMEを先に保存し、STOPを別追記していた。人工Service＋HTTP fakeで両条件を生成し、OUTCOMEのwitness/event保存後・STOP開始前に子PHPをexit73（catchを通さない）すると、新Service/新Ledger/別PHPが同じscope/manifestの次の未使用slot2を正規window/間隔/予算内で予約しfakeを追加1回呼んだ。修正前は2 failed/1 passed・37 assertions・error/warning/skip0・exit1、正常対照は継続した。ログは実装記録第11節に記載し、初期テスト補助のエラーと区別して保持する。
+
+台帳headerへPJ0315-OBSERVATION-LEDGER-v2を追加し、Observation manifest v1/code sealとは区別する。outcome()にstopScope/stopReasonを必須化し、実解析結果を同じevent/witnessへ保存。reserve()は別STOP未保存でも停止付きOUTCOMEで拒否し、validate()はその後に同じ理由のSTOP以外を許さない。欠落/不正/未知情報・旧台帳形式は明示拒否、自動移行/再初期化なし。SUCCEEDEDと継続可否は分離し、正常観測のfalse/NULLは別PHPから次slotへ進める。独立VerifierはRaw再解析との停止要否/理由/状態一致を検査し、必要STOP・Raw binding・時刻・終端/inventory等は維持する。
+
+Observation Service/Ledger/Contract/Verifierと、既存Runner API呼出し3箇所、新人工Unit/子PHP、2文書だけが変更対象。中断差込は人工Ledger subclassのstop()（final解除）で本番hook/例外/sleep/偶然のSIGKILLは使用しない。再封印した人工停止情報のRaw不一致3件、正常/停止付き正常/429/timeout保存束、旧形式/不正型/欠落/未知理由、必要STOP欠落、不正な後続予約も検証した。HistoricalComparison本体/テストは不変で、4ファイルinventory/固定IDの回帰15件も成功。
+
+最終ログ `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-observation-runner-01/pr126-stop-tests-20261029-185343-hbeEC8Xc/logs/`。新規30 cases/204 assertions、既存限定344/2026、合計374/2230、failure/error/warning/skip0・exit0。既存Runner/Verifier/比較束/Command・Probe/scope/Bridge/Approval/STAT46差分の直接影響回帰を人工入力で選び、実Raw再生や旧Evidence/属性全テスト・通常全体には拡大しない。過去の155 warningsの解消とはしない。PHP8.5.4/PHPUnit12.5.31・Artisan/Collision、PHPUnit/独立子128M、本体shutdown peak63,438,848bytes、人工子自己計測最大14,680,064bytes。既存bwrap/原本read-only/ネットワーク遮断/人工.env/storage/cache/Desktop/Trash・既存rename-only helperを維持し、実資料rootのtest bindなし。
+
+旧Raw/Probe成功束・実行時code・消費済みscope・比較束・.env・HistoricalComparison本体/テスト計33ファイルと旧Probe v2/Bridge24依存のSTART-ENDは一致。旧比較manifest・旧code sealを再封印せず、今回のコード版/台帳版と別管理する。変更PHP7件の構文/限定Pint/diff checkを確認。実HTTP/本番DB/保存/Migration/実運用provision/移行・実Raw再生/比較生成・学習/予測/評価・2026開催参照・B1/lambda/H1-Uは0。未完了T/運用承認/許諾・historical_as_of=false/予測/正式採用禁止/holdout凍結は不変。次は今回未コミット差分の再レビューだけ、commit/push/PR操作/mergeなし。
+
 ## 15.90 PRESTART-CAPTURE-PJ0315-REAL-HTTP-01 / 2026-10-28
 
 開始clean main/HEAD/ローカルorigin/main d96f55188e698c780933eed4bba5e4a7badd7c8a、PR124 merge件名を確認し、未使用の指定feature branchを作成。fetch/外部Git照会なし。AGENTS/5.0の8ゲート・現Raw/取得ログ/HTTP/Parser/Bridge/Operational/安全helperを確認した。旧15.89の実HTTP未承認/未実施・文書未コミット状態は当時の履歴として保持し、今回の明示的1試行承認と区別する。
@@ -6837,6 +6856,10 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+PR126は開始時GitHub照会でOPEN/未マージ・head f3b3c45d84fcb6053d9cd73303b01aeac7c3da49。既存feature branchの停止判定OUTCOME永続化・台帳v2・再起動予約拒否の追加差分を未コミットで再レビュー待ち。正本は5.0・15.91.2と実装記録第11節、次はREVIEW_PR126_STOP_OUTCOME_PERSISTENCE_DIFF_AND_LIMITED_TESTS_ONLY。人工新規30/204＋関連344/2026、計374/2230は128M/exit0・failure/error/warning/skip0。前回の比較束P2/P3・原本・旧code sealは維持し、旧形式の移行/実運用provision/未完了T/HTTP/予測/B1/2026は開放しない。旧実測と下記の旧未コミット状態は当時の履歴であり、今回実Raw再生や全体テストは実行していない。
+
+### v1.84 初版製造終了時の引継ぎ（履歴）
 
 PR125 MERGEDをfetch/main pull --ff-only後のclean main/origin 69c3abbd5c826c4673d3b86345021c53c9055893・ローカルmerge件名で確認。feature/prestart-capture-pj0315-observation-runner-01の新Observation PHP/Command/人工テストと指定2025年実Raw 2版比較を未コミットでレビュー待ち。正本は5.0・15.91と[実装記録](prestart-capture-pj0315-observation-runner-01.md)。次はREVIEW_OBSERVATION_RUNNER_CODE_LIMITED_TESTS_AND_SAVED_RAW_COMPARISON_ONLY。
 

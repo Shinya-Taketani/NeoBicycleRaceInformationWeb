@@ -9,7 +9,7 @@ use App\Domain\Keirin\Scraping\PrestartEvidence\EvidenceFiles;
 use RuntimeException;
 
 /** One authorization directory, independent of output run and manifest revision; no deletion or reset API. */
-final class AttemptLedger
+class AttemptLedger
 {
     private mixed $lock = null;
 
@@ -32,7 +32,11 @@ final class AttemptLedger
             throw new RuntimeException('Authorization ledger not provisioned; unknown is not unused budget.');
         }
         EvidenceFiles::writableRoot($this->directory);
-        if (EvidenceFiles::object(EvidenceFiles::read($this->directory, 'scope.json')) !== $this->header()) {
+        $header = EvidenceFiles::object(EvidenceFiles::read($this->directory, 'scope.json'));
+        if (($header['ledger_version'] ?? null) !== ObservationContract::LEDGER_VERSION) {
+            throw new RuntimeException('Unsupported ledger version; stopping outcome evidence required.');
+        }
+        if ($header !== $this->header()) {
             throw new RuntimeException('Authorization manifest changed; budget cannot be reset by revision.');
         }
         $handle = fopen($this->directory, 'r');
@@ -110,6 +114,9 @@ final class AttemptLedger
             if ($event['kind'] === 'STOP') {
                 throw new RuntimeException('Whole authorization is STOPPED.');
             }
+            if ($event['kind'] === 'OUTCOME' && $event['stop_scope']) {
+                throw new RuntimeException('Whole authorization is STOPPED by observation outcome.');
+            }
             $id = $event['attempt_id'];
             $states[$id] = $event['kind'];
             if ($event['kind'] === 'RESERVED') {
@@ -139,10 +146,11 @@ final class AttemptLedger
         $this->append(['kind' => 'DISPATCH', 'attempt_id' => $reservation['attempt_id'], 'at' => $at]);
     }
 
-    public function outcome(array $reservation, string $at, string $state, ?int $http, ?string $rawSha): void
+    public function outcome(array $reservation, string $at, string $state, ?int $http, ?string $rawSha, bool $stopScope, ?string $stopReason): void
     {
         $this->append(['kind' => 'OUTCOME', 'attempt_id' => $reservation['attempt_id'], 'at' => $at,
-            'state' => $state, 'http_status' => $http, 'raw_sha256' => $rawSha, 'budget_spent' => true]);
+            'state' => $state, 'http_status' => $http, 'raw_sha256' => $rawSha, 'budget_spent' => true,
+            'stop_scope' => $stopScope, 'stop_reason' => $stopReason]);
     }
 
     public function stop(string $reason, string $at): void
@@ -167,8 +175,11 @@ final class AttemptLedger
         $previous = null;
         $states = $slots = $reservations = [];
         $stopped = false;
+        $requiredStop = null;
         $lastTime = null;
-        if (($snapshot['header']['version'] ?? null) !== ObservationContract::VERSION || count($snapshot['events'] ?? []) > 32) {
+        if (($snapshot['header']['version'] ?? null) !== ObservationContract::VERSION
+            || ($snapshot['header']['ledger_version'] ?? null) !== ObservationContract::LEDGER_VERSION
+            || count($snapshot['events'] ?? []) > 32) {
             throw new RuntimeException('Unknown ledger header.');
         }
         foreach ($snapshot['events'] as $index => $event) {
@@ -183,6 +194,10 @@ final class AttemptLedger
             }
             $lastTime = $at;
             $previous = $sha;
+            // A durable stopping outcome may be the final event after a crash; only its matching STOP may follow.
+            if ($requiredStop !== null && (($event['kind'] ?? null) !== 'STOP' || ($event['reason'] ?? null) !== $requiredStop)) {
+                throw new RuntimeException('Stopping outcome requires its matching whole-scope STOP.');
+            }
             $id = $event['attempt_id'] ?? '';
             if ($event['kind'] === 'RESERVED') {
                 $key = $event['race_id'].':'.$event['slot_id'];
@@ -201,6 +216,13 @@ final class AttemptLedger
                 if (($states[$id] ?? null) !== 'DISPATCH' || ! in_array($event['state'], ['SUCCEEDED', 'FAILED', 'TIMEOUT', 'INTERRUPTED', 'UNKNOWN'], true)) {
                     throw new RuntimeException('Outcome without dispatch or known state.');
                 }
+                if (! is_bool($event['stop_scope'] ?? null) || ! array_key_exists('stop_reason', $event)
+                    || ($event['budget_spent'] ?? null) !== true
+                    || ($event['stop_scope'] ? ! in_array($event['stop_reason'], ObservationContract::OUTCOME_STOP_REASONS, true)
+                        : ($event['stop_reason'] !== null || $event['state'] !== 'SUCCEEDED'))) {
+                    throw new RuntimeException('Invalid or missing outcome stop decision.');
+                }
+                $requiredStop = $event['stop_scope'] ? $event['stop_reason'] : null;
             } elseif ($event['kind'] === 'STOP') {
                 $stopped = true;
             } else {
@@ -212,7 +234,8 @@ final class AttemptLedger
 
     private function header(): array
     {
-        return ['version' => ObservationContract::VERSION, 'authorization_id' => $this->manifest->data['authorization_id'],
+        return ['version' => ObservationContract::VERSION, 'ledger_version' => ObservationContract::LEDGER_VERSION,
+            'authorization_id' => $this->manifest->data['authorization_id'],
             'approval_scope' => $this->manifest->data['approval_scope'], 'manifest_sha256' => $this->manifest->digest()];
     }
 

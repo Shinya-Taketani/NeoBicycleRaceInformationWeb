@@ -216,3 +216,61 @@ Artisan表示485 passed/155 warnings。警告は既存EvidenceFiles.php:149のls
 旧Raw・旧Probe v1束/実行時code記録・消費済みscope・旧比較束4ファイル・.env・旧Probe v2/Bridge24依存はSTART/END一致。旧比較manifest SHA `1161b25ca00129efc14aedface914e1e5c89f39507c38068489b0e7708f31be4` は不変。今回のHistoricalComparison変更でObservationのcode sealは変わるが、旧束を再封印せず、第5節の成功を新コードで再実行したとは記載しない。今回の人工束は今回コードのsealで生成して検証する。
 
 変更PHP2件の構文・限定Pint・diff checkを確認。通常全体・実HTTP・本番DB・新規実比較生成/再seal・学習/予測/評価・2026開催参照は未実施。第7節の未完了T、許諾UNVERIFIED、D1〜D8未承認、実send=false、historical_as_of=false、予測/正式採用禁止、B1保留は不変。次はPR126の今回差分レビューのみ。
+
+## 11. PR126追加P2: 停止判定のOUTCOME永続化 / 2026-10-29
+
+開始時の既存branchは `feature/prestart-capture-pj0315-observation-runner-01`、HEAD/ローカルorigin branchは `f3b3c45d84fcb6053d9cd73303b01aeac7c3da49`、origin/mainは `69c3abbd5c826c4673d3b86345021c53c9055893`、clean。GitHubのPR126 read-only照会でもOPEN/merged=false・同じhead/baseを確認した。前節の修正はこの開始HEADへ反映済みであり、前節の未コミット状態は当時の記録。今回の差分だけを未コミットで再レビュー待ちにする。
+
+### 原因と修正前の実証
+
+本人差分・予定改定は解析成功 `OBSERVATION_VERIFIED` のままstop_scope=trueとなる。旧版はSUCCEEDEDのOUTCOMEに停止情報を含めず、別イベントのSTOPが未保存なら再起動時に継続できた。witness/hash chainが正常でも成立する不具合で、catchによるSTOPではプロセス終了を防げない。
+
+新規人工テストは実Service・HTTP fakeを通し、OUTCOMEのwitness/event保存完了後、STOP開始前に子PHPをexit73で終了する。差込点は人工Ledger subclassのstop()だけ（そのためAttemptLedgerのfinalを解除）。本番用hook/待機/sleep/SIGKILL/通常例外は追加せず、Serviceのcatchも通らない。本人差分・予定改定の両方でRESERVED→DISPATCH→OUTCOME(SUCCEEDED)だけが残り、新Service/新Ledger/別PHPが同じscope/manifestの未使用slot2を予約してfakeを1回追加呼出しした。予定は01:30:00Zで正規window内、前slot00:45:00Zから45分、予算内、PreflightもOFFLINE_SIMULATION_VALIDATEDだった。
+
+修正前証跡: `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-observation-runner-01/pr126-stop-tests-20261029-184941-UfyryQlK/logs/`。2 failed/1 passed・37 assertions・error/warning/skip0・exit1。失敗は実際に次slotがOBSERVATION_VERIFIEDとなった挙動であり、API未定義等ではない。初回テスト補助名のPHPUnit final method衝突ログと、その後のtimeout fake呼出し数の計測修正ログも別runで保持し、この不具合の再現証拠には数えない。
+
+### 永続化契約と互換性
+
+- Observationのmanifest版 `PJ0315-OBSERVATION-RUNNER-v1` は維持し、台帳headerへ独立した `ledger_version=PJ0315-OBSERVATION-LEDGER-v2` を追加する。旧版/版不明は明示拒否し、移行・再初期化・旧scopeの予算復活は行わない。
+- outcome()の必須引数にstopScope/stopReasonを追加。Serviceの実解析結果をそのまま同じOUTCOMEへ保存し、そのhashを同じwitnessへ結合する。停止要否はbool、理由は既知の理由コード（停止不要時は明示NULL）、失敗の停止不要宣言・欠落/不正/未知形式を拒否する。SUCCEEDEDは観測成功を表したままで、継続可否と分離する。
+- reserve()はOUTCOMEのstop_scope=trueだけで次予約を拒否する。validate()は中断後の末尾OUTCOMEを保持できるが、その後には同じ理由のSTOP以外を許さない。既存flock/追記/32イベント上限/時刻/hash chain/witness/中断予約/消費済み予算の検査は維持する。
+- 独立Verifierは保存Rawを再解析し、停止要否・理由・SUCCEEDED/FAILED/TIMEOUTと台帳を照合する。結果/Raw binding、必要STOP、時刻、終端/inventoryを緩和しない。停止付きOUTCOMEだけの部分束をCOMPLETEとして公開してよい、という変更ではない。
+
+| 中断位置 | 再起動後の扱い |
+| --- | --- |
+| OUTCOME前 | DISPATCH/未完了予約として拒否 |
+| OUTCOME witnessだけ保存 | witness/event不整合として拒否 |
+| OUTCOME両方保存、STOP未開始 | stop_scope=trueを直接読んで拒否、追加予約/HTTP0 |
+| STOP保存済み | 従来どおり全scope停止 |
+| 変更なしの正常観測を完了 | stop_scope=false/reason=NULL。別PHPから正規slot2の正常継続を確認 |
+
+### 変更範囲と回帰
+
+ObservationのService/Ledger/Contract/Verifierの4PHPを修正。既存Runnerテストのoutcome()呼出し3箇所へ正常観測のfalse/NULLを明示し、既存assertionは変更しない。新規 `Pj0315ObservationStopPersistenceTest` と `tests/Support/pj0315-observation-stop-process.php` を追加。HistoricalComparison本体/テストは変更せず、4ファイルinventory・固定内部IDの15ケースを再実行した。
+
+新規30ケースでは、本人差分/予定改定の正確な中断境界・新Serviceと直接Ledgerの別PHP再開拒否（同じ理由で拒否、registry/Raw不変、slot2の出力0件）と正常対照を検証した。正常/停止付き正常/HTTP429/timeoutの保存束を別PHPのVerifierで確認。停止flag/理由を改変してhash chain・manifest・COMPLETEを正しく再封印した人工束3件は、Raw再解析との不一致を理由に拒否した。旧形式/不正型/欠落/未知理由/消費解除、必要STOP欠落、不正な後続予約も拒否する。
+
+既存限定344ケースはRunner/Verifier/Command・HistoricalComparison、旧Probe/scope/Command、Bridge Unit、Approval Unit/Command、STAT46差分Calculatorを選んだ。今回影響する保存/停止/再開/拒否・旧コード保全を人工入力で確認する範囲であり、実Raw再生・旧Evidence/属性基盤の全テスト・通常全体へ拡大していない。
+
+| 今回の最終実行 | cases | assertions | failures/errors | warnings | skips | exit |
+| --- | ---: | ---: | --- | ---: | ---: | ---: |
+| 新規停止永続化 | 30 | 204 | 0/0 | 0 | 0 | 0 |
+| 既存限定回帰 | 344 | 2,026 | 0/0 | 0 | 0 | 0 |
+| 合計 | 374 | 2,230 | 0/0 | 0 | 0 | 0 |
+
+ログ: `/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-observation-runner-01/pr126-stop-tests-20261029-185343-hbeEC8Xc/logs/`。command.txt、stdout/stderr、JUnit、events、exit、summary.json、crash-boundary-evidence.json、原本START/ENDを保持。正確な実行11 pathはcommand.txtに記録した。
+
+```bash
+php -d memory_limit=128M artisan test <新規1クラスと上記既存10クラス> \
+  -d memory_limit=128M --bootstrap tests/Support/stat38-memory-bootstrap.php \
+  --display-all-issues --do-not-cache-result \
+  --log-junit /tmp/evidence/junit.xml --log-events-text /tmp/evidence/events.log
+```
+
+PHP8.5.4/PHPUnit12.5.31・Artisan/Collision。既存bwrap方式で原本read-only・ネットワーク遮断・人工.env/storage/cache/Desktop/Trash・SQLite in-memory設定を使用し、今回は実資料rootをテストへbindしていない。PHPUnit本体と別PHP子は128M、shutdownのmemory_get_peak_usage(true)実測は本体63,438,848bytes、人工子の自己計測最大14,680,064bytes。warningイベント0だが、前節の既存155 warningや全体警告が解消したとは報告しない。今回未実行の警告本文/環境は未確認のまま。
+
+変更PHP7件の構文・限定Pint・diff checkを確認。旧Raw/旧Probe成功束・実行時code・消費済みscope・旧比較4ファイル・.env・HistoricalComparison本体/テストの計33ファイルと、旧Probe v2/Bridge24依存はSTART/END一致。Observationの新code sealと台帳v2は別に記録し、旧資料を再sealしない。前節の実比較/再現や旧625/640ケースを今回の実績へ読み替えない。
+
+### 残る制約と停止
+
+通常全体、実HTTP、本番DB/保存/Migration、実運用台帳provision/移行、実Raw再生/比較生成、学習/予測/評価、B1/lambda/H1-U、2026開催参照は各0。第7節の未完了T、運用D1〜D8未承認、許諾UNVERIFIED、実送信false、historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、正式採用禁止、holdout凍結を維持。次は今回の未コミット差分と人工検証の再レビューだけ。commit/push/PR操作/mergeは行わない。

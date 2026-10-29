@@ -13,6 +13,12 @@ final class ObservationContract
 {
     public const VERSION = 'PJ0315-OBSERVATION-RUNNER-v1';
 
+    public const LEDGER_VERSION = 'PJ0315-OBSERVATION-LEDGER-v2';
+
+    public const OUTCOME_STOP_REASONS = ['TIMEOUT', 'TRANSPORT_FAILURE', 'HTTP_STATUS_NOT_200', 'SOURCE_NOT_VERIFIED',
+        'RESPONSE_SIZE_INVALID', 'SKIPPED_UNSUPPORTED_CATEGORY', 'RACE_IDENTITY_MISMATCH', 'PARSER_OR_INTERNAL_IDENTITY_FAILED',
+        'ROSTER_DIFFERENCE_UNKNOWN_REASON', 'SCHEDULE_REVISED_OR_UNKNOWN'];
+
     public const URI = 'https://keirin.jp/pc/racelive';
 
     public const LEDGER_ROOT = '/home/shinya/neo-keirin-artifacts/prestart-capture-pj0315-observation-runner-01/authorization-ledgers';

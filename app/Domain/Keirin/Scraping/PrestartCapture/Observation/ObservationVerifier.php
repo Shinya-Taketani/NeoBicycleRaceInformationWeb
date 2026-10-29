@@ -58,6 +58,12 @@ final class ObservationVerifier
             throw new RuntimeException('Ledger manifest binding mismatch.');
         }
         $matching = array_values(array_filter($ledger['events'], fn ($event) => ($event['attempt_id'] ?? null) === $input['attempt_id']));
+        if (count($matching) === 3 && ($matching[2]['stop_scope'] !== $analysis['stop_scope']
+            || $matching[2]['stop_reason'] !== $analysis['stop_reason'])) {
+            throw new RuntimeException('Outcome stop decision differs from independent analysis.');
+        }
+        $outcomeState = $analysis['status'] === 'OBSERVATION_VERIFIED' ? 'SUCCEEDED'
+            : (($response['failure'] ?? null) === 'TIMEOUT' ? 'TIMEOUT' : 'FAILED');
         if (count($matching) !== 3 || $matching[0]['race_id'] !== $input['race_id'] || $matching[0]['slot_id'] !== $input['slot_id']
             || $matching[2]['kind'] !== 'OUTCOME' || $matching[2]['raw_sha256'] !== hash('sha256', $raw)
             || $matching[2]['http_status'] !== $response['http_status']
@@ -65,7 +71,7 @@ final class ObservationVerifier
             || Contract::instant($matching[0]['at']) !== Contract::instant($input['preflight_input']['budget']['planned_attempt']['request_started_at'])
             || Contract::instant($matching[1]['at']) !== Contract::instant($matching[0]['at'])
             || Contract::instant($matching[2]['at']) !== Contract::instant($input['preflight_input']['timing']['response_received_at'])
-            || ($matching[2]['state'] === 'SUCCEEDED') !== ($analysis['status'] === 'OBSERVATION_VERIFIED')) {
+            || $matching[2]['state'] !== $outcomeState) {
             throw new RuntimeException('Attempt, slot or Raw binding mismatch.');
         }
         $last = end($ledger['events']);

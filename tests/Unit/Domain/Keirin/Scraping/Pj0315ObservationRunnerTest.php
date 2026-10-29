@@ -291,7 +291,7 @@ final class Pj0315ObservationRunnerTest extends TestCase
             $ledger->exclusive(function ($ledger) use ($race, $slot, $at): void {
                 $r = $ledger->reserve($race, $slot, $at);
                 $ledger->dispatch($r, $at);
-                $ledger->outcome($r, $at, 'SUCCEEDED', 200, str_repeat('a', 64));
+                $ledger->outcome($r, $at, 'SUCCEEDED', 200, str_repeat('a', 64), false, null);
             });
         }
         $this->assertCount(12, $ledger->snapshot()['events']);
@@ -315,7 +315,7 @@ final class Pj0315ObservationRunnerTest extends TestCase
         $ledger->exclusive(function ($ledger): void {
             $r = $ledger->reserve(901, 1, '2025-01-04T00:45:00Z');
             $ledger->dispatch($r, '2025-01-04T00:45:00Z');
-            $ledger->outcome($r, '2025-01-04T00:45:01Z', 'SUCCEEDED', 200, str_repeat('a', 64));
+            $ledger->outcome($r, '2025-01-04T00:45:01Z', 'SUCCEEDED', 200, str_repeat('a', 64), false, null);
         });
         try {
             $ledger->exclusive(fn ($ledger) => $ledger->reserve(902, 1, '2025-01-04T00:45:59.999999Z'));
@@ -422,7 +422,7 @@ final class Pj0315ObservationRunnerTest extends TestCase
         $ledger->exclusive(function ($ledger): void {
             $r = $ledger->reserve(901, 1, '2025-01-04T00:45:00Z');
             $ledger->dispatch($r, '2025-01-04T00:45:00Z');
-            $ledger->outcome($r, '2025-01-04T00:45:01Z', 'SUCCEEDED', 200, str_repeat('a', 64));
+            $ledger->outcome($r, '2025-01-04T00:45:01Z', 'SUCCEEDED', 200, str_repeat('a', 64), false, null);
         });
         $prefix = hash('sha256', $data['authorization_id'].'|'.$data['approval_scope']);
         foreach ($ledger->snapshot()['events'] as $event) {
