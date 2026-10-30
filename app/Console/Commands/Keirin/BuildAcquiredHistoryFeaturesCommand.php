@@ -16,6 +16,7 @@ final class BuildAcquiredHistoryFeaturesCommand extends Command
 {
     protected $signature = 'keirin:statistics:build-acquired-history
         {--stat=STAT-25 : STAT-09, STAT-16, STAT-25, STAT-27 or STAT-44; existing batches are unchanged}
+        {--stat09-profile=legacy-v2 : Explicit STAT09 legacy-v2 or grade-breakdown-v3}
         {--stat01-run-id= : Required saved STAT-01 run}
         {--history-from= : Earliest acquired history date}
         {--from= : First target date}
@@ -48,7 +49,8 @@ final class BuildAcquiredHistoryFeaturesCommand extends Command
             $out = $service->build(new Batch02BuildOptionsDto($this->positive($this->option('stat01-run-id')),
                 $this->date($this->option('history-from')), $from === null ? null : $this->date($from),
                 $to === null ? null : $this->date($to), $race === null ? null : $this->positive($race),
-                $this->positive($this->option('chunk')), (bool) $this->option('dry-run')), (string) $this->option('stat'), $profile);
+                $this->positive($this->option('chunk')), (bool) $this->option('dry-run')), (string) $this->option('stat'), $profile,
+                (string) $this->option('stat09-profile'));
             $this->line(json_encode($out, JSON_THROW_ON_ERROR));
 
             return self::SUCCESS;

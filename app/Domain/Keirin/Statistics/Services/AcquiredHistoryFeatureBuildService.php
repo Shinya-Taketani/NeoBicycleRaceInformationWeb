@@ -6,14 +6,17 @@ namespace App\Domain\Keirin\Statistics\Services;
 
 use App\Domain\Keirin\Statistics\Calculators\SimilarConditionsCalculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat09Calculator;
+use App\Domain\Keirin\Statistics\Calculators\Stat09GradeBreakdownCalculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat25Calculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat44Calculator;
 use App\Domain\Keirin\Statistics\DTO\Batch02BuildOptionsDto;
 use App\Domain\Keirin\Statistics\Repositories\AcquiredHistoryContextRepository;
 use App\Domain\Keirin\Statistics\Repositories\HistoricalRaceRepository;
 use App\Domain\Keirin\Statistics\Repositories\SimilarityConditionsRepository;
+use App\Domain\Keirin\Statistics\Repositories\Stat09GradeContextRepository;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistoryLineage;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistorySupport;
+use App\Domain\Keirin\Statistics\Support\Stat09GradeContract;
 use App\Models\StatisticFeatureResult;
 use App\Models\StatisticFeatureRun;
 use App\Models\StatisticFeatureRunItem;
@@ -31,17 +34,24 @@ final class AcquiredHistoryFeatureBuildService
     public function __construct(private readonly HistoricalRaceRepository $inputs, private readonly Stat25Calculator $calculator,
         private readonly Stat09Calculator $career, private readonly Stat44Calculator $longitudinal,
         private readonly AcquiredHistoryContextRepository $context,
-        private readonly SimilarityConditionsRepository $conditions, private readonly SimilarConditionsCalculator $similar) {}
+        private readonly SimilarityConditionsRepository $conditions, private readonly SimilarConditionsCalculator $similar,
+        private readonly Stat09GradeContextRepository $gradeContext, private readonly Stat09GradeBreakdownCalculator $gradeCareer,
+        private readonly AcquiredHistorySupport $historySupport) {}
 
-    public function build(Batch02BuildOptionsDto $options, string $stat = 'STAT-25', ?array $schoolProfile = null): array
+    public function build(Batch02BuildOptionsDto $options, string $stat = 'STAT-25', ?array $schoolProfile = null,
+        string $stat09Profile = Stat09GradeContract::LEGACY_PROFILE): array
     {
+        if (! in_array($stat09Profile, [Stat09GradeContract::LEGACY_PROFILE, Stat09GradeContract::PROFILE], true)
+            || ($stat !== 'STAT-09' && $stat09Profile !== Stat09GradeContract::LEGACY_PROFILE)) {
+            throw new InvalidArgumentException('STAT09 profile is unknown or incompatible with the selected statistic.');
+        }
         $options = new Batch02BuildOptionsDto($options->stat01RunId, AcquiredHistorySupport::jst($options->historyFrom),
             $options->from === null ? null : AcquiredHistorySupport::jst($options->from),
             $options->to === null ? null : AcquiredHistorySupport::jst($options->to),
             $options->raceId, $options->chunkSize, $options->dryRun);
         $version = match ($stat) {
             'STAT-25' => Stat25Calculator::VERSION,
-            'STAT-09' => Stat09Calculator::VERSION,
+            'STAT-09' => $stat09Profile === Stat09GradeContract::PROFILE ? Stat09GradeBreakdownCalculator::VERSION : Stat09Calculator::VERSION,
             'STAT-44' => Stat44Calculator::VERSION,
             'STAT-16', 'STAT-27' => SimilarConditionsCalculator::VERSIONS[$stat],
             default => throw new InvalidArgumentException('Unsupported acquired-history statistic.'),
@@ -78,7 +88,9 @@ final class AcquiredHistoryFeatureBuildService
                 'target_from' => $options->from?->format('Y-m-d'), 'target_to' => $options->to?->format('Y-m-d'), 'target_race_id' => $options->raceId,
                 'input_as_of_policy' => 'STAT01_RUN_RESULT_INPUT_AS_OF', 'parameters' => $options->parameters((string) Str::uuid())
                     + ['build_service_version' => self::VERSION, 'calendar_version' => AcquiredHistorySupport::VERSION,
-                        'lineage_contract' => AcquiredHistoryLineage::CONTRACT],
+                        'lineage_contract' => AcquiredHistoryLineage::CONTRACT]
+                    + ($stat09Profile === Stat09GradeContract::PROFILE ? ['stat09_profile' => $stat09Profile,
+                        'grade_projection_contract' => Stat09GradeContract::PROJECTION] : []),
                 'target_race_count' => $counts->races, 'target_entry_count' => $counts->entries, 'started_at' => new DateTimeImmutable,
             ]);
             $summary['run_id'] = $run->id;
@@ -93,12 +105,26 @@ final class AcquiredHistoryFeatureBuildService
                     'feature_run_id' => $run->id, 'race_id' => $raceId, 'status' => 'RUNNING',
                     'attempt_count' => 1, 'started_at' => new DateTimeImmutable]);
                 $results = [];
+                $grades = $gradeStages = [];
+                if ($stat === 'STAT-09' && $stat09Profile === Stat09GradeContract::PROFILE) {
+                    $used = [];
+                    foreach ($race->entries as $target) {
+                        $accepted = $this->historySupport->prepare($target, $race->historiesByPlayer[$target->playerId] ?? [], $options);
+                        foreach ($accepted['events'] as $event) {
+                            $used[$event->raceEntryId] = $event;
+                        }
+                    }
+                    $grades = $this->gradeContext->forHistories(array_values($used));
+                    $gradeStages = $this->context->stages(array_values($used));
+                }
                 foreach ($race->entries as $target) {
                     $history = $race->historiesByPlayer[$target->playerId] ?? [];
                     $profile = $stat === 'STAT-44' ? $this->context->matchedSchoolProfile($target->raceEntryId, $schoolProfile) : null;
                     $results[] = match ($stat) {
                         'STAT-25' => $this->calculator->calculate($target, $history, $options, $this->context->stages($history)),
-                        'STAT-09' => $this->career->calculate($target, $history, $options, $this->context->stages($history)),
+                        'STAT-09' => $stat09Profile === Stat09GradeContract::PROFILE
+                            ? $this->gradeCareer->calculate($target, $history, $options, $gradeStages, $grades)
+                            : $this->career->calculate($target, $history, $options, $this->context->stages($history)),
                         'STAT-44' => $this->longitudinal->calculate($target, $history, $options,
                             $this->context->birthDate($target->playerId),
                             ($profile['debut_date'] ?? null) === null ? null : new DateTimeImmutable($profile['debut_date'], new DateTimeZone('Asia/Tokyo')), $profile['source'] ?? null),

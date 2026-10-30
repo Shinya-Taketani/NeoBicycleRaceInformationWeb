@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domain\Keirin\Statistics\Support;
 
+use InvalidArgumentException;
+
 final class Stat20AcquiredHistoryContract
 {
     public const VERSION = 'STAT-20-acquired-history-v2';
+
+    public const GRADE_BREAKDOWN_VERSION = 'STAT-20-acquired-history-v3';
+
+    public const BUILD_SERVICE_VERSION = 'ACQUIRED-HISTORY-RACE-AUDIT-v3';
 
     public const NEW_STATS = ['STAT-09', 'STAT-16', 'STAT-25', 'STAT-27', 'STAT-44'];
 
@@ -24,4 +30,24 @@ final class Stat20AcquiredHistoryContract
     ];
 
     public const MAX_SOURCE_RESULTS = 172;
+
+    public static function versions(string $contract): array
+    {
+        return match ($contract) {
+            self::VERSION => self::VERSIONS,
+            self::GRADE_BREAKDOWN_VERSION => array_replace(self::VERSIONS, ['STAT-09' => 'STAT-09-acquired-career-grade-breakdown-v3']),
+            default => throw new InvalidArgumentException('Unsupported STAT20 source contract.'),
+        };
+    }
+
+    public static function stat09MetadataMatches(string $contract, array $metadata): bool
+    {
+        return match ($contract) {
+            self::VERSION => ! array_key_exists('grade_projection_contract', $metadata)
+                && (! array_key_exists('stat09_profile', $metadata) || $metadata['stat09_profile'] === 'legacy-v2'),
+            self::GRADE_BREAKDOWN_VERSION => ($metadata['stat09_profile'] ?? null) === 'grade-breakdown-v3'
+                && ($metadata['grade_projection_contract'] ?? null) === 'STAT09-SAVED-HISTORY-GRADES-v1',
+            default => false,
+        };
+    }
 }

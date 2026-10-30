@@ -1,5 +1,7 @@
 # STAT-20-ACQUIRED-HISTORY-INTEGRATION-01
 
+> 2026-10-31追記: PR128 MERGEDをローカル履歴で確認。以下の実行値/版/未コミット状態はPR128作業当時の履歴。後続の09級班/開催grade別v3・明示20v3は[別工程記録](stat09-grade-breakdown-01.md)。本記録の参照範囲説明だけを明確化し、旧実績/sealやSourceAuditのコードは変更しない。
+
 ## 1. 到達点・開始状態
 
 2026-10-30。PR127 MERGEDをローカルmerge履歴で確認。開始clean main/HEAD/ローカルorigin/mainは `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8`。レビュー対象 `c6ea6ce6805476fa11052df2203779e647537691` とのファイル差分なしを確認し、未使用の `feature/stat20-acquired-history-integration-01` を作成した。fetch/外部GitHub照会・add/commit/push/PR/mergeは行わない。
@@ -63,7 +65,7 @@ dry-runは同じ計算件数を返すがrun/item/resultを書かない。SQL監�
 
 ### 保存証跡から確認できること・できないこと
 
-旧配置のhistory_min/max、DAY/COUNT windows、sample_count/window_complete等と、新配置の保有期間/年/段階/失格/四半期・16/27のhistory_references/条件充足/制限を専用adapterで読む。保存された参照の対象/本人と時刻を照合し、既知の未来/対象混入をブロックする。事後fetched_atは履歴イベント時刻と別分類にし、AFTERだけで履歴が未来とはしない。
+旧配置のhistory_min/max、DAY/COUNT windows、sample_count/window_complete等と、新配置の保有期間/年/段階/失格/四半期・条件充足/制限を専用adapterで読む。16/27の `history_references` は個別のrace/entry/player/時刻を保存した参照で、その記録項目を照合し、既知の未来/対象混入をブロックする。一方、09/25/44の `history_reference_ids` は参照ID一覧であり、同じ個別情報を持たない。記録された範囲/最古最新等の日時検査と、全IDの原履歴・本人・日時の独立照合は別であり、後者を実施済みとしない。事後fetched_atは履歴イベント時刻と別分類にし、AFTERだけで履歴が未来とはしない。
 原履歴時刻が保存されていない箇所はNOT_RECORDED、09/25/44の一部日時だけでは全履歴を検証したとしない。保存履歴全件・Raw・公開時点の独立証明はNOT_VERIFIED。Calculatorが未来を除外する契約と、保存資料からその全参照を再検証できることを分離する。
 充足率は選んだ20上流の保存結果状態だけの比率。6条件C、正解率、confidence、信頼重み、46要件の完成率とは異なる。raw/effective pointsとCONFIDENCEはNULLを維持する。
 
