@@ -7,6 +7,7 @@ namespace App\Console\Commands\Keirin;
 use App\Domain\Keirin\Statistics\DTO\Batch02BuildOptionsDto;
 use App\Domain\Keirin\Statistics\Services\AcquiredHistoryFeatureBuildService;
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 use Throwable;
@@ -72,7 +73,7 @@ final class BuildAcquiredHistoryFeaturesCommand extends Command
         if (! is_string($value) || preg_match('/^202[2-5]-\d{2}-\d{2}$/D', $value) !== 1) {
             throw new InvalidArgumentException('An explicit 2022-2025 date is required.');
         }
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('Asia/Tokyo'));
         if ($date === false || $date->format('Y-m-d') !== $value) {
             throw new InvalidArgumentException('Invalid calendar date.');
         }

@@ -15,7 +15,7 @@ use InvalidArgumentException;
 
 final class Stat44Calculator
 {
-    public const VERSION = 'STAT-44-acquired-longitudinal-v1';
+    public const VERSION = 'STAT-44-acquired-longitudinal-v2';
 
     public function __construct(private readonly AcquiredHistorySupport $history) {}
 
@@ -23,16 +23,20 @@ final class Stat44Calculator
         ?DateTimeImmutable $debutDate = null, ?array $debutEvidence = null): Batch02FeatureResultDto
     {
         $validated = $this->history->prepare($target, $histories, $options);
-        if ($birthDate !== null && $birthDate >= $target->inputAsOf) {
+        $inputAsOf = AcquiredHistorySupport::jst($target->inputAsOf);
+        $birthDate = $birthDate === null ? null : AcquiredHistorySupport::jst($birthDate);
+        $debutDate = $debutDate === null ? null : AcquiredHistorySupport::jst($debutDate);
+        if ($birthDate !== null && $birthDate >= $inputAsOf) {
             throw new InvalidArgumentException('Birth date must precede the target.');
         }
-        if ($debutDate !== null && ($debutDate >= $target->inputAsOf || $debutEvidence === null)) {
+        if ($debutDate !== null && ($debutDate >= $inputAsOf || $debutEvidence === null)) {
             throw new InvalidArgumentException('Verified prior debut evidence is required.');
         }
         $periods = [];
         $last = $peak = null;
         foreach ($validated['events'] as $e) {
-            $key = $e->scheduledStartAt->format('Y').'-Q'.(int) ceil((int) $e->scheduledStartAt->format('n') / 3);
+            $scheduled = AcquiredHistorySupport::jst($e->scheduledStartAt);
+            $key = $scheduled->format('Y').'-Q'.(int) ceil((int) $scheduled->format('n') / 3);
             $periods[$key] ??= ['observed_rows' => 0, 'score_count' => 0, 'score_sum' => 0.0, 'residual_count' => 0, 'residual_sum' => 0.0];
             $periods[$key]['observed_rows']++;
             if ($e->raceScore !== null && is_numeric($e->raceScore) && is_finite((float) $e->raceScore)) {
@@ -58,11 +62,11 @@ final class Stat44Calculator
             unset($period['score_sum'], $period['residual_sum']);
         }
         unset($period);
-        $features = ['age_years' => $birthDate?->diff($target->inputAsOf)->y, 'debut_date' => $debutDate?->format('Y-m-d'),
-            'days_since_debut' => $debutDate === null ? null : (int) $debutDate->diff($target->inputAsOf)->format('%a'),
-            'career_age_years' => $debutDate?->diff($target->inputAsOf)->y,
+        $features = ['age_years' => $birthDate?->diff($inputAsOf)->y, 'debut_date' => $debutDate?->format('Y-m-d'),
+            'days_since_debut' => $debutDate === null ? null : (int) $debutDate->diff($inputAsOf)->format('%a'),
+            'career_age_years' => $debutDate?->diff($inputAsOf)->y,
             'QUARTERLY_ACQUIRED_HISTORY' => $periods, 'past_observed_peak_score' => $peak === null ? null : (float) $peak->raceScore,
-            'past_observed_peak_at' => $peak?->scheduledStartAt->format(DATE_ATOM),
+            'past_observed_peak_at' => $peak === null ? null : AcquiredHistorySupport::jst($peak->scheduledStartAt)->format(DATE_ATOM),
             'last_score_minus_past_peak' => $last === null || $peak === null ? null : (float) $last->raceScore - (float) $peak->raceScore,
             'days_since_past_observed_peak' => $peak === null ? null : ($target->inputAsOf->getTimestamp() - $peak->scheduledStartAt->getTimestamp()) / 86400,
             'career_phase' => null, 'prediction_use' => 'NOT_AUTHORIZED', 'historical_as_of_available' => false];

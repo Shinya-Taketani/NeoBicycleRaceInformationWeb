@@ -6,6 +6,7 @@ namespace App\Domain\Keirin\Statistics\Repositories;
 
 use App\Domain\Keirin\Statistics\Support\RaceStageNormalizer;
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Facades\DB;
 
 final class AcquiredHistoryContextRepository
@@ -16,7 +17,7 @@ final class AcquiredHistoryContextRepository
     {
         $date = $playerId === null ? null : DB::table('players')->where('id', $playerId)->value('birth_date');
 
-        return $date === null ? null : new DateTimeImmutable($date);
+        return $date === null ? null : new DateTimeImmutable($date, new DateTimeZone('Asia/Tokyo'));
     }
 
     public function matchedSchoolProfile(int $raceEntryId, ?array $profile): ?array
@@ -34,7 +35,7 @@ final class AcquiredHistoryContextRepository
             throw new \InvalidArgumentException('Invalid sealed school projection.');
         }
         if (($profile['debut_date'] ?? null) !== null) {
-            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $profile['debut_date']);
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $profile['debut_date'], new DateTimeZone('Asia/Tokyo'));
             if ($date === false || $date->format('Y-m-d') !== $profile['debut_date']) {
                 throw new \InvalidArgumentException('Invalid saved debut date.');
             }

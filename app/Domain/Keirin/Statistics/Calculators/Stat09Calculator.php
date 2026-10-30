@@ -13,7 +13,7 @@ use App\Domain\Keirin\Statistics\Support\AcquiredHistorySupport;
 
 final class Stat09Calculator
 {
-    public const VERSION = 'STAT-09-acquired-career-v1';
+    public const VERSION = 'STAT-09-acquired-career-v2';
 
     public function __construct(private readonly AcquiredHistorySupport $history) {}
 
@@ -23,7 +23,7 @@ final class Stat09Calculator
         $rows = $validated['events'];
         $years = [];
         foreach ($rows as $row) {
-            $years[$row->scheduledStartAt->format('Y')][] = $row;
+            $years[AcquiredHistorySupport::jst($row->scheduledStartAt)->format('Y')][] = $row;
         }
         ksort($years);
         $features = ['career_completeness' => 'PARTIAL_CAREER', 'ACQUIRED_PERIOD' => $this->counts($rows), 'YEARLY' => [],

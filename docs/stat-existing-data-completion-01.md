@@ -1,5 +1,7 @@
 # STAT-EXISTING-DATA-COMPLETION-01
 
+> 2026-10-30 PR127 P2修正: 既存feature branch、開始HEAD `2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6`、cleanを確認。JST暦契約と失敗監査を修正し、87 tests/812 assertions・新規22 run/174結果行を隔離128Mで確認した。今回の正本は[第9節](#9-pr127-p2暦集計失敗監査修正)。以下の339 tests/89 run等は初版の履歴であり、今回の再実行値ではない。
+
 ## 1. 範囲と状態
 
 2026-10-30。開始時clean main / HEAD / ローカルorigin/mainは `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`。
@@ -10,7 +12,7 @@
 
 ```yaml
 current_phase: STAT-EXISTING-DATA-COMPLETION-01
-state: LIMITED_MVPS_VERIFIED_AWAITING_REVIEW
+state: PR127_P2_FIXED_AWAITING_REVIEW
 production_write: 0
 production_migration: NOT_RUN
 historical_as_of_available: false
@@ -167,7 +169,7 @@ php -d memory_limit=128M artisan keirin:statistics:extract-school-profile \
 | --- | --- | --- |
 | 01 | 2: 実得点・相対値保存 | 既存版維持、新規採用なし |
 | 07 | 2: 同場/全場成績 | 長窓の左打切りを保持 |
-| 08 | 2: 人数条件実績 | 条件付きMVPのまま |
+| 08 | 2: 時間帯別実績 | 条件付きMVPのまま |
 | 10 | 2: 直近状態 | 既存窓/契約維持 |
 | 11 | 2: 異常結果集計 | STAT25と分離 |
 | 12 | 2: 間隔・復帰 | 無出走期間を未来から補完しない |
@@ -194,10 +196,69 @@ php -d memory_limit=128M artisan keirin:statistics:extract-school-profile \
 | 35 | 2: 旧mean6と元参照/固定入力の少数照合 | 全量再生成/学習なし、歴史公開時点は4 |
 | 36 | 2: Sの原文・本人対応・保持 | 実初手・S固有基準日は4 |
 | 37 | 2: 既存マスタの証拠付き期間だけ構造解決 | 大部分の歴史的構造適用期間は4、適性Calculator全体完成ではない |
-| 38 | 2: 実距離/周回/事後経験の保存 | 予測時点利用の証明不足は4 |
+| 38 | 2: 実資料の予定距離/周回・事後経験の保存 | 予測時点利用の証明不足は4 |
 | 46 | 2: 既存8版と2組の実差分 | 枠番全NULL、公式補充区分は4 |
 | 43 | 4: レース別府県はあるが場側42件region=NULL。検証したPJ0315のホーム欄に実値なし | 地元/遠征距離を地名の推測で作らない |
 | 45 | 4: 検証した6版のPJ0315/PC0201にギヤ実値項目を確認できない。HTMLの見出しだけでは値の証拠でない | 全保存Rawに存在しないと断定しない。取得版付き比率がなければ変化量を作らない |
 
 今回明示した限定MVP内の区分3/5は残さず、成立範囲の製造・保存・再現まで実施した。ただし上表の区分4や、全要件の未確定方式/未実装拡張は残るため、**既存資料STATの全要件が一通り完成したとは報告しない**。
 本番Migrationは不要（追加なし）。次はコード/実資料証跡レビューのみ。受入後に本番計算を行う場合も対象・source run・出力先・書込みの別承認が必要で、自動実行しない。学習/予測/採用・B1・2026へ進まない。
+
+## 9. PR127 P2暦集計・失敗監査修正
+
+### 開始状態と範囲
+
+2026-10-30、`feature/stat-existing-data-completion-01`、HEAD/ローカルorigin branch `2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6`、origin/main `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`、cleanを確認した。fetch/GitHub照会・新branch・Git add/commit/push/PR/mergeなし。
+今回の主対象は前回追加した新5STATの暦処理とrun監査。旧STAT共通クラス/DTO/Enum、C1/B、6条件の距離式、既存Raw/成果物を変更しない。本番DB接続0、HTTP0、学習/予測/評価/2026開催参照0。人工2026日時の範囲拒否だけを試験した。
+
+### P2-1: JST暦と計算version
+
+STAT09の年、STAT44の四半期・年齢/デビュー暦日、Supportの開発年判定、Commandの日付入力、Serviceの期間/保存parameters、STAT25の過去暦年開始を明示的にAsia/Tokyoへ統一した。オフセットを捨てず、同一瞬間の `setTimezone()` を使う。DB由来の生年月日・学校のデビュー日もJST暦日として生成する。
+STAT25はJSTへ変換後に既存の `modify('-1 year')` を実行し、365日固定や別の閏日丸めへ変更していない。計算出力の時刻・共通history_from hashを正規化する一方、元DTO・保存Raw・取得元の原値を上書きしない。
+
+| 対象 | 修正後version | 変更理由 |
+| --- | --- | --- |
+| AcquiredHistorySupport | ACQUIRED-HISTORY-JST-v2 | JST範囲判定と、同一瞬間のhistory_fromを同一hashへ正規化 |
+| STAT09 | STAT-09-acquired-career-v2 | JST年別集計・共通入力契約 |
+| STAT25 | STAT-25-disqualification-history-v2 | JST暦年減算・出力時刻・共通入力契約 |
+| STAT44 | STAT-44-acquired-longitudinal-v2 | JST四半期/暦日・共通入力契約 |
+| STAT16 | STAT-16-six-condition-performance-v2 | 共通Supportと参照時刻/hash表現の変更 |
+| STAT27 | STAT-27-six-condition-experience-v2 | 同上。距離・重み式の変更ではない |
+| AcquiredHistoryFeatureBuildService | ACQUIRED-HISTORY-RACE-AUDIT-v2 | レース試行・失敗item・累積実績の監査契約 |
+
+旧5STATのv1結果・旧manifestは当時の成果として保持する。`SIX-CONDITIONS-EQUAL-WEIGHT-NO-DECAY-v1`、条件Projection版、学校Projection版、STAT01 source版は不変。距離式だけのversionを変更して処理全体の変更を隠さない。
+
+### P2-2: レース単位の失敗監査
+
+レースを取得した時点で試行数を加算し、結果保存Transactionの外でRUNNING itemを作る。全結果保存とitem成功/部分成功更新は同一Transactionで確定し、commit後だけ結果行の累計へ加える。
+計算/保存失敗は当該レースをrollbackし、開始itemを外側でFAILED/結果0へ更新する。失敗race ID・例外型・原因・終了時刻をitem/runへ保存し、例外は再throwする。単一catchで失敗を1回だけ数え、finallyで正常/異常とも実績を保存する。
+保存0で失敗はFAILED、先行保存ありで失敗はPARTIALLY_SUCCEEDEDだがCommand exit1を維持する。processedは試行レース数、success/partial/missing/invalidは保存結果行数。次レースが特定できない履歴取得例外はrace_id=NULL、未取得レースの試行/itemを作らない。dry-runは全3テーブルの書込み0、計算件数をsummaryへ加算する。
+
+### 修正前再現と今回の回帰
+
+証跡root: `/home/shinya/neo-keirin-artifacts/stat-existing-data-completion-01/pr127-p2-fix-20261030-W0sLRqUe/`。
+
+| 回帰 | 修正前の実際値 | 修正後の期待値=実際値 |
+| --- | --- | --- |
+| 年境界のUTC/JST同一瞬間 | UTC履歴が2024/2024-Q4 | 両方2025/2025-Q1、数値/状態/hash一致 |
+| 四半期境界 | 2024-Q1/Q2へ分裂 | 両方2024-Q2、得点平均90、残差平均0.2、各対象数2 |
+| JST2022開始 | UTC2021表現を拒否 | 両表現NO_HISTORYで受入 |
+| JST2026開始（人工） | UTC2025表現を受入 | 両表現拒否 |
+| 過去暦年 | UTC側は2024-02-28開始 | 両方2024-03-01 08:40 JST。直前除外・境界上採用で失格1/実発走1 |
+| 2024閏日 | UTC側は2023-02-28開始 | 既存JST丸めの2023-03-01を維持 |
+| 2レース目途中INSERT失敗 | 先行5結果ありでもrun FAILED/累計0、失敗itemなし | 先行5件保持、2件目は0へrollback、processed2/partial5/error1、item PARTIALとFAILED、run PARTIALLY_SUCCEEDED、exit1 |
+| 初回保存失敗 | processed0/失敗itemなし | processed1/結果0/error1、FAILED itemと原因、run FAILED、exit1 |
+| 計算失敗/取得前失敗 | 失敗item/原因の欠落 | 計算失敗は開始itemに記録、取得前失敗は試行0/item0/race_id=NULL |
+
+同値スコープのService SQL/保存parameters、PHP既定UTCでのCommand日付生成、5STATの保存/読取/再現、dry-run計算5件・書込み0も検証した。12新規ケースに加え、既存テストの監査assertionを強化した。既存テストの削除・無効化・skip・警告抑制はない。
+修正前は `before-U0uBVwYC/logs/` に12 failed（JUnit内訳failure11/error1）・5 passed/221 assertions・exit2を記録。新追加スコープ試験のSQLite date保存表記の期待違い1件は、DBモデルの既存date castとparametersを確認する形に訂正し、中間ログも保持した。
+最終は `final-dQYir9qY/logs/` に**87 passed/812 assertions、failure/error/warning/skip0、exit0、0.56秒、PHP8.5.4/PHPUnit12.5.31、128M/peak63,438,848bytes**。前回339件の再実行ではなく、今回の新旧限定10ファイルだけである。実コマンド・stdout/stderr・JUnit・event・境界/失敗監査JSONを保存した。
+ユーザーによる全体テストと今回のCodex限定実行は別検証である。今回指示にはPR127全体実行の集計/警告本文が提示されておらず、独立確認していない。通常全体は旧cleanup制約のため起動せず、過去の警告解消を主張しない。
+
+### 修正後の実資料再計算
+
+`real-replay-m8qXTHxd/logs/` が今回の正本。前回の封印済みsnapshot（2024-01-01～2025-01-04、25,976レース・184,353出走行）と隔離SQLiteをread-only照合し、新しいSQLiteコピーにだけ追記した。再取得・本番接続・STAT01再生成・Migrationは行わない。
+元STAT01 run1/race12773（7出走）、run42/race12901（9出走）、追加デビュー接続run87/race61724（7出走）をそのまま再利用。主2レースの5STAT各2回と、追加STAT44各2回、計22新規run（90～111）/174結果行（VALID32/PARTIAL142）を保存・再読込した。
+修正後同士の意味上の結果・input hashは全対象で一致。主対象80結果の修正前後はfeature数値/時刻表記/状態の差0で、学校接続例のfeature差も0だった。今回の実資料は元からJST表現であり、人工UTC/JST境界で修正が効いたことと区別する。5STAT v2の入力hash変更は意図した版変更で、旧モデルの変化ではない。
+run/item/resultの全22組の件数が一致し、旧669結果・89 run等のコピー済み既存行はhash不変。元SQLiteのSTART/END SHA `4f866643a1065bbbe08980b2c80de5fcf18a16d36da9cd57b061bdfc5d706f0d` とsnapshot各ファイルsealも一致した。128M/peak45,465,600bytes、1.462552秒、exit0。
+新規Raw走査・旧16STAT再計算・学習・予測・精度改善は行っていない。今回の変更PHPだけの構文/Pintとdiff、文書・version対応、実行/比較結果を小型summaryとmanifestへ保存して再レビュー待ちとする。STAT全要件完成、本番適用、予測利用承認、B1/2026開放ではない。

@@ -20,7 +20,7 @@ use RuntimeException;
 
 final class SimilarConditionsCalculator
 {
-    public const VERSIONS = ['STAT-16' => 'STAT-16-six-condition-performance-v1', 'STAT-27' => 'STAT-27-six-condition-experience-v1'];
+    public const VERSIONS = ['STAT-16' => 'STAT-16-six-condition-performance-v2', 'STAT-27' => 'STAT-27-six-condition-experience-v2'];
 
     public function __construct(private readonly AcquiredHistorySupport $history, private readonly SixConditionSimilarity $similarity,
         private readonly DeterministicJsonHasher $hasher) {}
@@ -37,8 +37,9 @@ final class SimilarConditionsCalculator
         }
         $meeting = $targetConditions->sources['meeting_id'] ?? null;
         $meetingStart = $targetConditions->sources['meeting_start'] ?? null;
-        $cutoff = $meetingStart === null ? $target->inputAsOf
-            : min($target->inputAsOf, new DateTimeImmutable($meetingStart.'T00:00:00', new DateTimeZone('Asia/Tokyo')));
+        $inputAsOf = AcquiredHistorySupport::jst($target->inputAsOf);
+        $cutoff = $meetingStart === null ? $inputAsOf
+            : min($inputAsOf, new DateTimeImmutable($meetingStart.'T00:00:00', new DateTimeZone('Asia/Tokyo')));
         $references = [];
         $exclusions = $performanceExclusions = [];
         $eligible = $comparable = $positive = $performanceCount = 0;
@@ -102,7 +103,7 @@ final class SimilarConditionsCalculator
                 $performanceExclusions[$performanceReason] = ($performanceExclusions[$performanceReason] ?? 0) + 1;
             }
             $references[] = ['race_id' => $e->raceId, 'entry_id' => $e->raceEntryId, 'player_id' => $e->playerId,
-                'meeting_id' => $e->raceMeetingId, 'scheduled_start_at' => $e->scheduledStartAt->format(DATE_ATOM),
+                'meeting_id' => $e->raceMeetingId, 'scheduled_start_at' => AcquiredHistorySupport::jst($e->scheduledStartAt)->format(DATE_ATOM),
                 'result_state' => $e->resultState->value, 'rank' => $e->rank, 'tied' => $e->tied,
                 'conditions' => $condition === null ? null : get_object_vars($condition), 'comparison' => $comparison, 'exclusion' => $reason,
                 'performance_exclusion' => $performanceReason,
@@ -120,8 +121,9 @@ final class SimilarConditionsCalculator
             'history_state' => $state, 'eligible_started_history_count' => $eligible, 'comparable_history_count' => $comparable,
             'positive_weight_history_count' => $positive, 'mean_similarity' => $comparable === 0 ? null : $similarities / $comparable,
             'mean_six_condition_coverage' => $comparable === 0 ? null : $coverage / $comparable, 'max_similarity' => $maxSimilarity,
-            'history_min_at' => $minAt?->format(DATE_ATOM), 'history_max_at' => $maxAt?->format(DATE_ATOM),
-            'cutoff' => $cutoff->format(DATE_ATOM), 'history_from' => $options->historyFrom->format(DATE_ATOM),
+            'history_min_at' => $minAt === null ? null : AcquiredHistorySupport::jst($minAt)->format(DATE_ATOM),
+            'history_max_at' => $maxAt === null ? null : AcquiredHistorySupport::jst($maxAt)->format(DATE_ATOM),
+            'cutoff' => $cutoff->format(DATE_ATOM), 'history_from' => AcquiredHistorySupport::jst($options->historyFrom)->format(DATE_ATOM),
             'threshold' => null, 'top_k' => null, 'time_decay' => 'NONE', 'prediction_use' => 'NOT_AUTHORIZED', 'historical_as_of_available' => false];
         $experience = $common + ['weighted_experience' => $comparable === 0 ? null : $sum,
             'weight_squared_sum' => $comparable === 0 ? null : $sum2, 'effective_experience' => $sum2 > 0 ? $sum * $sum / $sum2 : null,

@@ -17,7 +17,7 @@ use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
 
 final class Stat25Calculator
 {
-    public const VERSION = 'STAT-25-disqualification-history-v1';
+    public const VERSION = 'STAT-25-disqualification-history-v2';
 
     public function __construct(private readonly Batch02CalculatorSupport $windows, private readonly DeterministicJsonHasher $hasher) {}
 
@@ -28,7 +28,12 @@ final class Stat25Calculator
         $events = $context['events'];
         $started = array_values(array_filter($events, fn ($e) => $e->started()));
         $ten = $this->windows->countWindow($started, 10);
-        $yearStart = $target->inputAsOf->modify('-1 year');
+        foreach (['history_start_at', 'history_end_at'] as $key) {
+            if ($ten['metadata'][$key] !== null) {
+                $ten['metadata'][$key] = AcquiredHistorySupport::jst(new \DateTimeImmutable($ten['metadata'][$key]))->format('Y-m-d\TH:i:s.uP');
+            }
+        }
+        $yearStart = AcquiredHistorySupport::jst($target->inputAsOf)->modify('-1 year');
         $year = array_values(array_filter($events, fn ($e) => $e->scheduledStartAt >= $yearStart));
         $last = $lastIndex = null;
         foreach ($started as $index => $event) {
@@ -65,8 +70,8 @@ final class Stat25Calculator
             'ACQUIRED_HISTORY' => $acquired,
             'STAGE_BREAKDOWN' => array_map($this->metrics(...), $stageGroups),
             'RECENCY' => [
-                'last_known_disqualification_at' => $last?->scheduledStartAt->format(DATE_ATOM),
-                'last_disqualification_at' => $ambiguousRecency ? null : $last?->scheduledStartAt->format(DATE_ATOM),
+                'last_known_disqualification_at' => $last === null ? null : AcquiredHistorySupport::jst($last->scheduledStartAt)->format(DATE_ATOM),
+                'last_disqualification_at' => $ambiguousRecency || $last === null ? null : AcquiredHistorySupport::jst($last->scheduledStartAt)->format(DATE_ATOM),
                 'days_since_last_disqualification' => $last === null || $ambiguousRecency ? null : ($target->inputAsOf->getTimestamp() - $last->scheduledStartAt->getTimestamp()) / 86400,
                 'started_races_since_last_disqualification' => $lastIndex === null || $ambiguousRecency ? null : count($started) - $lastIndex - 1,
                 'repeated_disqualification_observed' => $acquired['observed_disqualification_count'] >= 2 ? true : ($acquired['disqualification_count'] === null ? null : false),

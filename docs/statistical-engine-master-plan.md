@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-30 PR127 P2修正：既存feature branch・開始clean HEAD `2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6` を確認。新5STATのJST暦/入力hashをv2へ分離し、失敗item・レース単位rollback・正常/異常終了の累計を修正。今回限定87 tests/812 assertions・新規22 run/174結果行の隔離保存/再現が成功、128M/exit0。正本は5.0・15.92.1と[修正記録第9節](stat-existing-data-completion-01.md#9-pr127-p2暦集計失敗監査修正)。次は同PRの今回差分レビューのみ。以下の339件・89 run・未コミット記録は初版当時の履歴であり、今回の実行値ではない。
+
 > 2026-10-30 最新工程：`STAT-EXISTING-DATA-COMPLETION-01`。開始clean main/HEAD/ローカルorigin `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`・PR126 merge件名を確認し、新しいfeature branchで限定STAT整備を実施した。STAT09/16/25/27/44、学校原項目抽出のPHPを製造し、既存16項目と実資料の隔離保存・読取り・再現を確認。正本は5.0・15.92と[実装記録](stat-existing-data-completion-01.md)。
 > 限定339 tests/7657 assertions・128M/exit0、通常全体は未実施。学校2475取得版・mean6少数照合・実20走決まり手・既存実8版の保存/差分を確認したが、同期母集団・歴史公開時点/構造・地理/ギヤ等の不足は残る。限定MVPと全要件/本番/予測採用を分離し、今回差分を未コミットでレビュー待ち。以下のPR126 OPEN/未コミット/旧実測は当時の履歴として保持する。
 
@@ -97,9 +99,9 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.85
+- Version: 1.86
 - Created: 2026-08-23
-- Updated: 2026-10-30（既存データSTAT限定MVP製造・実資料隔離検証・PR126マージ同期）
+- Updated: 2026-10-30（PR127 P2：新5STATのJST暦・途中失敗監査・隔離実資料再検証）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -348,16 +350,18 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: STAT-EXISTING-DATA-COMPLETION-01
+## 5.0 最新工程: PR127-STAT-EXISTING-DATA-P2-FIX-01
 
 ```yaml
-current_phase: STAT-EXISTING-DATA-COMPLETION-01
-current_engine_state: LIMITED_MVPS_VERIFIED_AWAITING_REVIEW
-next_allowed_action: REVIEW_STAT_EXISTING_DATA_LIMITED_MVPS_AND_EVIDENCE_ONLY
+current_phase: PR127-STAT-EXISTING-DATA-P2-FIX-01
+current_engine_state: PR127_P2_FIXED_AWAITING_REVIEW
+next_allowed_action: REVIEW_PR127_P2_CODE_DOCS_AND_ISOLATED_EVIDENCE_ONLY
+pr127_head_at_review_fix_start: 2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6
+pr127_status: REVIEW_FIX_AWAITING_USER_UPDATE
 start_main_sha: 1b9f54d24045bb33535fb1ab1b1d9823eaabcec6
 remote_main: 1b9f54d24045bb33535fb1ab1b1d9823eaabcec6
 pr126_status: MERGED_LOCAL_HISTORY_VERIFIED
-production_db_access: READ_ONLY_REPEATABLE_READ_2022_2025_SCOPED
+production_db_access: NOT_RUN_THIS_REVIEW_FIX
 production_write: 0
 production_migration: NOT_RUN
 real_http_this_phase: NOT_RUN
@@ -379,13 +383,13 @@ confidence: null
 
 | 制御項目 | 最新の扱い |
 | --- | --- |
-| current_engine_state | 既存資料で成立するSTAT限定MVPのコード・隔離保存・再現を未コミットでレビュー待ち。全STAT全要件完成ではない |
-| next_allowed_action | 今回のコード/実資料/文書レビューだけ。本番計算・次の収集/予測へ自動移行しない |
-| completed_phases | PR126 MERGED。既存16項目、失格専用25・保有実績09・経時44・承認6条件16/27・学校原項目の限定製造/実資料検証 |
-| superseded_phases | 下記v1.84のPR126 OPEN/レビュー待ちは当時の履歴。旧実POST/比較束/各STAT実行値と今回検証は区別 |
+| current_engine_state | PR127 P2のJST暦/失敗監査と文書訂正を未コミットで再レビュー待ち。全STAT全要件完成ではない |
+| next_allowed_action | 同PRの今回コード/実資料/文書レビューだけ。本番計算・次の収集/予測へ自動移行しない |
+| completed_phases | PR126 MERGED。初版の限定STAT製造を保持し、今回87限定回帰・修正版22 run/174結果行の保存/再現を確認 |
+| superseded_phases | 初版339件/89 runやv1.84のPR126 OPEN/レビュー待ちは当時の履歴。修正版v2と当時の実行値/sealを区別 |
 | blocked_phases | 全同期母集団/測定基準日・歴史公開時点/構造・地理/ギヤ等不足、運用D1〜D8/実HTTP/本番保存、B1/親lambda/H1-U・正式採用/LIVE |
 | frozen_contracts | 旧STAT/C1/B/C2/BT、固定入力/モデル/Solver/Decoder/Evaluator/Gate・旧Raw/manifest/code seal・設定/安全helper・2026 holdout |
-| unfrozen_contracts | 新しいSTAT09/16/25/27/44と学校の限定読取/計算/保存/Command/テスト、必要な2文書だけ。既存Batch02の5項目は変更しない |
+| unfrozen_contracts | 新5STATのJST暦/入力hash・Service失敗監査・直接テスト/2文書だけ。6条件の距離式・旧Batch02の5項目・学校Projectionは変更しない |
 | holdout_status | 2026開催metadata/Raw/結果はFROZEN_NO_ACCESS。2026取得の過去年資料/学校原項目を当時公開済みとしない |
 
 根拠・STAT別区分・不足・実行証跡は[今回記録](stat-existing-data-completion-01.md)。採点/モデル採用/精度改善は未実施。以下の旧工程は履歴として保持する。
@@ -4829,6 +4833,13 @@ IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generaliza
 新規31/170＋既存308/7487は128M・Artisan/Collision・exit0、failure/error/warning/skip0。本体peak82,837,504bytes。旧TrackContext等の永久削除cleanupがあるため通常全体は起動せず、旧155警告の解消は主張しない。
 今回の限定範囲は製造・実資料検証済みだが、各STAT全要件/本番適用/予測採用は未完了。原本/モデル/旧manifest不変、production write/HTTP/学習/予測/評価/2026開催参照0。正本は[実装・受入記録](stat-existing-data-completion-01.md)。今回差分のみ未コミットでレビュー待ち、Git add/commit/push/PR/mergeなし。
 
+### 15.92.1 PR127 P2: JST暦・途中失敗監査 / 2026-10-30
+
+上記15.92は初版の履歴。既存feature/stat-existing-data-completion-01、開始clean HEAD/ローカルorigin branch2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6、main基準1b9f54d24045bb33535fb1ab1b1d9823eaabcec6を確認し、同PRの追加修正だけを行った。
+新5STATの共通Support/09/25/44/16/27をv2とし、JST年・四半期・範囲・暦年減算/日付生成・hashの表現依存を解消した。6条件距離式v1は不変。Serviceは開始RUNNING item、結果/itemの同時commit、失敗raceのrollbackとFAILED原因、finallyでの保存済み累計を保証し、失敗時Command exit1を維持する。STAT08は時間帯別、STAT38は予定距離/周回という文書誤記も訂正した。
+修正前12 failed/5 passed/221 assertions/exit2を保存。最終87 passed/812 assertions、failure/error/warning/skip0、128M/peak63,438,848bytes/exit0。通常全体は起動しておらず、初版339件やユーザー全体テストの検証と混同しない。今回指示にはPR127のユーザー全体実行の集計/警告本文がなく、独立確認していない。
+旧封印済みSQLite/snapshotとSTAT01 run1/42/87を再利用し、新規コピーで22 run/174結果行を保存/読取/再現。主対象80結果の旧新feature数値/状態差0、v2のhash変更と新同士のhash一致を区別した。旧行・元SQLite・snapshot START/END seal不変。本番接続/HTTP/旧16項目再計算/学習/予測/評価/2026開催参照0。証跡は[実装記録第9節](stat-existing-data-completion-01.md#9-pr127-p2暦集計失敗監査修正)。今回差分を未コミットで再レビュー待ち、Git add/commit/push/PR/mergeなし。B1・運用承認・歴史as-of=false・予測禁止・2026凍結は維持。
+
 ## 15.91 PRESTART-CAPTURE-PJ0315-OBSERVATION-RUNNER-01 / 2026-10-29
 
 開始clean main/HEAD/origin/main 69c3abbd5c826c4673d3b86345021c53c9055893、fetch/main switch/pull --ff-onlyとローカルPR125 merge件名を確認。未使用のfeature/prestart-capture-pj0315-observation-runner-01を作成した。旧PR125レビュー待ち・旧実測は当時の履歴として保持する。
@@ -5842,6 +5853,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.86 / 2026-10-30
+
+PR127 P2により冒頭/5.0の工程ゲート/15.92.1/引継ぎを同期。新5STAT v2のJST暦・失敗監査、今回87限定回帰と22 run/174結果行の再現を記録した。初版の339件/89 run・旧version/sealは履歴として保持し、本番/モデル採用/B1/2026の禁止を緩めない。
 
 ## v1.85 / 2026-10-30
 
@@ -6925,6 +6940,11 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+PR127のP2修正を既存feature/stat-existing-data-completion-01で未コミット再レビュー待ち。開始HEADは2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6であり、将来不変の最新PR HEADという意味ではない。正本は5.0・15.92.1・[修正記録第9節](stat-existing-data-completion-01.md#9-pr127-p2暦集計失敗監査修正)。次はREVIEW_PR127_P2_CODE_DOCS_AND_ISOLATED_EVIDENCE_ONLY。
+今回87 passed/812 assertions、128M/警告等0/exit0。元STAT01 runを保持した新5STATの22 run/174結果行が保存/再現済み。旧新の数値差0とv2 hash変更を区別する。元DB未接続・HTTP/学習/予測/2026参照/Git書込み0。以下の初版339件/未コミット記録は当時の履歴であり、今回の検証結果ではない。
+
+### v1.85 初版終了時の引継ぎ（履歴）
 
 PR126はローカルmerge履歴で受入済み。開始clean main/HEAD/ローカルoriginは1b9f54d24045bb33535fb1ab1b1d9823eaabcec6、今回fetch/外部照会なし。feature/stat-existing-data-completion-01の新STAT09/16/25/27/44・学校原項目PHPと実資料の隔離計算/保存/再現を未コミットでレビュー待ち。正本は5.0・15.92と[今回記録](stat-existing-data-completion-01.md)。次はREVIEW_STAT_EXISTING_DATA_LIMITED_MVPS_AND_EVIDENCE_ONLY。
 
