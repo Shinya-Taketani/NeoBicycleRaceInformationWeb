@@ -13,6 +13,7 @@ use App\Domain\Keirin\Statistics\Enums\StatisticFeatureResultStatus as Status;
 use App\Domain\Keirin\Statistics\Enums\StatisticQualityStatus;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistorySupport;
 use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
+use App\Domain\Keirin\Statistics\Support\SimilarConditionsHashInput;
 use App\Domain\Keirin\Statistics\Support\SixConditionSimilarity;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -20,7 +21,7 @@ use RuntimeException;
 
 final class SimilarConditionsCalculator
 {
-    public const VERSIONS = ['STAT-16' => 'STAT-16-six-condition-performance-v2', 'STAT-27' => 'STAT-27-six-condition-experience-v2'];
+    public const VERSIONS = ['STAT-16' => 'STAT-16-six-condition-performance-v3', 'STAT-27' => 'STAT-27-six-condition-experience-v3'];
 
     public function __construct(private readonly AcquiredHistorySupport $history, private readonly SixConditionSimilarity $similarity,
         private readonly DeterministicJsonHasher $hasher) {}
@@ -136,8 +137,10 @@ final class SimilarConditionsCalculator
         $evidence = $context['evidence'] + ['target_conditions' => get_object_vars($targetConditions), 'history_references' => $references,
             'exclusions' => $exclusions, 'quality_reasons' => ['LIMITED_SIX_CONDITION_MVP', 'RETROSPECTIVE_ONLY'],
             'cutoff_policy' => 'MIN_STAT01_INPUT_AND_TARGET_MEETING_START_JST_EXCLUDING_SAME_MEETING'];
-        $hash = $this->hasher->hash(['context_hash' => $context['hash'], 'target_conditions' => get_object_vars($targetConditions),
-            'references' => $references, 'formula' => SixConditionSimilarity::VERSION]);
+        $hash = $this->hasher->hash(['context_hash' => $context['hash'],
+            'target_conditions' => SimilarConditionsHashInput::conditions(get_object_vars($targetConditions)),
+            'references' => SimilarConditionsHashInput::references($references), 'formula' => SixConditionSimilarity::VERSION,
+            'datetime_hash_contract' => SimilarConditionsHashInput::VERSION]);
         $result = [];
         foreach (['STAT-16' => $performance, 'STAT-27' => $experience] as $stat => $features) {
             $status = $target->playerId === null ? Status::MissingInput

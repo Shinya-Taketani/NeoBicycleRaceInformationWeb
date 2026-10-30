@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-30 現在: PR127 MERGED、開始clean main/HEAD/ローカルorigin `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8` を確認し、新branch `feature/stat20-acquired-history-integration-01` でSTAT-20-ACQUIRED-HISTORY-INTEGRATION-01を実施。新20上流監査・保存lineage v3・16/27日時hash v3を製造し、限定171 tests/3451 assertions、実2レースの新20 4run/32行・新5 20run/160行・45天候原項目の保存/再読込/再現が成立。原本read-only/128M/exit0、本番接続/HTTP/学習/予測/2026開催参照0。正本は5.0・15.93と[新工程記録](stat20-acquired-history-integration-01.md)。未コミットでレビュー待ち。以下のPR127未コミット/レビュー限定・87件/174行等は当時の履歴であり、今回の実行値ではない。
+
 > 2026-10-30 PR127 P2修正：既存feature branch・開始clean HEAD `2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6` を確認。新5STATのJST暦/入力hashをv2へ分離し、失敗item・レース単位rollback・正常/異常終了の累計を修正。今回限定87 tests/812 assertions・新規22 run/174結果行の隔離保存/再現が成功、128M/exit0。正本は5.0・15.92.1と[修正記録第9節](stat-existing-data-completion-01.md#9-pr127-p2暦集計失敗監査修正)。次は同PRの今回差分レビューのみ。以下の339件・89 run・未コミット記録は初版当時の履歴であり、今回の実行値ではない。
 
 > 2026-10-30 最新工程：`STAT-EXISTING-DATA-COMPLETION-01`。開始clean main/HEAD/ローカルorigin `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`・PR126 merge件名を確認し、新しいfeature branchで限定STAT整備を実施した。STAT09/16/25/27/44、学校原項目抽出のPHPを製造し、既存16項目と実資料の隔離保存・読取り・再現を確認。正本は5.0・15.92と[実装記録](stat-existing-data-completion-01.md)。
@@ -99,13 +101,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.86
+- Version: 1.87
 - Created: 2026-08-23
-- Updated: 2026-10-30（PR127 P2：新5STATのJST暦・途中失敗監査・隔離実資料再検証）
+- Updated: 2026-10-30（STAT20の20上流統合・lineage保存・16/27日時hash・全46一覧・STAT21原項目投影）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`（2026-10-30開始時clean main/HEAD/ローカルorigin/main一致、PR126 merge件名確認。今回fetch/外部GitHub照会なし）
+- Remote `main` at last update: `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8`（2026-10-30開始時clean main/HEAD/ローカルorigin/main一致、PR127 merge履歴とレビューhead c6ea6ceとの差分なしを確認。今回fetch/外部GitHub照会なし）
+- Previous remote main at v1.86/v1.85: `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`（PR127の初版/P2修正時点の開始main、PR126 MERGED。当時の記録を保持）
 - Previous remote main at v1.84: `69c3abbd5c826c4673d3b86345021c53c9055893`（2026-10-29、fetch/main pull --ff-only後のclean main/HEAD/origin一致、PR125 merge件名を確認した当時の値）
 - Previous remote main at v1.83: `d96f55188e698c780933eed4bba5e4a7badd7c8a`（2026-10-28開始時のclean main/HEAD/ローカルorigin一致・PR124 merge件名を確認した当時の値。初版/PR125修正時はfetch/外部Git照会なし）
 - Previous remote main at v1.82: `adfd52af53988d0e3337c78278b1e3a6bab84cf9`（2026-10-27、fetch/main pull --ff-only後のclean main/origin・PR123 merge件名/GitHub merge SHAを照合した当時の開始値）
@@ -350,7 +353,49 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: PR127-STAT-EXISTING-DATA-P2-FIX-01
+## 5.0 最新工程: STAT-20-ACQUIRED-HISTORY-INTEGRATION-01
+
+```yaml
+current_phase: STAT-20-ACQUIRED-HISTORY-INTEGRATION-01
+current_engine_state: STAT20_ACQUIRED_HISTORY_INTEGRATION_READY_FOR_REVIEW
+next_allowed_action: REVIEW_STAT20_INTEGRATION_P3_WEATHER_FIELDS_AND_46_STAT_INVENTORY_ONLY
+start_main_sha: 80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8
+remote_main: 80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8
+pr127_status: MERGED_LOCAL_HISTORY_VERIFIED
+production_db_access: NOT_RUN_THIS_PHASE
+production_write: 0
+production_migration: NOT_RUN
+real_http_this_phase: NOT_RUN
+operational_decisions: PROPOSED_NOT_APPROVED
+permission_status: UNVERIFIED
+real_send_allowed: false
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+points: null
+confidence: null
+2026_holdout: FROZEN_NO_ACCESS_THIS_PHASE
+future_user_direction: COMPLETE_EXISTING_DATA_STATS_THEN_SEPARATELY_SCOPE_2026_CHRONOLOGICAL_VALIDATION
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 新20上流監査・lineage・P3・45Raw天候原項目の実装/限定検証を未コミットでレビュー待ち |
+| next_allowed_action | 今回コード/証跡/全46一覧/文書のレビューだけ。次工程を自動開始しない |
+| completed_phases | PR127 MERGED。今回171限定回帰、主2レースの新20 4run/32行と新5 20run/160行を保存/再読込/再現。別PHPでも32行/45投影が一致 |
+| superseded_phases | 15.92/15.92.1の旧版・件数・未コミット/PRレビュー待ちは当時の履歴。旧v1監査を新20完了へ読み替えない |
+| blocked_phases | 全46全要件の入力/方式不足、運用D1〜D8/本番保存、B1/親lambda/H1-U・正式採用/LIVE。STAT09級班/grade別の記述件数等は製造可能な未実装として別記 |
+| frozen_contracts | 旧STAT20 v1/旧15STAT・C1/B/C2/BT/モデル/式/Solver/Decoder/Evaluator/Gate・元Raw/manifest/seal・実設定/安全helper |
+| unfrozen_contracts | 別STAT20経路、新5の保存lineage、16/27のhash用コピー日時だけ、限定天候投影・直接回帰・指定3文書。6条件距離式は不変 |
+| holdout_status | 今回2026開催アクセス0/凍結維持。ユーザーの2026終了済みレース時系列検証方針は後続別工程であり、永久禁止の新条件ではない |
+
+正本は[統合実装記録](stat20-acquired-history-integration-01.md)、[全46項目表](stat-existing-data-completion-01.md#10-全46statの現在地stat-20統合工程2026-10-30)。全要件完成・予測精度改善・本番適用ではない。
+
+### v1.86 PR127 P2修正時点の工程（履歴）
 
 ```yaml
 current_phase: PR127-STAT-EXISTING-DATA-P2-FIX-01
@@ -4824,6 +4869,15 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.93 STAT-20-ACQUIRED-HISTORY-INTEGRATION-01 / 2026-10-30
+
+PR127 MERGEDをローカル履歴で確認、開始clean main/HEAD/ローカルoriginは80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8。レビューhead c6ea6ceとのファイル差分なし。新しいfeature/stat20-acquired-history-integration-01を作成し、旧工程のレビュー限定記載は履歴として保持する。
+旧STAT20 v1の15項目/追加14run/135行を凍結し、別Command/Options/Input/Repository/Calculator/Serviceで20項目/追加19run/172行のv2を製造。STAT41は1物理行。元STAT01・全sourceの明示run/version・本人/時点/親hash・終端/失敗帰属を監査する。充足率は保存結果状態でありconfidence/全46要件率ではない。新5のrun/resultへ独立lineage契約を保存するService v3、09/25/44計算v2/Support v2は維持。16/27はhashコピー4日時だけをU.uに正規化する計算v3で、原文・6条件式・汎用Hasherは不変。
+最終171 passed/3451 assertions（新規39/336＋既存132/3115）、failure/error/warning/skip0、128M/peak78,118,912bytes、7.00秒、exit0。関連Readerの途中22 errorは隔離Fixture未bindの記録として保持し、確認済み旧6レース資料だけro-bindして回帰成功。旧全体4313や87件を今回値へ読み替えず、通常全体は危険cleanupが残るため未起動。
+封印済みPR127 SQLiteを新規作業コピーで再利用。race12773/7出走/元01run1、race12901/9出走/元01run42を照合し、新5各2回20run/160行（VALID32/PARTIAL128）と同source固定の新20各2回4run/32行（PARTIAL32）が保存/再読込/再現一致。旧新80比較の数値/状態差0、09/25/44 hash不変、16/27 v3変更を区別。旧行/業務表/原本/code sealはSTART-END不変。別PHP read-only再計算でも32行・45天候再投影一致、書込み0。
+2024年の対応済み45 PJ0326から晴28/曇12/雨5、風速原文の正の数値42/0表記3、token範囲0～5を投影した。単位/実気象観測時刻は未確認、RETROSPECTIVE_ONLY・予測利用未承認のまま。全46一覧を正式名で補完し、STAT09級班/grade別件数等の製造可能残件とライン/オッズ/同期/気象/構造/地理/ギヤの入力不足・方式未確定を分離した。
+証跡rootは `/home/shinya/neo-keirin-artifacts/stat20-acquired-history-integration-01/run-20261030-c7xRlke2/`、正本は[統合実装記録](stat20-acquired-history-integration-01.md)。本番DB接続/HTTP/学習/予測/評価/2026開催/Git add/commit/push/PR/merge0。次は今回差分レビューだけ。B1未承認・親未選択・historical_as_of=false・予測/正式採用未承認は維持。ユーザーの後続2026時系列検証方針は別工程で扱い、今回のアクセス許可や永久禁止へ転換しない。
+
 ## 15.92 STAT-EXISTING-DATA-COMPLETION-01 / 2026-10-30
 
 開始clean main/ローカルorigin `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`、PR126 merge件名を確認し `feature/stat-existing-data-completion-01` を作成。最新ユーザー承認により既存2022～2025 DB/保存RawをREAD ONLYで限定参照し、新しい隔離SQLite/専用成果物へだけ保存した。
@@ -5853,6 +5907,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.87 / 2026-10-30
+
+PR127 MERGED/開始main80bfbcdへmetadataを同期。5.0/8工程ゲート・15.93・全46一覧・引継ぎをSTAT20統合レビュー待ちへ更新。旧15v1を保護し、新20v2・保存lineage・16/27日時hashv3・45Raw原項目投影と今回171限定回帰/実資料再現を記録した。旧実績/未コミット履歴は保持し、モデル採用/B1/本番/取得は開放しない。2026時系列検証の後続ユーザー方針を今回範囲と分離する。
 
 ## v1.86 / 2026-10-30
 
@@ -6940,6 +6998,11 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+現在はSTAT-20-ACQUIRED-HISTORY-INTEGRATION-01の未コミットレビュー待ち。PR127 MERGED、開始main80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8、作業branchはfeature/stat20-acquired-history-integration-01。正本は5.0・15.93・[統合記録](stat20-acquired-history-integration-01.md)。新20v2/新5保存lineage/16・27日時hashv3と天候原項目だけが今回の製造範囲。
+今回171 passed/3451 assertions、128M/警告等0/exit0。新5 20run/160行、新20 4run/32行、45天候原項目が保存/再現し、別PHPでもread-only照合一致。旧版/原本/モデル不変。本番接続/HTTP/学習/予測/2026開催アクセス0。次はREVIEW_STAT20_INTEGRATION_P3_WEATHER_FIELDS_AND_46_STAT_INVENTORY_ONLY。全46全要件は未完成、具体的な製造残件と入力/方式不足は一覧に分離。2026終了済みレース時系列検証は後続別工程としてユーザー方針を保持するが、今回は開始しない。
+
+### v1.86 PR127 P2修正終了時の引継ぎ（履歴）
 
 PR127のP2修正を既存feature/stat-existing-data-completion-01で未コミット再レビュー待ち。開始HEADは2cc8eb50a3ed933732bb0b6376fa3c85431dd7c6であり、将来不変の最新PR HEADという意味ではない。正本は5.0・15.92.1・[修正記録第9節](stat-existing-data-completion-01.md#9-pr127-p2暦集計失敗監査修正)。次はREVIEW_PR127_P2_CODE_DOCS_AND_ISOLATED_EVIDENCE_ONLY。
 今回87 passed/812 assertions、128M/警告等0/exit0。元STAT01 runを保持した新5STATの22 run/174結果行が保存/再現済み。旧新の数値差0とv2 hash変更を区別する。元DB未接続・HTTP/学習/予測/2026参照/Git書込み0。以下の初版339件/未コミット記録は当時の履歴であり、今回の検証結果ではない。
