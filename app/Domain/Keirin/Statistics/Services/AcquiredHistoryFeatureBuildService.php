@@ -12,6 +12,7 @@ use App\Domain\Keirin\Statistics\DTO\Batch02BuildOptionsDto;
 use App\Domain\Keirin\Statistics\Repositories\AcquiredHistoryContextRepository;
 use App\Domain\Keirin\Statistics\Repositories\HistoricalRaceRepository;
 use App\Domain\Keirin\Statistics\Repositories\SimilarityConditionsRepository;
+use App\Domain\Keirin\Statistics\Support\AcquiredHistoryLineage;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistorySupport;
 use App\Models\StatisticFeatureResult;
 use App\Models\StatisticFeatureRun;
@@ -25,7 +26,7 @@ use Throwable;
 
 final class AcquiredHistoryFeatureBuildService
 {
-    public const VERSION = 'ACQUIRED-HISTORY-RACE-AUDIT-v2';
+    public const VERSION = 'ACQUIRED-HISTORY-RACE-AUDIT-v3';
 
     public function __construct(private readonly HistoricalRaceRepository $inputs, private readonly Stat25Calculator $calculator,
         private readonly Stat09Calculator $career, private readonly Stat44Calculator $longitudinal,
@@ -76,7 +77,8 @@ final class AcquiredHistoryFeatureBuildService
                 'mode' => 'BACKFILL', 'status' => 'RUNNING', 'history_from' => $options->historyFrom->format('Y-m-d'),
                 'target_from' => $options->from?->format('Y-m-d'), 'target_to' => $options->to?->format('Y-m-d'), 'target_race_id' => $options->raceId,
                 'input_as_of_policy' => 'STAT01_RUN_RESULT_INPUT_AS_OF', 'parameters' => $options->parameters((string) Str::uuid())
-                    + ['build_service_version' => self::VERSION, 'calendar_version' => AcquiredHistorySupport::VERSION],
+                    + ['build_service_version' => self::VERSION, 'calendar_version' => AcquiredHistorySupport::VERSION,
+                        'lineage_contract' => AcquiredHistoryLineage::CONTRACT],
                 'target_race_count' => $counts->races, 'target_entry_count' => $counts->entries, 'started_at' => new DateTimeImmutable,
             ]);
             $summary['run_id'] = $run->id;
@@ -104,7 +106,7 @@ final class AcquiredHistoryFeatureBuildService
                     };
                 }
                 if ($run !== null) {
-                    DB::transaction(function () use ($run, $item, $race, $results): void {
+                    DB::transaction(function () use ($run, $item, $race, $results, $options): void {
                         foreach ($results as $out) {
                             StatisticFeatureResult::query()->create([
                                 'feature_run_id' => $run->id, 'stat_code' => $run->stat_code, 'calculation_version' => $run->calculation_version,
@@ -113,7 +115,8 @@ final class AcquiredHistoryFeatureBuildService
                                 'bike_number' => $out->target->bikeNumber, 'status' => $out->status->value, 'quality_status' => $out->qualityStatus->value,
                                 'acquisition_mode' => 'BACKFILL', 'input_as_of' => $out->target->inputAsOf, 'features' => $out->features,
                                 'source_fetched_at' => $out->evidence['source_max_fetched_at'] ?? null,
-                                'evidence' => $out->evidence, 'input_hash' => $out->inputHash, 'raw_points' => null, 'confidence' => null,
+                                'evidence' => AcquiredHistoryLineage::attach($out->evidence, $options->stat01RunId, $out->target->stat01InputHash),
+                                'input_hash' => $out->inputHash, 'raw_points' => null, 'confidence' => null,
                                 'effective_points' => null, 'calculated_at' => new DateTimeImmutable,
                             ]);
                         }

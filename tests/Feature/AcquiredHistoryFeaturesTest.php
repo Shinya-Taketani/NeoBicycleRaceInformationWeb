@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Console\Commands\Keirin\BuildAcquiredHistoryFeaturesCommand;
+use App\Domain\Keirin\Statistics\Calculators\SimilarConditionsCalculator;
 use App\Domain\Keirin\Statistics\DTO\Batch02BuildOptionsDto;
+use App\Domain\Keirin\Statistics\DTO\SimilarityConditionsDto;
 use App\Domain\Keirin\Statistics\DTO\Stat01BuildOptionsDto;
 use App\Domain\Keirin\Statistics\Enums\Batch02Stat;
 use App\Domain\Keirin\Statistics\Repositories\HistoricalRaceRepository;
+use App\Domain\Keirin\Statistics\Repositories\SimilarityConditionsRepository;
 use App\Domain\Keirin\Statistics\Services\AcquiredHistoryFeatureBuildService;
 use App\Domain\Keirin\Statistics\Services\Stat01FeatureBuildService;
 use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
@@ -299,6 +302,66 @@ final class AcquiredHistoryFeaturesTest extends TestCase
     {
         return StatisticFeatureResult::query()->where('feature_run_id', $id)->orderBy('bike_number')->get()->map(fn ($r) => [
             $r->subject_key, $r->status, $r->features, $r->input_hash])->all();
+    }
+
+    public function test_similarity_repository_raw_datetime_spellings_are_hash_equivalent_without_mutating_evidence(): void
+    {
+        $args = $this->fixture();
+        $options = new Batch02BuildOptionsDto($args['--stat01-run-id'], new \DateTimeImmutable('2024-01-01T00:00:00+09:00'), null, null, $args['--race-id'], 10, false);
+        $race = app(HistoricalRaceRepository::class)->raceInputs($options)->current();
+        $target = $race->entries[0];
+        $history = $race->historiesByPlayer[$target->playerId];
+        $repo = app(SimilarityConditionsRepository::class);
+        $calc = app(SimilarConditionsCalculator::class);
+        $historyEntry = $history[0]->raceEntryId;
+        foreach ([$target->raceEntryId, $historyEntry] as $entry) {
+            foreach (['scheduled_start_at', 'fetched_at'] as $field) {
+                $table = $field === 'scheduled_start_at' ? 'races' : 'race_entries';
+                $id = $field === 'scheduled_start_at' ? ($entry === $target->raceEntryId ? $target->raceId : $history[0]->raceId) : $entry;
+                $date = $entry === $target->raceEntryId ? '2025-01-04' : '2024-12-01';
+                $jst = $date.'T12:00:00.123456+09:00';
+                $utc = $date.'T03:00:00.123456Z';
+                DB::table($table)->where('id', $id)->update([$field => $jst]);
+                $a = $repo->forTarget($target, $history);
+                $outA = $calc->calculate($target, $history, $options, $a);
+                DB::table($table)->where('id', $id)->update([$field => $utc]);
+                $b = $repo->forTarget($target, $history);
+                $outB = $calc->calculate($target, $history, $options, $b);
+                foreach (['STAT-16', 'STAT-27'] as $stat) {
+                    $this->assertSame($outA[$stat]->features, $outB[$stat]->features);
+                    $this->assertSame($outA[$stat]->status, $outB[$stat]->status);
+                    $this->assertSame($outA[$stat]->qualityStatus, $outB[$stat]->qualityStatus);
+                    $this->assertSame($outA[$stat]->inputHash, $outB[$stat]->inputHash);
+                    $evidence = $entry === $target->raceEntryId ? $outB[$stat]->evidence['target_conditions'] : $outB[$stat]->evidence['history_references'][0]['conditions'];
+                    $this->assertSame($utc, $evidence[$field === 'scheduled_start_at' ? 'raw' : 'sources'][$field]);
+                }
+                $this->assertNotSame(get_object_vars($a[$entry]), get_object_vars($b[$entry]));
+                foreach (['.123457', '.999999'] as $fraction) {
+                    DB::table($table)->where('id', $id)->update([$field => $date.'T03:00:00'.$fraction.'Z']);
+                    $out = $calc->calculate($target, $history, $options, $repo->forTarget($target, $history));
+                    $this->assertNotSame($outB['STAT-16']->inputHash, $out['STAT-16']->inputHash);
+                }
+                DB::table($table)->where('id', $id)->update([$field => $date.'T03:00:01.123456Z']);
+                $out = $calc->calculate($target, $history, $options, $repo->forTarget($target, $history));
+                $this->assertNotSame($outB['STAT-27']->inputHash, $out['STAT-27']->inputHash);
+                DB::table($table)->where('id', $id)->update([$field => $jst]);
+            }
+        }
+        $conditions = $repo->forTarget($target, $history);
+        $before = $calc->calculate($target, $history, $options, $conditions);
+        $original = $conditions[$target->raceEntryId];
+        $raw = $original->raw;
+        $raw['entry_grade'] = 'S1';
+        $conditions[$target->raceEntryId] = new SimilarityConditionsDto($original->values, $raw, $original->sources, $original->reasons);
+        $after = $calc->calculate($target, $history, $options, $conditions);
+        $this->assertNotSame($before['STAT-16']->inputHash, $after['STAT-16']->inputHash);
+        $this->assertSame($before['STAT-16']->features, $after['STAT-16']->features);
+        $sources = $original->sources;
+        $sources['projection_version'] = 'SYNTHETIC_NEW_SOURCE_VERSION';
+        $conditions[$target->raceEntryId] = new SimilarityConditionsDto($original->values, $original->raw, $sources, $original->reasons);
+        $after = $calc->calculate($target, $history, $options, $conditions);
+        $this->assertNotSame($before['STAT-27']->inputHash, $after['STAT-27']->inputHash);
+        $this->assertSame($before['STAT-27']->features, $after['STAT-27']->features);
     }
 
     private function businessHash(): string
