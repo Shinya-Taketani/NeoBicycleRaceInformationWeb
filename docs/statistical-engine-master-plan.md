@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-31 学校接続工程の現在: PR129 MERGED、開始clean main/HEAD/ローカルorigin `3e52289f08940dd9a9e131bf72302690dd4bc4ef` をローカル履歴で確認し、新branch `feature/stat-school-profile-connection-01` で学校資料台帳/固定選択/STAT44複数本人接続を製造した。学校2,475版/2,436本人を全件説明し、3レース23本人全接続、新44/20計10run/78行・旧互換/反復・別PHP再計算・独立日付算術が一致。限定225 tests/1888 assertions、128M/警告等0/exit0、原本/既存行不変。本番接続/HTTP/学習/予測/2026開催参照0。正本は5.0・15.95と[今回記録](stat-school-profile-connection-01.md)。固定学校集合の明示接続機能は完了、未コミットREADY_FOR_REVIEW。次は今回差分レビューのみ。以下のPR129未コミット・179件等は当時の履歴であり今回値へ読み替えない。
+
 > 2026-10-31 現在: PR128 MERGEDをローカルmerge履歴で確認。開始clean main/HEAD/ローカルoriginは `2b2b4b2371067953cc5dd11f53d15362590db6c1`、レビューhead4356098とのファイル差分0。新branch `feature/stat09-grade-breakdown-01` でSTAT09の保有期間内級班/開催grade別v3と明示STAT20v3接続を製造した。限定179 tests/1695 assertions、隔離実2レースの新09/20計8run/64行、旧09/20v2再現、別PHP再計算と1,325参照の独立数え上げ一致。128M/exit0、原本/既存行不変、本番接続/HTTP/学習/予測/2026開催参照0。正本は5.0・15.94と[今回記録](stat09-grade-breakdown-01.md)。未コミットREADY_FOR_REVIEW、次は今回差分レビューのみ。以下のPR128工程・171件・未コミット状態は当時の履歴であり、今回値へ読み替えない。
 
 > 2026-10-30 現在: PR127 MERGED、開始clean main/HEAD/ローカルorigin `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8` を確認し、新branch `feature/stat20-acquired-history-integration-01` でSTAT-20-ACQUIRED-HISTORY-INTEGRATION-01を実施。新20上流監査・保存lineage v3・16/27日時hash v3を製造し、限定171 tests/3451 assertions、実2レースの新20 4run/32行・新5 20run/160行・45天候原項目の保存/再読込/再現が成立。原本read-only/128M/exit0、本番接続/HTTP/学習/予測/2026開催参照0。正本は5.0・15.93と[新工程記録](stat20-acquired-history-integration-01.md)。未コミットでレビュー待ち。以下のPR127未コミット/レビュー限定・87件/174行等は当時の履歴であり、今回の実行値ではない。
@@ -103,13 +105,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.88
+- Version: 1.89
 - Created: 2026-08-23
-- Updated: 2026-10-31（STAT09級班/開催grade別v3・明示STAT20v3接続・限定実資料検算・全46台帳同期）
+- Updated: 2026-10-31（学校取得版台帳/デビュー日選択・STAT44複数本人/20v3接続・限定実資料受入）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `2b2b4b2371067953cc5dd11f53d15362590db6c1`（2026-10-31開始時clean main/HEAD/ローカルorigin/main一致、PR128 merge履歴とレビューhead4356098との差分0を確認。今回fetch/外部GitHub照会なし）
+- Remote `main` at last update: `3e52289f08940dd9a9e131bf72302690dd4bc4ef`（2026-10-31学校接続工程の開始clean main/HEAD/ローカルorigin一致、PR129 merge履歴を確認。今回fetch/外部GitHub照会なし）
+- Previous remote main at v1.88: `2b2b4b2371067953cc5dd11f53d15362590db6c1`（STAT09工程開始時clean main/HEAD/ローカルorigin、PR128 MERGED。当時の記録を保持）
 - Previous remote main at v1.87: `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8`（PR128実装開始時点のclean main/HEAD/ローカルorigin、PR127 MERGED。当時の記録を保持）
 - Previous remote main at v1.86/v1.85: `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`（PR127の初版/P2修正時点の開始main、PR126 MERGED。当時の記録を保持）
 - Previous remote main at v1.84: `69c3abbd5c826c4673d3b86345021c53c9055893`（2026-10-29、fetch/main pull --ff-only後のclean main/HEAD/origin一致、PR125 merge件名を確認した当時の値）
@@ -130,10 +133,14 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR128 MERGED。feature/stat09-grade-breakdown-01の今回コード/文書/隔離証跡を未コミットREADY_FOR_REVIEW。開始HEADは2b2b4b2371067953cc5dd11f53d15362590db6c1で、将来不変の最新HEADという意味ではない
-- Current code: 旧09v2/20v2既定を保持し、新09 grade-breakdown-v3と明示20v3を追加。保存Service v3/lineage v1、旧20v1/他4STAT/6条件式/SourceAudit/モデル/設定/安全helperは不変
-- Current execution record: 新09 4run/32行、新20 4run/32行、旧09 16行/旧20v2 32行再現。別PHP同実装再計算と独立分類数え上げを分離し、ともに一致。原本/既存業務表/旧行/直接依存sealはSTART-END不変
-- Current tests record: 限定179 passed/1695 assertions（追加45/302＋既存134/1393）、failure/error/warning/skip0、128M/peak78,118,912bytes、6.41秒/exit0。実受入/別PHP/独立検算も128M/exit0。通常全体/本番接続/HTTP/学習/予測/2026開催参照は未実施
+- Current review: PR129 MERGED。feature/stat-school-profile-connection-01の今回差分を未コミットREADY_FOR_REVIEW。開始HEADは3e52289f08940dd9a9e131bf72302690dd4bc4efであり将来不変の最新HEADではない
+- Current code: SCHOOL-PROFILE-CATALOG-v1 / SCHOOL-PROFILE-STAT44-SELECTION-v1とSTAT44専用入力入口。旧単一/未指定・投影v1・44計算v2/保存Service v3/lineage v1・09/他STAT/20v1/v2/v3/6条件式/モデル/安全helper不変
+- Current execution record: 全学校2,475版/2,436本人を保持/選択、3レース23本人全接続。新44 6run/46行、新20 4run/32行、旧互換・反復・別PHP再計算・原投影による独立日付算術一致。原本/旧行/業務表不変、生成時コードsealと最終再現時sealを分離して保持
+- Current tests record: 限定225 passed/1888 assertions（追加41/178＋既存184/1710）、failure/error/warning/skip0、PHPUnit子128M/peak78,118,912bytes、7.49秒/exit0。実資料各工程も128M/exit0。通常全体/本番接続/HTTP/学習/予測/2026開催参照は未実施
+- Previous review at v1.88: PR128 MERGED。feature/stat09-grade-breakdown-01の今回コード/文書/隔離証跡を未コミットREADY_FOR_REVIEW。開始HEADは2b2b4b2371067953cc5dd11f53d15362590db6c1で、将来不変の最新HEADという意味ではない
+- Previous code at v1.88: 旧09v2/20v2既定を保持し、新09 grade-breakdown-v3と明示20v3を追加。保存Service v3/lineage v1、旧20v1/他4STAT/6条件式/SourceAudit/モデル/設定/安全helperは不変
+- Previous execution record at v1.88: 新09 4run/32行、新20 4run/32行、旧09 16行/旧20v2 32行再現。別PHP同実装再計算と独立分類数え上げを分離し、ともに一致。原本/既存業務表/旧行/直接依存sealはSTART-END不変
+- Previous tests record at v1.88: 限定179 passed/1695 assertions（追加45/302＋既存134/1393）、failure/error/warning/skip0、128M/peak78,118,912bytes、6.41秒/exit0。実受入/別PHP/独立検算も128M/exit0。通常全体/本番接続/HTTP/学習/予測/2026開催参照は未実施
 - Previous review at v1.84: PR125 MERGED。新feature/prestart-capture-pj0315-observation-runner-01のPHP/限定検証/実2版比較を未コミットでレビュー待ち。開始main/HEAD/originは69c3abbd5c826c4673d3b86345021c53c9055893
 - Previous code at v1.84: PJ0315-OBSERVATION-RUNNER-v1。独立namespace/Command/人工テストを追加し、旧Probe v2・Operational・Bridge/24依存・Parser/STAT/モデル/設定/Migration/安全helperは不変
 - Previous execution record at v1.84: OBSERVATION_RUNNER_OFFLINE_VERIFIED_AWAITING_REVIEW。人工slot/永続台帳/HTTP fake/不変保存/独立検証と指定2025実Raw 2版比較。追加実HTTP0、実運用信頼/時計/一部T受入は未完了。旧実証拠/消費済み技術scopeは保持
@@ -360,7 +367,50 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: STAT09-GRADE-BREAKDOWN-01
+## 5.0 最新工程: STAT-SCHOOL-PROFILE-CONNECTION-01
+
+```yaml
+current_phase: STAT-SCHOOL-PROFILE-CONNECTION-01
+current_engine_state: STAT_SCHOOL_PROFILE_CONNECTION_READY_FOR_REVIEW
+next_allowed_action: REVIEW_SCHOOL_CATALOG_SELECTION_STAT44_CONNECTION_AND_ISOLATED_EVIDENCE_ONLY
+start_main_sha: 3e52289f08940dd9a9e131bf72302690dd4bc4ef
+remote_main: 3e52289f08940dd9a9e131bf72302690dd4bc4ef
+pr129_status: MERGED_LOCAL_HISTORY_VERIFIED
+fixed_school_set_connection: COMPLETE
+production_db_access: NOT_RUN_THIS_PHASE
+production_write: 0
+production_migration: NOT_RUN
+real_http_this_phase: NOT_RUN
+operational_decisions: PROPOSED_NOT_APPROVED
+permission_status: UNVERIFIED
+real_send_allowed: false
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+points: null
+confidence: null
+2026_holdout: FROZEN_NO_ACCESS_THIS_PHASE
+future_user_direction: FINISHED_2026_RACES_CHRONOLOGICAL_INPUT_THEN_FIXED_PREDICTION_THEN_RESULTS_THEN_ACCURACY
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 固定学校資料集合の取得版台帳/デビュー日選択/同run複数本人接続を製造・実受入済み、未コミットREADY_FOR_REVIEW |
+| next_allowed_action | 今回コード/文書/小型証跡のレビューのみ。STAT21や取得/予測へ自動移行しない |
+| completed_phases | PR129 MERGED。学校2,475版/2,436本人全件、3race23本人全接続、新44/20計10run/78行、225限定回帰・旧互換/反復/別PHP/独立日付算術一致 |
+| superseded_phases | 15.94/旧5.0の179件・未コミット状態は当時の履歴。固定学校集合の明示接続機能を未実装として繰り返さない |
+| blocked_phases | 正式同期人数/200m同期分布・測定日/卒業期原文・補正減衰/局面判定等の入力/方式不足、運用D1〜D8/本番、B1/親lambda/H1-U/正式採用/LIVEは未承認。次の具体的残件はSTAT21天候原項目一括投影 |
+| frozen_contracts | 投影v1・STAT44計算v2・保存Service v3/lineage v1、09旧/新・16/25/27・6条件式・汎用Hasher・20v1/v2/v3と既定値・SourceAudit・全モデル/旧成果物/設定/安全helper |
+| unfrozen_contracts | 学校専用台帳/固定選択/DTO/Command、AcquiredHistory Command/Serviceの新STAT44入力入口、直接テスト/指定3文書のみ。DB schema変更なし |
+| holdout_status | 今回2026開催アクセス0。終了済み2026レースの時系列検証という後続方針は維持し、全46/B1/占術の完成を永久前提に追加しない |
+
+正本は15.95と[学校接続記録](stat-school-profile-connection-01.md)。全選手/全期間の再計算・正式同期評価・原本SCR全条件の完成ではない。STAT21はW45以外の完全な結果/import/log/Raw対応を確認してから別工程で扱う。
+
+### v1.88 STAT09級班/開催grade終了時点の工程（履歴）
 
 ```yaml
 current_phase: STAT09-GRADE-BREAKDOWN-01
@@ -4918,6 +4968,18 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.95 STAT-SCHOOL-PROFILE-CONNECTION-01 / 2026-10-31
+
+開始clean main/HEAD/ローカルorigin3e52289f08940dd9a9e131bf72302690dd4bc4ef、PR129 merge履歴を確認。新しいfeature/stat-school-profile-connection-01を作成し、最新ユーザー承認で固定学校資料の明示接続機能を製造した。fetch/外部GitHub照会なし。
+旧学校review manifest00eea837…/COMPLETE→封印executed-artifacts→profiles/replayのJSONLを確認。新SCHOOL-PROFILE-CATALOG-v1で取得版を全件保持し、SCHOOL-PROFILE-STAT44-SELECTION-v1で全候補後判定・一致デビュー日の最早取得/同時刻log ID順を固定する。学校順位/200m/卒業期の競合と、デビュー日競合/不正原文混在・単純欠損を分離する。原投影JSON/sourceのキー順・型・原値は保存/再読込一致。卒業期原文未記録は一致と認定しない。入力衝突はFAILED診断/途中資料を保持し、削除/推定なし。
+実測学校2,475取得版/2,436本人、同一取得版重複行0、追加取得版39を持つ18本人を保持。順位有効1693/欠損782、200m有効654/欠損1821、卒業期数値/デビュー日有効2475、各項目の値競合/不正0。STAT44選択2436/未選択0。旧投影SHA3782e244…と再投影束を照合したが、全Rawの本文再走査は今回実施していない。
+新Command/Service/DTOと既存AcquiredHistoryのSTAT44専用index入口を追加。単一/未指定と交差拒否/Service直接検証を維持し、本人ごとに選択投影を従来本人照合へ渡す。target分母/接続・未接続理由とcatalog/selection契約/SHAを新run metadataに保存、結果debut_evidenceは従来sourceのまま。投影v1/44計算v2の式/features/evidence/hash、保存Service v3/lineage v1、他STAT/09旧新/20v1-v3/6条件式/汎用Hasher/モデルは不変。
+PR129 manifest31513378…のworking_sqlite160c06ee…を実読し、1回だけ作業コピー。開始143run/1099結果/143item。元STAT01=1/42/87と旧44run120/132/実レコードで特定した110の条件を再利用。race12773は新44run144,145と新20run146,147（44source144固定）、race12901は新44run148,149と新20run150,151（source148固定）、race61724/2024-12-06は新44run152,153。23出走/23固有本人の全員接続、未接続0。新44 6run/46行・新20 4run/32行、計10run/78行/10item、全PARTIAL/error0。最終153run/1177結果/153item、他19 sourceは再生成せず固定。
+学校なし旧44の16行/学校単一接続v2 run110,111の14行/旧20v3の16行を再現。同じ投影の単一/一括23本人の全保存内容/hashと反復が一致。別PHP同実装再計算は44=46/20=32行、最終Service/学校全件dry-runも書込み0。別の独立算術は新Selector/Stat44Calculatorを使わず元投影・出典・JST対象日時から23本人/46行の本人/取得版・日付/日数/年数を照合して一致。両方PDO ro/query_only、SQLite SHA不変。
+限定14ファイル225 passed/1888 assertions（新規41/178＋既存184/1710）、failure/error/warning/skip0、PHP8.5.4/Artisan/PHPUnit12.5.31、子128M/peak78118912bytes、7.49秒/exit0。実台帳48238592bytes/0.296442秒、保存受入125833216bytes/3.103712秒、別PHP94375936bytes/0.908690秒、独立算術10485760bytes/0.146594秒、各128M/exit0。最終構文/限定Pint/diff/文書検証も記録する。旧155 warningsの全体解消とはせず、通常全体は未実行。
+証跡root `/home/shinya/neo-keirin-artifacts/stat-school-profile-connection-01/run-20261031-31MQOE3K/`。元SQLite/manifest/学校投影/コピー内旧行と業務表のSTART-ENDは不変。Rawはread-onlyとstorage不可視化で保護し、新しい全Raw内容監査を主張しない。保存時コードsealと、その後のCatalog有界読取/失敗診断/入力END検査・Pintを区別し、最終コードで全件dry-run/78行再現とコードSTART-END一致を確認。元sealを上書きしない。
+固定学校集合の明示接続機能は完了。全選手/全期間の再計算・正式同期人数/分布/測定日・減衰/補正/局面は別の未確定、原本OPENは変更しない。次の具体的残件はSTAT21の一括天候原項目投影で、W45以外は完全な結果/import/log/Raw対応を先に確認する。今回混在実行なし。正本は[今回記録](stat-school-profile-connection-01.md)。本番DB/HTTP/2026開催/学習/予測/評価/Git add/commit/push/PR/merge0、未コミットで今回差分レビューだけを待つ。historical_as_of=false/予測・正式採用未承認/B1未承認・親未選択を維持し、後続2026時系列方針へ新しい永久条件を加えない。
+
 ## 15.94 STAT09-GRADE-BREAKDOWN-01 / 2026-10-31
 
 開始clean main/HEAD/ローカルorigin2b2b4b2371067953cc5dd11f53d15362590db6c1、PR128 MERGEDのローカル履歴とレビューhead4356098との差分0を確認。未使用feature/stat09-grade-breakdown-01を作成。前工程のレビュー限定記載は当時の履歴で、最新ユーザー承認により今回の限定製造へ進んだ。
@@ -5967,6 +6029,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.89 / 2026-10-31
+
+PR129 MERGED/開始main3e52289へmetadata・現在地8制御・15.95・引継ぎを同期。学校取得版台帳/デビュー日固定選択/STAT44複数本人入口と、全2475版/2436本人・23本人全接続/10run78行・225限定回帰・旧互換/別PHP/独立算術を記録。固定資料集合の明示接続機能を閉じ、正式同期/補正等の未確定と全期間の再計算を分離した。旧記録/生成sealは保持し、STAT21の完全な結果/import/log/Raw確認を伴う次工程を具体化。本番/予測採用/B1/2026を自動開始せず、Git操作はユーザーが行う。
 
 ## v1.88 / 2026-10-31
 
@@ -7062,6 +7128,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+現在はSTAT-SCHOOL-PROFILE-CONNECTION-01をfeature/stat-school-profile-connection-01で未コミットREADY_FOR_REVIEW。PR129 MERGED、開始clean main/HEAD/ローカルorigin3e52289f08940dd9a9e131bf72302690dd4bc4ef、fetch/外部照会なし。正本は5.0・15.95と[学校接続記録](stat-school-profile-connection-01.md)。次はREVIEW_SCHOOL_CATALOG_SELECTION_STAT44_CONNECTION_AND_ISOLATED_EVIDENCE_ONLY。
+固定学校全2475版/2436本人を保持/選択し、3race23本人全接続、未接続0。新44run144,145,148,149,152,153の46行、新20run146,147,150,151の32行を同一作業コピーへ保存。旧互換/反復/別PHP78行再計算、元投影による23本人46行の日付/日数/年数の独立算術が一致。限定225/1888、128M/警告等0/exit0。保存時と最終再現時のコードsealは区別して保持、元資料/旧行/業務表は不変。
+固定資料集合の明示接続機能は完了で、曖昧な「学校対象拡大」を未実装として繰り返さない。全期間再計算の対象/目的、正式同期人数・200m分布/測定日・卒業期原文・補正減衰/局面は別残件。具体的な次工程はSTAT21既存天候原項目の一括投影で、W45以外の完全な結果/import/log/Raw対応を先に確認する。今回は開始しない。B1未承認/NONE/NONE/受入NOT_RUN、historical_as_of=false/予測利用・正式採用未承認を維持。本番接続/HTTP/2026開催/学習/予測/評価/通常全体/Git add/commit/push/PR/merge0。終了済み2026レースの時系列検証というユーザー方針に、全46/B1/占術完成等の永久前提を追加しない。
+
+### v1.88 STAT09工程終了時の引継ぎ（履歴）
 
 現在はSTAT09-GRADE-BREAKDOWN-01をfeature/stat09-grade-breakdown-01で未コミットREADY_FOR_REVIEW。PR128 MERGED、開始clean main/HEAD/ローカルorigin2b2b4b2371067953cc5dd11f53d15362590db6c1、レビューhead4356098とのファイル差分0。正本は5.0・15.94と[今回記録](stat09-grade-breakdown-01.md)。次はREVIEW_STAT09_GRADE_BREAKDOWN_CODE_DOCS_AND_ISOLATED_EVIDENCE_ONLY。
 今回179 passed/1695 assertions、128M/警告等0/exit0。新09run136,137,140,141と新20run138,139,142,143の計8run/64行を隔離作業コピーだけへ保存。旧09/20v2再現、別PHP同実装再計算、採用1,325履歴の独立数え上げが一致し、原本/旧行/業務表/旧コード不変。UNKNOWN11は原meeting.grade=NULLのまま。旧09v2/20v2既定・保存Service v3/lineage v1・他4STAT/6条件式/SourceAuditは不変。

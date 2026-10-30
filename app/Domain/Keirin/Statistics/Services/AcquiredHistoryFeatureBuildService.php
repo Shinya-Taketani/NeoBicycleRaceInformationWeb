@@ -10,6 +10,7 @@ use App\Domain\Keirin\Statistics\Calculators\Stat09GradeBreakdownCalculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat25Calculator;
 use App\Domain\Keirin\Statistics\Calculators\Stat44Calculator;
 use App\Domain\Keirin\Statistics\DTO\Batch02BuildOptionsDto;
+use App\Domain\Keirin\Statistics\DTO\SchoolProfileIndexOptionsDto;
 use App\Domain\Keirin\Statistics\Repositories\AcquiredHistoryContextRepository;
 use App\Domain\Keirin\Statistics\Repositories\HistoricalRaceRepository;
 use App\Domain\Keirin\Statistics\Repositories\SimilarityConditionsRepository;
@@ -36,11 +37,15 @@ final class AcquiredHistoryFeatureBuildService
         private readonly AcquiredHistoryContextRepository $context,
         private readonly SimilarityConditionsRepository $conditions, private readonly SimilarConditionsCalculator $similar,
         private readonly Stat09GradeContextRepository $gradeContext, private readonly Stat09GradeBreakdownCalculator $gradeCareer,
-        private readonly AcquiredHistorySupport $historySupport) {}
+        private readonly AcquiredHistorySupport $historySupport, private readonly SchoolProfileSelectionService $schoolSelections) {}
 
     public function build(Batch02BuildOptionsDto $options, string $stat = 'STAT-25', ?array $schoolProfile = null,
-        string $stat09Profile = Stat09GradeContract::LEGACY_PROFILE): array
+        string $stat09Profile = Stat09GradeContract::LEGACY_PROFILE, ?SchoolProfileIndexOptionsDto $schoolIndex = null): array
     {
+        if ($schoolIndex !== null && ($stat !== 'STAT-44' || $schoolProfile !== null)) {
+            throw new InvalidArgumentException('School selection requires STAT44 and excludes single-profile mode.');
+        }
+        $school = $schoolIndex === null ? null : $this->schoolSelections->load($schoolIndex);
         if (! in_array($stat09Profile, [Stat09GradeContract::LEGACY_PROFILE, Stat09GradeContract::PROFILE], true)
             || ($stat !== 'STAT-09' && $stat09Profile !== Stat09GradeContract::LEGACY_PROFILE)) {
             throw new InvalidArgumentException('STAT09 profile is unknown or incompatible with the selected statistic.');
@@ -81,6 +86,9 @@ final class AcquiredHistoryFeatureBuildService
         $run = null;
         $summary = ['run_id' => null, 'dry_run' => $options->dryRun, 'target_races' => $counts->races,
             'target_entries' => $counts->entries, 'processed_races' => 0, 'results' => 0, 'statuses' => [], 'errors' => 0, 'error_summary' => []];
+        if ($school !== null) {
+            $summary['school_connection'] = ['target_entries' => $counts->entries, 'evaluated_entries' => 0, 'connected' => 0, 'unconnected' => 0, 'reasons' => []];
+        }
         if (! $options->dryRun) {
             $run = StatisticFeatureRun::query()->create([
                 'run_uuid' => (string) Str::uuid(), 'stat_code' => $stat, 'calculation_version' => $version,
@@ -90,7 +98,8 @@ final class AcquiredHistoryFeatureBuildService
                     + ['build_service_version' => self::VERSION, 'calendar_version' => AcquiredHistorySupport::VERSION,
                         'lineage_contract' => AcquiredHistoryLineage::CONTRACT]
                     + ($stat09Profile === Stat09GradeContract::PROFILE ? ['stat09_profile' => $stat09Profile,
-                        'grade_projection_contract' => Stat09GradeContract::PROJECTION] : []),
+                        'grade_projection_contract' => Stat09GradeContract::PROJECTION] : [])
+                    + ($school === null ? [] : ['school_profile_selection' => $school['metadata']]),
                 'target_race_count' => $counts->races, 'target_entry_count' => $counts->entries, 'started_at' => new DateTimeImmutable,
             ]);
             $summary['run_id'] = $run->id;
@@ -105,6 +114,7 @@ final class AcquiredHistoryFeatureBuildService
                     'feature_run_id' => $run->id, 'race_id' => $raceId, 'status' => 'RUNNING',
                     'attempt_count' => 1, 'started_at' => new DateTimeImmutable]);
                 $results = [];
+                $schoolReasons = [];
                 $grades = $gradeStages = [];
                 if ($stat === 'STAT-09' && $stat09Profile === Stat09GradeContract::PROFILE) {
                     $used = [];
@@ -120,6 +130,16 @@ final class AcquiredHistoryFeatureBuildService
                 foreach ($race->entries as $target) {
                     $history = $race->historiesByPlayer[$target->playerId] ?? [];
                     $profile = $stat === 'STAT-44' ? $this->context->matchedSchoolProfile($target->raceEntryId, $schoolProfile) : null;
+                    if ($school !== null) {
+                        $externalId = DB::table('race_entries')->where('id', $target->raceEntryId)->value('external_player_id');
+                        $chosen = $externalId === null ? ['profile' => null, 'reason' => 'NO_EXTERNAL_PLAYER_ID']
+                            : $this->schoolSelections->profile($school, $externalId);
+                        $profile = $this->context->matchedSchoolProfile($target->raceEntryId, $chosen['profile']);
+                        if ($chosen['profile'] !== null && $profile === null) {
+                            throw new InvalidArgumentException('Selected school identity did not match target entry.');
+                        }
+                        $schoolReasons[] = $chosen['reason'];
+                    }
                     $results[] = match ($stat) {
                         'STAT-25' => $this->calculator->calculate($target, $history, $options, $this->context->stages($history)),
                         'STAT-09' => $stat09Profile === Stat09GradeContract::PROFILE
@@ -155,6 +175,13 @@ final class AcquiredHistoryFeatureBuildService
                     $summary['results']++;
                     $summary['statuses'][$out->status->value] = ($summary['statuses'][$out->status->value] ?? 0) + 1;
                 }
+                if ($school !== null) {
+                    foreach ($schoolReasons as $reason) {
+                        $summary['school_connection']['evaluated_entries']++;
+                        $summary['school_connection'][$reason === 'CONNECTED' ? 'connected' : 'unconnected']++;
+                        $summary['school_connection']['reasons'][$reason] = ($summary['school_connection']['reasons'][$reason] ?? 0) + 1;
+                    }
+                }
                 // A failure while advancing the repository generator has no identified next race.
                 $raceId = null;
                 $item = null;
@@ -174,6 +201,7 @@ final class AcquiredHistoryFeatureBuildService
                 'missing_count' => $summary['statuses']['MISSING_INPUT'] ?? 0, 'invalid_count' => $summary['statuses']['INVALID_INPUT'] ?? 0,
                 'error_count' => $summary['errors'], 'error_summary' => $summary['error_summary'] === [] ? null : json_encode($summary['error_summary'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
                 'finished_at' => new DateTimeImmutable,
+                ...($school === null ? [] : ['parameters' => $run->parameters + ['school_connection' => $summary['school_connection']]]),
             ])->save();
         }
 
