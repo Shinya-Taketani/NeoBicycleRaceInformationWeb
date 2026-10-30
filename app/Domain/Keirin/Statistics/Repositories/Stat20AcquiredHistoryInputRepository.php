@@ -9,7 +9,6 @@ use App\Domain\Keirin\Statistics\DTO\Stat20AcquiredHistoryInputDto;
 use App\Domain\Keirin\Statistics\DTO\Stat20AcquiredHistoryOptionsDto;
 use App\Domain\Keirin\Statistics\DTO\Stat20RaceInputDto;
 use App\Domain\Keirin\Statistics\DTO\Stat20SourceInputDto;
-use App\Domain\Keirin\Statistics\Services\AcquiredHistoryFeatureBuildService;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistoryLineage;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistoryTimestamp;
 use App\Domain\Keirin\Statistics\Support\Stat20AcquiredHistoryContract as Contract;
@@ -25,11 +24,12 @@ class Stat20AcquiredHistoryInputRepository
     /** @return array<string,StatisticFeatureRun> */
     public function selectedRuns(Stat20AcquiredHistoryOptionsDto $options): array
     {
+        $versions = Contract::versions($options->sourceContract);
         $runs = [];
         foreach ([$options->stat01RunId, ...$options->sourceRunIds] as $id) {
             $run = StatisticFeatureRun::query()->find($id);
-            if ($run === null || ! isset(Contract::VERSIONS[$run->stat_code])
-                || $run->calculation_version !== Contract::VERSIONS[$run->stat_code]
+            if ($run === null || ! isset($versions[$run->stat_code])
+                || $run->calculation_version !== $versions[$run->stat_code]
                 || $run->mode !== 'BACKFILL' || ! in_array($run->status, ['SUCCEEDED', 'PARTIALLY_SUCCEEDED'], true)
                 || $run->finished_at === null || isset($runs[$run->stat_code])
                 || ($id === $options->stat01RunId && ($run->stat_code !== 'STAT-01' || (int) $run->error_count !== 0
@@ -39,8 +39,11 @@ class Stat20AcquiredHistoryInputRepository
             }
             if (in_array($run->stat_code, Contract::NEW_STATS, true)
                 && (($run->parameters['lineage_contract'] ?? null) !== AcquiredHistoryLineage::CONTRACT
-                    || ($run->parameters['build_service_version'] ?? null) !== AcquiredHistoryFeatureBuildService::VERSION)) {
+                    || ($run->parameters['build_service_version'] ?? null) !== Contract::BUILD_SERVICE_VERSION)) {
                 throw new UnexpectedValueException('STAT-20 v2 saved lineage contract unsupported.');
+            }
+            if ($run->stat_code === 'STAT-09' && ! Contract::stat09MetadataMatches($options->sourceContract, $run->parameters)) {
+                throw new UnexpectedValueException('STAT09 run profile/projection metadata mismatch.');
             }
             if ($id === $options->stat01RunId && DB::table('statistic_feature_results')->where('feature_run_id', $id)
                 ->where('stat_code', 'STAT-01')->where('subject_type', 'RACE_ENTRY')->count() !== (int) $run->target_entry_count) {
@@ -112,7 +115,7 @@ class Stat20AcquiredHistoryInputRepository
         }
 
         return new Stat20AcquiredHistoryInputDto(new Stat20RaceInputDto($id, new DateTimeImmutable($race->race_date, new DateTimeZone('Asia/Tokyo')),
-            $race->scheduled_start_at === null ? null : AcquiredHistoryTimestamp::parse($race->scheduled_start_at), $ids, $sources, $identities), $audit);
+            $race->scheduled_start_at === null ? null : AcquiredHistoryTimestamp::parse($race->scheduled_start_at), $ids, $sources, $identities), $audit, $options->sourceContract);
     }
 
     private function targets(Stat20AcquiredHistoryOptionsDto $options): Builder

@@ -17,6 +17,7 @@ final class BuildStat20AcquiredHistoryCommand extends Command
     protected $signature = 'keirin:statistics:build-stat20-acquired-history
         {--stat01-run-id= : Fixed completed STAT01 run}
         {--source-run-id=* : Explicit upstream runs, at most nineteen different statistics}
+        {--source-contract=STAT-20-acquired-history-v2 : Explicit v2 or grade-breakdown v3 audit contract}
         {--race-id= : Single race}
         {--from= : First target JST date, 2022-2025}
         {--to= : Last target JST date, 2022-2025}
@@ -31,7 +32,7 @@ final class BuildStat20AcquiredHistoryCommand extends Command
             $r = $service->build(new Stat20AcquiredHistoryOptionsDto($this->positive($this->option('stat01-run-id')),
                 array_map($this->positive(...), $this->option('source-run-id')), $this->date($this->option('from')),
                 $this->date($this->option('to')), $this->option('race-id') === null ? null : $this->positive($this->option('race-id')),
-                $this->positive($this->option('chunk')), (bool) $this->option('dry-run')));
+                $this->positive($this->option('chunk')), (bool) $this->option('dry-run'), (string) $this->option('source-contract')));
             $this->line(json_encode($r, JSON_THROW_ON_ERROR));
 
             return $r->counts['errors'] > 0 ? self::FAILURE : self::SUCCESS;

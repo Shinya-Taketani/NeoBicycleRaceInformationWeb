@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Keirin\Statistics\DTO;
 
 use App\Domain\Keirin\Statistics\Support\AcquiredHistorySupport;
+use App\Domain\Keirin\Statistics\Support\Stat20AcquiredHistoryContract;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -15,8 +16,10 @@ final readonly class Stat20AcquiredHistoryOptionsDto
     public ?DateTimeImmutable $to;
 
     public function __construct(public int $stat01RunId, public array $sourceRunIds, ?DateTimeImmutable $from,
-        ?DateTimeImmutable $to, public ?int $raceId, public int $chunkSize = 100, public bool $dryRun = false)
+        ?DateTimeImmutable $to, public ?int $raceId, public int $chunkSize = 100, public bool $dryRun = false,
+        public string $sourceContract = Stat20AcquiredHistoryContract::VERSION)
     {
+        Stat20AcquiredHistoryContract::versions($sourceContract);
         $this->from = $from === null ? null : AcquiredHistorySupport::jst($from);
         $this->to = $to === null ? null : AcquiredHistorySupport::jst($to);
         if ($stat01RunId < 1 || $chunkSize < 1 || $chunkSize > 1000 || count($sourceRunIds) > 19

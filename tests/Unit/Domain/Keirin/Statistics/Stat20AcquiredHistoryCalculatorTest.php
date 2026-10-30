@@ -40,6 +40,58 @@ final class Stat20AcquiredHistoryCalculatorTest extends TestCase
         $this->assertCount(15, Stat20Calculator::SOURCE_STAT_CODES);
     }
 
+    public function test_pr128_v2_literal_contract_and_frozen_semantic_digest_are_unchanged(): void
+    {
+        $this->assertSame('STAT-20-acquired-history-v2', Contract::VERSION);
+        $this->assertSame('STAT-09-acquired-career-v2', Contract::VERSIONS['STAT-09']);
+        $rows = $this->calculator()->calculate($this->fixture(7));
+        $digest = (new DeterministicJsonHasher)->hash(array_map(fn ($r) => ['features' => $r->features, 'evidence' => $r->evidence,
+            'status' => $r->status->value, 'quality' => $r->qualityStatus->value, 'hash' => $r->inputHash], $rows));
+        $this->assertSame('2f156c255d20945514b9521360c81bd854a10188e56f75121dbc1ef1ca57dd53', $digest);
+        $this->assertSame('1ec4fe70ff18931499c3c252a6f207ffe02e7fe083ba370ab78a836237f383ec', $rows[0]->inputHash);
+    }
+
+    public function test_v3_accepts_exact_new09_metadata_and_does_not_relax_the_other_nineteen_versions(): void
+    {
+        $this->assertSame('ACQUIRED-HISTORY-RACE-AUDIT-v3', Contract::BUILD_SERVICE_VERSION);
+        $versions = Contract::versions('STAT-20-acquired-history-v3');
+        $this->assertSame('STAT-09-acquired-career-grade-breakdown-v3', $versions['STAT-09']);
+        $this->assertSame(array_diff_key(Contract::VERSIONS, ['STAT-09' => true]), array_diff_key($versions, ['STAT-09' => true]));
+        $i = $this->fixture(7);
+        $metadata = ['stat09_profile' => 'grade-breakdown-v3', 'grade_projection_contract' => 'STAT09-SAVED-HISTORY-GRADES-v1'];
+        $sources = array_map(fn ($s) => $s->statCode === 'STAT-09' ? new Stat20SourceInputDto(...array_replace(get_object_vars($s), [
+            'calculationVersion' => 'STAT-09-acquired-career-grade-breakdown-v3', 'evidence' => $s->evidence + $metadata])) : $s, $i->race->sources);
+        $race = new Stat20RaceInputDto(...array_replace(get_object_vars($i->race), ['sources' => $sources]));
+        $audits = $i->sourceRunAudits;
+        $audits['STAT-09']['version'] = 'STAT-09-acquired-career-grade-breakdown-v3';
+        $audits['STAT-09']['parameters'] += $metadata;
+        $new = new Stat20AcquiredHistoryInputDto($race, $audits, 'STAT-20-acquired-history-v3');
+        $out = $this->calculator()->calculate($new);
+        $this->assertSame('STAT-20-acquired-history-v3', $out[0]->evidence['source_contract']);
+        $this->assertEquals($out, $this->calculator()->calculate($new));
+        $bad = [new Stat20AcquiredHistoryInputDto($race, $audits), new Stat20AcquiredHistoryInputDto($i->race, $i->sourceRunAudits, 'STAT-20-acquired-history-v3')];
+        foreach (['stat09_profile' => 'legacy-v2', 'grade_projection_contract' => 'wrong', 'build_service_version' => 'future'] as $key => $value) {
+            $a = $audits;
+            $a['STAT-09']['parameters'][$key] = $value;
+            $bad[] = new Stat20AcquiredHistoryInputDto($race, $a, 'STAT-20-acquired-history-v3');
+        }
+        foreach (['stat09_profile' => 'legacy-v2', 'grade_projection_contract' => 'wrong', 'stat01_input_hash' => str_repeat('f', 64)] as $key => $value) {
+            $s = array_values(array_filter($sources, fn ($s) => $s->statCode === 'STAT-09'))[0];
+            $bad[] = new Stat20AcquiredHistoryInputDto(Stat20Fixture::change($race, 'STAT-09', 1,
+                ['evidence' => array_replace($s->evidence, [$key => $value])]), $audits, 'STAT-20-acquired-history-v3');
+        }
+        $bad[] = new Stat20AcquiredHistoryInputDto(Stat20Fixture::change($race, 'STAT-09', 1,
+            ['calculationVersion' => 'STAT-09-acquired-career-v2']), $audits, 'STAT-20-acquired-history-v3');
+        foreach ($bad as $input) {
+            try {
+                $this->calculator()->calculate($input);
+                $this->fail('Cross-contract, spoofed metadata or mismatched parent accepted.');
+            } catch (UnexpectedValueException) {
+                $this->assertTrue(true);
+            }
+        }
+    }
+
     #[DataProvider('invalidSources')]
     public function test_invalid_source_identity_contract_and_versions_are_rejected(array $changes): void
     {

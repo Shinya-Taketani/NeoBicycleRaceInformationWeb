@@ -10,7 +10,6 @@ use App\Domain\Keirin\Statistics\DTO\Stat20RaceInputDto;
 use App\Domain\Keirin\Statistics\DTO\Stat20SourceInputDto;
 use App\Domain\Keirin\Statistics\Enums\StatisticFeatureResultStatus as Status;
 use App\Domain\Keirin\Statistics\Enums\StatisticQualityStatus as Quality;
-use App\Domain\Keirin\Statistics\Services\AcquiredHistoryFeatureBuildService;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistoryLineage;
 use App\Domain\Keirin\Statistics\Support\AcquiredHistorySupport;
 use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
@@ -26,6 +25,8 @@ class Stat20AcquiredHistoryCalculator
     public function calculate(Stat20AcquiredHistoryInputDto $input): array
     {
         $race = $input->race;
+        $contract = $input->sourceContract;
+        $versions = Contract::versions($contract);
         if (AcquiredHistorySupport::jst($race->raceDate)->format('Y') < '2022'
             || AcquiredHistorySupport::jst($race->raceDate)->format('Y') > '2025'
             || count($race->sources) > Contract::MAX_SOURCE_RESULTS || ! isset($race->sourceRuns['STAT-01'])) {
@@ -33,8 +34,8 @@ class Stat20AcquiredHistoryCalculator
         }
         $groups = $seen = [];
         foreach ($race->sources as $s) {
-            if ($s->id < 1 || isset($seen[$s->id]) || ! isset(Contract::VERSIONS[$s->statCode])
-                || $s->calculationVersion !== Contract::VERSIONS[$s->statCode] || $s->raceId !== $race->raceId
+            if ($s->id < 1 || isset($seen[$s->id]) || ! isset($versions[$s->statCode])
+                || $s->calculationVersion !== $versions[$s->statCode] || $s->raceId !== $race->raceId
                 || ($race->sourceRuns[$s->statCode] ?? null) !== $s->runId
                 || preg_match('/^[a-f0-9]{64}$/D', $s->inputHash) !== 1 || Status::tryFrom($s->status) === null || Quality::tryFrom($s->qualityStatus) === null) {
                 throw new UnexpectedValueException('STAT-20 v2 source identity/version/hash/status mismatch.');
@@ -48,14 +49,17 @@ class Stat20AcquiredHistoryCalculator
         }
         foreach ($race->sourceRuns as $code => $id) {
             $run = $input->sourceRunAudits[$code] ?? null;
-            if (! isset(Contract::VERSIONS[$code]) || ! is_int($id) || $id < 1 || $run === null || $run['run_id'] !== $id
-                || $run['version'] !== Contract::VERSIONS[$code] || ! in_array($run['status'], ['SUCCEEDED', 'PARTIALLY_SUCCEEDED'], true)
+            if (! isset($versions[$code]) || ! is_int($id) || $id < 1 || $run === null || $run['run_id'] !== $id
+                || $run['version'] !== $versions[$code] || ! in_array($run['status'], ['SUCCEEDED', 'PARTIALLY_SUCCEEDED'], true)
                 || ($code !== 'STAT-01' && ($run['parameters']['stat01_run_id'] ?? null) !== $race->sourceRuns['STAT-01'])) {
                 throw new UnexpectedValueException('STAT-20 v2 run audit or lineage mismatch.');
             }
             if (in_array($code, Contract::NEW_STATS, true) && (($run['parameters']['lineage_contract'] ?? null) !== AcquiredHistoryLineage::CONTRACT
-                || ($run['parameters']['build_service_version'] ?? null) !== AcquiredHistoryFeatureBuildService::VERSION)) {
+                || ($run['parameters']['build_service_version'] ?? null) !== Contract::BUILD_SERVICE_VERSION)) {
                 throw new UnexpectedValueException('STAT-20 v2 saved lineage contract unsupported.');
+            }
+            if ($code === 'STAT-09' && ! Contract::stat09MetadataMatches($contract, $run['parameters'])) {
+                throw new UnexpectedValueException('STAT09 run profile/projection metadata mismatch.');
             }
         }
         // Reuse the frozen v1 identity/participant checks for precisely its original fifteen sources.
@@ -77,6 +81,9 @@ class Stat20AcquiredHistoryCalculator
                     || ($s->evidence['historical_as_of_available'] ?? null) !== false) {
                     throw new UnexpectedValueException('STAT-20 v2 acquired source identity/lineage/use restriction mismatch.');
                 }
+                if ($code === 'STAT-09' && ! Contract::stat09MetadataMatches($contract, $s->evidence)) {
+                    throw new UnexpectedValueException('STAT09 result profile/projection metadata mismatch.');
+                }
             }
         }
         $payloads = array_map(fn ($s) => $s->hashPayload(), $race->sources);
@@ -91,7 +98,7 @@ class Stat20AcquiredHistoryCalculator
         $runAudits = $input->sourceRunAudits;
         ksort($runs);
         ksort($runAudits);
-        $context = $this->hasher->hash(['version' => Contract::VERSION, 'legacy_context' => $legacy[0]->evidence['race_context_hash'],
+        $context = $this->hasher->hash(['version' => $contract, 'legacy_context' => $legacy[0]->evidence['race_context_hash'],
             'runs' => $runs, 'run_audits' => $runAudits, 'sources' => $payloads]);
         $results = [];
         foreach ($legacy as $old) {
@@ -100,7 +107,7 @@ class Stat20AcquiredHistoryCalculator
             $audits = [];
             $blocked = $old->evidence['blocked_reasons'];
             $fetched = null;
-            foreach (Contract::VERSIONS as $code => $version) {
+            foreach ($versions as $code => $version) {
                 $s = $groups[$code][$code === 'STAT-41' ? 'race' : $target->raceEntryId] ?? null;
                 $run = $runAudits[$code] ?? null;
                 $failed = ($run['race_item']['status'] ?? null) === 'FAILED';
@@ -145,10 +152,10 @@ class Stat20AcquiredHistoryCalculator
                 'invalid_ratio' => $denominator > 0 ? $counts['INVALID_INPUT'] / $denominator : null,
             ]]);
             $evidence = array_replace($old->evidence, ['source_run_ids' => $runs, 'race_context_hash' => $context,
-                'blocked_reasons' => $blocked, 'source_contract' => Contract::VERSION,
+                'blocked_reasons' => $blocked, 'source_contract' => $contract,
                 'source_scope' => 'TWENTY_UPSTREAM_SAVED_RESULTS_NOT_ALL_46_REQUIREMENTS']);
             $results[] = new Stat20FeatureResultDto($target, $blocked !== [] ? Status::InvalidInput : $old->status, Quality::Degraded,
-                $fetched, $features, $evidence, $this->hasher->hash(['version' => Contract::VERSION, 'context' => $context, 'entry' => $target->raceEntryId]));
+                $fetched, $features, $evidence, $this->hasher->hash(['version' => $contract, 'context' => $context, 'entry' => $target->raceEntryId]));
         }
 
         return $results;
