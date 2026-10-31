@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-10-31 天候バッチ工程の現在: PR130 MERGED、開始clean main/HEAD/ローカルorigin `0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd`、新branch `feature/stat21-saved-weather-batch-01`。固定scope/READ ONLY補完/一括保存・検証を製造し、限定161 tests/4135 assertionsが成功した。実受入は857投影後、DB/Rawとも「1着・マーク」の固定本人を既存Reader契約が拒否しFAILED、25,118未処理。W45全45互換・部分出力の別PHP再現/原項目照合は成功したが、全件成功ではない。正本は5.0・15.96と[今回記録](stat21-saved-weather-batch-01.md)。未コミットBLOCKED、次は今回差分と固定Reader契約適用のレビューのみ。以下の学校工程の未コミット状態等は当時の履歴として保持する。
+
 > 2026-10-31 学校接続工程の現在: PR129 MERGED、開始clean main/HEAD/ローカルorigin `3e52289f08940dd9a9e131bf72302690dd4bc4ef` をローカル履歴で確認し、新branch `feature/stat-school-profile-connection-01` で学校資料台帳/固定選択/STAT44複数本人接続を製造した。学校2,475版/2,436本人を全件説明し、3レース23本人全接続、新44/20計10run/78行・旧互換/反復・別PHP再計算・独立日付算術が一致。限定225 tests/1888 assertions、128M/警告等0/exit0、原本/既存行不変。本番接続/HTTP/学習/予測/2026開催参照0。正本は5.0・15.95と[今回記録](stat-school-profile-connection-01.md)。固定学校集合の明示接続機能は完了、未コミットREADY_FOR_REVIEW。次は今回差分レビューのみ。以下のPR129未コミット・179件等は当時の履歴であり今回値へ読み替えない。
 
 > 2026-10-31 現在: PR128 MERGEDをローカルmerge履歴で確認。開始clean main/HEAD/ローカルoriginは `2b2b4b2371067953cc5dd11f53d15362590db6c1`、レビューhead4356098とのファイル差分0。新branch `feature/stat09-grade-breakdown-01` でSTAT09の保有期間内級班/開催grade別v3と明示STAT20v3接続を製造した。限定179 tests/1695 assertions、隔離実2レースの新09/20計8run/64行、旧09/20v2再現、別PHP再計算と1,325参照の独立数え上げ一致。128M/exit0、原本/既存行不変、本番接続/HTTP/学習/予測/2026開催参照0。正本は5.0・15.94と[今回記録](stat09-grade-breakdown-01.md)。未コミットREADY_FOR_REVIEW、次は今回差分レビューのみ。以下のPR128工程・171件・未コミット状態は当時の履歴であり、今回値へ読み替えない。
@@ -105,13 +107,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.89
+- Version: 1.90
 - Created: 2026-08-23
-- Updated: 2026-10-31（学校取得版台帳/デビュー日選択・STAT44複数本人/20v3接続・限定実資料受入）
+- Updated: 2026-10-31（固定天候scope/取得証拠補完・一括投影製造、実受入の契約停止と未処理を記録）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `3e52289f08940dd9a9e131bf72302690dd4bc4ef`（2026-10-31学校接続工程の開始clean main/HEAD/ローカルorigin一致、PR129 merge履歴を確認。今回fetch/外部GitHub照会なし）
+- Remote `main` at last update: `0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd`（2026-10-31天候バッチ開始clean main/HEAD/ローカルorigin一致、PR130 merge履歴確認。fetch/外部GitHub照会なし）
+- Previous remote main at v1.89: `3e52289f08940dd9a9e131bf72302690dd4bc4ef`（学校接続開始時、PR129 MERGED。当時の記録を保持）
 - Previous remote main at v1.88: `2b2b4b2371067953cc5dd11f53d15362590db6c1`（STAT09工程開始時clean main/HEAD/ローカルorigin、PR128 MERGED。当時の記録を保持）
 - Previous remote main at v1.87: `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8`（PR128実装開始時点のclean main/HEAD/ローカルorigin、PR127 MERGED。当時の記録を保持）
 - Previous remote main at v1.86/v1.85: `1b9f54d24045bb33535fb1ab1b1d9823eaabcec6`（PR127の初版/P2修正時点の開始main、PR126 MERGED。当時の記録を保持）
@@ -367,7 +370,53 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: STAT-SCHOOL-PROFILE-CONNECTION-01
+## 5.0 最新工程: STAT21-SAVED-WEATHER-BATCH-01
+
+```yaml
+current_phase: STAT21-SAVED-WEATHER-BATCH-01
+current_engine_state: STAT21_BATCH_IMPLEMENTED_REAL_ACCEPTANCE_BLOCKED
+next_allowed_action: REVIEW_STAT21_BATCH_DIFF_AND_FROZEN_READER_OUTCOME_CONTRACT_ONLY
+start_main_sha: 0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd
+remote_main: 0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd
+pr130_status: MERGED_LOCAL_HISTORY_VERIFIED
+fixed_school_set_connection: COMPLETE
+fixed_weather_batch_implementation: TESTED
+fixed_weather_batch_acceptance: FAILED_FIXED_ANCHOR_OUTCOME_CONTRACT
+fixed_weather_unprocessed_candidates: 25118
+production_db_access: READ_ONLY_METADATA_EXPORT_TWO_CONNECTIONS
+production_write: 0
+production_migration: NOT_RUN
+real_http_this_phase: NOT_RUN
+operational_decisions: PROPOSED_NOT_APPROVED
+permission_status: UNVERIFIED
+real_send_allowed: false
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+points: null
+confidence: null
+2026_holdout: FROZEN_NO_ACCESS_THIS_PHASE
+future_user_direction: FINISHED_2026_RACES_CHRONOLOGICAL_INPUT_THEN_FIXED_PREDICTION_THEN_RESULTS_THEN_ACCURACY
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 一括機能は製造/限定テスト済み、固定集合受入は857投影後に既存契約で停止。全件成功ではない |
+| next_allowed_action | 今回差分/失敗証跡と「1着マーク」を拒否する既存Reader契約適用のレビューのみ。別本人へのfallbackや無断契約緩和なし |
+| completed_phases | PR130 MERGED、学校固定接続/09確定2軸完了を維持。天候固定scopeと25,908 import/logの補完、161限定回帰、W45全互換、部分再現/原項目照合 |
+| superseded_phases | 学校工程の未コミット状態/レビュー限定は当時の記録。15.95の実績を今回値へ読み替えない |
+| blocked_phases | 天候25,118未処理。運用D1〜D8、本番保存/B1/親lambda/H1-U/正式採用/LIVEは未承認、気象入力/適性式/配点不足も別管理 |
+| frozen_contracts | 天候v1/Reader/RawReader/Parser、旧20全版、学校/09/16/25/27/44・6条件式・lineage/汎用Hasher、既存モデル/旧資料/安全helper |
+| unfrozen_contracts | 新SavedWeather専用7クラス、薄い2Command、直接テスト、指定3文書。DB schema/Model/設定変更なし |
+| holdout_status | 2026開催アクセス0。後続の終了済み2026レース時系列検証方針は保持し、全46/B1/占術完成を永久前提にしない |
+
+正本は15.96と[天候バッチ記録](stat21-saved-weather-batch-01.md)。元DBはREAD ONLY2接続/書込み0、以降オフライン。準備の失敗/再実行も記録し、本処理のFAILEDをCOMPLETEへ読み替えない。
+
+### v1.89 学校接続工程終了時点（履歴）
 
 ```yaml
 current_phase: STAT-SCHOOL-PROFILE-CONNECTION-01
@@ -4968,6 +5017,14 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.96 STAT21-SAVED-WEATHER-BATCH-01 / 2026-10-31
+
+PR130 MERGED、開始clean main/HEAD/ローカルorigin0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd、レビューhead44944f6とのファイル差分0を確認し、指定未使用feature branchを作成。新SavedWeather 7クラス/2Commandと直接テストを製造し、固定scope・列来歴・A/B/C補完・取得版/固定本人・保存/読込み・dry-run・失敗終端を分離した。既存v1 Service/Reader/RawReader/Parser/モデル/他STATは変更なし。
+元snapshot25,976race/184,353entry/184,196result、結果は全件非NULL参照のA、B/C実補完0。NUMERIC文字列のSQLite affinityによる差を明示して394,525行照合、scopeを天候読取り前に封印。元DBは2回それぞれ単一REPEATABLE READ/READ ONLY、接続先/両read_only/timeoutを実測しrollback/切断、書込み0。初回DB接続前の型差停止、抽出後のrequest_key不足によるローカルrollbackと次の新実行を保持。失敗版と受入版のSQLite作業コピー計2個が残り、成功版だけを1回の作業だったと報告しない。旧45行を維持し各25,908 import/logを追加、旧業務/学校/153run・1177結果・153item全行は不変、新統計保存0。
+固定台帳25,976枠=25,953実import+23説明枠。準備時の中止14/結果なし9を保持。本処理は857投影（W45内3/追加854）後、race38320/entry272931/車番1/result272053/import38550/log104236でFAILED_INTEGRITY、残25,118はNOT_PROCESSED_AFTER_FAILURE。DB/Rawは双方1着/FINISHED/マークで一致するが、既存Contract::outcomeのマーク2着限定条件が例外を投げる。Raw SHA/size一致、別本人への救済/既存契約変更なし。全件実受入はBLOCKEDであり、部分成果を公開成功にしない。
+別PHPは同じ停止・857投影と3 JSONL byte一致。Batch/fieldsを使わない857 Raw/1714項目照合一致（HTML extractor/encoding converter共用）。旧W45は旧本人/import/logで45全v1を旧JSON形式にて一致、晴28/曇12/雨5・husoku正42/0が3を実測。旧派生数値の整数表記と新JSON_PRESERVE_ZERO_FRACTIONを区別し、旧sealは不変。
+限定161 passed/4135 assertions（新50/1163＋既存111/2972）、failure/error/warning/skip0、Artisan/子とも128M・exit0。通常全体/学習/予測/評価/HTTP/2026開催0。コードSTART-END/入力seal/旧業務行を照合し、実受入のexit1とテストexit0を分離する。証跡 `/home/shinya/neo-keirin-artifacts/stat21-saved-weather-batch-01/run-20261031-Ry7iILJL/`、正本は[実装記録](stat21-saved-weather-batch-01.md)。未コミットで今回差分と既存契約適用のレビュー待ち。B1未承認/NONE/NONE/正式受入NOT_RUN、asof=false/予測・正式採用禁止・2026凍結は維持する。
+
 ## 15.95 STAT-SCHOOL-PROFILE-CONNECTION-01 / 2026-10-31
 
 開始clean main/HEAD/ローカルorigin3e52289f08940dd9a9e131bf72302690dd4bc4ef、PR129 merge履歴を確認。新しいfeature/stat-school-profile-connection-01を作成し、最新ユーザー承認で固定学校資料の明示接続機能を製造した。fetch/外部GitHub照会なし。
@@ -6029,6 +6086,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.90 / 2026-10-31
+
+PR130 MERGED/開始main0de4bddへmetadata・最新5.0/8制御・15.96・引継ぎを同期。天候一括機能/限定161回帰と、取得証拠補完/857部分投影/既存Reader契約での停止を分離記録。全件実受入の未完了と25,118未処理、元DB READ ONLY2接続/失敗コピーを明示し、W45互換/別PHP同停止/独立原項目照合を全件成功としない。学校/09の完了と過去記録を保持し、全46残件を4分類した。既存契約やモデルを緩和せず、次は差分/契約適用のレビューのみ。
 
 ## v1.89 / 2026-10-31
 
@@ -7128,6 +7189,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+現在はSTAT21-SAVED-WEATHER-BATCH-01をfeature/stat21-saved-weather-batch-01で未コミット、機能限定検証済み・実資料全件受入BLOCKED。PR130 MERGED、開始main/HEAD/ローカルorigin0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd、fetch/外部Git照会なし。正本は5.0・15.96と[天候バッチ記録](stat21-saved-weather-batch-01.md)。次はREVIEW_STAT21_BATCH_DIFF_AND_FROZEN_READER_OUTCOME_CONTRACT_ONLY。
+固定25,976枠/25,953実importの不足25,908 import/logをREAD ONLYで補完し封印。857投影後、DB/Rawとも1着マークのrace38320/entry272931を既存Reader契約が拒否しFAILED、25,118未処理。fallback/契約緩和/原本修正は行わず、部分束を成功公開しない。別PHP同停止・857投影/全分類byte一致、原項目1714値とW45全45互換、限定161/4135・128M・警告等0は確認済み。元DB2接続/書込み0、旧業務/153run・1177結果・153item不変。失敗版SQLite/抽出ログも保持し、準備COMPLETEと投影FAILEDを区別する。
+学校/09/他STAT/モデルの既存完了/不採用判断は維持する。全期間実行の未実施と機能未実装、入力不足、方式/配点未確定を台帳10.1/10.2で分離。B1未承認/NONE/NONE/正式受入NOT_RUN、歴史asof=false/予測・正式採用禁止・2026凍結を維持。後続2026時系列検証のユーザー方針を今回無断で開始せず、全46/B1/占術完成を永久前提に追加しない。Git add/commit/push/PR/mergeはユーザーが行う。
+
+### v1.89 学校工程終了時の引継ぎ（履歴）
 
 現在はSTAT-SCHOOL-PROFILE-CONNECTION-01をfeature/stat-school-profile-connection-01で未コミットREADY_FOR_REVIEW。PR129 MERGED、開始clean main/HEAD/ローカルorigin3e52289f08940dd9a9e131bf72302690dd4bc4ef、fetch/外部照会なし。正本は5.0・15.95と[学校接続記録](stat-school-profile-connection-01.md)。次はREVIEW_SCHOOL_CATALOG_SELECTION_STAT44_CONNECTION_AND_ISOLATED_EVIDENCE_ONLY。
 固定学校全2475版/2436本人を保持/選択し、3race23本人全接続、未接続0。新44run144,145,148,149,152,153の46行、新20run146,147,150,151の32行を同一作業コピーへ保存。旧互換/反復/別PHP78行再計算、元投影による23本人46行の日付/日数/年数の独立算術が一致。限定225/1888、128M/警告等0/exit0。保存時と最終再現時のコードsealは区別して保持、元資料/旧行/業務表は不変。
