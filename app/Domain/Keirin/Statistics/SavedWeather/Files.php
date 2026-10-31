@@ -10,7 +10,7 @@ use RuntimeException;
 
 final class Files
 {
-    public const VERSION = 'STAT-21-SAVED-WEATHER-BATCH-v1';
+    public const VERSION = 'STAT-21-SAVED-WEATHER-BATCH-v2-PR131';
 
     public static function json(mixed $value): string
     {
@@ -124,8 +124,10 @@ final class Files
         $paths = array_merge(glob(__DIR__.'/*.php'), [
             app_path('Console/Commands/Keirin/PrepareSavedResultWeatherCommand.php'),
             app_path('Console/Commands/Keirin/BuildSavedResultWeatherCommand.php'),
+            app_path('Console/Commands/Keirin/DeriveSavedResultWeatherCommand.php'),
             app_path('Domain/Keirin/Statistics/Services/SavedResultWeatherProjectionService.php'),
             app_path('Domain/Keirin/Statistics/OfficialMethodHistory/Reader.php'),
+            app_path('Domain/Keirin/Statistics/OfficialResultEvidence/Verifier.php'),
             app_path('Domain/Keirin/Statistics/OfficialMethodHistory/Contract.php'),
             app_path('Domain/Keirin/Statistics/AgariC1Context/ReadOnlySession.php'),
             app_path('Domain/Keirin/Statistics/AgariRaceRelative/ConnectionGuard.php'),

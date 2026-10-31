@@ -6,12 +6,18 @@ namespace Tests\Feature;
 
 use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
 use App\Domain\Keirin\Scraping\Support\CharacterEncodingConverter;
+use App\Domain\Keirin\Statistics\OfficialMethodHistory\Reader;
 use App\Domain\Keirin\Statistics\SavedWeather\Batch;
+use App\Domain\Keirin\Statistics\SavedWeather\Derive;
 use App\Domain\Keirin\Statistics\SavedWeather\Files;
+use App\Domain\Keirin\Statistics\SavedWeather\LegacyInput;
 use App\Domain\Keirin\Statistics\SavedWeather\MetadataExporter;
+use App\Domain\Keirin\Statistics\SavedWeather\OutputFailure;
 use App\Domain\Keirin\Statistics\SavedWeather\Prepare;
 use App\Domain\Keirin\Statistics\SavedWeather\Repository;
+use App\Domain\Keirin\Statistics\SavedWeather\Snapshot;
 use App\Domain\Keirin\Statistics\SavedWeather\Store;
+use App\Domain\Keirin\Statistics\SavedWeather\Writer;
 use App\Domain\Keirin\Statistics\Services\SavedResultWeatherProjectionService;
 use App\Models\Race;
 use App\Models\RaceEntry;
@@ -22,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\CompositionResultTemporaryDirectory;
+use Tests\Support\SavedWeatherResultFixture;
 use Tests\TestCase;
 use Throwable;
 
@@ -77,7 +84,7 @@ final class SavedWeatherBatchTest extends TestCase
 
     private function savedCases(): array
     {
-        $path = getenv('STAT38_RESULT_FIXTURE');
+        $path = SavedWeatherResultFixture::path();
         $this->assertSame('706e5747f6383711055d1ded3c16575016cfc22148823cc75379117410ee3f11', hash_file('sha256', $path));
         $cases = array_values(array_filter(Files::read($path)['cases'], fn ($c) => $c['race']['race_date'] >= '2024-01-01'));
         DB::statement('PRAGMA foreign_keys=OFF');
@@ -125,6 +132,7 @@ final class SavedWeatherBatchTest extends TestCase
         fclose($h);
         Files::write($root.'/parent.json', ['fixture' => 'ARTIFICIAL_ISOLATED_MANIFEST_WITH_SEALED_REAL_RAW']);
         $m = ['contract' => Files::VERSION.'-INPUT', 'sqlite' => Files::seal($dbPath), 'original_sqlite' => Files::seal($dbPath),
+            'code' => Files::code(),
             'parent' => Files::seal($root.'/parent.json'), 'races' => count($groups),
             'files' => ['candidates.jsonl' => Files::seal($root.'/candidates.jsonl'), 'scope.jsonl' => Files::seal($root.'/scope.jsonl')]];
         Files::write($root.'/manifest.json', $m);
@@ -182,6 +190,8 @@ final class SavedWeatherBatchTest extends TestCase
                 DB::table('race_results')->where('id', DB::table('race_results')->where('race_id', $id)->min('id'))->update(['race_result_import_id' => 999999]);
             } elseif ($mode === 'missing-log') {
                 DB::table('scraping_fetch_logs')->where('id', DB::table('race_result_imports')->where('race_id', $id)->value('scraping_fetch_log_id'))->delete();
+            } elseif ($mode === 'missing-import') {
+                DB::table('race_result_imports')->where('race_id', $id)->delete();
             }
         });
         $match = array_values(array_filter($groups, fn ($g) => $g['race_id'] === $id))[0];
@@ -196,13 +206,17 @@ final class SavedWeatherBatchTest extends TestCase
     {
         return [['no-results', 'NO_CURRENT_RESULT'], ['null', 'NOT_REFERENCED_BY_CURRENT_RESULTS'],
             ['cancelled', 'CANCELLED_NO_CURRENT_RESULT_ANCHOR'], ['unconfirmed', 'RACE_NOT_CONFIRMED'],
-            ['multiple', 'AMBIGUOUS_CURRENT_IMPORT'], ['missing-log', 'FETCH_LOG_NOT_EXTRACTED']];
+            ['multiple', 'AMBIGUOUS_CURRENT_IMPORT'], ['missing-log', 'FETCH_LOG_NOT_EXTRACTED'], ['missing-import', 'IMPORT_NOT_EXTRACTED']];
     }
 
     #[DataProvider('corruptions')]
     public function test_sealed_identity_raw_corruption_stops_without_anchor_fallback(string $mode): void
     {
         $cases = $this->savedCases();
+        if ($mode === 'import') {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('REFERENCED_IMPORT_RACE_MISMATCH');
+        }
         [$path, $sha, $groups] = $this->input(function () use ($cases, $mode): void {
             $race = $cases[0]['race']['id'];
             if ($mode === 'person') {
@@ -229,7 +243,7 @@ final class SavedWeatherBatchTest extends TestCase
 
     public static function corruptions(): array
     {
-        return [['person'], ['date'], ['raw']];
+        return [['person'], ['date'], ['raw'], ['import']];
     }
 
     public function test_output_collision_and_input_sha_are_rejected_without_writes(): void
@@ -490,5 +504,433 @@ final class SavedWeatherBatchTest extends TestCase
     public static function supplementModes(): array
     {
         return [['omitted', true], ['null', true], ['payload-drift', false], ['time-drift', false], ['race-drift', false], ['person-drift', false]];
+    }
+
+    #[DataProvider('fixtureModes')]
+    public function test_fixture_resolution_does_not_mask_invalid_explicit_paths(string $mode): void
+    {
+        $previous = getenv('STAT38_RESULT_FIXTURE');
+        try {
+            if ($mode === 'unset' || $mode === 'empty') {
+                putenv($mode === 'unset' ? 'STAT38_RESULT_FIXTURE' : 'STAT38_RESULT_FIXTURE=');
+                $this->assertSame(SavedWeatherResultFixture::DEFAULT_PATH, SavedWeatherResultFixture::path());
+            } else {
+                $path = $this->temporary->path().'/explicit.json';
+                if ($mode !== 'missing') {
+                    $h = Files::create($path);
+                    fwrite($h, $mode === 'valid' ? file_get_contents(SavedWeatherResultFixture::DEFAULT_PATH) : '{}');
+                    fclose($h);
+                }
+                putenv('STAT38_RESULT_FIXTURE='.$path);
+                if ($mode === 'valid') {
+                    $this->assertSame($path, SavedWeatherResultFixture::path());
+                } else {
+                    $this->expectException(RuntimeException::class);
+                    $this->expectExceptionMessage($mode === 'missing' ? 'missing or unreadable' : 'SHA mismatch');
+                    SavedWeatherResultFixture::path();
+                }
+            }
+        } finally {
+            putenv($previous === false ? 'STAT38_RESULT_FIXTURE' : 'STAT38_RESULT_FIXTURE='.$previous);
+        }
+    }
+
+    public static function fixtureModes(): array
+    {
+        return [['unset'], ['empty'], ['valid'], ['missing'], ['sha']];
+    }
+
+    #[DataProvider('snapshotChanges')]
+    public function test_snapshot_rejects_changed_id_sets_and_missing_track(string $mode): void
+    {
+        $this->savedCases();
+        $root = $this->temporary->path();
+        Files::directory($root.'/snapshot');
+        $files = [];
+        foreach (['races', 'race_entries', 'race_results'] as $table) {
+            $rows = DB::table($table)->orderBy('id')->get()->map(fn ($r) => (array) $r)->all();
+            $h = Files::create($root.'/snapshot/'.$table.'.jsonl');
+            foreach ($rows as $row) {
+                Files::append($h, $row);
+            }
+            if ($mode === 'duplicate' && $table === 'races') {
+                Files::append($h, $rows[0]);
+            }
+            fclose($h);
+            $files[$table] = Files::seal($root.'/snapshot/'.$table.'.jsonl');
+            $files[$table]['path'] = $table.'.jsonl';
+            $files[$table]['sql'] = 'ISOLATED FIXED SNAPSHOT';
+        }
+        Files::write($root.'/snapshot/manifest.json', ['files' => $files]);
+        Files::write($root.'/snapshot/COMPLETE.json', ['manifest_sha256' => hash_file('sha256', $root.'/snapshot/manifest.json')]);
+        $table = match ($mode) {
+            'entry' => 'race_entries', 'result' => 'race_results', default => 'races'
+        };
+        $old = (array) DB::table($table)->orderBy('id')->first();
+        if (in_array($mode, ['race', 'entry', 'result', 'swapped'], true)) {
+            if ($mode === 'swapped') {
+                DB::table($table)->where('id', $old['id'])->delete();
+            }
+            $old['id'] = 9999999;
+            if ($table === 'race_entries' || $table === 'race_results') {
+                $old['bike_number'] = 9;
+            } elseif ($table === 'races') {
+                $old['external_race_id'] = 'ARTIFICIAL_EXTRA_WITHIN_ALLOWED_PERIOD';
+            }
+            DB::table($table)->insert($old);
+        } elseif ($mode === 'missing') {
+            DB::table($table)->where('id', $old['id'])->delete();
+        } elseif ($mode === 'track') {
+            DB::table('racetracks')->delete();
+        }
+        DB::statement("VACUUM INTO '".$root."/changed.sqlite'");
+        try {
+            (new Snapshot)->scope(Files::sqlite($root.'/changed.sqlite'), $root.'/snapshot', $root.'/new-scope.jsonl');
+            $this->fail('Changed fixed cohort accepted.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString($mode === 'track' ? 'FIXED_RACE_TRACK_METADATA_MISSING' : 'SNAPSHOT_SET_OR_PAYLOAD_MISMATCH', $e->getMessage());
+            if ($mode !== 'track') {
+                $counts = json_decode(explode(':', $e->getMessage(), 2)[1], true, flags: JSON_THROW_ON_ERROR)['counts'];
+                $this->assertGreaterThan(0, $counts[match ($mode) {
+                    'missing', 'swapped' => 'missing_ids', 'duplicate' => 'duplicate_ids', default => 'extra_ids'
+                }]);
+                if ($mode === 'swapped') {
+                    $this->assertSame(1, $counts['extra_ids']);
+                }
+            }
+        }
+    }
+
+    public static function snapshotChanges(): array
+    {
+        return [['race'], ['entry'], ['result'], ['missing'], ['swapped'], ['duplicate'], ['track']];
+    }
+
+    #[DataProvider('mixedPointers')]
+    public function test_mixed_known_and_missing_pointers_reject_known_reference_drift(bool $omitted, bool $drift): void
+    {
+        $this->savedCases();
+        [$input] = $this->input();
+        $root = $this->temporary->path().'/mixed';
+        Files::directory($root);
+        $group = iterator_to_array(Files::rows($this->temporary->path().'/scope.jsonl'))[0];
+        $r1 = $group['results'][0];
+        $r2 = $group['results'][1];
+        $id = $r1['race_result_import_id'];
+        $group['results'][1]['race_result_import_id'] = null;
+        if ($omitted) {
+            unset($group['results'][1]['race_result_import_id']);
+        }
+        foreach (['scope' => [$group], 'export-races' => [$group['race']], 'export-entries' => $group['entries'], 'export-results' => array_map(
+            fn ($r) => $r['id'] === $r1['id'] && $drift ? array_replace($r, ['race_result_import_id' => $id + 1]) : $r,
+            array_replace($group['results'], [1 => $r2]))] as $name => $rows) {
+            $h = Files::create($root.'/'.$name.'.jsonl');
+            foreach ($rows as $row) {
+                Files::append($h, $row);
+            }
+            fclose($h);
+        }
+        $db = new \PDO('sqlite:'.Files::read($input)['sqlite']['path']);
+        $db->exec('UPDATE race_results SET race_result_import_id=NULL WHERE id='.$r2['id']);
+        $side = Files::create($root.'/sidecar.jsonl');
+        try {
+            (new \ReflectionMethod(Prepare::class, 'links'))->invoke(app(Prepare::class), $db, $root, $side);
+        } finally {
+            fclose($side);
+        }
+        $this->assertSame($id, Files::select($db, 'SELECT race_result_import_id FROM race_results WHERE id=?', [$r1['id']])[0]['race_result_import_id']);
+        $this->assertSame($drift ? null : $id, Files::select($db, 'SELECT race_result_import_id FROM race_results WHERE id=?', [$r2['id']])[0]['race_result_import_id']);
+        $bindings = iterator_to_array(Files::rows($root.'/bindings.jsonl'));
+        $this->assertCount(1, $bindings);
+        $this->assertSame($drift ? 'SOURCE_ROW_DRIFT' : 'CURRENT_SOURCE_ROW_MATCHED', $bindings[0]['binding']['state']);
+    }
+
+    public static function mixedPointers(): array
+    {
+        return [[false, false], [true, false], [false, true], [true, true]];
+    }
+
+    #[DataProvider('logComparisons')]
+    public function test_exported_disp_is_compared_semantically_without_mutating_old_json(string $mode): void
+    {
+        $this->savedCases();
+        [$input] = $this->input();
+        $db = new \PDO('sqlite:'.Files::read($input)['sqlite']['path']);
+        $row = Files::select($db, 'SELECT * FROM scraping_fetch_logs ORDER BY id LIMIT 1')[0];
+        $old = '{ "unexported": "kept", "disp" : "ARTIFICIAL" }';
+        $db->prepare('UPDATE scraping_fetch_logs SET request_parameters=? WHERE id=?')->execute([$old, $row['id']]);
+        $row['request_parameters'] = $mode === 'type' ? '{"disp":1}' : ($mode === 'disp' ? '{"disp":"OTHER"}' : '{"disp":"ARTIFICIAL"}');
+        if ($mode === 'metadata') {
+            $row['sha256'] = str_repeat('0', 64);
+        }
+        if ($mode === 'insert') {
+            $row['id'] = 9999999;
+            $row['request_key'] = 'ARTIFICIAL_NEW_KEY';
+        }
+        $h = Files::create($this->temporary->path().'/log-sidecar.jsonl');
+        try {
+            if (in_array($mode, ['disp', 'type', 'metadata'], true)) {
+                $this->expectException(RuntimeException::class);
+                $this->expectExceptionMessage($mode === 'metadata' ? 'EXISTING_ID_CONFLICT' : 'EXISTING_REQUEST_PARAMETERS_CONFLICT');
+            }
+            Prepare::insertMissing($db, 'scraping_fetch_logs', $row, $h);
+            $saved = Files::select($db, 'SELECT * FROM scraping_fetch_logs WHERE id=?', [$row['id']])[0];
+            $this->assertSame($mode === 'insert' ? $row['request_parameters'] : $old, $saved['request_parameters']);
+        } finally {
+            fclose($h);
+        }
+    }
+
+    public static function logComparisons(): array
+    {
+        return [['same'], ['insert'], ['disp'], ['type'], ['metadata']];
+    }
+
+    #[DataProvider('outputFailures')]
+    public function test_output_failures_keep_fixed_denominators_and_uncommitted_rows(string $stream, int $occurrence, int $saved): void
+    {
+        $this->savedCases();
+        [$input, $sha, $groups] = $this->input();
+        $writer = new class($stream, $occurrence) extends Writer
+        {
+            public int $afterFailure = 0;
+
+            private int $calls = 0;
+
+            private bool $broken = false;
+
+            public function __construct(private string $target, private int $occurrence) {}
+
+            public function write(string $name, array $value): void
+            {
+                if ($this->broken) {
+                    $this->afterFailure++;
+                    throw new OutputFailure('Repeated broken stream write.');
+                }
+                if ($name === $this->target && ++$this->calls === $this->occurrence) {
+                    $this->broken = true;
+                    throw new OutputFailure('ARTIFICIAL_OUTPUT_FAILURE');
+                }
+                parent::write($name, $value);
+            }
+        };
+        $out = $this->temporary->path().'/partial';
+        $result = (new Batch(app(SavedResultWeatherProjectionService::class), $writer))->run($input, $sha, $out);
+        $this->assertSame(1, $result['exit_code']);
+        $this->assertSame(count($groups), $result['races']);
+        $this->assertSame(array_sum(array_map(fn ($g) => count($g['candidates']), $groups)), $result['candidates']);
+        $this->assertSame($saved, $result['saved']);
+        $this->assertSame($saved, $result['projected']);
+        $this->assertSame(1, $result['failed']);
+        $this->assertSame($result['candidates'], $result['projected'] + $result['excluded'] + $result['failed'] + $result['not_processed']);
+        $this->assertSame($result['races'], array_sum($result['race_statuses']));
+        $this->assertSame(0, $writer->afterFailure);
+        $this->assertFileExists($out.'/FAILED.json');
+        $this->assertFileDoesNotExist($out.'/COMPLETE.json');
+        $this->assertFileExists($out.'/projections.jsonl');
+        if ($stream !== 'projections') {
+            $this->assertGreaterThan($saved, $result['projection_rows_written']);
+        }
+    }
+
+    public static function outputFailures(): array
+    {
+        return [['projections', 1, 0], ['projections', 2, 1], ['candidate-inventory', 1, 0], ['race-coverage', 1, 0]];
+    }
+
+    #[DataProvider('evidenceControls')]
+    public function test_weather_preserves_evidence_checks_without_method_semantic_evaluation(string $mode): void
+    {
+        $case = $this->savedCases()[0];
+        $row = DB::table('race_results')->where('race_id', $case['race']['id'])->where('rank', 1)->first();
+        $race = Race::findOrFail($case['race']['id']);
+        $entry = RaceEntry::query()->where('race_id', $race->id)->where('bike_number', $row->bike_number)->sole();
+        if ($mode === 'mark' || $mode === 'range') {
+            $bytes = file_get_contents($this->temporary->path().'/raw/'.$case['fixture_file']);
+            [$html] = app(CharacterEncodingConverter::class)->convertToUtf8($bytes, $case['log']['content_type']);
+            $pc = app(EmbeddedJsonExtractor::class)->extract($html, 'PC0201');
+            $pj = app(EmbeddedJsonExtractor::class)->extract($html, 'PJ0326');
+            foreach ($pj['tyakujyunItemSubData'] as &$raw) {
+                if ((int) $raw['syaban'] === $row->bike_number) {
+                    if ($mode === 'mark') {
+                        $raw['kimarite'] = "\u{30DE}\u{30FC}\u{30AF}";
+                    } else {
+                        $raw['tyaku'] = '10';
+                    }
+                }
+            }
+            unset($raw);
+            $body = '<!-- ARTIFICIAL EVIDENCE BOUNDARY --><script>jsonData["PC0201"]='.trim(Files::json($pc)).';jsonData["PJ0326"]='.trim(Files::json($pj)).';</script>';
+            $h = Files::create($this->temporary->path().'/raw/evidence-control.html');
+            fwrite($h, $body);
+            fclose($h);
+            DB::table('scraping_fetch_logs')->where('id', $case['log']['id'])->update(['raw_file_path' => 'evidence-control.html', 'sha256' => hash('sha256', $body), 'response_size' => strlen($body), 'content_type' => 'text/html; charset=UTF-8']);
+            DB::table('race_result_imports')->where('id', $case['import']['id'])->update(['raw_file_path' => 'evidence-control.html', 'source_hash' => hash('sha256', $body), 'raw_response_size' => strlen($body), 'converted_hash' => hash('sha256', $body)]);
+            DB::table('race_results')->where('id', $row->id)->update($mode === 'mark' ? ['winning_technique' => "\u{30DE}\u{30FC}\u{30AF}"] : ['rank' => 10]);
+        } else {
+            $changes = match ($mode) {
+                'rank' => ['rank' => 9], 'method' => ['winning_technique' => 'ARTIFICIAL_MISMATCH'],
+                'finished-null', 'tied-null' => ['rank' => null, 'result_status' => $mode === 'finished-null' ? 'FINISHED' : 'TIED'],
+                'nonfinished-rank' => ['rank' => 1, 'result_status' => 'DID_NOT_FINISH'], default => []
+            };
+            if ($changes !== []) {
+                DB::table('race_results')->where('id', $row->id)->update($changes);
+            }
+            if ($mode === 'person') {
+                $entry->external_player_id = '999999';
+            } elseif ($mode === 'import') {
+                DB::table('race_result_imports')->where('id', $case['import']['id'])->update(['race_id' => 9999999]);
+            } elseif ($mode === 'hash') {
+                DB::table('scraping_fetch_logs')->where('id', $case['log']['id'])->update(['sha256' => str_repeat('0', 64)]);
+            } elseif ($mode === 'size') {
+                DB::table('scraping_fetch_logs')->where('id', $case['log']['id'])->update(['response_size' => 1]);
+            } elseif ($mode === 'time') {
+                DB::table('race_result_imports')->where('id', $case['import']['id'])->update(['imported_at' => '2022-01-01 00:00:00']);
+            }
+        }
+        $accepted = false;
+        try {
+            $projection = app(SavedResultWeatherProjectionService::class)->project($race, $entry);
+            $accepted = true;
+            $this->assertSame($race->id, $projection['race_id']);
+        } catch (RuntimeException $e) {
+            $this->assertNotSame('', $e->getMessage());
+        }
+        $this->assertSame($mode === 'mark', $accepted);
+        $this->expectException(RuntimeException::class);
+        app(Reader::class)->read($race, $entry);
+    }
+
+    public static function evidenceControls(): array
+    {
+        return [['mark'], ['range'], ['rank'], ['method'], ['person'], ['import'], ['hash'], ['size'], ['time'], ['finished-null'], ['tied-null'], ['nonfinished-rank']];
+    }
+
+    #[DataProvider('derivationControls')]
+    public function test_offline_derivation_checks_scope_seals_and_current_code(string $mode): void
+    {
+        $this->savedCases();
+        [$input] = $this->input();
+        $m = Files::read($input);
+        $root = $this->temporary->path();
+        Files::directory($root.'/snapshot');
+        $files = [];
+        foreach (['races', 'race_entries', 'race_results'] as $table) {
+            $h = Files::create($root.'/snapshot/'.$table.'.jsonl');
+            foreach (DB::table($table)->orderBy('id')->get() as $row) {
+                Files::append($h, (array) $row);
+            }
+            fclose($h);
+            $files[$table] = Files::seal($root.'/snapshot/'.$table.'.jsonl');
+            $files[$table]['path'] = $table.'.jsonl';
+            $files[$table]['sql'] = 'ARTIFICIAL DERIVATION CONTROL';
+        }
+        Files::write($root.'/snapshot/manifest.json', ['files' => $files]);
+        Files::write($root.'/snapshot/COMPLETE.json', ['manifest_sha256' => hash_file('sha256', $root.'/snapshot/manifest.json')]);
+        $reference = Files::seal($input);
+        if ($mode === 'sha') {
+            $reference['sha256'] = str_repeat('0', 64);
+        } elseif ($mode === 'extra') {
+            $db = new \PDO('sqlite:'.$m['sqlite']['path']);
+            $row = Files::select($db, 'SELECT * FROM races ORDER BY id LIMIT 1')[0];
+            $row['id'] = 9999999;
+            $row['external_race_id'] = 'ARTIFICIAL_EXTRA_RACE';
+            $db->prepare('INSERT INTO races ('.implode(',', array_keys($row)).') VALUES ('.implode(',', array_fill(0, count($row), '?')).')')->execute(array_values($row));
+            $m['sqlite'] = Files::seal($m['sqlite']['path']);
+        }
+        $m['raw_roots'] = ['existing' => $root.'/raw', 'supplement' => $root.'/raw'];
+        $data = ['input' => $m, 'reference' => $reference, 'snapshot' => $root.'/snapshot', 'data_seals' => [$reference],
+            'historical_code' => ['fixture' => 'ARTIFICIAL_DEPENDENCY_CONTROL_NOT_REAL_LEGACY_PROOF'], 'row_audit' => []];
+        $legacy = new class($data) extends LegacyInput
+        {
+            public function __construct(private array $data) {}
+
+            public function load(): array
+            {
+                Files::verify($this->data['reference']);
+
+                return $this->data;
+            }
+        };
+        $out = $root.'/derived';
+        if ($mode === 'collision') {
+            Files::directory($out);
+        }
+        $before = Files::seal($input);
+        if (in_array($mode, ['sha', 'extra', 'collision'], true)) {
+            $this->expectException(RuntimeException::class);
+        }
+        (new Derive($legacy, new Snapshot, new Repository))->run($out);
+        if (in_array($mode, ['normal', 'code'], true)) {
+            $this->assertSame($before, Files::seal($input));
+            $this->assertSame(0, Store::input($out.'/manifest.json', Files::seal($out.'/manifest.json')['sha256'])['extraction']['connections']);
+            if ($mode === 'code') {
+                $changed = Files::read($out.'/manifest.json');
+                $changed['code'][0]['sha256'] = str_repeat('0', 64);
+                Files::write($root.'/changed-input.json', $changed);
+                $this->expectException(RuntimeException::class);
+                Store::input($root.'/changed-input.json', Files::seal($root.'/changed-input.json')['sha256']);
+            }
+        }
+    }
+
+    public static function derivationControls(): array
+    {
+        return [['normal'], ['sha'], ['extra'], ['collision'], ['code']];
+    }
+
+    public function test_output_open_failure_returns_full_counts_even_without_diagnostic_storage(): void
+    {
+        $this->savedCases();
+        [$input, $sha, $groups] = $this->input();
+        $writer = new class extends Writer
+        {
+            public function open(string $root): void
+            {
+                throw new OutputFailure('ARTIFICIAL_UNWRITABLE_OUTPUT');
+            }
+
+            public function failure(string $root, array $summary): bool
+            {
+                return false;
+            }
+        };
+        $out = $this->temporary->path().'/unwritable-control';
+        $s = (new Batch(app(SavedResultWeatherProjectionService::class), $writer))->run($input, $sha, $out);
+        $this->assertSame(1, $s['exit_code']);
+        $this->assertSame(count($groups), $s['races']);
+        $this->assertSame(1, $s['failed']);
+        $this->assertSame($s['candidates'] - 1, $s['not_processed']);
+        $this->assertSame($s['races'], array_sum($s['race_statuses']));
+        $this->assertSame(0, $s['saved']);
+        $this->assertFalse($s['failure_diagnostic_saved']);
+        $this->assertFileDoesNotExist($out.'/COMPLETE.json');
+    }
+
+    public function test_a_only_race_keeps_original_references_despite_current_correction(): void
+    {
+        $this->savedCases();
+        [$input] = $this->input();
+        $root = $this->temporary->path().'/a-only';
+        Files::directory($root);
+        $group = iterator_to_array(Files::rows($this->temporary->path().'/scope.jsonl'))[0];
+        foreach (['scope' => [$group], 'export-races' => [$group['race']], 'export-entries' => $group['entries'],
+            'export-results' => array_map(fn ($row) => array_replace($row, ['race_result_import_id' => 999999]), $group['results'])] as $name => $rows) {
+            $h = Files::create($root.'/'.$name.'.jsonl');
+            foreach ($rows as $row) {
+                Files::append($h, $row);
+            }
+            fclose($h);
+        }
+        $db = new \PDO('sqlite:'.Files::read($input)['sqlite']['path']);
+        $before = Files::select($db, 'SELECT * FROM race_results ORDER BY id');
+        $h = Files::create($root.'/sidecar.jsonl');
+        try {
+            (new \ReflectionMethod(Prepare::class, 'links'))->invoke(app(Prepare::class), $db, $root, $h);
+        } finally {
+            fclose($h);
+        }
+        $this->assertSame($before, Files::select($db, 'SELECT * FROM race_results ORDER BY id'));
+        $this->assertSame([], iterator_to_array(Files::rows($root.'/bindings.jsonl')));
     }
 }

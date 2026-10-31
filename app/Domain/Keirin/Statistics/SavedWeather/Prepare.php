@@ -149,7 +149,17 @@ final class Prepare
             // W45 paths were adapted at original import time; retain the sealed original rows.
             $compare = $row;
             unset($compare['raw_file_path']);
-            if (! Snapshot::matches($compare, $old[0])) {
+            $existing = $old[0];
+            if ($table === 'scraping_fetch_logs' && array_key_exists('request_parameters', $compare)) {
+                $extracted = is_string($compare['request_parameters']) ? json_decode($compare['request_parameters'], true, flags: JSON_THROW_ON_ERROR) : $compare['request_parameters'];
+                $recorded = is_string($existing['request_parameters']) ? json_decode($existing['request_parameters'], true, flags: JSON_THROW_ON_ERROR) : $existing['request_parameters'];
+                if (! is_array($extracted) || ! is_array($recorded) || array_keys($extracted) !== ['disp']
+                    || ! array_key_exists('disp', $recorded) || $extracted['disp'] !== $recorded['disp']) {
+                    throw new RuntimeException('EXISTING_REQUEST_PARAMETERS_CONFLICT');
+                }
+                unset($compare['request_parameters'], $existing['request_parameters']);
+            }
+            if (! Snapshot::matches($compare, $existing)) {
                 throw new RuntimeException('EXISTING_ID_CONFLICT');
             }
 
@@ -200,7 +210,8 @@ final class Prepare
                 foreach (['entries', 'results'] as $table) {
                     foreach ($scope[$table] as $old) {
                         $match = array_values(array_filter($current[$table], fn ($x) => $x['id'] === $old['id']));
-                        $ok = $ok && count($match) === 1 && Snapshot::matches($old, $match[0], $table === 'results' ? ['race_result_import_id'] : []);
+                        $exception = $table === 'results' && ! isset($old['race_result_import_id']) ? ['race_result_import_id'] : [];
+                        $ok = $ok && count($match) === 1 && Snapshot::matches($old, $match[0], $exception);
                     }
                 }
                 foreach ($scope['results'] as $old) {

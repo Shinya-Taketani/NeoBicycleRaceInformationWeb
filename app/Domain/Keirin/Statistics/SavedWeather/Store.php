@@ -15,12 +15,22 @@ final class Store
             throw new RuntimeException('INPUT_MANIFEST_SHA_MISMATCH');
         }
         $m = Files::read($path);
+        if (! isset($m['code']) || $m['code'] !== Files::code()) {
+            throw new RuntimeException('CURRENT_EXECUTION_CODE_SEAL_MISMATCH');
+        }
         if ($m['contract'] !== Files::VERSION.'-INPUT' || file_exists(dirname($path).'/FAILED.json')
             || Files::read(dirname($path).'/COMPLETE.json')['manifest'] !== Files::seal($path)) {
             throw new RuntimeException('INPUT_NOT_COMPLETE');
         }
         foreach (array_merge($m['files'], $m['code'] ?? [], [$m['sqlite'], $m['parent'], $m['original_sqlite']]) as $ref) {
             Files::verify($ref);
+        }
+        if (isset($m['historical_input'])) {
+            Files::verify($m['historical_input']);
+            $lineage = Files::read($m['files']['offline-derivation.json']['path']);
+            foreach ($lineage['data_seals'] as $ref) {
+                Files::verify($ref);
+            }
         }
 
         return $m;

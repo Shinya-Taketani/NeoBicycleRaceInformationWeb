@@ -72,11 +72,22 @@ final class Snapshot
         foreach (['races', 'race_entries', 'race_results'] as $table) {
             $ref = $manifest['files'][$table];
             Files::verify(['path' => $snapshot.'/'.$ref['path'], 'bytes' => $ref['bytes'], 'sha256' => $ref['sha256']]);
-            $counts = ['rows' => 0, 'NOT_RECORDED' => 0, 'EXPLICIT_NULL' => 0, 'RECORDED' => 0];
+            $counts = ['rows' => 0, 'NOT_RECORDED' => 0, 'EXPLICIT_NULL' => 0, 'RECORDED' => 0,
+                'duplicate_ids' => 0, 'missing_ids' => 0, 'extra_ids' => 0, 'payload_mismatches' => 0];
+            $ids = [];
             foreach (Files::rows($snapshot.'/'.$ref['path']) as $row) {
+                if (! is_int($row['id'] ?? null) || $row['id'] < 1) {
+                    throw new RuntimeException('INVALID_SNAPSHOT_PRIMARY_KEY');
+                }
+                if (isset($ids[$row['id']])) {
+                    $counts['duplicate_ids']++;
+                }
+                $ids[$row['id']] = true;
                 $current = Files::select($db, "SELECT * FROM $table WHERE id=?", [$row['id']]);
-                if (count($current) !== 1 || ! self::matches($row, $current[0])) {
-                    throw new RuntimeException('PARENT_SNAPSHOT_PAYLOAD_MISMATCH');
+                if ($current === []) {
+                    $counts['missing_ids']++;
+                } elseif (count($current) !== 1 || ! self::matches($row, $current[0])) {
+                    $counts['payload_mismatches']++;
                 }
                 $counts['rows']++;
                 if ($table === 'race_results') {
@@ -87,16 +98,33 @@ final class Snapshot
                     }
                 }
             }
+            $sqliteCount = 0;
+            foreach ($db->query("SELECT id FROM $table ORDER BY id") as $row) {
+                $sqliteCount++;
+                if (! isset($ids[$row['id']])) {
+                    $counts['extra_ids']++;
+                }
+            }
+            $counts['snapshot_unique_ids'] = count($ids);
+            $counts['sqlite_ids'] = $sqliteCount;
+            unset($ids);
+            if ($counts['duplicate_ids'] + $counts['missing_ids'] + $counts['extra_ids'] + $counts['payload_mismatches'] > 0
+                || (isset($ref['rows']) && $ref['rows'] !== $counts['rows'])) {
+                throw new RuntimeException('SNAPSHOT_SET_OR_PAYLOAD_MISMATCH:'.Files::json(['table' => $table, 'counts' => $counts]));
+            }
             $audit['tables'][$table] = $counts;
             $audit['original_sql'][$table] = $ref['sql'];
         }
         $stream = Files::create($output);
         $count = 0;
         try {
-            $query = $db->query('SELECT r.*,t.external_track_id AS track_code FROM races r JOIN racetracks t ON t.id=r.racetrack_id ORDER BY r.id');
+            $query = $db->query('SELECT r.*,t.external_track_id AS track_code FROM races r LEFT JOIN racetracks t ON t.id=r.racetrack_id ORDER BY r.id');
             while ($row = $query->fetch(PDO::FETCH_ASSOC)) {
                 if ($row['race_date'] < '2024-01-01' || $row['race_date'] > '2025-01-04' || $row['source'] !== 'keirin_jp') {
                     throw new RuntimeException('FIXED_SCOPE_OUT_OF_RANGE');
+                }
+                if ($row['track_code'] === null) {
+                    throw new RuntimeException('FIXED_RACE_TRACK_METADATA_MISSING');
                 }
                 $race = array_intersect_key($row, array_flip(['id', 'source', 'external_race_id', 'race_date', 'race_number', 'racetrack_id', 'result_status', 'track_code']));
                 $entries = Files::select($db, 'SELECT * FROM race_entries WHERE race_id=? ORDER BY id', [$row['id']]);
@@ -114,6 +142,9 @@ final class Snapshot
             fclose($stream);
         }
         $audit['races'] = $count;
+        if ($count !== $audit['tables']['races']['snapshot_unique_ids']) {
+            throw new RuntimeException('FIXED_RACE_DENOMINATOR_MISMATCH');
+        }
         $audit['scope'] = Files::seal($output);
 
         return $audit;

@@ -26,7 +26,10 @@ final class Repository
             }
             $candidates = [];
             foreach ($ids as $id) {
-                $import = array_values(array_filter($imports, fn ($x) => $x['id'] === $id))[0] ?? null;
+                $import = $id === null ? null : (Files::select($db, 'SELECT * FROM race_result_imports WHERE id=?', [$id])[0] ?? null);
+                if ($import !== null && $import['race_id'] !== $race['id'] && in_array($id, $refs, true)) {
+                    throw new RuntimeException('REFERENCED_IMPORT_RACE_MISMATCH');
+                }
                 $log = $import === null ? null : (Files::select($db, 'SELECT * FROM scraping_fetch_logs WHERE id=?', [$import['scraping_fetch_log_id']])[0] ?? null);
                 $selected = array_values(array_filter($results, fn ($x) => $id !== null && $x['race_result_import_id'] === $id));
                 $anchor = $selected[0] ?? null;
