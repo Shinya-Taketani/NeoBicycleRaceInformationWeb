@@ -7,7 +7,7 @@ namespace App\Domain\Keirin\Statistics\Services;
 use App\Domain\Keirin\Audit\Stat35DataReadiness\RawReader;
 use App\Domain\Keirin\Scraping\Parsers\EmbeddedJsonExtractor;
 use App\Domain\Keirin\Scraping\Parsers\RaceLiveResultParser;
-use App\Domain\Keirin\Statistics\OfficialMethodHistory\Reader;
+use App\Domain\Keirin\Statistics\OfficialResultEvidence\Verifier;
 use App\Models\Race;
 use App\Models\RaceEntry;
 use App\Models\RaceResultImport;
@@ -19,7 +19,7 @@ final class SavedResultWeatherProjectionService
 {
     public const VERSION = 'STAT-21-SAVED-PJ0326-RAW-FIELDS-v1';
 
-    public function __construct(private readonly Reader $identity, private readonly RawReader $raw,
+    public function __construct(private readonly Verifier $identity, private readonly RawReader $raw,
         private readonly RaceLiveResultParser $parser, private readonly EmbeddedJsonExtractor $json) {}
 
     public function project(Race $race, RaceEntry $entry): array
