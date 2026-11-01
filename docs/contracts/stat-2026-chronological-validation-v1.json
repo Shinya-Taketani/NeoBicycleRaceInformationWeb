@@ -1,6 +1,6 @@
 {
   "contract_version": "STAT-2026-CHRONOLOGICAL-VALIDATION-v1",
-  "contract_status": "PROPOSED_FOR_REVIEW",
+  "contract_status": "ACCEPTED_FOR_LIMITED_IMPLEMENTATION",
   "real_execution_authorized": false,
   "mode": "HISTORICAL_CHRONOLOGICAL_REPLAY",
   "acquisition_mode": "POST_EVENT_CAPTURE",
@@ -20,9 +20,17 @@
     "NO_2026_OUTCOME_BASED_MODEL_COEFFICIENT_OR_STAT_SELECTION"
   ],
   "proposal_fields": ["period", "model", "baseline", "daily_protocol", "metrics", "schemas"],
+  "limited_implementation_acceptance": {
+    "basis":"USER_INSTRUCTION_STAT_2026_CHRONOLOGICAL_CONNECTION_01_20261101",
+    "pr133_merge":"124afa68ce2acbd52384d38a7e510ad7a0121c1d",
+    "accepted_fields":["period","model","baseline","daily_protocol","metrics","schemas"],
+    "proposal_fields_note":"Retained from the design phase; accepted only as this limited implementation basis, not real execution authorization.",
+    "exact_acceptance_instant":"UNKNOWN_NOT_INVENTED",
+    "real_execution_authorized":false
+  },
   "approval": {
     "approved_at": null,
-    "reason": "Concrete proposal awaiting review; this document is not an execution approval.",
+    "reason": "PR133 merged and user accepted its concrete fields for limited offline implementation. Exact approval timestamp is not supplied; real execution remains unauthorized.",
     "historical_as_of_available": false,
     "historical_publication_time_verified": "UNKNOWN",
     "prediction_use": "NOT_AUTHORIZED",
@@ -249,15 +257,16 @@
   "schemas": {
     "validation_run": {
       "unique":[["run_id"]],
-      "fields":{"run_id":"Id","contract_version":"Id","contract_sha256":"Hash","period":"period","model":"model identity and seals","code_sha256":"Hash","baseline_rule_version":"Id","initial_history":"Ref","mode":"HISTORICAL_CHRONOLOGICAL_REPLAY","approval_receipt":"Ref","purpose":"POST_EVENT_CHRONOLOGICAL_REPLAY","created_at":"Instant","days":"date -> Ref"}
+      "fields":{"run_id":"Id","contract_version":"Id","contract_sha256":"Hash","period":"period","model":"model identity and seals","code_sha256":"Hash","baseline_rule_version":"Id","initial_history":"Ref","mode":"OFFLINE_CONNECTION or HISTORICAL_CHRONOLOGICAL_REPLAY (not authorized)","approval_receipt":"Ref? (null only for explicitly scoped offline tests)","purpose":"SYNTHETIC_TEST or LEGACY_COMPATIBILITY or POST_EVENT_CHRONOLOGICAL_REPLAY (not authorized)","created_at":"Instant","days":"date -> Ref"}
     },
     "day_manifest": {
       "unique":[["run_id","date"],["candidate.external_race_key"]],
       "identity_scope":"run_id+date identifies the logical day; CANDIDATES_LOCKED and DAY_PREDICTIONS_LOCKED are separate immutable append-only versions identified by Ref.manifest_sha256, not overwrites. Candidate keys are unique within each version.",
-      "fields":{"run_id":"Id","date":"JST date","history_epoch":"Ref","candidates":"candidate[]","target_set_sha256":"Hash","candidate_manifest":"Ref?","predictions":"external_race_key -> method -> Ref?","no_prediction":"external_race_key -> method -> Reason[]","technical_unprocessed":"external_race_key -> Reason[]","counts":"integer count map","state":"CANDIDATES_LOCKED or DAY_PREDICTIONS_LOCKED","locked_at":"Instant?","result_open_receipt":"Ref?"},
+      "fields":{"run_id":"Id","date":"JST date","history_epoch":"Ref","candidates":"candidate[]","target_set_sha256":"Hash","candidate_manifest":"Ref?","predictions":"external_race_key -> method -> Ref?","no_prediction":"external_race_key -> method -> Reason[]","technical_unprocessed":"external_race_key -> Reason[]","counts":"C/X/T and per-method T/P/N/U integer count maps","state":"CANDIDATES_LOCKED or DAY_PREDICTIONS_LOCKED or RESULTS_OPENED","locked_at":"Instant?","result_open_receipt":"Ref?"},
       "state_rules": {
         "CANDIDATES_LOCKED":{"candidate_manifest":null,"prediction_refs_all_null":true,"no_prediction_index_empty":true,"null_prediction_ref_means":"NOT_TERMINAL_UNPROCESSED_NOT_NO_PREDICTION","forward_refs_to_predictions_forbidden":true},
-        "DAY_PREDICTIONS_LOCKED":{"candidate_manifest_required":true,"candidate_state":"CANDIDATES_LOCKED","same_run_date_target_set_and_epoch":true,"prediction_races":"EXACT_TARGET_T_NOT_EXCLUDED_X","required_methods":["SAVED_FINAL_C1","STAT01_RAW_DESC_FIXED_TUPLE"],"all_prediction_refs_non_null":true,"all_refs_exist_and_verified":true,"accepted_bundle_states":["PREDICTED","NO_PREDICTION"],"technical_unprocessed":0,"no_prediction_index":"EXACT_BUNDLE_REASONS_FOR_NO_PREDICTION_EMPTY_FOR_PREDICTED_NOT_AN_INDEPENDENT_SOURCE"}
+        "DAY_PREDICTIONS_LOCKED":{"candidate_manifest_required":true,"candidate_state":"CANDIDATES_LOCKED","same_run_date_target_set_and_epoch":true,"prediction_races":"EXACT_TARGET_T_NOT_EXCLUDED_X","required_methods":["SAVED_FINAL_C1","STAT01_RAW_DESC_FIXED_TUPLE"],"all_prediction_refs_non_null":true,"all_refs_exist_and_verified":true,"accepted_bundle_states":["PREDICTED","NO_PREDICTION"],"technical_unprocessed":0,"no_prediction_index":"EXACT_BUNDLE_REASONS_FOR_NO_PREDICTION_EMPTY_FOR_PREDICTED_NOT_AN_INDEPENDENT_SOURCE"},
+        "RESULTS_OPENED":{"immutable_new_version":true,"day_lock_required":true,"opened_at_required":true,"same_fixed_candidates_epoch_and_terminal_refs":true,"read_result_source_only_after_this_receipt":true,"published_day_lock_mutation":false}
       }
     },
     "input_bundle": {
@@ -295,6 +304,32 @@
       "fields":{"epoch_id":"Id","parent_epoch":"Ref?","logical_available_from":"JST date","history_event_from":"JST date","history_event_end_exclusive":"Instant","results":"Ref[] with race identities and versions","inputs":"Ref[] for past score contexts","release_order":"result id[]","actual_capture_order":"result id[]","publication_times":"result id -> Instant?","publication_status":"UNKNOWN unless independently proven","exclusions":"Reason[]","created_at":"Instant"},
       "input_reference_rules":{"only_existing_verified_input_refs":true,"null_prediction_input":"OMIT_NONEXISTENT_INPUT_REF_KEEP_CANDIDATE_RESULT_AND_INABILITY_EVIDENCE","missing_score_context_or_identity":"PER_STAT_FEATURE_ELIGIBILITY_WITH_REASONS_NOT_AUTOMATIC_ALL_ALLOWED_OR_ALL_REJECTED"}
     }
+  },
+  "offline_implementation_profile": {
+    "version":"CHRONOLOGICAL-OFFLINE-CONNECTION-v1",
+    "scopes":["SYNTHETIC_TEST","LEGACY_COMPATIBILITY"],
+    "synthetic_guard":"APP_ENV=testing; recorded dedicated temporary fixture root; all artificial captures and initial history files within that root. A label alone does not authorize real2026.",
+    "no_approval_forgery":"Offline validation_run.approval_receipt=null with explicit scope and real_execution_authorized=false; never a real approval receipt.",
+    "artifact_source_row":"ARTIFACT source_ref/row_ref/execution_uuid/calculation_version/input_hash; source_run_id/source_result_id=null and source_kind=ARTIFACT (DB IDs not applicable), original race/entry/player IDs unchanged.",
+    "canonical_serialization":"CHRONOLOGICAL-JSON-OBJECT-KEYS-v1; object keys sorted, list order and null/type retained",
+    "inventory":["data.json","manifest.json","LOCKED"],
+    "run_index":"HEADER has days=[]; separate immutable RUN_INDEX references header and completed day locks; no future refs or header mutation.",
+    "receipt":"RESULTS_OPENED is an immutable day_manifest version with day_lock and opened_at; the earlier lock remains unchanged; no self receipt reference.",
+    "additional_required_fields":{
+      "validation_run":{"scope":"{kind,from,to}","event":"HEADER or RUN_INDEX","execution_identity":"input/model/code/contract identity","candidate_scope":"{external_race_key,race_date}[]","real_execution_authorized":"false"},
+      "day_manifest":{"day_lock":"Ref?","opened_at":"Instant?","projections":"sealed outcome-free candidate projections"},
+      "input_bundle":{"history_used":"offline event source identities and hashes"},
+      "result_bundle":{"opening_receipt":"Ref","history_event":"offline verified event?","original_race_id":"positive integer?","race_date":"JST date"},
+      "evaluation_bundle":{"contribution":"saved same-Primary contribution and coverage"},
+      "history_epoch":{"sources":"sealed ordered JSONL descriptors"}
+    },
+    "history_event":"material_kind, full original race/meeting/schedule identity and context, complete roster with original entry/player/external/bike/score and official rank/status/method, source_id, verified version, logical_available_from (JST date), input_fetched_at/fetched_at/saved_at/confirmed_at?; epoch-listed sources only.",
+    "bounded_processing":"stream one history race per JSONL row (max1MiB); per-target person histories max4096 and selected audit races max8192; stop when current history working memory exceeds96MiB, without trimming. Bundle payload max4MiB and graph payload cache max1MiB per verification call, never retained across calls. PHP verification runs have memory_limit=128M.",
+    "source_times":"Actual post-event acquisition timestamps remain actual timestamps, never proof of historical availability.",
+    "input_quality":"Known invalid STAT01 raw/anchor may remain in the sealed normal capture/input audit and NO_PREDICTION retains that Ref; never sent to the predictor or converted to zero.",
+    "prediction_ids":"dYYYYMMDD + first12hex(SHA256(external_race_key)) + input/p0/p1 suffix; deterministic inside the single immutable run root, not fake source DB IDs.",
+    "corrections":"Append CORRECTED result with prior-result Ref, new evaluation and explicit unprocessed-future-day epoch; do not mutate earlier input/lock/evaluation.",
+    "real_initial_history":"NOT_ESTABLISHED"
   },
   "implementation_gaps": [
     {"id":"G1","purpose":"PJ0315-only score input with no result fetch","reuse":["RaceLiveFetcher::fetchDetail","RaceDetailParser","PrestartCapture/Projection"],"new_or_limited":"Dedicated outcome-free input entry; do not call RaceResultSyncService::sync or current DB upserts","acceptance":["A01","A02","A05"]},
@@ -335,6 +370,6 @@
   },
   "open_items": [
     {"id":"O1","status":"EVIDENCE_NOT_ESTABLISHED","choice":"Verify limited existing offline cache/export raw historical events and score contexts for initial epoch before executing","alternative":"Accept explicitly partial history and preserved NULL under a separate scope decision, never fill missing evidence with zero","recommendation":"First choice; no production DB or full Raw rescan in this phase","impact":"Blocks actual initial history binding, not proposal review or adapter implementation."},
-    {"id":"O2","status":"PROPOSAL_APPROVAL_PENDING","choice":"Review January2026/fixed-final-C1/raw-score-baseline/day-barrier/Primary-common-denominator proposal","recommendation":"Approve or amend concrete fields before implementation acceptance; authorize real collection/evaluation separately","impact":"No real2026/HTTP/production execution authorized by this proposal."}
+    {"id":"O2","status":"LIMITED_IMPLEMENTATION_ACCEPTED_REAL_EXECUTION_NOT_AUTHORIZED","choice":"PR133 fields accepted as the offline implementation basis by current user instruction","recommendation":"Review implementation and limited acceptance evidence; authorize real collection/evaluation separately","impact":"Adapter manufacturing may proceed; real2026/HTTP/production execution remains unauthorized."}
   ]
 }
