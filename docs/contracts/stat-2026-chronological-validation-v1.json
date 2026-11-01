@@ -1,0 +1,340 @@
+{
+  "contract_version": "STAT-2026-CHRONOLOGICAL-VALIDATION-v1",
+  "contract_status": "PROPOSED_FOR_REVIEW",
+  "real_execution_authorized": false,
+  "mode": "HISTORICAL_CHRONOLOGICAL_REPLAY",
+  "acquisition_mode": "POST_EVENT_CAPTURE",
+  "timezone": "Asia/Tokyo",
+  "period": {
+    "from_inclusive": "2026-01-01",
+    "to_inclusive": "2026-01-31",
+    "start_inclusive": "2026-01-01T00:00:00+09:00",
+    "end_exclusive": "2026-02-01T00:00:00+09:00",
+    "measured_races": null,
+    "measured_entries": null,
+    "measurement_status": "NOT_ACCESSED_NOT_MEASURED"
+  },
+  "agreed": [
+    "PR132_FIXED_MVP_ACCEPTANCE_COMPLETE",
+    "CHRONOLOGICAL_FINISHED_RACES_INPUT_THEN_PREDICTION_LOCK_THEN_RESULTS",
+    "NO_2026_OUTCOME_BASED_MODEL_COEFFICIENT_OR_STAT_SELECTION"
+  ],
+  "proposal_fields": ["period", "model", "baseline", "daily_protocol", "metrics", "schemas"],
+  "approval": {
+    "approved_at": null,
+    "reason": "Concrete proposal awaiting review; this document is not an execution approval.",
+    "historical_as_of_available": false,
+    "historical_publication_time_verified": "UNKNOWN",
+    "prediction_use": "NOT_AUTHORIZED",
+    "formal_adoption": false,
+    "points": null,
+    "confidence": null,
+    "real_http_capture": "NOT_RUN_NOT_AUTHORIZED_THIS_PHASE",
+    "production_storage": "NOT_RUN_NOT_AUTHORIZED",
+    "operational_decisions": "PROPOSED_NOT_APPROVED",
+    "permission_status": "UNVERIFIED",
+    "method_b1_status": "PROPOSED_NOT_APPROVED",
+    "method_selected": "NONE",
+    "selected_lambda": "NONE",
+    "formal_b1_data_acceptance_status": "NOT_RUN",
+    "holdout_2026": "FROZEN_NO_ACCESS_THIS_PHASE"
+  },
+  "model": {
+    "id": "SAVED_FINAL_C1",
+    "artifact_version": "TACTICAL-HISTORY-FINAL-01-v1",
+    "version": "TACTICAL-HISTORY-SEQUENTIAL-POSITION-v2",
+    "feature_version": "TACTICAL-HISTORY-01-120D-PRE-MEETING-v2",
+    "training_years": [2022, 2023, 2024, 2025],
+    "lambda": 0.1,
+    "anchor_coefficient": 1.0,
+    "active_parameters_per_position": 137,
+    "artifact_path": "/home/shinya/neo-keirin-artifacts/tactical-history-final-01-20260917-01/fit/run-01/final/artifact.json",
+    "artifact_bytes": 3524,
+    "artifact_sha256": "abdb0038b1fecbc2821c38f6dae08875876a4aa0f39c02abf60c23ca9b34bd6f",
+    "model_bytes": 80928,
+    "model_sha256": "e3cc1f7f10af60bb22f97a2172ca52ef2c09a3393222ee46c25619de752d43a1",
+    "layout_sha256": "eb84b687ac6064fd107ceaa7e3659a83b9637452ea579c307c8f3eb4f0c7289e",
+    "inspection": "EXISTS_HASH_MATCHES_ARTIFACT_AND_FIT_RESULT_NO_INFERENCE",
+    "bin_coefficients_feature_order_missing_representation": "FROZEN",
+    "decoder_version": "BT03E06-WINNER-CONDITIONED-SEQUENTIAL-v1",
+    "primary_tie_version": "BT03E05-DECODER-TIE-v1",
+    "supporting_tie_version": "BT03E04-DECODER-TIE-v1",
+    "probability_version": "BT03E03-SEQUENTIAL-MARGINAL-v1",
+    "probability_tolerance": 1e-12,
+    "excluded_candidates": ["COMPOSITION_B", "STAT35_ADDITION", "FIELD_BIKE_ADDITION", "OLD_REJECTED_METHODS"],
+    "requires_b1_parent_selection": false
+  },
+  "stats": [
+    {"code":"STAT-01","role":"ANCHOR_AND_BASELINE","version":"STAT-01-existing-db-v1","feature":"RACE_SCORE_Z","coefficient":1.0},
+    {"code":"STAT-07","role":"C1_SIGNAL","order":0,"version":"STAT-07-existing-db-v1","feature":"features.DELTA.mean_score_expectation_residual","transform":"IDENTITY","operational_allowed_quality_reasons":[]},
+    {"code":"STAT-08","role":"C1_SIGNAL","order":1,"version":"STAT-08-existing-db-v1","feature":"features.DELTA.mean_score_expectation_residual","transform":"IDENTITY","operational_allowed_quality_reasons":[]},
+    {"code":"STAT-10","role":"C1_SIGNAL","order":2,"version":"STAT-10-existing-db-v1","feature":"features.SUMMARY.mean_residual_3_minus_10","transform":"IDENTITY","operational_allowed_quality_reasons":["IN_MEETING_RESULT_CONFIRMATION_NOT_RECONSTRUCTED"]},
+    {"code":"STAT-11","role":"C1_SIGNAL","order":3,"version":"STAT-11-existing-db-v1","feature":"features.COUNT_WINDOWS.10.abnormal_rate","transform":"IDENTITY","operational_allowed_quality_reasons":[]},
+    {"code":"STAT-12","role":"C1_SIGNAL","order":4,"version":"STAT-12-existing-db-v1","feature":"features.HISTORICAL_PRE_MEETING_GAPS.current_gap_empirical_percentile","transform":"IDENTITY","operational_allowed_quality_reasons":["IN_MEETING_RESULT_CONFIRMATION_NOT_RECONSTRUCTED"]},
+    {"code":"STAT-23","role":"C1_SIGNAL","order":5,"version":"STAT-23-existing-db-v1","feature":"features.DELTA.mean_score_expectation_residual","transform":"IDENTITY","operational_allowed_quality_reasons":[]},
+    {"code":"STAT-24","role":"C1_SIGNAL","order":6,"version":"STAT-24-existing-db-v1","feature":"features.PRE_MEETING.COUNT_WINDOWS.10.residual_stddev_pop","transform":"IDENTITY","operational_allowed_quality_reasons":["IN_MEETING_RESULT_CONFIRMATION_NOT_RECONSTRUCTED"]},
+    {"code":"STAT-26","role":"C1_SIGNAL","order":7,"version":"STAT-26-existing-db-v1","feature":"features.DAY_WINDOWS.30.started_race_count","transform":"IDENTITY","operational_allowed_quality_reasons":[]},
+    {"code":"STAT-31","role":"C1_SIGNAL","order":8,"version":"STAT-31-existing-db-v1","feature":"features.STAGE_EXPERIENCE.SEMIFINAL_OR_FINAL.mean_score_expectation_residual","transform":"STAT31_AGGREGATE_INTEGRITY_V1","operational_allowed_quality_reasons":[]},
+    {"code":"STAT-32","role":"C1_SIGNAL","order":9,"version":"STAT-32-existing-db-v1","feature":"features.DELTA.mean_score_expectation_residual","transform":"IDENTITY","operational_allowed_quality_reasons":[]},
+    {"code":"STAT-39","role":"C1_SIGNAL","order":10,"version":"STAT-39-existing-db-v1","feature":"features.FIELD_BIKE_DELTA.mean_score_expectation_residual","transform":"IDENTITY","operational_allowed_quality_reasons":["MISSING_FRAME_NUMBER"]},
+    {"code":"STAT-42","role":"C1_SIGNAL","order":11,"version":"STAT-42-existing-db-v1","feature":null,"transform":"PAIR_RESIDUAL_WEIGHTED_MEAN_V1","operational_allowed_quality_reasons":[],"feature_null_reason":"Derived by Bt02SignalRegistry::stat42 from HEAD_TO_HEAD_BY_COENTRANT.DIRECT_HISTORY."},
+    {"code":"STAT-20","role":"QUALITY_AUDIT_ONLY","version":"STAT-20-acquired-history-v3","c1_coefficient":null},
+    {"code":"STAT-33","role":"DIAGNOSTIC_ONLY","version":"STAT-33-existing-db-v1","c1_coefficient":null},
+    {"code":"STAT-41","role":"RACE_STRATIFIER","version":"STAT-41-existing-db-v1","c1_coefficient":null},
+    {"code":"STAT-09","role":"MVP_POSTHOC_ONLY","version":"STAT-09-acquired-career-grade-breakdown-v3","c1_coefficient":null},
+    {"code":"STAT-16","role":"MVP_POSTHOC_ONLY","version":"STAT-16-six-condition-performance-v3","c1_coefficient":null},
+    {"code":"STAT-25","role":"MVP_POSTHOC_ONLY","version":"STAT-25-disqualification-history-v2","c1_coefficient":null},
+    {"code":"STAT-27","role":"MVP_POSTHOC_ONLY","version":"STAT-27-six-condition-experience-v3","c1_coefficient":null},
+    {"code":"STAT-44","role":"MVP_POSTHOC_ONLY","version":"STAT-44-acquired-longitudinal-v2","c1_coefficient":null}
+  ],
+  "role_counts": {"ANCHOR_AND_BASELINE":1,"C1_SIGNAL":12,"QUALITY_AUDIT_ONLY":1,"DIAGNOSTIC_ONLY":1,"RACE_STRATIFIER":1,"MVP_POSTHOC_ONLY":5},
+  "signal_eligibility": {
+    "registry_version":"BT02-SIGNAL-REGISTRY-v1",
+    "policy_version":"BT02-OPERATIONAL-v1",
+    "rule":"VALID and primaryValue not null and EntryIncremental and qualityStatus != PARTIAL and all quality reasons in per-signal allowlist",
+    "known_unavailable":"PRESERVE_STATUS_AND_PROJECT_NULL",
+    "unknown_status_or_identity_conflict":"TECHNICAL_FAILURE",
+    "missing_bin":"NULL_INDEX_WITH_NO_LEARNED_ADJUSTMENT_NOT_OBSERVED_ZERO",
+    "anchor_rule":"ALL_ENTRIES_VALID_FULL_POSITIVE_FINITE_RAW_AND_VALID_SCORE_RANK_AND_IDENTITY",
+    "invalid_anchor":"RACE_LEVEL_NO_PREDICTION_NO_ENTRANT_REMOVAL"
+  },
+  "history_features": {
+    "order":["HIST_OBSERVED_ESCAPE_TOP2_COUNT_120D_PRE_MEETING","HIST_OBSERVED_MAKURI_TOP2_COUNT_120D_PRE_MEETING","HIST_OBSERVED_SASHI_TOP2_COUNT_120D_PRE_MEETING","HIST_OBSERVED_MARK_TOP2_COUNT_120D_PRE_MEETING"],
+    "source":"VERIFIED_OFFICIAL_RACE_RESULTS_NOT_PJ0315_DISPLAY_COUNTS",
+    "window":"[meeting_start_00_JST - P120D, meeting_start_00_JST)",
+    "same_meeting":"EXCLUDED",
+    "identity":"PLAYER_ID_AND_EXTERNAL_REGISTRATION_BOUND_TO_RACE_ENTRY",
+    "status":"CONFIRMED_OR_CORRECTED_WITH_IMPORT_IDENTITY",
+    "observed_started_required_for_available":true,
+    "no_observed_history":"ALL_FOUR_NULL_NOT_ZERO",
+    "observed_zero":"AVAILABLE_AND_EXPLICIT_ZERO_COUNTS",
+    "invalid_mark":"MARK_AT_RANK_OTHER_THAN_2_IS_INVALID_HISTORY",
+    "available_status":"AVAILABLE",
+    "null_statuses":["MISSING_TARGET_METADATA","LEFT_TRUNCATED","INVALID_HISTORY","PARTIAL_HISTORY","MISSING_METHOD_HISTORY","NO_HISTORY"]
+  },
+  "baseline": {
+    "id":"STAT01_RAW_DESC_FIXED_TUPLE",
+    "rule":"Bt03e05MetricEvaluator::rankBaseline first three distinct entrants",
+    "tie_version":"BT03E02-TIE-v1",
+    "technical_key":"SHA256(TIE_RULE_VERSION + '|' + original_race_id + '|' + bike)",
+    "same_input_as_c1":true,
+    "saved_before_results":true,
+    "not_equivalent_to":["BT01_RANK1_SET","BT01_TOP3_SET"],
+    "identity_mapping":"Persist original race/entry/player IDs and external race/registration keys; never use reassigned SQLite IDs for decoder ties."
+  },
+  "target_selection": {
+    "category_policy":"RaceCategoryPolicy::classify: Men=A/S; Girls/L and Unknown never accepted as Men",
+    "entrant_count_min":5,
+    "entrant_count_max":9,
+    "candidate_basis":"DATE_AND_SOURCE_RACE_IDENTITY_ONLY_NO_RESULT_FILTER",
+    "known_exclusions":["SKIPPED_UNSUPPORTED_CATEGORY","UNSUPPORTED_ENTRANT_COUNT"],
+    "no_prediction_reasons":["CATEGORY_UNDETERMINED","MISSING_SCHEDULE","MISSING_MEETING_CONTEXT","UNRESOLVED_IDENTITY","MISSING_RACE_SCORE","INVALID_STAT01_ANCHOR","KNOWN_INPUT_SCHEMA_UNAVAILABLE"],
+    "technical_failure":"FAILED_UNPROCESSED_BLOCKS_DAY_RESULT_OPEN",
+    "equations":["candidate=excluded+target","target=predicted+no_prediction+technical_unprocessed"],
+    "counts_measured":false
+  },
+  "input_projection": {
+    "input_as_of":"SALES_CLOSE_AT_ELSE_SCHEDULED_START_AT_FALLBACK",
+    "must_be_before_or_at_scheduled":true,
+    "actual_capture_and_saved_times":"PRESERVED_SEPARATELY_NEVER_BACKDATED",
+    "allowed_race":["original_race_id","external_race_key","race_date","track_code","race_number","race_type","entrant_count","meeting_id","meeting_start","meeting_end","day_number","scheduled_start_at","sales_close_at"],
+    "allowed_entry":["original_entry_id","original_player_id","external_player_id","bike","frame_number","grade","race_score_raw"],
+    "model_race":["year","race_id","entries"],
+    "model_entry":["id","bike","raw","stat01_rank","anchor","anchor_status","signals","history","history_status"],
+    "forbidden":["rank","status","labels","resultFlg","result_available","result_status","payouts","odds","current_player_profile","PJ0315_DISPLAY_METHOD_COUNTS"],
+    "source_allowlist":"Project before sealing; reject extra or forbidden model-input keys; raw bytes never passed to predictor."
+  },
+  "daily_protocol": {
+    "history_scope_start_proposal":"2022-01-01",
+    "initial_history_event_end_exclusive":"2026-01-01T00:00:00+09:00",
+    "epoch":"SINGLE_IMMUTABLE_HISTORY_EPOCH_PER_JST_DAY",
+    "history_rule":"history_event_day < target_day AND logical_available_from <= target_day AND verified version belongs to the fixed target-day history epoch AND each STAT/history feature cutoff is satisfied",
+    "history_conditions": {
+      "date_fields":{"target_day":"JST date","history_event_day":"JST date","logical_available_from":"JST date"},
+      "all":[
+        {"left":"history_event_day","operator":"<","right":"target_day"},
+        {"left":"logical_available_from","operator":"<=","right":"target_day"},
+        {"predicate":"VERIFIED_VERSION_MEMBER_OF_FIXED_TARGET_DAY_EPOCH"},
+        {"predicate":"STAT_OR_HISTORY_FEATURE_SPECIFIC_CUTOFF_SATISFIED"}
+      ],
+      "applies_to_initial_epoch":true,
+      "epoch_updates_during_target_day":false
+    },
+    "logical_release":"D+1 at 00:00 JST after verified result bundle for D; actual acquisition/publication timestamps never inferred from this logical date",
+    "initial_history_rule":"Only separately verified <=2025-12-31 event versions; initial complete history seal must be accepted before execution",
+    "within_day_order":["scheduled_start_at_JST","track_code","race_number","external_race_key"],
+    "missing_schedule":"TERMINAL_NO_PREDICTION_BUNDLE_WITH_CANDIDATE_REF_AND_CAPTURE_EVIDENCE; order after known schedules by external key without inventing time",
+    "steps":["CANDIDATES_LOCKED","HISTORY_EPOCH_BOUND","INPUTS_SEALED","C1_AND_BASELINE_PREDICTIONS_OR_KNOWN_NO_PREDICTION_SEALED","DAY_PREDICTIONS_LOCKED","RESULTS_OPENED_AND_VERSIONED","EVALUATIONS_SEALED","NEXT_DAY_EPOCH_SEALED"],
+    "input_seal_scope":"Only constructible normal inputs are sealed; known inability is recorded in the terminal NO_PREDICTION bundle, never a dummy input",
+    "result_barrier":"ALL_TARGETS_TIMES_BOTH_METHODS_HAVE_NON_NULL_REFS_TO_VERIFIED_TERMINAL_PREDICTION_BUNDLES_AND_U_ZERO; reason index alone is not terminal",
+    "same_day_results_in_predictions":false,
+    "outcome_acquisition_before_lock":false,
+    "post_event_capture_may_contain_results":"DISCARD_FROM_PROJECTED_INPUT_AND_NEVER_USE_FOR_SELECTION; not a proof of historical prestart availability"
+  },
+  "metrics": {
+    "version":"PRIMARY-TUPLE-COMMON-DENOMINATOR-v1",
+    "prediction":"SAVED_PRIMARY_TUPLE_NOT_MAP",
+    "eligibility":"E_method = locked PREDICTED bundle with Primary before results AND verified CONFIRMED/CORRECTED result version AND unique official ranks 1,2,3; terminal NO_PREDICTION bundles are not eligible predictions",
+    "comparison":"E_pair = E_C1 intersection E_STAT01; both methods use identical result version",
+    "definitions":[
+      {"code":"PRIMARY_EXACT_ORDERED_TOP3_RATE","numerator":"same three bikes and same order","denominator":"E_method"},
+      {"code":"PRIMARY_TUPLE_POSITION_1_ACCURACY","numerator":"saved primary[0] == official[0]","denominator":"E_method"},
+      {"code":"PRIMARY_TUPLE_POSITION_2_ACCURACY","numerator":"saved primary[1] == official[1]","denominator":"E_method"},
+      {"code":"PRIMARY_TUPLE_POSITION_3_ACCURACY","numerator":"saved primary[2] == official[2]","denominator":"E_method"},
+      {"code":"PRIMARY_EXACT_TOP3_SET_RATE","numerator":"same saved three bikes ignoring order","denominator":"E_method"},
+      {"code":"PREDICTION_COVERAGE","numerator":"locked PREDICTED bundles per method; NO_PREDICTION excluded from numerator","denominator":"target"}
+    ],
+    "paired_denominator":"E_pair for all five primary accuracy metrics",
+    "zero_denominator":"NULL_WITH_UNEVALUABLE_ZERO_DENOMINATOR",
+    "aggregation":"SUM_NUMERATORS_DIVIDED_BY_SUM_DENOMINATORS_NOT_AVERAGE_DAILY_RATES",
+    "excluded_reasons":["TIED_OFFICIAL_TOP3","MISSING_OFFICIAL_TOP3","FEWER_THAN_THREE_FINISHERS","CANCELLED","RESULT_NOT_CONFIRMED","RESULT_MISSING","RESULT_IDENTITY_OR_SET_MISMATCH"],
+    "lower_rank_ties":"INCLUDE_IF_OFFICIAL_1_2_3_EACH_UNIQUE",
+    "abnormal_non_top3_entries":"INCLUDE_IF_VERIFIED_TOP3_UNIQUE; predicted abnormal entrant is an ordinary mismatch",
+    "unknown_results":"UNEVALUATED_OR_FAILED_NOT_AUTOMATIC_LOSS",
+    "optional_hit_at_3":"POSITION_MATCHES/(3*E_method)_NOT_ALL_THREE_MATCH_RATE",
+    "supporting_map":"SEPARATE_LABELS_ONLY",
+    "new_adoption_gate_or_bootstrap":false
+  },
+  "hand_checks": {
+    "kind":"DOCUMENT_ARITHMETIC_NOT_REAL_RACES_NOT_MODEL_EXECUTION",
+    "prediction":[1,2,3],
+    "official_examples":[[1,2,3],[1,3,2],[4,2,3]],
+    "base":{"target":3,"predicted":3,"eligible":3,"ordered_numerator":1,"position_numerators":[2,2,2],"set_numerator":2},
+    "plus_top_tie_and_no_prediction":{"target":5,"predicted":4,"no_prediction":1,"eligible":3,"tie_exclusions":1,"coverage_numerator":4,"coverage_denominator":5,"ordered_numerator":1,"position_numerators":[2,2,2],"set_numerator":2},
+    "zero":{"target":0,"predicted":0,"eligible":0,"rate":null,"reason":"UNEVALUABLE_ZERO_DENOMINATOR"},
+    "pr133_review_examples": {
+      "kind":"SYMBOLIC_IN_MEMORY_CONTRACT_CHECKS_NOT_REAL_BUNDLES_OR_RACES",
+      "R1":{"variants":[{"state":"PREDICTED","has_valid_input_ref":true,"accepted":true},{"state":"PREDICTED","has_valid_input_ref":false,"accepted":false}]},
+      "R2":{"state":"NO_PREDICTION","reason":"MISSING_SCHEDULE","identity_verified":true,"normal_input_constructible":false,"input":null,"candidate_manifest_state":"CANDIDATES_LOCKED","capture_evidence_count":1,"terminal_bundles":2,"both_methods_referenced_by_day_and_result":true,"dependency_order":["candidate_manifest","prediction_bundle","day_prediction_lock","result_bundle"]},
+      "R3":{"technical_unprocessed":1,"convert_to_no_prediction":false,"result_open_allowed":false},
+      "R4":{"target":1,"predicted":0,"no_prediction":1,"technical_unprocessed":0,"coverage_numerator":0,"coverage_denominator":1,"coverage":0,"eligible":0,"accuracy":null,"paired_eligible":0,"fabricated_history_input_refs":0},
+      "R5":{"variants":[
+        {"history_event_day":"2026-01-01","logical_available_from":"2026-01-02","target_day":"2026-01-02","in_fixed_epoch":true,"specific_cutoff_satisfied":true,"accepted":true},
+        {"history_event_day":"2026-01-02","logical_available_from":"2026-01-02","target_day":"2026-01-02","in_fixed_epoch":true,"specific_cutoff_satisfied":true,"accepted":false},
+        {"history_event_day":"2026-01-03","logical_available_from":"2026-01-02","target_day":"2026-01-02","in_fixed_epoch":true,"specific_cutoff_satisfied":true,"accepted":false},
+        {"history_event_day":"2026-01-01","logical_available_from":"2026-01-03","target_day":"2026-01-02","in_fixed_epoch":true,"specific_cutoff_satisfied":true,"accepted":false},
+        {"history_event_day":"2026-01-01","logical_available_from":"2026-01-02","target_day":"2026-01-02","in_fixed_epoch":false,"specific_cutoff_satisfied":true,"accepted":false},
+        {"history_event_day":"2026-01-01","logical_available_from":"2026-01-02","target_day":"2026-01-02","in_fixed_epoch":true,"specific_cutoff_satisfied":false,"accepted":false}
+      ]},
+      "R6":{"result_opened":true,"reprediction_with_new_request_id_allowed":false,"resume_results_with_original_terminal_bundles_and_epoch_allowed":true}
+    }
+  },
+  "storage": {
+    "source_of_truth":"PRIVATE_ARTIFACT_BUNDLES_NOT_LATEST_BUSINESS_ROWS",
+    "database":"FUTURE_ISOLATED_DERIVATIVE_ONLY_NO_PRODUCTION_WRITES",
+    "serialization":"Versioned UTF-8 JSON with finite numbers, preserved null, canonical object-key order only; ordered lists never sorted implicitly",
+    "publication":"EXCLUSIVE_NEW_STAGE_EXPECTED_FILE_SEALS_FSYNC_MANIFEST_LOCKED_ATOMIC_RENAME_SAME_FILESYSTEM",
+    "lock":"PERSISTENT_FLOCK_PER_RUN_DAY_AND_PER_BUNDLE_ID",
+    "same_id_same_content":"VERIFY_AND_REUSE",
+    "same_id_different_content":"CONFLICT",
+    "reprediction_after_result_open":"FORBIDDEN_EVEN_WITH_NEW_REQUEST_ID",
+    "resume_after_result_open":"VERIFY_REUSE_ORIGINAL_PREDICTED_OR_NO_PREDICTION_BUNDLES_AND_FIXED_EPOCH_FOR_RESULT_ACQUISITION_AND_EVALUATION_ONLY",
+    "result_correction":"NEW_RESULT_VERSION_AND_NEW_EVALUATION_ID_NO_OLD_PREDICTION_REPLACEMENT",
+    "history_correction":"NEW_EPOCH_FOR_UNPROCESSED_FUTURE_DAYS_NO_RETROACTIVE_INPUT_REPLACEMENT",
+    "failure":"RETAIN_STAGE_AND_FAILURE_EVIDENCE_NO_SUCCESS_PUBLICATION",
+    "cleanup":"NO_PERMANENT_DELETE; only recorded created temporary root via existing rename-only safe helper to /home/shinya/Desktop/Trash/; failed move retains original"
+  },
+  "schema_conventions": {
+    "notation":"All listed fields required; suffix ? means explicit null allowed, not omission. Types and cross-field rules in Markdown section 7.",
+    "Id":"nonempty ASCII string max120; no path components",
+    "Hash":"64 lowercase hex SHA-256",
+    "Instant":"RFC3339 with timezone and up to 6 fractional digits; compare UTC integer microseconds",
+    "Ref":"{bundle_id:Id,manifest_sha256:Hash}",
+    "CandidateRef":"{manifest:Ref,external_race_key:string}; must reference the earlier CANDIDATES_LOCKED manifest and its target race in the same run/JST day, never the later prediction-lock manifest",
+    "capture evidence":"{capture_id:Id,source:string,raw:Seal,private_ref:string,method:string,source_status:string,parser_version:Id,fetched_at:Instant,saved_at:Instant}; use only existing acquired evidence, no fabricated references",
+    "Seal":"{bytes:nonnegative integer,sha256:Hash}",
+    "Reason":"{code:Id,source_ref:Ref?,detail:string}",
+    "nullable_rule":"Every null that denotes unavailable evidence needs a paired reason; normal parent_epoch=null at genesis is explicitly allowed."
+  },
+  "schemas": {
+    "validation_run": {
+      "unique":[["run_id"]],
+      "fields":{"run_id":"Id","contract_version":"Id","contract_sha256":"Hash","period":"period","model":"model identity and seals","code_sha256":"Hash","baseline_rule_version":"Id","initial_history":"Ref","mode":"HISTORICAL_CHRONOLOGICAL_REPLAY","approval_receipt":"Ref","purpose":"POST_EVENT_CHRONOLOGICAL_REPLAY","created_at":"Instant","days":"date -> Ref"}
+    },
+    "day_manifest": {
+      "unique":[["run_id","date"],["candidate.external_race_key"]],
+      "identity_scope":"run_id+date identifies the logical day; CANDIDATES_LOCKED and DAY_PREDICTIONS_LOCKED are separate immutable append-only versions identified by Ref.manifest_sha256, not overwrites. Candidate keys are unique within each version.",
+      "fields":{"run_id":"Id","date":"JST date","history_epoch":"Ref","candidates":"candidate[]","target_set_sha256":"Hash","candidate_manifest":"Ref?","predictions":"external_race_key -> method -> Ref?","no_prediction":"external_race_key -> method -> Reason[]","technical_unprocessed":"external_race_key -> Reason[]","counts":"integer count map","state":"CANDIDATES_LOCKED or DAY_PREDICTIONS_LOCKED","locked_at":"Instant?","result_open_receipt":"Ref?"},
+      "state_rules": {
+        "CANDIDATES_LOCKED":{"candidate_manifest":null,"prediction_refs_all_null":true,"no_prediction_index_empty":true,"null_prediction_ref_means":"NOT_TERMINAL_UNPROCESSED_NOT_NO_PREDICTION","forward_refs_to_predictions_forbidden":true},
+        "DAY_PREDICTIONS_LOCKED":{"candidate_manifest_required":true,"candidate_state":"CANDIDATES_LOCKED","same_run_date_target_set_and_epoch":true,"prediction_races":"EXACT_TARGET_T_NOT_EXCLUDED_X","required_methods":["SAVED_FINAL_C1","STAT01_RAW_DESC_FIXED_TUPLE"],"all_prediction_refs_non_null":true,"all_refs_exist_and_verified":true,"accepted_bundle_states":["PREDICTED","NO_PREDICTION"],"technical_unprocessed":0,"no_prediction_index":"EXACT_BUNDLE_REASONS_FOR_NO_PREDICTION_EMPTY_FOR_PREDICTED_NOT_AN_INDEPENDENT_SOURCE"}
+      }
+    },
+    "input_bundle": {
+      "unique":[["run_id","external_race_key","input_id"],["entry.original_entry_id"],["entry.bike"],["entry.external_player_id"]],
+      "fields":{"input_id":"Id","run_id":"Id","external_race_key":"string","candidate_ref":"CandidateRef","original_race_id":"positive integer","race":"allowed_race","entries":"allowed_entry[] in immutable original-entry order","input_as_of":"Instant","cutoff_source":"SALES_CLOSE_AT or SCHEDULED_START_AT_FALLBACK","capture_refs":"capture evidence[]","actual_fetched_at":"Instant[]","actual_saved_at":"Instant[]","history_epoch":"Ref","stat_sources":"explicit source row[]","c1_history":"history per entry[]","model_input":"model_race","quality":"Reason[]","sealed_at":"Instant"}
+    },
+    "prediction_bundle": {
+      "unique":[["run_id","external_race_key","method"]],
+      "fields":{"prediction_id":"Id","run_id":"Id","external_race_key":"string","method":"SAVED_FINAL_C1 or STAT01_RAW_DESC_FIXED_TUPLE","candidate_ref":"CandidateRef","input":"Ref?","input_availability":"AVAILABLE or NOT_CONSTRUCTIBLE_KNOWN_MISSING","input_unavailable_reasons":"Reason[]","capture_refs":"capture evidence[]","capture_unavailable_reasons":"Reason[]","model_sha256":"Hash?","baseline_rule_version":"Id?","history_epoch":"Ref","state":"PREDICTED or NO_PREDICTION","primary":"three distinct in-roster integer bikes?","probabilities":"frozen scorer output?","utilities":"frozen position utilities?","decision":"frozen E06 output?","tie_audit":"object?","reasons":"Reason[]","saved_at":"Instant"},
+      "common_rules": {
+        "candidate_ref":"EARLIER_CANDIDATES_LOCKED_MANIFEST_SAME_RUN_JST_DAY_AND_TARGET_RACE; external_race_key must equal bundle key",
+        "input_ref_when_available":"REQUIRED_EVEN_FOR_NO_PREDICTION; validate normal input and exact candidate/capture/identity/epoch consistency",
+        "input_null_requires":{"state":"NO_PREDICTION","input_availability":"NOT_CONSTRUCTIBLE_KNOWN_MISSING","normal_input_constructible":false,"valid_input_bundle_exists":false,"input_unavailable_reasons_min_items":1,"reason_code_allowlist":"target_selection.no_prediction_reasons","input_unavailable_reasons_must_be_in_reasons":true},
+        "input_non_null_requires":{"input_availability":"AVAILABLE","input_unavailable_reasons":[]},
+        "capture_refs":{"required":true,"null_allowed":false,"empty_allowed_only_if":"NO_ACQUIRED_CAPTURE_EVIDENCE_EXISTS","empty_requires_nonempty_capture_unavailable_reasons":true,"nonempty_requires_capture_unavailable_reasons_empty":true,"capture_unavailable_reasons_must_be_in_reasons":true},
+        "no_fabrication":["INPUT_BUNDLE","INPUT_AS_OF","RACE_ENTRY_PLAYER_IDS","ZERO_SCORE","REDUCED_ROSTER","CAPTURE_EVIDENCE"],
+        "technical_failure_to_no_prediction":"FORBIDDEN; unknown schema/Enum/hash conflicts, identity conflicts, I/O and calculation errors remain FAILED/unprocessed"
+      },
+      "state_rules": {
+        "PREDICTED":{"input_required":true,"input_null_allowed":false,"capture_refs_min_items":1,"primary_required":true,"method_rules":"Existing C1 model/probabilities/utilities/E06 decision/tie rules or STAT01 baseline rule remain required"},
+        "NO_PREDICTION":{"input_null_only_under_common_rules":true,"reasons_min_items":1,"primary":null,"probabilities":null,"utilities":null,"decision":null,"tie_audit":null,"meaning":"TERMINAL_INABILITY_RECORD_NOT_AN_ELIGIBLE_PREDICTION"}
+      }
+    },
+    "result_bundle": {
+      "unique":[["external_race_key","result_version"],["entry.bike"]],
+      "fields":{"result_id":"Id","external_race_key":"string","result_version":"positive integer","parent_result":"Ref?","raw":"Seal and private source reference","fetch_log_or_capture_id":"Id","fetched_at":"Instant","saved_at":"Instant","official_publication_at":"Instant?","publication_reason":"string?","official_status":"known RaceResultStatus","entries":"{original_entry_id:integer?,external_player_id:string,bike:integer,rank:integer?,status:RaceEntryResultStatus}[]","predictions":"method -> Ref","day_lock":"Ref","identity_audit":"object","parser_version":"Id"},
+      "reference_rules":{"required_methods":["SAVED_FINAL_C1","STAT01_RAW_DESC_FIXED_TUPLE"],"all_prediction_refs_non_null":true,"must_equal_day_lock_prediction_refs":true,"accepted_bundle_states":["PREDICTED","NO_PREDICTION"],"no_prediction_omission_forbidden":true,"identity_validation":"Use fixed candidate/roster and actual result evidence; missing identity remains unverified/unevaluated or failed, not fabricated or assumed matched"}
+    },
+    "evaluation_bundle": {
+      "unique":[["evaluation_id"],["prediction_hash","comparison_prediction_hash","result_version","metric_contract_version"]],
+      "fields":{"evaluation_id":"Id","prediction_hash":"Hash","comparison_prediction":"Ref?","comparison_prediction_hash":"Hash?","result":"Ref","result_version":"positive integer","metric_contract_version":"Id","paired_set_sha256":"Hash?","contributions":"race -> metric -> {numerator:integer,denominator:integer}","metrics":"method and paired numerator/denominator/rate map","coverage":"count map","excluded":"Reason[]","failed":"Reason[]","is_final":"boolean","created_at":"Instant"}
+    },
+    "history_epoch": {
+      "unique":[["epoch_id"]],
+      "fields":{"epoch_id":"Id","parent_epoch":"Ref?","logical_available_from":"JST date","history_event_from":"JST date","history_event_end_exclusive":"Instant","results":"Ref[] with race identities and versions","inputs":"Ref[] for past score contexts","release_order":"result id[]","actual_capture_order":"result id[]","publication_times":"result id -> Instant?","publication_status":"UNKNOWN unless independently proven","exclusions":"Reason[]","created_at":"Instant"},
+      "input_reference_rules":{"only_existing_verified_input_refs":true,"null_prediction_input":"OMIT_NONEXISTENT_INPUT_REF_KEEP_CANDIDATE_RESULT_AND_INABILITY_EVIDENCE","missing_score_context_or_identity":"PER_STAT_FEATURE_ELIGIBILITY_WITH_REASONS_NOT_AUTOMATIC_ALL_ALLOWED_OR_ALL_REJECTED"}
+    }
+  },
+  "implementation_gaps": [
+    {"id":"G1","purpose":"PJ0315-only score input with no result fetch","reuse":["RaceLiveFetcher::fetchDetail","RaceDetailParser","PrestartCapture/Projection"],"new_or_limited":"Dedicated outcome-free input entry; do not call RaceResultSyncService::sync or current DB upserts","acceptance":["A01","A02","A05"]},
+    {"id":"G2","purpose":"Authorized-scope model/input/history adapter","reuse":["ModelLoader::restore","Layout","Predictor","Bt02SignalRegistry","Bt02SignalEligibilityEvaluator","existing STAT Calculators"],"new_or_limited":"New explicit scope/source map; narrowly separate legacy year guards from shared arithmetic in Dataset/HistoryAggregator only if needed; old public paths keep guards and Contract::plan","acceptance":["A03","A06","A07","A13","A14"]},
+    {"id":"G3","purpose":"Day barrier and immutable epoch control","reuse":["Pipeline save sequence","ArtifactStore lock pattern"],"new_or_limited":"Day coordinator with separate capture, calculation, result workers; no giant DB transaction","acceptance":["A01","A02","A04","A08","A11"]},
+    {"id":"G4","purpose":"Same Primary tuple/common denominator evaluator","reuse":["Matcher identity/result validation","Bt03e05MetricEvaluator::rankBaseline","Bt03e06WinnerConditionedDecoder"],"new_or_limited":"New metric adapter; old metric codes/semantics untouched; frozen baseline is loaded not recomputed after results","acceptance":["A09","A10","A11"]},
+    {"id":"G5","purpose":"Immutable versioned bundle/restart store","reuse":["ArtifactStore","ResultStore","safe temporary-directory helper patterns"],"new_or_limited":"New contract inventory/store; do not mutate old Contract::plan or artifact seals; retain successful reproduce stages","acceptance":["A04","A11","A12","A14"]}
+  ],
+  "acceptance_cases": [
+    {"id":"A01","expect":"Result fetch called zero times before day lock verifies non-null terminal bundle refs for all T x both methods; technical unprocessed blocks opening; a reason index alone never suffices.","review_examples":["R2","R3"]},
+    {"id":"A02","expect":"Changing only target-day/future outcomes cannot alter earlier or same-day input/prediction hashes."},
+    {"id":"A03","expect":"Forbidden result fields rejected; year is never forged as 2025 to bypass validation."},
+    {"id":"A04","expect":"Equal scheduled times/restarts preserve epoch, original IDs, entrant order and terminal PREDICTED/NO_PREDICTION bundles; JST event_day < target_day and logical_available_from <= target_day plus fixed-epoch and feature cutoffs are all required.","review_examples":["R5","R6"]},
+    {"id":"A05","expect":"Known Men 5-9 accepted; Girls/L excluded; Unknown never treated as Men; score comes from detail, not empty list field."},
+    {"id":"A06","expect":"Any invalid anchor makes entire C1 race NO_PREDICTION without dropping that entrant; valid mean anchor zero retained."},
+    {"id":"A07","expect":"Known unavailable signals/history preserve null and reasons; observed zeros distinct; unknown exceptions FAILED."},
+    {"id":"A08","expect":"Each method seals a prediction bundle before results. PREDICTED requires valid input; NO_PREDICTION may have input=null only for known inability to construct normal input. Both reference an earlier candidate manifest and actual capture evidence (or empty array plus missing-evidence reasons); day lock -> terminal bundle -> earlier candidate manifest is acyclic. Results retain both terminal refs.","review_examples":["R1","R2"]},
+    {"id":"A09","expect":"Hand examples give 1/3 ordered, 2/3 each position and 2/3 set; plus tie/no-pred gives 4/5 coverage and unchanged E=3. T=1/P=0/N=1/U=0 gives coverage=0, E=E_pair=0 and accuracy=null, never 0%.","review_examples":["R4"]},
+    {"id":"A10","expect":"Top3 tie/cancellation/zero denominator excluded with reasons; lower-only ties and abnormal losers with unique top3 remain eligible."},
+    {"id":"A11","expect":"Correction creates new result/evaluation/forward epoch; predictions and first evaluation stay immutable."},
+    {"id":"A12","expect":"Same ID different input/model/result is CONFLICT; partial files/failure evidence retained; no permanent deletion. Re-prediction after result open is forbidden even with a new ID; verified reuse of original terminal bundles and epoch for result/evaluation resume is allowed.","review_examples":["R6"]},
+    {"id":"A13","expect":"New adapter matches frozen arithmetic on limited 2022-2025 inputs without using outcomes for predictions; no refit/rebin."},
+    {"id":"A14","expect":"Legacy CLI still rejects 2026; old artifacts load under unchanged Contract::plan; start/end source seals unchanged."}
+  ],
+  "source_evidence": {
+    "parent_start_path":"/home/shinya/neo-keirin-artifacts/tactical-history-final-01-20260917-01/fit/parent-start.json",
+    "parent_start_sha256":"f97472db24231564244f54b9e3c4b524e438abf621f5b7fc9d2529dc3c977c18",
+    "fit_result_sha256":"71e6de55803b18e5b82e1f90a399f747e688cf1eba5695b53c463be16cff302e",
+    "input_manifest_path":"/home/shinya/neo-keirin-artifacts/tactical-history-01-review-fix-20260916-01/inputs-v2/manifest.json",
+    "input_manifest_sha256":"d5158a7671f8c453afc77dccc1ab0b089c940198f58f388c038ad0d4fad684cf",
+    "inputs_2025":{"bytes":66942915,"sha256":"a6a6a79303c5debe9c3b3b5cb1b4e37f86197c49afc7b3fc2a5f5cb444f1f0d4","purpose":"Old per-race model inputs; NOT raw complete historical results","status":"PARENT_AND_SIDECAR_SEALS_MATCH"},
+    "history_2025":{"bytes":731358814,"sha256":"96b7b05ffa589cfc65d621caba316cbb7b55a6f3726006ef4f7abf21f607932f","purpose":"Old target-specific aggregates/references; NOT raw full-year official-result event store","status":"PARENT_AND_SIDECAR_SEALS_MATCH_SCHEMA_SAMPLE_ONLY"},
+    "history_cache":{"path":"/home/shinya/neo-keirin-artifacts/tactical-history-01-review-fix-20260916-01/inputs-v2/history-cache.sqlite","bytes":5748555776,"manifest_sha256":"af4ccd5601a838d9c177b5bee7d718ce91beb847409323bdae6666ba69304199","status":"EXISTS_SIZE_MATCH_ONLY_NOT_HASHED_OR_OPENED_THIS_PHASE"},
+    "initial_history_epoch":{"ref":null,"status":"NOT_ESTABLISHED","reason":"No accepted full raw event/score/identity/version projection through 2025-12-31 was verified. Need limited offline cache/export provenance verification, not old target aggregates or PR132 Jan04 snapshot."},
+    "stat_source_map_2026":{"ref":null,"status":"NOT_CREATED_NOT_AUTHORIZED","reason":"Existing fixed yearly Bt01/Bt02 run IDs are 2022-2025 only. Future isolated explicit run/version/hash map required."},
+    "bt03e02_spec":{"path":"docs/statistical-engine-master-plan.md","sections":["15.1-15.18","18.8"],"status":"CANONICAL_FROZEN_SPEC_AND_CODE_REVIEWED","separate_original_path":null,"reason":"No separately identified original was located in specified local reference candidates; no invented file path."},
+    "real_2026_files_inspected":0
+  },
+  "open_items": [
+    {"id":"O1","status":"EVIDENCE_NOT_ESTABLISHED","choice":"Verify limited existing offline cache/export raw historical events and score contexts for initial epoch before executing","alternative":"Accept explicitly partial history and preserved NULL under a separate scope decision, never fill missing evidence with zero","recommendation":"First choice; no production DB or full Raw rescan in this phase","impact":"Blocks actual initial history binding, not proposal review or adapter implementation."},
+    {"id":"O2","status":"PROPOSAL_APPROVAL_PENDING","choice":"Review January2026/fixed-final-C1/raw-score-baseline/day-barrier/Primary-common-denominator proposal","recommendation":"Approve or amend concrete fields before implementation acceptance; authorize real collection/evaluation separately","impact":"No real2026/HTTP/production execution authorized by this proposal."}
+  ]
+}
