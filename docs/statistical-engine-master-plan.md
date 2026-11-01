@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-11-01 統合受入: PR131 MERGEDをclean main/HEAD/ローカルorigin `a25fcede1b9ba71ffa8b2ff293613340042ca779`・merge親・treeで照合し、新branch `verify/stat-existing-data-integrated-acceptance-01` で既存20上流＋STAT20 v3を実行した。固定352候補＝適格352＋対象外0、2,349出走。新21run/47,332結果/7,392itemの保存・全行再読込・別PHP再計算・独立集合/履歴全ID照合が成立しREADY_FOR_REVIEW。18非正値得点は01/20のINVALID_INPUTとして利用不可を保持。アプリ/テスト/式/モデル無変更、元資料/39業務表/旧153run・1177結果・153item・262実行コードseal不変。本番DB/HTTP/2026/学習/予測0。正本は5.0・15.97と[統合受入記録](stat-existing-data-integrated-acceptance-01.md)。以下のPR131未マージ/未コミット/全体NOT_RUNは各時点の履歴。
+
 > 2026-11-01 PR131修正: 開始cleanな既存feature branch/HEAD `efa3cc2212382457776f480bba70ec0c84d7fcc5`、ローカルorigin/main `0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd`。PR131未マージ。F1～F6、共通取得証拠照合と旧決まり手評価の分離、全A固定旧資料からのオフライン入力派生を製造。安全限定169件/4084 assertions、固定25,976候補＝25,953保存＋23未採用、失敗/未処理0。再読込み・別PHPの3JSONL一致・旧45/857互換・51,906原項目照合が成功。通常全体は旧永久削除cleanupとの安全条件不整合でNOT_RUN、最新ユーザー指示で今回に限り保留承認済み。全体回帰はNOT_CONFIRMEDと区別し、本修正はREADY_FOR_REVIEW。元DB/HTTP/学習/予測/2026開催参照0、未コミットで差分と証跡のレビュー待ち。正本は5.0・15.96.1・[修正記録](stat21-saved-weather-batch-01.md#0-pr131修正記録--2026-11-01)。以下の初版BLOCKED/FAILED等は当時の履歴。
 
 > 2026-10-31 天候バッチ工程の現在: PR130 MERGED、開始clean main/HEAD/ローカルorigin `0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd`、新branch `feature/stat21-saved-weather-batch-01`。固定scope/READ ONLY補完/一括保存・検証を製造し、限定161 tests/4135 assertionsが成功した。実受入は857投影後、DB/Rawとも「1着・マーク」の固定本人を既存Reader契約が拒否しFAILED、25,118未処理。W45全45互換・部分出力の別PHP再現/原項目照合は成功したが、全件成功ではない。正本は5.0・15.96と[今回記録](stat21-saved-weather-batch-01.md)。未コミットBLOCKED、次は今回差分と固定Reader契約適用のレビューのみ。以下の学校工程の未コミット状態等は当時の履歴として保持する。
@@ -109,14 +111,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.91
+- Version: 1.92
 - Created: 2026-08-23
-- Updated: 2026-11-01（PR131限定修正・取得証拠/決まり手評価の分離・オフライン派生と検証状況）
+- Updated: 2026-11-01（PR131マージ同期・固定352レースの既存21STAT統合受入）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd`（今回もローカルorigin参照のみ。fetch/外部GitHub照会なし、最新リモートの再確認とはしない）
-- Previous remote main at v1.90: 同SHA（2026-10-31天候バッチ開始clean main/HEAD/ローカルorigin一致、PR130 merge履歴確認。当時の記録）
+- Remote `main` at last update: `a25fcede1b9ba71ffa8b2ff293613340042ca779`（開始main/HEAD/ローカルorigin、PR131 merge親/tree照合。fetch/外部GitHub照会なし、最新リモートの独立再確認ではない）
+- Previous remote main at v1.91/v1.90: `0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd`（PR131修正と天候バッチ開始時のローカル参照。当時の記録）
 - Previous remote main at v1.89: `3e52289f08940dd9a9e131bf72302690dd4bc4ef`（学校接続開始時、PR129 MERGED。当時の記録を保持）
 - Previous remote main at v1.88: `2b2b4b2371067953cc5dd11f53d15362590db6c1`（STAT09工程開始時clean main/HEAD/ローカルorigin、PR128 MERGED。当時の記録を保持）
 - Previous remote main at v1.87: `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8`（PR128実装開始時点のclean main/HEAD/ローカルorigin、PR127 MERGED。当時の記録を保持）
@@ -139,10 +141,12 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR131未マージ。既存feature/stat21-saved-weather-batch-01、修正開始HEAD efa3cc2212382457776f480bba70ec0c84d7fcc5。通常全体の今回限定保留承認を反映しREADY_FOR_REVIEW。未コミット差分だけをレビュー待ちとし、Git操作はユーザーが行う
-- Current code: STAT-21-SAVED-WEATHER-BATCH-v2-PR131。共通OfficialResultEvidence/Verifier、旧Reader API/Contract::outcomeと内側天候v1は維持。最終87依存sealの識別hash c7e4f377c9e69e2f82857fb8356fb159abe3d141cf74054317b915068a72e4ec
-- Current execution record: 旧manifest/データ/旧コードと固定Git blobを確認し、元JSONL集合から新入力を派生。業務行/旧統計行不変、追加import/log各25,908をexport/sidecar照合。実受入の正本は15.96.1
-- Current tests record: 安全限定169 passed/4084 assertions、failure/error/warning/skip0、128M/exit0。専用81件/1511 assertionsはSTAT38_RESULT_FIXTURE未設定・全ケース検証実行。通常全体NOT_RUNは今回限定でユーザー保留承認済み、全体回帰NOT_CONFIRMED。旧161成功・ユーザー全体34失敗/155 warningsを履歴として保持
+- Current review: PR131 MERGED。新branch verify/stat-existing-data-integrated-acceptance-01、開始HEAD a25fcede1b9ba71ffa8b2ff293613340042ca779。固定入力/既定MVPの統合受入はREADY_FOR_REVIEW、未コミットの文書と外部証跡をレビュー待ち。Git操作はユーザーが行う
+- Current code: アプリ/計算式/版/テスト/設定は無変更。既存Command/Service/Repository/Calculatorと、リポジトリ外の専用受入runner/比較scriptを使用。実行262コードsealはSTART/END一致
+- Current execution record: 352候補/適格352、2349出走、新21run/47332結果/7392item。全行再読込・別PHP再計算・独立集合/履歴全ID照合が成立。39業務表/旧153run・1177結果・153item不変。18非正値得点は未確認・利用不可。15.97参照
+- Current tests record: 本工程のアプリ/テスト無変更に対する実資料25段階は128M/exit0、最大PHP peak92278784bytes。PHPUnit/通常全体/PintはNOT_RUN。PR131後続ユーザー全体4534 passed/46563 assertions/155 warnings/9 skipped/390.28秒・失敗表示なしは別記録で、exit/環境変数状態は未提示
+- Previous review/code at v1.91: PR131修正開始HEAD efa3cc2212382457776f480bba70ec0c84d7fcc5、当時未マージ/未コミット。天候v2-PR131・内側v1・旧Reader/Contractを保持し、87依存識別hash c7e4f377c9e69e2f82857fb8356fb159abe3d141cf74054317b915068a72e4ec。今回再実行/再封印なし
+- Previous tests at v1.91: Codex限定169 passed/4084 assertions、警告等0、専用81件は環境変数未設定、通常全体NOT_RUN（当工程のみ保留承認）だった。その後のユーザー実行/commit/push/mergeとは区別し、旧34失敗/155警告も履歴へ保持
 - Previous review at v1.89: PR129 MERGED。feature/stat-school-profile-connection-01の今回差分を未コミットREADY_FOR_REVIEW。開始HEADは3e52289f08940dd9a9e131bf72302690dd4bc4efであり将来不変の最新HEADではない
 - Previous code at v1.89: SCHOOL-PROFILE-CATALOG-v1 / SCHOOL-PROFILE-STAT44-SELECTION-v1とSTAT44専用入力入口。旧単一/未指定・投影v1・44計算v2/保存Service v3/lineage v1・09/他STAT/20v1/v2/v3/6条件式/モデル/安全helper不変
 - Previous execution record at v1.89: 全学校2,475版/2,436本人を保持/選択、3レース23本人全接続。新44 6run/46行、新20 4run/32行、旧互換・反復・別PHP再計算・原投影による独立日付算術一致。原本/旧行/業務表不変、生成時コードsealと最終再現時sealを分離して保持
@@ -377,7 +381,67 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: STAT21-SAVED-WEATHER-BATCH-FIX-01
+## 5.0 最新工程: STAT-EXISTING-DATA-INTEGRATED-ACCEPTANCE-01
+
+```yaml
+current_phase: STAT-EXISTING-DATA-INTEGRATED-ACCEPTANCE-01
+current_engine_state: FIXED_MVP_INTEGRATED_ACCEPTANCE_READY_FOR_REVIEW
+next_allowed_action: REVIEW_FIXED_STAT_INTEGRATED_ACCEPTANCE_ONLY
+after_acceptance_review: PREPARE_2026_CHRONOLOGICAL_STAT_INPUT_PREDICTION_STORAGE_AND_METRIC_CONTRACT
+start_main_sha: a25fcede1b9ba71ffa8b2ff293613340042ca779
+remote_main: a25fcede1b9ba71ffa8b2ff293613340042ca779
+remote_verification: LOCAL_REFERENCE_PARENTS_TREE_ONLY_NO_FETCH
+pr131_status: MERGED_LOCAL_HISTORY_VERIFIED
+fixed_school_set_connection: COMPLETE
+fixed_stat09_two_axes: COMPLETE
+fixed_weather_batch_acceptance: COMPLETE_PREVIOUS_PHASE_NOT_RERUN
+fixed_integrated_scope: 2025-01-01_TO_2025-01-04
+fixed_candidates: 352
+eligible_races: 352
+excluded_races: 0
+target_entries: 2349
+new_statistic_runs: 21
+new_statistic_results: 47332
+new_statistic_items: 7392
+technical_errors: 0
+unprocessed: 0
+non_positive_score_entries: 18
+non_positive_score_use: NOT_USABLE_NOT_FILLED
+ordinary_full_suite: NOT_RUN_THIS_ACCEPTANCE
+acceptance_policy: FIXED_REAL_INPUT_ALL_ROW_SAVE_RECALCULATE_AND_INDEPENDENT_AUDIT
+production_db_access: 0
+production_write: 0
+production_migration: NOT_RUN
+real_http_this_phase: NOT_RUN
+operational_decisions: PROPOSED_NOT_APPROVED
+permission_status: UNVERIFIED
+real_send_allowed: false
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+points: null
+confidence: null
+2026_holdout: FROZEN_NO_ACCESS_THIS_PHASE
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | この固定入力/既定MVPの統合生成・保存・全行再計算/独立検算は完了。18不正得点を利用可能としない |
+| next_allowed_action | 未コミット差分と受入証跡のレビューだけ。受入レビュー後は2026時系列検証の使用STAT・入力・予測方法・保存順序・評価指標の固定準備 |
+| completed_phases | 既存学校/09/天候の有限完了を維持。今回20上流＋品質20の21STAT、352レース/2349出走、21run/47332結果/7392itemを受入 |
+| superseded_phases | PR131未マージ/レビュー待ちは履歴。旧実験/不採用/初版857停止/失敗版を保持し復活させない |
+| blocked_phases | B1/親lambda/H1-U/予測採用・実送信/LIVEは未承認。非正値得点18と歴史公開時点等の不足を保持 |
+| frozen_contracts | 01/Batch02～05/09v3/16v3/25v2/27v3/44v2/20v3、保存Service v3/lineage v1、6条件式・09独立2軸・学校選択、モデル/Raw/原本 |
+| unfrozen_contracts | 専用外部受入runner・検証script・指定文書。アプリの計算・保存・選別・版/schemaは変更していない |
+| holdout_status | 実2026開催参照0。後続準備を今回実行せず、全46/全期間/占術完成を新しい永久条件に追加しない |
+
+正本は15.97と[統合受入記録](stat-existing-data-integrated-acceptance-01.md)。今回通常全体NOT_RUNは本工程第8節の検証仕様であり、PR131の保留承認を恒久化しない。後続ユーザー全体4534/46563/155 warnings/9 skippedと今回の実資料検証は別で、明示exit/環境変数状態を創作しない。
+
+### v1.91 PR131修正終了時点（履歴）
 
 ```yaml
 current_phase: STAT21-SAVED-WEATHER-BATCH-FIX-01
@@ -2106,6 +2170,8 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
+| STAT-EXISTING-DATA-INTEGRATED-ACCEPTANCE-01 | 固定4日間の20上流＋品質20の統合生成/保存/全行検証 | FIXED_MVP_INTEGRATED_ACCEPTANCE_READY_FOR_REVIEW | 352候補/適格352・2349出走、新21run/47332結果/7392item。全行再計算・独立履歴参照照合一致、18不正得点は利用不可。15.97参照 |
+| STAT21-SAVED-WEATHER-BATCH-01 | 天候原項目の固定一括投影とPR131修正 | PR131_MERGED_FIXED_ACCEPTANCE_COMPLETE | 旧25,976候補の25,953保存/23未採用を保持。今回再build/Raw解析なし。後続ユーザー全体とCodex当時NOT_RUNを区別 |
 | PRESTART-CAPTURE-PJ0315-REAL-HTTP-01 | 2025男子1件の技術検証とPR125修正 | PR125_SCOPE_AND_RETENTION_FIX_AWAITING_REVIEW | 旧v1 POST1/HTTP200/9名一致/SHA保持。v2固定scope再送拒否・保持表示を人工検証、今回実HTTP0。未承認事項維持、15.90.1参照 |
 | PRESTART-CAPTURE-DECISION-EVIDENCE-01 | D1〜D8判断資料とD3/時計/親容量の限定根拠確認 | PR124_MERGED_DECISIONS_STILL_PROPOSED | 文書工程はmerge済み。対象/許諾/誤差上限TTL/root保持backupの運用判断は未決。実HTTP未実施の記録は15.89の当時の履歴 |
 | STAT38-DISTANCE-LAPS-MVP-01 | PJ0315予定距離/周回数の追記型保存・厳格as-of/事後参考の分離 | PR117_REVIEW_FIX_VERIFIED_AWAITING_REVIEW | 結果Raw対応・適格版選択・0/NULL・独立128Mを修正。本番適用/予測用経験数の実証/適性評価は未成立。15.82.1参照 |
@@ -5076,6 +5142,16 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.97 STAT-EXISTING-DATA-INTEGRATED-ACCEPTANCE-01 / 2026-11-01
+
+clean main/HEAD/ローカルorigin a25fcede1b9ba71ffa8b2ff293613340042ca779、PR131 merge親0de4bdd/8faa7fe・tree92987cfを確認。新branch verify/stat-existing-data-integrated-acceptance-01。fetch/pull/外部PR照会なし。PR131の未マージ/未コミットは当時の記録として残し、ユーザー後続全体4534 passed/46563 assertions/155 warnings/9 skipped/390.28秒・失敗表示なし、その後のcommit/push/mergeを分離する。明示exit/環境変数状態は未提示。
+指定元snapshot/COMPLETE/7JSONL、派生manifest4465e265…→親0c220b6e…→original_sqlite6ae8c40b…、学校selection725a4036…/全2475版・2436本人と原本source refsを検証。元SQLiteを新rootへ1回だけ複製。初回外部runnerの複製前接続失敗exit1は別rootに保持し、コピーは未作成、アプリ修正なし。
+計算前に4日間352候補＝適格352/対象外0、2349出走/1232固有本人・18場をseal。日別105/89/79/79。既存A/S・5～9車条件を保持し、新01親run154から既存Commandで順次保存。Batch02=155～159、Batch03=160～165、Batch04=166/167、41=168、09v3=169、16v3=170、25v2=171、27v3=172、44v2=173、20v3=174。19追加sourceを明示し、旧親/最新run検索・式/版/モデル変更なし。
+新21run/47332結果/7392item（20N＋R/21R）、全終端/error0・未処理0。STAT41は352物理行、他20項目は各2349行。学校2349接続/未接続0。01の非正値18はINVALID_INPUT・未確認のまま利用不可、20も同じ18をUPSTREAM_INVALID_INPUTとして保持。通常欠損/PARTIAL/NO_HISTORY/NOT_APPLICABLEと技術失敗を区別する。
+全保存行再読込・別PHPの実Repository→Calculator再計算47332行・同じlineage/親/hash/学校表/保存UUIDで一致。Model既存保存cast後の厳密JSONを使い、独自丸め/型coerce/NULL補完なし。各Service dry-runは書込み0/SQLite SHA不変。独立PDO/元JSONL・元SQLiteでは集合/本人/source map/件数と新5の203598参照ずつを全元行照合。16/27各200847採用/2751除外、採用2025履歴32件も開催cutoff/別開催確認。09/25/44の全ID照合と、16/27個別採否の形式差を明記。全20式/全Raw/歴史公開時点の独立証明ではない。
+39業務表・既存153run/1177結果/153itemの全内容digest、元manifest/JSONL/SQLite/学校資料・262実行コードsealとschemaは不変。作業コピーだけ新統計行追加でhash変化。PHP8.5.4/全25実資料段階128M・exit0、時間合計516.263秒/最大peak92278784bytes。アプリ/テスト/設定無変更なのでPHPUnit/通常全体/PintはNOT_RUN、旧cleanupは起動しない。本番DB/HTTP/2026/学習/予測0。
+証跡root `/home/shinya/neo-keirin-artifacts/stat-existing-data-integrated-acceptance-01/run-20261101-JvJB0moW/`。正本は[統合受入記録](stat-existing-data-integrated-acceptance-01.md)。この固定入力/既定MVPの統合生成・保存・検証を完了として閉じ、任意の全期間網羅を同じ機能の未実装に戻さない。全46原本要件・予測採用・精度改善ではない。次はレビュー待ち、その受入後は2026時系列検証の使用STAT・入力・予測方法・保存順序・評価指標の固定準備。今回実行しない。B1/親lambda/H1-U・正式採用/holdout凍結は維持、Git add/commit/push/PR/mergeなし。
+
 ## 15.96 STAT21-SAVED-WEATHER-BATCH-01 / 2026-10-31
 
 PR130 MERGED、開始clean main/HEAD/ローカルorigin0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd、レビューhead44944f6とのファイル差分0を確認し、指定未使用feature branchを作成。新SavedWeather 7クラス/2Commandと直接テストを製造し、固定scope・列来歴・A/B/C補完・取得版/固定本人・保存/読込み・dry-run・失敗終端を分離した。既存v1 Service/Reader/RawReader/Parser/モデル/他STATは変更なし。
@@ -5998,6 +6074,7 @@ run 6は正式完了済み。
 
 | PR | 内容 | 状態 |
 |---:|---|---|
+| #131 | 保存済み天候バッチ・固定範囲実受入とレビュー修正 | MERGED / a25fcede1b9ba71ffa8b2ff293613340042ca779。開始main/ローカルorigin・親/tree照合。旧未コミット/全体NOT_RUNは当時の履歴 |
 | #22 | STAT-01 existing DB foundation | MERGED |
 | #23 | Statistics Batch02 player history | MERGED |
 | #24 | Batch02 bounded memory | MERGED |
@@ -6156,6 +6233,21 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.92 / 2026-11-01
+
+```yaml
+document_version: 1.92
+updated_at: 2026-11-01
+remote_main_sha: a25fcede1b9ba71ffa8b2ff293613340042ca779
+phase_changed: STAT-EXISTING-DATA-INTEGRATED-ACCEPTANCE-01
+related_pr: PR131_MERGED_LOCAL_HISTORY_VERIFIED
+related_run: ISOLATED_SQLITE_STATISTIC_RUNS_154_TO_174
+decision: FIXED_MVP_INTEGRATED_ACCEPTANCE_READY_FOR_REVIEW
+reason: FIXED_352_RACES_2349_ENTRIES_ALL_47332_RESULTS_RECALCULATED_AND_INDEPENDENT_REFERENCE_AUDIT_PASSED
+```
+
+冒頭metadata/5.0の8工程ゲート/工程一覧/15.97/引継ぎを同期。18非正値得点は利用不可、全46原本/全期間/公開時点/予測・精度改善と限定完了を分離。PR131当時の169限定/通常全体NOT_RUN、後続ユーザー4534/46563/155 warnings/9 skipped/390.28秒、その後のcommit/push/mergeを時系列保持。今回はアプリ/テスト無変更の実資料統合受入で通常全体NOT_RUN、恒久保留承認ではない。B1/モデル/不採用/2026禁止は維持。
 
 ## v1.91 / 2026-11-01
 
@@ -7265,6 +7357,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+最新はSTAT-EXISTING-DATA-INTEGRATED-ACCEPTANCE-01。PR131 MERGED、開始clean main/HEAD/ローカルorigin a25fcede1b9ba71ffa8b2ff293613340042ca779、未使用verify/stat-existing-data-integrated-acceptance-01を作成。アプリ/式/テスト/設定無変更、指定文書と外部受入runner/実資料証跡だけを未コミットREADY_FOR_REVIEW。正本5.0/15.97と[統合受入記録](stat-existing-data-integrated-acceptance-01.md)・小型review-packetを照合する。
+全352候補/適格352・対象外0、2349出走、親154＋source155～173＋20監査174の21run/47332結果/7392item。全行保存・再読込・別PHP再計算・独立集合/全履歴ID・時点境界検算が成立。18不正得点と対応20監査はINVALID_INPUT・利用不可を保持し、正常欠損/部分履歴は元契約のまま。元資料/39業務表/旧153run・1177結果・153item/262コードseal不変。各実資料128M/exit0、本番DB/HTTP/2026/学習/予測0。通常全体/新PHPUnit/Pintは本工程では未実行。
+この固定入力/既定MVPの統合生成・保存・検証を有限完了として閉じ、曖昧な対象拡大を繰り返さない。今回差分の受入レビュー後に「2026時系列検証の使用STAT・入力・予測方法・保存順序・評価指標の固定準備」へ進む。全期間受入/全46/全占術完成を新しい永久条件にせず、今回はその資料参照/実行を開始しない。B1/親lambda/H1-U・モデル/不採用・歴史asof=false・予測/正式採用禁止は維持。Git add/commit/push/PR/mergeはユーザーが行う。
+
+### v1.91 PR131修正終了時の引継ぎ（履歴）
 
 最新はPR131/STAT21-SAVED-WEATHER-BATCH-FIX-01。既存feature/stat21-saved-weather-batch-01、修正開始HEAD efa3cc2212382457776f480bba70ec0c84d7fcc5、ローカルorigin/main0de4bdd。PR131未マージ・Git書込み0・未コミット差分を保持。5.0/15.96.1と[修正記録](stat21-saved-weather-batch-01.md)・新小型review-packetを照合する。固定25,976候補の25,953保存/23未採用・失敗/未処理0、旧45/857互換・別PHP/独立監査は完了。旧BLOCKED/FAILEDは当時の履歴として保持。通常全体は安全条件不整合でNOT_RUN、今回の保留はユーザー承認済み、全体回帰NOT_CONFIRMED。専用81件/1511 assertionsは環境変数未設定で全ケース検証済み、最終安全限定169件/4084 assertions成功を通常全体で代用しない。今回修正はREADY_FOR_REVIEW、次はREVIEW_PR131_DIFF_AND_FIXED_EVIDENCE_ONLY。全件受入後にDB/HTTP/学習/予測/2026開催参照へ自動進行しない。
 
