@@ -1,5 +1,7 @@
 # STAT21-SAVED-WEATHER-BATCH-01
 
+> 2026-11-01後続記録: ユーザー提示の全体実行は4,534 passed/46,563 assertions/155 warnings/9 skipped、390.28秒、失敗表示なし。明示的exit code・環境変数状態は未提示で、Codexの限定169件/全体NOT_RUNと区別する。その後8faa7feでユーザーcommit/push、PR131はa25fcede1b9ba71ffa8b2ff293613340042ca779でmainへmergeされたことをローカル履歴・親・treeで確認。以下の未マージ/未コミット/NOT_RUNや初版FAILEDは当時の記録として保持する。天候の再build/reproduce/Raw解析は行わず、後続は[固定STAT統合受入](stat-existing-data-integrated-acceptance-01.md)。
+
 ## 0. PR131修正記録 / 2026-11-01
 
 開始cleanな既存 `feature/stat21-saved-weather-batch-01`、HEAD `efa3cc2212382457776f480bba70ec0c84d7fcc5`、ローカルorigin/main `0de4bdd85d8df0ccd15ad835d360a5d1a5e57fdd` を確認。fetch/外部PR照会なし。PR131は未マージとして扱い、add/commit/push/PR操作は行わない。以下1～7節は初版当時の履歴であり、旧BLOCKED/FAILED・数値・sealは変更しない。
