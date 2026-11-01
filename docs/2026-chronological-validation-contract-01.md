@@ -1,5 +1,7 @@
 # STAT-2026-CHRONOLOGICAL-VALIDATION-CONTRACT-01
 
+> PR133 P2修正（2026-11-01）: 既存branchのclean HEAD `827582af4bb311b1e78e3fa0b5b5504ae30d5e0f` からF1/F2を修正。不能時もprediction_bundleを正本とし、先行する候補固定版から結果保存までの参照と、JST日付の履歴境界を統一した。第7.1・8.2・12節参照。初版の実物確認/検証は当時の履歴として保持し、今回再実行していない。
+
 ## 1. 状態・根拠の優先順位
 
 2026-11-01 JST。**READY_FOR_REVIEW_WITH_OPEN_ITEMS**。契約案は **PROPOSED_FOR_REVIEW**、実行許可はfalse。今回は文書とJSONだけであり、実2026資料の閲覧・取得・STAT計算・予測・評価はすべて0。性能改善・正式採用・LIVE・発走前可用性の証明ではない。
@@ -141,16 +143,25 @@ input_as_ofは既存発売締切優先・欠落時予定発走のfallback。予�
 
 1. Dの**全候補**を結果を使わず固定、C/X/Tと本人名簿をsealする。
 2. D開始時に単一history epochをbind。初日はイベント日が2025-12-31以前の別途検証済み履歴だけ。取得可能範囲の下限案2022-01-01を明記し、生涯完全性としない。
-3. 結果を呼ばないPJ0315専用入口で得点/出走表を取得・許可投影、実取得版と入力を保存する。
-4. 必要13STAT＋4履歴を計算、C1と基準の保存予測、または既知NO_PREDICTIONを各方式で固定する。
-5. U=0・全Tの両方式が終端・全seal確認後に日別DAY_PREDICTIONS_LOCKEDを公開。これを満たすまでPJ0326結果取得器を呼ばない。
+3. 結果を呼ばないPJ0315専用入口で得点/出走表を取得・許可投影、実取得版と構成可能な正常input_bundleを保存する。既知不足で構成不能ならダミー入力を作らず、取得済み証拠を不能記録へ結ぶ。
+4. 必要13STAT＋4履歴を計算、**両方式それぞれのprediction_bundle**をPREDICTEDまたは既知NO_PREDICTIONとして固定する。候補版は先行するCANDIDATES_LOCKED、day_manifestの理由索引だけで終端としない。
+5. U=0・全T×両方式の実在/検証済み終端bundleへの非NULL Ref・全seal確認後に日別DAY_PREDICTIONS_LOCKEDを公開。これを満たすまでPJ0326結果取得器を呼ばない。対象外Xには終端bundleを要求しない。
 6. 当日の結果取得/照合/保存、評価を行い、検証済み版だけを次の日のepochへ追加する。
 
 日内順は予定発走JST→場コード→番号→永続race key。時刻不明のNO_PREDICTIONは既知時刻群の後に外部key順で台帳固定するだけで、架空の発走時刻を付けない。同時刻/再開時も同じepoch、同日先行結果を後続へ渡さない。各STATの既存input_as_of未満、pre-meeting等のより厳しいcutoffを緩めない。
 
-履歴の論理的releaseはDの結果を検証後、**D+1のJST00:00から利用可能とする再生規則**。実際の取得/保存は現在日時、当時の公開時刻は不明ならNULLのまま。日付D以前のイベントかつ当該epochでreleaseされた版だけ参照する。「当時D以前に公式公開済みだったことを証明した」とは呼ばない。必要な未確定結果は次epochで保留、正式結果に架空補完しない。
+履歴の論理的releaseはDの結果を検証後、**D+1のJST00:00から利用可能とする再生規則**。target_day/history_event_day/logical_available_fromはすべてAsia/Tokyoの**日付型**であり、次の全条件を要求する（JSON daily_protocol.history_conditionsが正本）。
 
-結果訂正は新result version＋新evaluation ID＋新epoch。旧予測・初回評価・既に確定した後続入力は変更せず、以後の未処理日だけへ反映する。再開時は元epochと元lock済み予測を検証再利用し、新IDで予測を作り直して成績へ差し替えない。
+```text
+history_event_day < target_day
+AND logical_available_from <= target_day
+AND 当日開始に固定したhistory epochに含まれる検証済みの版
+AND 各STAT/履歴feature固有のcutoffを満たす
+```
+
+1月1日の結果をlogical_available_from=1月2日として検証済みepochへ含めた場合、1月2日の対象日に日付境界は成立する。同日/未来イベント、利用開始日が対象日より後、固定epoch外の版は不可。成立してもinput_as_of未満・C1 pre-meeting120日/同開催除外等の追加条件は省略しない。初日も別途検証済み初期epochに同じ境界を適用するが、O1のNOT_ESTABLISHEDは維持する。実取得/保存は現在日時、当時の公式公開時刻は不明ならNULLのまま。「当時公開済みと証明した」とは呼ばない。必要な未確定結果は次epochで保留し、正式結果に架空補完しない。
+
+結果訂正は新result version＋新evaluation ID＋新epoch。旧予測・初回評価・既に確定した後続入力は変更せず、以後の未処理日だけへ反映する。現行キーは `storage.reprediction_after_result_open=FORBIDDEN_EVEN_WITH_NEW_REQUEST_ID`。結果開放後は別request IDでも予測/不能記録を作り直して元の成績へ差し替えない。元epochと元PREDICTED/NO_PREDICTION bundleの検証再利用による**結果取得・評価の再開は許可**し、新規予測と区別する。
 
 ## 7. 保存schemaと参照・一意性
 
@@ -161,14 +172,35 @@ JSON schemasがfield一覧の正本。全列必須、型末尾`?`のみ明示NUL
 | 保存単位 | 必須内容 / NULL条件 | 一意性と参照 |
 | --- | --- | --- |
 | validation run | 契約版/契約hash、期間、model/コードSHA、比較版、初期history Ref、用途/承認receipt、実作成時刻、day参照 | run_id。実runには承認receipt/初期履歴Ref必須、本案JSONのNULL不足とは区別 |
-| day manifest | 全候補identity/対象外理由、集合hash、history epoch、各方式予測Refまたは不能理由、未処理/件数、状態/lock時刻/結果開放receipt | run_id+JST日付。外部race key重複不可。lock前locked_at/receipt=NULL、lock後locked_at必須、結果開始時receipt必須 |
-| input bundle | race/meeting/entry/player/bike、採用capture/Raw seal、実取得/保存時刻、予定/input_as_of、許可列、STAT source、4履歴/参照・品質 | run+race+input_id、entry ID/bike/登録番号の重複不可。各Refは同run/day/epoch・同本人とseal一致 |
-| prediction bundle | input/model hash、history Ref、方式、Primary3人、C1確率/utility/E06 decision/同点監査、実保存時刻、状態/理由 | run+race+方式。一方式の正本は一つ。PREDICTEDは異なる3人必須、NO_PREDICTIONではprimary/確率/utility/decision=NULL＋理由必須。基準はmodel/確率=NULL＋baseline_rule必須、C1はmodel必須 |
-| result bundle | 取得版/Raw参照・SHA/bytes、capture/log、実取得/保存時刻、公式状態/rank/status、本人対応、既存prediction/day lock hash | race+result_version、bike一意。初版parent_result=NULL、訂正版は親Ref必須。公式公開不明NULL＋理由。中止行0を許容、非中止は旧名簿の本人/車番対応を検証 |
+| day manifest | 全候補identity/対象外理由、集合hash、history epoch、先行候補版Ref、全T×両方式の終端bundle Ref、不能理由索引、未処理/件数、状態/lock時刻/結果開放receipt | run_id+JST日付。候補固定版にはpredictionへの前方参照なし。予測lock版は同候補版/集合/epochと全終端の非NULL Ref必須、U=0。lock前のNULLは未終端、理由だけで開放不可 |
+| input bundle | candidate_ref、race/meeting/entry/player/bike、採用capture/Raw seal、実取得/保存時刻、予定/input_as_of、許可列、STAT source、4履歴/参照・品質 | run+race+input_id、entry ID/bike/登録番号の重複不可。正常入力の必須条件は維持し、構成不能時にダミー束を作らない |
+| prediction bundle | candidate_ref、input Ref?と可用性/不足理由、capture_refs/証拠不足理由、model hash、history Ref、方式、Primary3人/C1確率/utility/decision/同点監査、実保存時刻、状態/理由 | run+race+方式の唯一の正本。PREDICTEDは正常input非NULL、NO_PREDICTIONのinput=NULLは既知不足による正常入力構成不能時だけ。既存の正常inputがあればRef保持。不能時のPrimary/確率/utility/decision/同点監査はNULL、詳細7.1 |
+| result bundle | 取得版/Raw参照・SHA/bytes、capture/log、実取得/保存時刻、公式状態/rank/status、本人対応、両方式の既存終端bundle/day lock hash | race+result_version、bike一意。両方式Refはday lockと同じ非NULL Ref、NO_PREDICTIONも省略しない。初版parent_result=NULL/訂正版は親Ref必須。公式公開不明NULL＋理由、中止行0可。本人/名簿の照合成功は別検証 |
 | evaluation bundle | prediction hash＋result版＋metric版、各レース寄与、分子/分母、率、除外/失敗、共通集合hash、is_final | evaluation_idとprediction/comparison prediction hash・result版・metric版。比較表はcomparison_prediction Ref/hash・同result版・E_pair hash必須。単独表のcomparison/paired hash=NULL。率は分母0時のみNULL＋理由 |
-| history epoch | 親Ref、採用結果版/過去入力Ref、論理利用開始日、イベント範囲、実取得順/論理release順/公開時刻、除外理由、実作成時刻 | epoch_id。genesisのみ親NULL。公開不明はNULL＋UNKNOWN。訂正版も既存epochを変更しない |
+| history epoch | 親Ref、採用結果版/実在する過去入力Ref、JST日付の論理利用開始日、イベント範囲、実取得順/論理release順/公開時刻、除外理由、実作成時刻 | epoch_id。genesisのみ親NULL。公開不明はNULL＋UNKNOWN。input=NULLに架空のRefを作らず、不足理由とfeature別利用可否を残す。訂正版も既存epochを変更しない |
 
-補助型: candidate=`{external_race_key,original_race_id?,race_date,track_code,race_number,eligibility,reason_codes[],entry_set_seal?}`。原IDが未確認なら予測不可。capture evidence=`{capture_id,source,raw:Seal,private_ref,method,source_status,parser_version,fetched_at,saved_at}`。STAT source row=`{stat_code,calculation_version,source_run_id,source_run_uuid,source_result_id,subject_type,original_race_id,original_entry_id,original_player_id,bike,input_as_of,source_fetched_at?,calculated_at,input_hash,status,quality_status,reasons[]}`。4履歴は本人/target/window/version/values/status/参照IDとhashを持つ。参照先が実在しない/別race/別run/別版なら公開不可。
+補助型: candidate=`{external_race_key,original_race_id?,race_date,track_code,race_number,eligibility,reason_codes[],entry_set_seal?}`。原IDが未確認なら予測不可。CandidateRef=`{manifest:Ref,external_race_key:string}`、manifestは先行CANDIDATES_LOCKED版。capture evidence=`{capture_id,source,raw:Seal,private_ref,method,source_status,parser_version,fetched_at,saved_at}`。STAT source row=`{stat_code,calculation_version,source_run_id,source_run_uuid,source_result_id,subject_type,original_race_id,original_entry_id,original_player_id,bike,input_as_of,source_fetched_at?,calculated_at,input_hash,status,quality_status,reasons[]}`。4履歴は本人/target/window/version/values/status/参照IDとhashを持つ。参照先が実在しない/別race/別run/別版なら公開不可。
+
+### 7.1 PR133 F1: 不能記録の正本と参照順
+
+既存7種の保存単位のまま、**PREDICTEDもNO_PREDICTIONもprediction_bundleを正本**とする。入力束の必須時刻を緩めるのではなく、predictionのinputをRef?とし、JSONのcommon_rules/state_rulesで次を定める。
+
+| 条件 | inputと証拠・出力の扱い |
+| --- | --- |
+| PREDICTED | 正常input Refを必須、NULL拒否。既存モデル/基準規則・history epoch・Primary/確率/utility/decision/同点条件を維持 |
+| NO_PREDICTIONで正常inputが実在 | input_availability=AVAILABLE、Refを保持しinput_unavailable_reasons=[]。後から都合よくNULLにしない |
+| NO_PREDICTIONで既知不足により正常入力を構成不能 | input=NULL、input_availability=NOT_CONSTRUCTIBLE_KNOWN_MISSING。input_unavailable_reasonsは非空・既知不足コード・全てreasonsに含む。理由だけでなく参照可能な証拠も結ぶ |
+| NO_PREDICTIONの予測値 | primary/probabilities/utilities/decision/tie_auditはNULL。架空時刻/ID/0得点/縮小名簿・ダミーinputや同点値を作らない |
+| 両状態のcandidate_ref | manifestの状態は先行CANDIDATES_LOCKED、同run/JST日付/対象Tの同external_race_key。後から作る予測lock版は参照しない |
+| capture_refs | 既存capture evidence[]型の必須配列、NULL不可。取得済み証拠は保持。証拠自体がない場合だけ[]＋非空capture_unavailable_reasons（reasonsにも同じ理由）。取得証拠があれば不足理由は[]。PREDICTEDは正常入力に対応する1件以上が必要 |
+
+input Refがある場合は正常入力を検証し、candidate_ref・capture_refs・本人/名簿・history epochが一致することを要求する。既知の欠損と、未知schema/Enum/hash矛盾・identity競合・I/O/計算例外は区別し、後者はFAILED/技術未処理のまま日別開放を停止する。
+
+依存の向きは **日別予測lock → 両方式の終端prediction_bundle → 先行候補固定版**。inputがあるときだけprediction→input→同じ候補固定版も持つ。run_id+日付は論理的な日の一意性、候補固定版/予測lock版はそれぞれmanifest SHAで識別する既存append-only日別版であり、同じ論理日の上書きではない。候補固定版はpredictionへの前方参照を持たず、予測lock版も上書きしないのでhashは循環しない。resultは同じday lockと同じ両方式終端Refを持つ。
+
+候補固定版のcandidate_manifestはNULL、prediction RefもNULLで未終端。予測lock版はcandidate_manifestに先行固定版Refを必須とし、同じrun/day/集合/epochと、全T×両方式の実在・検証済みPREDICTED/NO_PREDICTION Refを要求する。day_manifest.no_predictionは正本bundle.reasonsの一致索引であって独立正本ではない。NULL Refや理由索引だけでは終端にせず、U=0も確認して開放する。対象外Xにはこの終端義務を広げない。
+
+予定時刻だけが欠け本人/名簿対応が確認できる場合は、input=NULLの不能束を参照して正常な結果照合/保存へ進める。一方、元ID/本人不明の場合は候補/不能記録の不明理由を保持し、結果本人照合まで成功とみなさず未照合/未評価/失敗へつなぐ。input=NULLの履歴に存在しないinput Refを作らない。候補/結果/不能理由を残し、得点contextや本人対応等、各STAT/履歴feature固有の要件ごとに利用可否/不足理由を判定する。不能だから一律に全履歴採用/全履歴拒否とはしない。
 
 保存予測は有限0〜1の各順位/上位2・3着確率、順位別合計1、Ordered Top3合計1、同選手の順位重複なし、top3上限1、utility→E06 decision整合を既存1e-12許容で検査する。基準へ架空の確率分布を付けない。結果は別bundleだけに保存、prediction/inputには実rank/statusを入れない。
 
@@ -180,7 +212,7 @@ JSON schemasがfield一覧の正本。全列必須、型末尾`?`のみ明示NUL
 
 新 **PRIMARY-TUPLE-COMMON-DENOMINATOR-v1**。保存した `primary_position_1_bike/2/3` の**同じ3人**を用いる。旧EXACT_ORDERED_TOP3_RATEはmap_ordered_top3、旧EXACT_TOP3_SET_RATEはmap_top3_setの指標であり流用しない。旧POSITION_i_ACCURACYも各位置だけ一意なら母数へ入れるので、新名と共通母数adapterで区別する。
 
-方式mのE_mは、結果開放前lock予測＋本人/車番/状態/集合が整合するCONFIRMED/CORRECTED結果版＋公式1/2/3着が各一人の集合。C1対STAT01の主比較は**E_pair=E_C1∩E_STAT01**、同一result版で両方式を評価する。
+方式mのE_mは、結果開放前lock済みの**PREDICTED**＋本人/車番/状態/集合が整合するCONFIRMED/CORRECTED結果版＋公式1/2/3着が各一人の集合。NO_PREDICTION bundleは監査・件数集計の参照として保持するが、PrimaryがないのでE_m/E_pairの適格予測には数えない。C1対STAT01の主比較は**E_pair=E_C1∩E_STAT01**、同一result版で両方式を評価する。
 
 | 新指標 | 分子 | 分母 |
 | --- | --- | --- |
@@ -206,6 +238,19 @@ JSON schemasがfield一覧の正本。全列必須、型末尾`?`のみ明示NUL
 保存予測を全て[1,2,3]とする3例: 公式[1,2,3]、[1,3,2]、[4,2,3]。E=3、完全順序1/3、各位置一致は各2/3、順不同2/3。補助の位置一致合計6/(3×3)=2/3であり完全順序1/3とは異なる。
 
 この3例に「予測あり・公式1着同着」と「入力不足NO_PREDICTION」を各1対象追加すると、T=5/P=4/N=1/U=0、coverage4/5、E=3/同着除外1。主率の分子/分母は上のまま。両方式同予測ならE_pair=3。さらに基準方式だけ3番目を不能とする独立例では、C1単独E=3、基準E=2、E_pair=2で双方を再集計し、単独率との差を混同しない。T=0またはE=0の対応率はNULL。これらは人工**説明例**であり、新規Fixture/実資料評価ではない。
+
+### 8.2 PR133修正受入例 R1〜R6
+
+JSON hand_checks.pr133_review_examplesと既存A01/A04/A08/A09/A12を対応させる。すべて**メモリ内の記号的な仕様例**であり、実レース/実在証拠/実装成功の記録ではない。仮の元race/entry/player IDや架空のinput_as_ofを作らない。
+
+| 例 | 条件と期待結果 |
+| --- | --- |
+| R1 /A08 | PREDICTED＋正常input Refは成立、PREDICTED＋input=NULLは拒否。NO_PREDICTIONでも正常inputがあれば保持 |
+| R2 /A01/A08 | 予定発走/締切のみ欠損、race/本人対応は確認済み。両方式にMISSING_SCHEDULE・input=NULLの不能束を保存できる。先行候補固定版/capture証拠→両終端→day lock→結果保存が成立し、hash循環なし。証拠なしの場合は[]＋不足理由であり架空Refを要求しない |
+| R3 /A01 | 技術例外/未処理が残れば結果開放拒否、不能理由へ変換しない。理由だけの台帳やNULL Refも終端ではない |
+| R4 /A09 | R2の1対象だけなら各方式T=1/P=0/N=1/U=0、coverage=0/1=0、E_m=E_pair=0、的中率NULL。候補/結果/不能理由を保持、架空history input Refなし |
+| R5 /A04 | history_event_day=1月1日、logical_available_from=1月2日、target_day=1月2日は日付境界を通過。同日/未来イベント・利用開始1月3日は拒否。日付を通過しても固定epoch外/固有cutoff不成立は拒否 |
+| R6 /A04/A12 | 結果開放後、別IDでも予測/不能記録の作り直しは拒否。元終端束と元epochを検証再利用して結果取得・評価だけを再開することは許可 |
 
 ## 9. 次の最小接続実装（今回は未実装）
 
@@ -237,7 +282,7 @@ Pipeline Request/RaceInputSource、HistoryReader、HistoryAggregator、Dataset�
 
 次の許可作業は**この契約案のレビュー**。受入後の最小実装はG1〜G5とA01〜A14、原本read-only/ネットワーク遮断の限定テスト・既存development入力の算術互換から始め、実2026実行は別承認。全46/全占術/全期間再受入やB1再実行を永久条件に追加しない。H1-U/正式採用/LIVEへ自動進行しない。
 
-## 11. 今回の実行と検証
+## 11. 初版の実行と検証（履歴）
 
 Git branch/status/HEAD/origin/main/merge親/tree照合、AGENTS全文、MASTER PLANの全文読取り・節索引と現行8制御/関係仕様、指定文書/直接コード/DTO/関連テストをread-only確認。モデル/入力は第3節の明示参照だけをhash確認し、全資料探索/全Raw解析/新SQLiteコピーは行わない。
 
@@ -246,3 +291,13 @@ Git branch/status/HEAD/origin/main/merge親/tree照合、AGENTS全文、MASTER P
 JSON構文/必須項目/日付境界/21STAT重複・役割合計/モデル16順/主・比較の母数と説明用算術、Markdown172相対参照/47表/コードブロック、過去15.97/v1.92/全46台帳本文の不変、許可4ファイルのみの差分を別補助scriptで検査し成功。限定参照のSTART/END hashも一致。結果を同rootに保持する。追跡済みgit diff --checkはexit0、新規2ファイルのno-index --checkは空白エラー出力なし/exit1（差分あり）。初回の文書検証補助scriptはこのexit1を失敗と扱いexit255で停止したため、差分ありと空白エラーを区別して再確認した。文書の空白エラーやアプリの失敗ではない。PHPUnit/通常全体/Pintは**NOT_RUN**（PHP計算/テスト無変更の本工程仕様）。説明用算術の検算を実モデル評価やPHPUnit成功とは表現しない。
 
 本番/業務DB接続・書込み・Migration、実HTTP、実2026開催参照、学習/OOF/再予測/性能評価/年次生成/再packageは0。元.env/storage/モデル/Raw/既存artifactを変更・移動・永久削除していない。未コミット4ファイルでレビュー待ちとする。
+
+## 12. PR133 P2文書修正 / 2026-11-01
+
+修正開始branchは既存 `docs/stat-2026-chronological-validation-contract-01`、HEAD/ローカル追跡branchは `827582af4bb311b1e78e3fa0b5b5504ae30d5e0f`、clean。base/ローカルorigin/mainは `ea37ec91dc42dd0c517b444a26c2ef3b5cc89f48`。fetch/pull/GitHub照会・branch作成/切替なし。初版のmain開始SHA/未コミット終了と区別し、今回もcommit/push/PR/mergeなし。
+
+F1は第6・7・7.1・8節/保存表/既存受入ケース、JSON prediction/input/day/result/history schemaと条件へ反映。F2は第6節とJSON history_conditionsのJST日付境界、storage.reprediction_after_result_openへ反映した。旧result_open_after_repredictionキーは**廃止済み**でaliasとして残さない。7種の保存単位と既存append-only日別イベントを維持し、新しいトップレベルbundle/アプリ/テストを追加しない。
+
+今回提示された別ユーザー全体ログは4,534 passed/46,563 assertions/155 warnings/9 skipped/391.11秒。第1節のPR132後393.73秒・PR131後390.28秒とは混同せず、今回Codexの検証でも警告全解消の証拠でもない。PHPUnit/通常全体/Pintは今回**NOT_RUN**。`python3 /tmp/pr133-contract-review-20261101-8ctFpNtz/validate.py` でR1〜R6のメモリ内仕様検算、JSON構文/条件、Markdown155相対リンク/42表/コードブロック、差分範囲/git diff --checkを検証し、766チェック成功・exit0。これは記号的な仕様検算であり、実在bundle/RawやPHP実装の検証ではない。
+
+状態はREADY_FOR_REVIEW_WITH_OPEN_ITEMSのまま、PR133再レビュー待ち。初期履歴NOT_ESTABLISHED/O1、具体案承認待ち/O2、期間/モデル/STAT/指標とPR132有限完了を維持。旧原本の再hash/DB/HTTP/SQLiteコピー/実2026参照/学習/予測/結果評価は0、app/tests/config/database/依存/AGENTS.md無変更、未コミットで停止する。
