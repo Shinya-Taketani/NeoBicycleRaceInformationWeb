@@ -1,5 +1,7 @@
 # STAT-EXISTING-DATA-COMPLETION-01
 
+> 2026-11-01 現在: PR132はユーザー1df749d commit/push後、ea37ec91dc42dd0c517b444a26c2ef3b5cc89f48でMERGED（今回ローカル親/tree照合、fetch/外部照会なし）。固定MVP統合受入の有限完了を維持し、次の[2026時系列検証契約案](2026-chronological-validation-contract-01.md)へ進んだ。案はPROPOSED_FOR_REVIEW/READY_FOR_REVIEW_WITH_OPEN_ITEMS、実2026実行は未承認・未開始。第10.4節参照。以下のレビュー待ち/未コミットは各終了時点の履歴。
+
 > 2026-11-01 統合受入の現在: PR131 MERGED、開始clean main a25fcede1b9ba71ffa8b2ff293613340042ca779からverify/stat-existing-data-integrated-acceptance-01を作成。固定352候補/適格352・2349出走の20上流＋品質20を既存経路で保存し、新21run/47332結果/7392item・全行別PHP再計算・独立集合/履歴全ID照合が成立した。この固定入力/既定MVPの統合生成・保存・検証は完了、READY_FOR_REVIEW。18非正値得点は利用不可を保持。正本は[統合受入記録](stat-existing-data-integrated-acceptance-01.md)と10.3。以下のPR131未マージ/未コミット/全体NOT_RUNは当時の履歴。
 
 > 2026-11-01 PR131修正: 同一feature branch/開始HEAD `efa3cc2212382457776f480bba70ec0c84d7fcc5`、PR131未マージ。天候の取得証拠と決まり手意味評価を分離し、6指摘・旧全A資料からのオフライン派生を修正。固定25,976候補＝25,953保存＋中止14/結果なし9、失敗/未処理0、再読込・別PHP3JSONL一致・旧45/857互換・51,906原項目照合が成立した。安全限定169件/4,084 assertions成功（専用81件/1,511 assertionsはSTAT38_RESULT_FIXTURE未設定）。通常全体は旧永久削除経路のためNOT_RUN、最新ユーザー指示で今回に限り保留承認済み。通常全体回帰はNOT_CONFIRMEDのまま、今回修正はREADY_FOR_REVIEW。元DB接続/書込み/HTTP/統計run追加/学習/予測/2026開催参照0。正本は[修正記録0.4](stat21-saved-weather-batch-01.md#04-今回の実受入)。以下の旧停止・件数・未コミット記述は当時の履歴。
@@ -391,3 +393,9 @@ PR127 MERGED後の開始mainは `80bfbcd2482fa1c3a65994df9d4158f8e3e1c9d8`。第
 4. **任意の追加網羅検証**: 今回外の全選手/生涯/全期間/全Raw。有限な受入完了を取り消す永久条件や、同じ機能の未実装として繰り返さない。通常全体・異環境互換は今回未確認のまま。
 
 **既存固定入力・確定済みMVP仕様のSTAT統合生成／保存／検証は、この対象範囲で完了。** 今回提出後はレビュー待ち、その受入後の次工程は「2026時系列検証の使用STAT・入力・予測方法・保存順序・評価指標の固定準備」。全46/全期間/全占術完成を追加の永久条件にしない。今回2026資料・学習・予測・評価へ進まず、C1/B/旧不採用・B1未承認・予測/正式採用禁止を維持する。
+
+### 10.4 PR132マージと時系列契約準備への移行 / 2026-11-01
+
+10.3と[統合受入記録](stat-existing-data-integrated-acceptance-01.md)はCodex終了時の履歴として保持する。その後ユーザー全体は4,534 passed/46,563 assertions/155 warnings/9 skipped、393.73秒、失敗表示なし（明示exit code/警告全原因は未提示）。PR131後の390.28秒とは別実行。ユーザーcommit/push 1df749d後にPR132はea37ec91でmergeされた。
+
+新branch docs/stat-2026-chronological-validation-contract-01では[契約案](2026-chronological-validation-contract-01.md)と[条件JSON](contracts/stat-2026-chronological-validation-v1.json)を具体化した。固定MVPを未完了へ戻さず、初回1月/保存最終C1対STAT01/日別予測lock後の結果開放/Primary共通母数と5接続不足をレビュー待ち。初期生履歴epochは未確立、既存target集計や2025-01-04までのsnapshotを年末履歴へ読み替えない。実2026/DB/HTTP/学習/予測/評価は0、PHPUnit/通常全体/Pintは本契約工程ではNOT_RUN。全46/全占術/全期間受入やB1再実行を永久前提に追加しない。案の受入後は限定接続製造、実行は別承認である。
