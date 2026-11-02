@@ -312,6 +312,20 @@ O2は「1月/保存最終C1対STAT01/日別lock/Primary共通母数を限定製�
 
 実装補足は7種類を維持する。validation_runの固定HEADERと後続RUN_INDEX、day_manifestのCANDIDATES_LOCKED/DAY_PREDICTIONS_LOCKED/RESULTS_OPENEDを不変イベントとして別IDで保存する。receiptは開放時刻と既存day lock Refを持つ。日別lockを後から書き換えない。candidate_refは必ず先行候補版へ向き、終端→候補→epochでhash循環を作らない。
 
+### 13.1 PR134修正補足 / 2026-11-02
+
+offline_implementation_profileはv2-PR134。期間/方式/13STAT/既存feature版/モデル/5指標/母数を変えず、入力schemaと取得範囲、結果/epoch版管理を補足する。初版v1の138成功と、その後のユーザー全体20失敗は別記録として[接続実装記録第10節](2026-chronological-connection-01.md#10-pr134-f1f10レビュー修正--2026-11-02)へ残す。旧束のbytes/manifest/code sealをv2へ書き換えない。
+
+- 初期sourceはsealだけでなく、初日Dのevent day<D、logical release<=D、宣言end未満を公開前にstream検証する。当日/未来/未releaseの混入は技術失敗。
+- history_event_fromは全STATのJST00下限。39母集団/42pairにも適用し、C1新入口へ宣言した取得開始を渡す。120日未充足/取得開始不明はLEFT_TRUNCATED/4NULL、旧aggregate()の2022固定と旧年制約は維持。実行manifestには明示的な開始を要求し、不明を2022へ補完しない。
+- 正常STATの計数と、未確定/unverifiedを含むC1の不足証拠を分離する。全員の正の有限得点が揃わない競争文脈は平均/最大/母std/percentile/residualをNULLとし、既知選手だけで代用しない。pairの数値原値は既存raceScore()で正規化する。
+- 対象manifestは構造別allowlist/型をhash前に検査。元本人4列とRaw由来3列だけを投影し、対象candidate/context/本人対応のrank/status等を拒否する。過去履歴と結果のrank/statusは禁止しない。元race IDは正整数一致だけverified、NULL双方/片側は未検証とし、既知競合/不正日時/未知Enumは隠さない。
+- result.source_resultは受領内容と取得証拠を版単位で固定する。同版の着順/状態/本人/日時/source_id/取得seal差はCONFLICT。日別結果file全bytesがseal単位であり、他レース更新による証拠差も黙殺しない。v>1は同raceの直前parent Refと既存canTransitionFrom、別evaluationを要求。正当な暫定→確定をCORRECTEDへ偽装しない。
+- 結果/評価の保存と、未処理の将来epoch採用を分離する。全日固定済みでも前者は可能。validation_runのEPOCH_SELECTIONへ日付連番/親selection/base/採用epoch/更新結果を明示し、epoch IDは親/結果/日付のhashで区別。親系列・範囲・sealを検証して再開し、同raceを1採用版に限定する。保存済みcreated_atは再試行で維持する。
+- RUN_INDEXは方式別評価の元となる1race1版のselected_results/selected_evaluationsを持つ不変snapshot。別選択なら別ID、既存索引/予測/確定入力/epochは不変。結果更新だけの追加では旧索引を当時の状態として残し、保存評価の再現は旧/新を個別に行い二重合計しない。
+
+受入は前工程のT01〜T12/A01〜A14/R1〜R6にF1〜F10の境界・欠損・版・再開試験を追加する。実2026未許可・O1未確立・予測利用禁止/B1未承認は不変であり、v2は実初期資料や予測精度を確立した承認ではない。
+
 DB由来ではない計算はARTIFACT source_ref/row_ref/execution_uuid/calculation_versionを保存し、source_run_id/source_result_idはNULLとする。元race/entry/player IDは保持し、仮のDB run IDは作らない。入力構成不能のNO_PREDICTIONだけinput=NULLを許可し、既存input・capture証拠・理由を保持する。CLIの人工scopeはSYNTHETIC_TEST、旧資料互換はLEGACY_COMPATIBILITYで区別する。
 
 新規JSON正規化はobjectキーだけ整列しlist順序と空object/listを保持する。専用Storeの各bundleはdata.json/manifest.json/LOCKEDの正確な3件であり、依存seal/状態/本人/終端/母数を検証する。旧Files::canonical、旧Contract::plan、モデルbytesと過去code sealは変更しない。

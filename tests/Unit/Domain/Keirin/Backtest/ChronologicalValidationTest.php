@@ -83,7 +83,7 @@ final class ChronologicalValidationTest extends TestCase
         }
         $store = new Store($f->root.'/output');
         $source = $f->source($store);
-        $this->reject(fn () => $f->coordinator()->execute($f->manifest, $f->model(), Json::hash($f->model()->artifact), $store, $source));
+        $this->reject(fn () => $f->coordinator()->execute($f->manifest, $f->model(), Json::hash($f->model()->artifact), $store, $source), 'Retained technical unprocessed candidates block day opening.');
         $this->assertSame([], $source->calls);
         $candidate = $store->get($store->reference('d20260101-candidates'))['data'];
         $this->assertSame(1, $candidate['counts']['U']);
@@ -105,7 +105,7 @@ final class ChronologicalValidationTest extends TestCase
         $store = new Store($f->root.'/output');
         $source = $f->source($store);
         $stop = fn (string $at) => $at === $stage ? throw new RuntimeException('Synthetic interruption') : null;
-        $this->reject(fn () => $f->coordinator($stop)->execute($f->manifest, $f->model(), 'synthetic-fixed-model', $store, $source));
+        $this->reject(fn () => $f->coordinator($stop)->execute($f->manifest, $f->model(), 'synthetic-fixed-model', $store, $source), 'Synthetic interruption');
         $predictions = [];
         foreach (glob($store->root.'/objects/*-p[01]') as $path) {
             $predictions[] = $store->reference(basename($path));
@@ -120,7 +120,7 @@ final class ChronologicalValidationTest extends TestCase
             $this->assertSame($ref, $store->reference($ref['bundle_id']));
         }
         $f->manifest['run_id'] = 'another-request';
-        $this->reject(fn () => $f->coordinator()->execute($f->manifest, $model, 'synthetic-fixed-model', $store, $source));
+        $this->reject(fn () => $f->coordinator()->execute($f->manifest, $model, 'synthetic-fixed-model', $store, $source), 'CONFLICT: run identity changed; re-prediction forbidden.');
         $this->assertSame(1, $f->coordinator()->reproduce($store)['evaluations']);
     }
 
@@ -192,8 +192,8 @@ final class ChronologicalValidationTest extends TestCase
 
     public function test_no_hidden_refit_rebin_db_or_http_dependency_and_real_scope_is_rejected(): void
     {
-        $this->reject(fn () => new Scope('REAL_EXECUTION', '2026-01-01', '2026-01-02'));
-        $this->reject(fn () => new Scope('LEGACY_COMPATIBILITY', '2026-01-01', '2026-01-02'));
+        $this->reject(fn () => new Scope('REAL_EXECUTION', '2026-01-01', '2026-01-02'), 'Real execution NOT_AUTHORIZED or scope invalid.');
+        $this->reject(fn () => new Scope('LEGACY_COMPATIBILITY', '2026-01-01', '2026-01-02'), 'Real execution NOT_AUTHORIZED or scope invalid.');
         $this->assertSame(Json::hash((object) ['b' => 1, 'a' => [2, 1]]), Json::hash((object) ['a' => [2, 1], 'b' => 1]));
         $this->assertNotSame(Json::hash([2, 1]), Json::hash([1, 2]));
         $this->assertNotSame(Json::hash(null), Json::hash([]));
@@ -206,7 +206,7 @@ final class ChronologicalValidationTest extends TestCase
         $store = new Store($f->root.'/output');
         $p = $f->container->make(RacecardSource::class)->project($f->manifest['candidates'][0], new Scope(...$f->manifest['scope']));
         $reader = $f->container->make(HistoryReader::class);
-        $epoch = ['sources' => $f->manifest['history']['sources'], 'results' => []];
+        $epoch = [...$f->manifest['history'], 'results' => [], 'logical_available_from' => '2026-01-01', 'history_event_end_exclusive' => '2026-01-01T00:00:00+09:00'];
         $history = $reader->project($p, $epoch, $store, new Scope(...$f->manifest['scope']));
         $this->assertCount(60, $history['batch02'][1]);
         $this->assertCount(60, $history['pairs']['1:2']);
@@ -218,13 +218,14 @@ final class ChronologicalValidationTest extends TestCase
         $this->assertNotNull($history['pairs']['1:2'][0]->secondScorePercentile);
         $target = ['race_id' => 100, 'meeting_id' => 999, 'player_id' => 1, 'race_date' => '2026-01-01', 'meeting_start' => '2026-01-01', 'meeting_end' => '2026-01-03', 'input_as_of' => $p['input_as_of']];
         $aggregator = new HistoryAggregator;
-        $this->reject(fn () => $aggregator->aggregate($target, $history['c1'][1]));
-        $baseline = $aggregator->aggregateChronological($target, $history['c1'][1], new Scope(...$f->manifest['scope']));
+        $this->reject(fn () => $aggregator->aggregate($target, $history['c1'][1]), 'Tactical history target temporal identity was invalid.');
+        $baseline = $aggregator->aggregateChronological($target, $history['c1'][1], new Scope(...$f->manifest['scope']), $epoch['history_event_from']);
+        $this->assertSame('AVAILABLE', $baseline['status']);
         $sameMeeting = [...$history['c1'][1][0], 'race_id' => 9090, 'meeting_id' => 999];
         $outside = [...$history['c1'][1][0], 'race_id' => 9091, 'race_date' => '2025-01-01', 'scheduled_start_at' => '2025-01-01T12:00:00+09:00'];
-        $this->assertSame($baseline, $aggregator->aggregateChronological($target, [...$history['c1'][1], $sameMeeting, $outside], new Scope(...$f->manifest['scope'])));
+        $this->assertSame($baseline, $aggregator->aggregateChronological($target, [...$history['c1'][1], $sameMeeting, $outside], new Scope(...$f->manifest['scope']), $epoch['history_event_from']));
         JsonlArtifact::write($f->root.'/forbidden-model-year.jsonl', [['year' => 2026, 'race_id' => 100, 'entries' => []]]);
-        $this->reject(fn () => iterator_to_array((new Dataset)->raw([$f->root.'/forbidden-model-year.jsonl'], true, true)));
+        $this->reject(fn () => iterator_to_array((new Dataset)->raw([$f->root.'/forbidden-model-year.jsonl'], true, true)), 'Dataset year was forbidden.');
     }
 
     public function test_valid_zero_anchors_and_outcome_contaminated_model_input(): void
@@ -247,7 +248,7 @@ final class ChronologicalValidationTest extends TestCase
         }
         $adapter = $f->container->make(PredictionAdapter::class);
         $input['entries'][0]['rank'] = 1;
-        $this->reject(fn () => $adapter->predict($input, $f->model(), new Scope(...$f->manifest['scope'])));
+        $this->reject(fn () => $adapter->predict($input, $f->model(), new Scope(...$f->manifest['scope'])), 'Model input/anchor contract mismatch.');
     }
 
     public function test_input_source_end_drift_blocks_result_read_and_keeps_terminals(): void
@@ -261,7 +262,7 @@ final class ChronologicalValidationTest extends TestCase
                 file_put_contents($path, 'changed-artificial-raw', FILE_APPEND);
             }
         };
-        $this->reject(fn () => $f->coordinator($hook)->execute($f->manifest, $f->model(), Json::hash($f->model()->artifact), $store, $source));
+        $this->reject(fn () => $f->coordinator($hook)->execute($f->manifest, $f->model(), Json::hash($f->model()->artifact), $store, $source), 'Source seal mismatch.');
         $this->assertSame([], $source->calls);
         $this->assertFalse($store->has('d20260101-predictions'));
         $this->assertCount(2, glob($store->root.'/objects/*-p[01]'));
@@ -273,18 +274,20 @@ final class ChronologicalValidationTest extends TestCase
         $f = new ChronologicalFixture([5]);
         $store = new Store($f->root.'/output');
         $source = new FileResultSource('/does-not-exist-and-must-not-be-inspected', new Scope(...$f->manifest['scope']), $store);
-        $this->reject(fn () => iterator_to_array($source->read('2026-01-01', ['bundle_id' => 'unverified-receipt', 'manifest_sha256' => str_repeat('0', 64)])));
+        $this->reject(fn () => iterator_to_array($source->read('2026-01-01', ['bundle_id' => 'unverified-receipt', 'manifest_sha256' => str_repeat('0', 64)])), 'Invalid bundle directory.');
         $this->assertSame([], $store->all());
     }
 
-    private function reject(callable $work): void
+    private function reject(callable $work, string $reason): void
     {
         try {
             $work();
-            $this->fail('Expected explicit rejection.');
         } catch (RuntimeException $error) {
-            $this->assertNotSame('', $error->getMessage());
+            $this->assertSame($reason, $error->getMessage());
+
+            return;
         }
+        $this->fail('Expected explicit rejection: '.$reason);
     }
 
     public function test_two_days_real_calculators_fixed_predictor_day_barrier_and_saved_evaluation(): void

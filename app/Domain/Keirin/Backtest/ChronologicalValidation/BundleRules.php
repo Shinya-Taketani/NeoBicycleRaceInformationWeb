@@ -60,18 +60,20 @@ final class BundleRules
                 self::require($methods === array_fill_keys(self::METHODS, null), 'Candidate prediction refs must be unprocessed.');
             }
         } elseif ($kind === 'result_bundle') {
+            self::require(Json::hash(array_intersect_key($data, $data['source_result'])) === Json::hash($data['source_result'])
+                && $data['raw'] === $data['source_result']['source_seal'] && $data['fetch_log_or_capture_id'] === $data['source_result']['source_id'], 'Saved result/source binding mismatch.');
             $lock = $store->get($data['day_lock']);
             $receipt = $store->get($data['opening_receipt']);
             self::require($lock['data']['state'] === 'DAY_PREDICTIONS_LOCKED'
                 && $receipt['data']['state'] === 'RESULTS_OPENED' && $receipt['data']['day_lock'] === $data['day_lock']
                 && Json::encode($data['predictions']) === Json::encode($lock['data']['predictions'][$data['external_race_key']] ?? null), 'Result terminal refs/receipt mismatch.');
             self::require(($data['result_version'] === 1 && $data['parent_result'] === null)
-                || ($data['result_version'] > 1 && $data['parent_result'] !== null && $data['official_status'] === 'CORRECTED'), 'Result correction needs a parent version.');
+                || ($data['result_version'] > 1 && $data['parent_result'] !== null), 'Result update needs a parent version.');
             if ($data['parent_result'] !== null) {
                 $parent = $store->get($data['parent_result'])['data'];
                 self::require($parent['external_race_key'] === $data['external_race_key'] && $parent['predictions'] === $data['predictions']
                     && $data['result_version'] === $parent['result_version'] + 1, 'Invalid correction parent.');
-                self::require(RaceResultStatus::Corrected->canTransitionFrom(RaceResultStatus::from($parent['official_status'])), 'Invalid official correction transition.');
+                self::require(RaceResultStatus::from($data['official_status'])->canTransitionFrom(RaceResultStatus::from($parent['official_status'])), 'Invalid official result transition.');
             }
             $fixed = $store->get($lock['data']['candidate_manifest'])['data'];
             $candidates = array_values(array_filter($fixed['candidates'], fn (array $c): bool => $c['external_race_key'] === $data['external_race_key']));
@@ -96,13 +98,32 @@ final class BundleRules
                 && Json::hash($data['contributions']) === Json::hash([$result['data']['external_race_key'] => $computed])
                 && $data['paired_set_sha256'] === Json::hash([$result['data']['external_race_key'], $computed['E_pair']]), 'Saved evaluation contribution mismatch.');
         } elseif ($kind === 'input_bundle') {
+            InputManifest::projectedEntries($data['entries']);
             self::require($data['input_as_of'] !== null && $data['capture_refs'] !== [], 'Normal input requires time and capture evidence.');
             Scope::instant($data['input_as_of']);
         } elseif ($kind === 'history_epoch') {
             Scope::day($data['logical_available_from']);
+            Scope::day($data['history_event_from']);
+            Scope::instant($data['history_event_end_exclusive']);
+            self::require(Scope::instant($data['history_event_end_exclusive']) <= Scope::day($data['logical_available_from'])
+                && Scope::day($data['history_event_from']) < Scope::instant($data['history_event_end_exclusive']), 'Invalid history range boundary.');
+            $races = $ids = [];
+            foreach ($data['results'] as $ref) {
+                $r = $store->get($ref);
+                self::require($r['kind'] === 'result_bundle' && ! isset($races[$r['data']['external_race_key']])
+                    && $r['data']['race_date'] < $data['logical_available_from'], 'Multiple or ineligible result versions in epoch.');
+                $races[$r['data']['external_race_key']] = true;
+                if ($r['data']['original_race_id'] !== null) {
+                    self::require(! isset($ids[$r['data']['original_race_id']]), 'Conflicting historical race identity.');
+                    $ids[$r['data']['original_race_id']] = true;
+                }
+            }
         } elseif ($kind === 'validation_run') {
             self::require(in_array($data['scope']['kind'], ['SYNTHETIC_TEST', 'LEGACY_COMPATIBILITY'], true)
                 && $data['real_execution_authorized'] === false, 'Real execution forbidden.');
+            if ($data['event'] === 'EPOCH_SELECTION') {
+                EpochSelections::step($store, $data['base_epoch'], $data['selected_epoch'], $data['updated_result'], $data['selection_day']);
+            }
         }
     }
 

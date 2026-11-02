@@ -13,6 +13,7 @@ use App\Domain\Keirin\Statistics\DTO\HistoricalRaceDto;
 use App\Domain\Keirin\Statistics\Enums\HistoricalResultState;
 use App\Domain\Keirin\Statistics\Support\Batch04CalculatorSupport;
 use App\Domain\Keirin\Statistics\Support\HistoricalResultStateNormalizer;
+use App\Domain\Keirin\Statistics\Support\HistoricalScoreContext;
 use App\Domain\Keirin\Statistics\Support\PositionHistoryBucket;
 use App\Domain\Keirin\Statistics\Support\RaceStageNormalizer;
 use App\Domain\Keirin\Statistics\Support\StatisticalMath;
@@ -51,6 +52,9 @@ final class HistoryReader
                     BundleRules::require(str_ends_with($line, "\n"), 'Oversized or unterminated history row.');
                     $event = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
                     $this->validate($event, $scope);
+                    BundleRules::require($event['race']['race_date'] < $epoch['logical_available_from']
+                        && $event['logical_available_from'] <= $epoch['logical_available_from']
+                        && Scope::instant($event['race']['scheduled_start_at']) < Scope::instant($epoch['history_event_end_exclusive']), 'Initial epoch boundary violation.');
                     $key = [Scope::instant($event['race']['scheduled_start_at']), $event['race']['original_race_id']];
                     BundleRules::require($last === null || $key > $last, 'History must be ordered with one fixed version per race.');
                     $last = $key;
@@ -72,6 +76,7 @@ final class HistoryReader
 
     public function project(array $input, array $epoch, Store $store, Scope $scope): array
     {
+        $budget = new HistoryMemoryBudget;
         $race = $input['race'];
         $players = array_column($input['entries'], 'original_player_id');
         $histories2 = $histories3 = $c1 = $pairs = $used = $excluded = $seenRaces = [];
@@ -82,11 +87,9 @@ final class HistoryReader
             }
         }
         foreach ($this->events($epoch, $store, $scope) as $event) {
-            if (memory_get_usage(true) > 96 * 1024 * 1024) {
-                throw new RuntimeException('Offline history memory budget exhausted; no history truncation or fallback.');
-            }
-            if (! $this->eligible($event, $race['race_date'], $input['input_as_of']) || $event['race']['original_race_id'] === $race['original_race_id']
-                || ! in_array($event['race_status'], ['CONFIRMED', 'CORRECTED'], true)
+            $budget->check();
+            if ($event['race']['race_date'] >= $race['race_date'] || $event['logical_available_from'] > $race['race_date']
+                || Scope::instant($event['race']['scheduled_start_at']) >= Scope::instant($input['input_as_of']) || $event['race']['original_race_id'] === $race['original_race_id']
                 || (new RaceCategoryPolicy)->classify($event['race']['race_type']) !== RaceCategory::Men) {
                 if (count($excluded) >= 8192) {
                     throw new RuntimeException('Bounded excluded-history audit capacity exceeded.');
@@ -96,6 +99,29 @@ final class HistoryReader
                 continue;
             }
             $h = $event['race'];
+            if (Scope::instant($h['scheduled_start_at']) < Scope::day($epoch['history_event_from'])) {
+                $excluded[] = ['source_id' => $event['source_id'], 'race_id' => $h['original_race_id'], 'reason' => 'BEFORE_DECLARED_HISTORY_RANGE'];
+                BundleRules::require(count($excluded) <= 8192, 'Bounded excluded-history audit capacity exceeded.');
+
+                continue;
+            }
+            // C1 needs incomplete evidence as well as counted results to retain PARTIAL_HISTORY.
+            foreach ($event['entries'] as $e) {
+                $pid = $e['original_player_id'];
+                if (in_array($pid, $players, true)) {
+                    BundleRules::require(count($c1[$pid] ?? []) < self::MAX_PERSON_EVENTS, 'Bounded offline person-history capacity exceeded; no truncation applied.');
+                    $c1[$pid][] = ['race_id' => $h['original_race_id'], 'meeting_id' => $h['meeting_id'], 'player_id' => $pid, 'race_date' => $h['race_date'], 'male_category' => true,
+                        'entry_id' => $e['original_entry_id'], 'bike' => $e['bike'], 'result_player_id' => $pid, 'result_entry_id' => $e['original_entry_id'], 'race_status' => $event['race_status'],
+                        'scheduled_start_at' => $h['scheduled_start_at'], 'result_id' => $event['source_id'], 'formal_provenance_verified' => $event['verified'],
+                        'result_status' => $e['status'], 'rank' => $e['rank'], 'winning_technique' => $e['winning_technique']];
+                }
+            }
+            if (! $event['verified'] || ! in_array($event['race_status'], ['CONFIRMED', 'CORRECTED'], true)) {
+                $excluded[] = ['source_id' => $event['source_id'], 'race_id' => $h['original_race_id'], 'reason' => 'UNVERIFIED_OR_UNCONFIRMED_C1_EVIDENCE_ONLY'];
+                BundleRules::require(count($excluded) <= 8192, 'Bounded excluded-history audit capacity exceeded.');
+
+                continue;
+            }
             BundleRules::require(! isset($seenRaces[$h['original_race_id']]), 'Multiple historical versions for one race in an epoch.');
             $seenRaces[$h['original_race_id']] = true;
             $at = Scope::instant($h['scheduled_start_at']);
@@ -103,7 +129,7 @@ final class HistoryReader
                 'bike_number' => $e['bike'], 'grade' => $e['grade'], 'race_score' => $this->support->raceScore($e['race_score_raw'])], $event['entries']);
             usort($contextEntries, fn (array $a, array $b): int => $a['race_entry_id'] <=> $b['race_entry_id']);
             $score = $this->support->scoreContext($h['original_race_id'], $h['entrant_count'], $contextEntries);
-            $knownScores = array_values(array_filter(array_column($contextEntries, 'race_score'), fn ($x): bool => $x !== null && (float) $x > 0));
+            $competition = HistoricalScoreContext::summarize($h['entrant_count'], $contextEntries, $this->math);
             $rows = [];
             foreach ($event['entries'] as $e) {
                 $state = $this->normalizer->normalize($e['status']);
@@ -126,11 +152,7 @@ final class HistoryReader
                     $histories3[$pid][] = new Batch03HistoricalRaceDto($pid, $h['original_race_id'], $e['original_entry_id'], $at, $event['context']['racetrack_id'], $h['meeting_id'],
                         $h['day_number'], (int) Scope::day($h['meeting_start'])->diff(Scope::day($h['meeting_end']))->days + 1, $event['context']['meeting_grade'], $event['context']['meeting_day_kind'],
                         $h['race_type'], $h['race_type'], $this->stages->normalize($h['race_type']), $h['entrant_count'], $state->state, $state->tied, $e['rank'], $raw, $finish, $residual,
-                        $score['hash'], $this->math->mean($knownScores), $knownScores === [] ? null : (float) max($knownScores), $this->math->populationStandardDeviation($knownScores), $percentile, $fetched, $resultAt, $confirmed);
-                    $c1[$pid][] = ['race_id' => $h['original_race_id'], 'meeting_id' => $h['meeting_id'], 'player_id' => $pid, 'race_date' => $h['race_date'], 'male_category' => true,
-                        'entry_id' => $e['original_entry_id'], 'bike' => $e['bike'], 'result_player_id' => $pid, 'result_entry_id' => $e['original_entry_id'], 'race_status' => $event['race_status'],
-                        'scheduled_start_at' => $h['scheduled_start_at'], 'result_id' => $event['source_id'], 'formal_provenance_verified' => $event['verified'],
-                        'result_status' => $e['status'], 'rank' => $e['rank'], 'winning_technique' => $e['winning_technique']];
+                        $score['hash'], $competition['score_mean'], $competition['score_max'], $competition['score_stddev_pop'], $percentile, $fetched, $resultAt, $confirmed);
                 }
                 if ($state->state !== HistoricalResultState::NormalFinish) {
                     continue;
@@ -158,7 +180,7 @@ final class HistoryReader
                     [$y, $sy, $fy, $py] = $rows[$b];
                     $pairs[$a.':'.$b][] = new Batch04HeadToHeadEventDto($h['original_race_id'], $at, $h['entrant_count'], $event['context']['racetrack_id'], $a, $b,
                         $x['original_entry_id'], $y['original_entry_id'], $x['bike'], $y['bike'], $x['frame_number'], $y['frame_number'], $sx->state, $sy->state, $sx->tied, $sy->tied,
-                        $x['rank'], $y['rank'], $fx, $fy, $x['race_score_raw'], $y['race_score_raw'], $px, $py, $score['hash'], $fetched, $fetched, $resultAt, $resultAt, $confirmed);
+                        $x['rank'], $y['rank'], $fx, $fy, $this->support->raceScore($x['race_score_raw']), $this->support->raceScore($y['race_score_raw']), $px, $py, $score['hash'], $fetched, $fetched, $resultAt, $resultAt, $confirmed);
                 }
             }
             $used[] = ['source_id' => $event['source_id'], 'race_id' => $h['original_race_id'], 'sha256' => Json::hash($event)];
@@ -175,7 +197,10 @@ final class HistoryReader
             $positions[$e['original_entry_id']] = new Batch04PositionHistoryContextDto($groups, Json::hash($groups), ['population_scope' => 'ALL_EPOCH_RACES_NOT_PERSON_HISTORY']);
         }
 
-        return ['batch02' => $histories2, 'batch03' => $histories3, 'c1' => $c1, 'pairs' => $pairs, 'positions' => $positions, 'used' => $used, 'excluded' => $excluded];
+        $budget->check();
+
+        return ['batch02' => $histories2, 'batch03' => $histories3, 'c1' => $c1, 'pairs' => $pairs, 'positions' => $positions, 'used' => $used, 'excluded' => $excluded,
+            'memory_budget' => ['baseline_bytes' => $budget->baselineBytes, 'working_limit_bytes' => $budget->workingLimitBytes, 'php_limit_bytes' => $budget->phpLimitBytes]];
     }
 
     private function validate(array $event, Scope $scope): void

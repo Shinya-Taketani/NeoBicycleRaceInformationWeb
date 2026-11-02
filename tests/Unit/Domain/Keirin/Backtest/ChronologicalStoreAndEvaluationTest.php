@@ -41,8 +41,9 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
         } else {
             file_put_contents($path.'data.json', "\n", FILE_APPEND);
         }
-        $this->reject(fn () => $store->get($ref));
-        $this->reject(fn () => $store->put('epoch', 'history_epoch', $data));
+        $reason = $failure === 'sha' ? 'Source seal mismatch.' : 'Bundle file inventory mismatch.';
+        $this->reject(fn () => $store->get($ref), $reason);
+        $this->reject(fn () => $store->put('epoch', 'history_epoch', $data), $reason);
         $this->assertDirectoryExists($path);
     }
 
@@ -58,16 +59,16 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
         $f = new ChronologicalFixture([5]);
         $s = new Store($f->root.'/store');
         $ref = $s->put('epoch', 'history_epoch', $this->epoch());
-        $this->reject(fn () => $s->put('epoch', 'history_epoch', [...$this->epoch(), 'logical_available_from' => '2026-01-02']));
+        $this->reject(fn () => $s->put('epoch', 'history_epoch', [...$this->epoch(), 'logical_available_from' => '2026-01-02']), 'CONFLICT: existing bundle differs.');
         $this->assertSame($ref, $s->reference('epoch'));
-        $this->reject(fn () => $s->put('missing-fields', 'history_epoch', ['logical_available_from' => '2026-01-01']));
-        $this->reject(fn () => $s->put('cycle', 'history_epoch', [...$this->epoch(), 'parent_epoch' => ['bundle_id' => 'cycle', 'manifest_sha256' => str_repeat('1', 64)]]));
+        $this->reject(fn () => $s->put('missing-fields', 'history_epoch', ['logical_available_from' => '2026-01-01']), 'Required bundle field missing: epoch_id');
+        $this->reject(fn () => $s->put('cycle', 'history_epoch', [...$this->epoch(), 'parent_epoch' => ['bundle_id' => 'cycle', 'manifest_sha256' => str_repeat('1', 64)]]), 'Invalid bundle directory.');
         foreach (['', '.', '..', 'relative', '/tmp', '/home/shinya', dirname(__DIR__, 5)] as $path) {
-            $this->reject(fn () => new Store($path));
+            $this->reject(fn () => new Store($path), 'Dedicated canonical store root required.');
         }
-        $this->reject(fn () => new Store($f->root));
+        $this->reject(fn () => new Store($f->root), 'Unrecorded existing root cannot be adopted.');
         $this->assertFileExists($f->root.'/CREATED.json');
-        $this->reject(fn () => (new RunVerifier)->verify($s));
+        $this->reject(fn () => (new RunVerifier)->verify($s), 'Canonical regular source file required.');
     }
 
     public function test_persistent_run_lock_blocks_another_php_process_and_is_not_deleted(): void
@@ -93,10 +94,10 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
         $f = new ChronologicalFixture([5]);
         $s = new Store($f->root.'/store');
         $this->reject(fn () => $f->coordinator(fn (string $stage) => $stage === 'AFTER_RECEIPT' ? throw new RuntimeException('Artificial interruption') : null)
-            ->execute($f->manifest, $f->model(), Json::hash($f->model()->artifact), $s, $f->source($s)));
+            ->execute($f->manifest, $f->model(), Json::hash($f->model()->artifact), $s, $f->source($s)), 'Artificial interruption');
         $header = $s->get($s->reference('run'))['data'];
         $s->put('artificial-premature-index', 'validation_run', [...$header, 'event' => 'RUN_INDEX', 'header' => $s->reference('run'), 'days' => ['2026-01-01' => $s->reference('d20260101-predictions')]]);
-        $this->reject(fn () => (new RunVerifier)->verify($s));
+        $this->reject(fn () => (new RunVerifier)->verify($s), 'Canonical regular source file required.');
         $this->assertFileExists($s->root.'/objects/d20260101-opened/LOCKED');
     }
 
@@ -118,7 +119,10 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
             } else {
                 $row['probabilities']['entries'][0]['position_1_probability'] = 1.1;
             }
-            $this->reject(fn () => $store->put('bad-prediction', 'prediction_bundle', $row));
+            $reason = match ($failure) {
+                'race' => 'Prediction candidate binding invalid.', 'null_input' => 'Null input is not a normal prediction.', default => 'Invalid saved probability.'
+            };
+            $this->reject(fn () => $store->put('bad-prediction', 'prediction_bundle', $row), $reason);
         } else {
             if ($failure === 'null_ref') {
                 $lock['predictions'][$key][BundleRules::METHODS[0]] = null;
@@ -131,7 +135,10 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
                 $lock['day_lock'] = null;
                 $lock['opened_at'] = null;
             }
-            $this->reject(fn () => $store->put('bad-lock', 'day_manifest', $lock));
+            $reason = match ($failure) {
+                'null_ref' => 'Non-null terminal reference required.', 'method' => 'Wrong race/method/candidate reference.', 'locked_at' => 'Incomplete day lock.', default => 'Result opening receipt missing.'
+            };
+            $this->reject(fn () => $store->put('bad-lock', 'day_manifest', $lock), $reason);
         }
         $this->assertSame($ref, $store->reference('d20260101-predictions'));
         $this->assertSame('VERIFIED', (new RunVerifier)->verify($store)['status']);
@@ -153,7 +160,7 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
         $ref = $s->reference(basename($path));
         $evaluation = $s->get($ref)['data'];
         $evaluation['metrics'][BundleRules::METHODS[0]][PrimaryEvaluator::METRICS[0]]['rate'] = 0.25;
-        $this->reject(fn () => $s->put('artificial-wrong-evaluation', 'evaluation_bundle', $evaluation));
+        $this->reject(fn () => $s->put('artificial-wrong-evaluation', 'evaluation_bundle', $evaluation), 'Saved evaluation metrics mismatch.');
         $this->assertSame($ref, $s->reference($ref['bundle_id']));
     }
 
@@ -247,7 +254,7 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
         $store = new Store($f->root.'/store');
         $modelHash = Json::hash($f->model()->artifact);
         $this->reject(fn () => $f->coordinator(fn (string $stage) => $stage === 'AFTER_DAY' ? throw new RuntimeException('Stop after day one') : null)
-            ->execute($f->manifest, $f->model(), $modelHash, $store, $f->source($store)));
+            ->execute($f->manifest, $f->model(), $modelHash, $store, $f->source($store)), 'Stop after day one');
         $predictionLock = $store->reference('d20260101-predictions');
         $old = glob($store->root.'/objects/*-result-v1')[0];
         $oldRef = $store->reference(basename($old));
@@ -265,8 +272,12 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
         $this->assertSame($oldRef, $store->get($new['result'])['data']['parent_result']);
         $f->coordinator()->execute($f->manifest, $f->model(), $modelHash, $store, $f->source($store));
         $this->assertSame($new['epoch'], $store->get($store->reference('d20260102-candidates'))['data']['history_epoch']);
+        $dayTwo = $store->get($store->reference(basename(glob($store->root.'/objects/d20260102-*-input')[0])))['data'];
+        foreach ($dayTwo['c1_history'] as $history) {
+            $this->assertNotContains($parent['original_race_id'], array_column($history['history_references'], 'race_id'));
+        }
         $this->assertSame(5, $f->coordinator()->reproduce($store)['evaluations']);
-        $this->reject(fn () => $f->coordinator()->correct($store, $oldRef, $candidate, $store->reference('d20260101-next-epoch'), '2026-01-02'));
+        $this->reject(fn () => $f->coordinator()->correct($store, $oldRef, $candidate, $store->reference('d20260101-next-epoch'), '2026-01-02'), 'Correction is not an unprocessed future version.');
     }
 
     private function predictions(): array
@@ -287,13 +298,15 @@ final class ChronologicalStoreAndEvaluationTest extends TestCase
             'publication_times' => [], 'publication_status' => 'UNKNOWN', 'exclusions' => [], 'created_at' => '2026-11-01T10:00:00+09:00'];
     }
 
-    private function reject(callable $work): void
+    private function reject(callable $work, string $reason): void
     {
         try {
             $work();
-            $this->fail('Expected explicit rejection.');
         } catch (RuntimeException $error) {
-            $this->assertNotSame('', $error->getMessage());
+            $this->assertSame($reason, $error->getMessage());
+
+            return;
         }
+        $this->fail('Expected explicit rejection: '.$reason);
     }
 }

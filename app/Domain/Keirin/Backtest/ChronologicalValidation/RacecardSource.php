@@ -16,6 +16,7 @@ final class RacecardSource
 
     public function project(array $candidate, Scope $scope): array
     {
+        InputManifest::candidate($candidate);
         $scope->target($candidate['race_date']);
         BundleRules::require($candidate['original_race_id'] === null || (is_int($candidate['original_race_id']) && $candidate['original_race_id'] > 0), 'Invalid original race ID.');
         $date = Scope::day($candidate['race_date']);
@@ -80,7 +81,10 @@ final class RacecardSource
         $ids = $players = $bikes = $external = [];
         foreach ($candidate['entries'] as $identity) {
             $entry = $byBike[$identity['bike']] ?? null;
-            BundleRules::require($entry !== null && $entry->externalPlayerId === $identity['external_player_id'], 'Raw and fixed identity differ.');
+            BundleRules::require($entry !== null && ($identity['external_player_id'] === null || $entry->externalPlayerId === $identity['external_player_id']), 'Raw and fixed identity differ.');
+            if ($identity['external_player_id'] === null) {
+                $result['reasons'][] = 'UNRESOLVED_IDENTITY';
+            }
             foreach (['original_entry_id', 'original_player_id'] as $field) {
                 BundleRules::require($identity[$field] === null || (is_int($identity[$field]) && $identity[$field] > 0), 'Invalid original identity.');
                 if ($identity[$field] === null) {
@@ -91,7 +95,7 @@ final class RacecardSource
             $players[] = $identity['original_player_id'];
             $bikes[] = $identity['bike'];
             $external[] = $identity['external_player_id'];
-            $result['entries'][] = [...$identity, 'frame_number' => $entry->frameNumber, 'grade' => $entry->grade, 'race_score_raw' => $entry->raceScore];
+            $result['entries'][] = [...array_intersect_key($identity, array_flip(InputManifest::IDENTITY)), 'frame_number' => $entry->frameNumber, 'grade' => $entry->grade, 'race_score_raw' => $entry->raceScore];
         }
         foreach ([$ids, $players, $bikes, $external] as $values) {
             $known = array_values(array_filter($values, fn ($v): bool => $v !== null));

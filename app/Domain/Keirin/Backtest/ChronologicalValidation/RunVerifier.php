@@ -37,8 +37,11 @@ final class RunVerifier
             sort($days);
             sort($expectedDays);
             BundleRules::require($days === $expectedDays, 'Run day coverage mismatch.');
+            $base = $header['initial_history'];
+            $expectedResultKeys = [];
             foreach ($index['days'] as $day => $ref) {
                 $lock = $store->get($ref)['data'];
+                BundleRules::require($lock['history_epoch'] === EpochSelections::resolve($store, $base, $day), 'Run epoch selection lineage mismatch.');
                 $keys = array_column($lock['candidates'], 'external_race_key');
                 sort($keys);
                 sort($expected[$day]);
@@ -49,8 +52,15 @@ final class RunVerifier
                 $receipt = $store->get($store->reference($prefix.'-opened'))['data'];
                 BundleRules::require($receipt['state'] === 'RESULTS_OPENED' && $receipt['day_lock'] === $ref, 'Run result-opening receipt missing or mismatched.');
                 $epoch = $store->get($store->reference($prefix.'-next-epoch'))['data'];
+                $base = $store->reference($prefix.'-next-epoch');
                 BundleRules::require($epoch['parent_epoch'] === $lock['history_epoch'] && $epoch['logical_available_from'] === Scope::day($day)->modify('+1 day')->format('Y-m-d'), 'Run next epoch missing or mismatched.');
                 foreach ($lock['predictions'] as $key => $methods) {
+                    $expectedResultKeys[] = $key;
+                    BundleRules::require(isset($index['selected_results'][$key], $index['selected_evaluations'][$key]), 'Run selected result/evaluation coverage incomplete.');
+                    $selected = $store->get($index['selected_results'][$key])['data'];
+                    $selectedEvaluation = $store->get($index['selected_evaluations'][$key])['data'];
+                    BundleRules::require($selected['external_race_key'] === $key && $selected['predictions'] === $methods
+                        && $selectedEvaluation['result'] === $index['selected_results'][$key], 'Run selected version binding mismatch.');
                     $versions = $results[$ref['bundle_id']][$key] ?? [];
                     BundleRules::require($versions !== [], 'Run result coverage incomplete.');
                     foreach ($versions as $version) {
@@ -68,6 +78,12 @@ final class RunVerifier
                         || Json::hash($count[$method]) === Json::hash(['T' => $count['T'], 'P' => $p, 'N' => $count['T'] - $p, 'U' => 0]), 'Terminal count mismatch.');
                 }
             }
+            $selectedKeys = array_keys($index['selected_results'] ?? []);
+            $evaluationKeys = array_keys($index['selected_evaluations'] ?? []);
+            sort($expectedResultKeys);
+            sort($selectedKeys);
+            sort($evaluationKeys);
+            BundleRules::require($selectedKeys === $expectedResultKeys && $evaluationKeys === $expectedResultKeys, 'Run selected version set mismatch.');
         }
 
         return ['status' => 'VERIFIED', 'bundles' => count($refs), 'days' => count($indexes[0]['days']), 'inference_count' => 0];

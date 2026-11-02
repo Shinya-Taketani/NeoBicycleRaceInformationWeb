@@ -26,17 +26,17 @@ final class HistoryAggregator
     /** @param array<string,mixed> $target @param iterable<array<string,mixed>> $history */
     public function aggregate(array $target, iterable $history): array
     {
-        return $this->calculate($target, $history, [2022, 2023, 2024, 2025]);
+        return $this->calculate($target, $history, [2022, 2023, 2024, 2025], '2022-01-01');
     }
 
-    public function aggregateChronological(array $target, iterable $history, Scope $scope): array
+    public function aggregateChronological(array $target, iterable $history, Scope $scope, ?string $historyFrom = null): array
     {
         $scope->target($target['race_date']);
 
-        return $this->calculate($target, $history, $scope->years());
+        return $this->calculate($target, $history, $scope->years(), $historyFrom);
     }
 
-    private function calculate(array $target, iterable $history, array $years): array
+    private function calculate(array $target, iterable $history, array $years, ?string $historyFrom): array
     {
         $audit = [
             'values' => [null, null, null, null],
@@ -65,7 +65,7 @@ final class HistoryAggregator
         $start = $cutoff->modify('-120 days');
         $audit += ['window_start' => $start->format(DATE_ATOM), 'window_end' => $cutoff->format(DATE_ATOM)];
         $audit['event_cutoff_verified'] = true;
-        if ($start < $this->date('2022-01-01')) {
+        if ($historyFrom === null || $start < $this->date($historyFrom)) {
             $audit['status'] = 'LEFT_TRUNCATED';
 
             return $audit;

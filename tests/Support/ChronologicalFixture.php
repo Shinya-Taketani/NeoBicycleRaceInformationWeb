@@ -89,12 +89,12 @@ final class ChronologicalFixture
             'history' => ['history_event_from' => '2022-01-01', 'sources' => [['path' => $this->root.'/history.jsonl', 'seal' => Json::seal($this->root.'/history.jsonl'), 'material_kind' => 'SYNTHETIC_TEST']]], 'candidates' => $candidates];
     }
 
-    public function coordinator(?Closure $checkpoint = null): Coordinator
+    public function coordinator(?Closure $checkpoint = null, ?Closure $clock = null): Coordinator
     {
         $this->container->bind(Coordinator::class, fn (Container $c): Coordinator => new Coordinator($c->make(RacecardSource::class),
             $c->make(StatEngine::class), $c->make(PredictionAdapter::class),
             $c->make(PrimaryEvaluator::class), $c->make(ResultMatcher::class),
-            fn (): string => '2026-11-01T10:00:00.000000+09:00', $checkpoint));
+            $clock ?? fn (): string => '2026-11-01T10:00:00.000000+09:00', $checkpoint));
 
         return $this->container->make(Coordinator::class);
     }
@@ -136,7 +136,7 @@ final class ChronologicalFixture
         };
     }
 
-    public function capture(array $candidate, ?string $type = null, ?string $time = '12:00', ?string $score = 'normal'): array
+    public function capture(array $candidate, ?string $type = null, ?string $time = '12:00', ?string $score = 'normal', bool $displayCounts = false): array
     {
         $type ??= "A\u{7d1a}\u{6c7a}\u{52dd}";
         $pc = ['C0201data' => ['selKaisai' => str_replace('-', '', $candidate['race_date']), 'selKjyoCd' => $candidate['track_code'], 'selRaceNo' => (string) $candidate['race_number'],
@@ -144,6 +144,12 @@ final class ChronologicalFixture
                 'C0201sensyu' => array_map(fn (array $e): array => ['carNum' => (string) $e['bike'], 'numPlayer' => $e['external_player_id']], $candidate['entries'])]]];
         $pj = ['sensyuTypeInfo' => array_map(fn (array $e): array => ['syaban' => (string) $e['bike'], 'sensyuRegistNo' => $e['external_player_id'],
             'wakuban' => (string) $e['bike'], 'kyuhan' => 'A1', 'heikinTokuten' => $score === 'normal' ? (string) (100 - $e['bike']) : $score], $candidate['entries'])];
+        if ($displayCounts) {
+            foreach ($pj['sensyuTypeInfo'] as &$entry) {
+                $entry += ['nigeCnt' => '999', 'syouritu' => '99.9'];
+            }
+            unset($entry);
+        }
         $path = $this->root.'/synthetic-pj0315-'.bin2hex(random_bytes(8)).'.html';
         Json::write($path, '<html><script>var jsonData = {}; jsonData["PC0201"] = '.json_encode($pc, JSON_THROW_ON_ERROR).'; jsonData["PJ0315"] = '.json_encode($pj, JSON_THROW_ON_ERROR).';</script></html>');
 

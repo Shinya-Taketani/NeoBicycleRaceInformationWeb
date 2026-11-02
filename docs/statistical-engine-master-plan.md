@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-11-02 現在: PR134の既存feature/stat-2026-chronological-connection-01、開始clean HEAD `639d1481e99ed8fe07ea9b66625edc17f1a16e62`・base/ローカルorigin/main124afa68でF1〜F10を修正。メモリ増分/初期epoch境界/不足・取得範囲/全員得点/入力allowlist/未解決本人/訂正・確定版と再開を限定製造し、通常128Mの183 tests/1545 assertions・exit0を確認した。原本不変/実2026・DB・HTTP・学習0、O1未確立/実行未承認を維持。正本は5.0・15.99.1・[PR134記録](2026-chronological-connection-01.md#10-pr134-f1f10レビュー修正--2026-11-02)。未コミットで再レビュー待ち。以下の初回138成功と後続ユーザー全体20失敗は時点を分けた履歴である。
+
 > 2026-11-01 現在: PR133 MERGEDを開始clean main/HEAD/ローカルorigin `124afa68ce2acbd52384d38a7e510ad7a0121c1d`・指定merge親/treeで確認し、新branch `feature/stat-2026-chronological-connection-01` でG1〜G5をPHP製造した。契約はACCEPTED_FOR_LIMITED_IMPLEMENTATION、実2026実行はfalse。人工出走表→13STAT/4履歴→保存C1/基準→日別lock/receipt→結果/Primary評価/翌日epoch、再開・独立検証・推論なし評価再現を限定受入。最終限定138 tests/1219 assertions・128M/exit0、実旧3入力の数値完全一致・原本前後seal一致。O1実初期履歴NOT_ESTABLISHEDと実2026/DB/HTTP/B1/正式採用禁止は維持する。正本は5.0・15.99と[接続実装記録](2026-chronological-connection-01.md)。未コミットで差分レビュー待ち。以下のPR133レビュー待ち/文書のみ/実装0は当時の履歴である。
 
 > 2026-11-01 PR133 P2修正: 既存docs branchのclean HEAD/ローカル追跡 `827582af4bb311b1e78e3fa0b5b5504ae30d5e0f`、base/origin main ea37ec91を確認。F1の不能正本/先行候補参照/全T×両方式の終端Refと、F2のJST日付境界 `<`・`<=`/結果開放後再予測禁止キーを契約2ファイルへ修正した。READY_FOR_REVIEW_WITH_OPEN_ITEMS、PR133再レビュー待ち。第15.98.1参照。期間/モデル/STAT/指標・PR132有限完了/初期履歴未確立は維持、実2026/DB/HTTP/実装0。以下の初版未コミット/実物確認/検証は当時の履歴。
@@ -117,9 +119,9 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.94
+- Version: 1.95
 - Created: 2026-08-23
-- Updated: 2026-11-01（PR133マージ同期・時系列接続G1〜G5のPHP製造/限定受入。実2026実行なし）
+- Updated: 2026-11-02（PR134 F1〜F10の履歴/メモリ/本人/版・再開修正と限定受入。実2026実行なし）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
@@ -149,10 +151,12 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR133 MERGED、開始main124afa68から新feature/stat-2026-chronological-connection-01。G1〜G5限定製造を未コミットOFFLINE_CONNECTION_READY_FOR_REVIEWでレビュー待ち。Git add/commit/push/PR/mergeはユーザーが行う
-- Current code: 新ChronologicalValidation/Command/Tests、artifact計算context・旧年ガードと共有算術の限定分離。式/モデル/bin/Decoder/旧Contract::planは不変。契約JSONはACCEPTED_FOR_LIMITED_IMPLEMENTATION/real_execution_authorized=false
-- Current execution record: 人工2日5レース35出走から13STAT/4履歴/両方式終端/日別lock/receipt/結果/評価/次epochを接続。指定保存C1＋旧2025先頭3完全入力（12542/12543/12544、16出走）の確率/utility/Primary/同点が旧算術と完全一致。O1実初期epochは未確立、実2026/DB/HTTP/fit0
-- Current tests record: 最終限定138 passed/1219 assertions、128M/peak71827456bytes、failure/error/warning/skip0、exit0。PHP26ファイル構文/限定Pint成功。通常全体は危険な旧cleanupを起動せずNOT_RUN、全体回帰未確認。人工成績と実2025数値互換を区別する
+- Current review: PR134既存feature branchでF1〜F10を未コミット修正、開始HEAD639d1481・base/ローカルorigin124afa68。PR134_REVIEW_FIX_READY_FOR_REVIEW、Git add/commit/push/PR/mergeはユーザーが行う
+- Current code: ChronologicalValidationの限定修正、共通得点文脈の純粋抽出、関連テスト。式/feature版/モデル/bin/Decoder/旧Contract::planは不変。offline profile v2-PR134、契約は限定実装基準受入/real_execution_authorized=false
+- Current execution record: 人工境界・複数訂正/確定更新・中断再開と日別lock/結果/評価を検証。O1実初期epochは未確立、実2026/DB/HTTP/fit0。最新の専用メモリ/旧入力互換/Artisan実測は15.99.1と実装記録10節を参照
+- Current tests record: 通常限定183 passed/1545 assertions、128M/peak71827456bytes、failure/error/warning/skip0、exit0。高ベースライン等は別記録。通常全体NOT_RUN、全体回帰/過去155警告全原因は未確認
+- Previous review/code at v1.94: main124afa68からG1〜G5を製造し未コミットレビュー待ち。その後ユーザー639d1481 commit/pushでPR134作成。初回コード/証跡は当時の版として保持する
+- Previous tests at v1.94: Codex限定138/1219・128M/exit0、全体NOT_RUN。その後ユーザー全体20 failed/155 warnings/9 skipped/4572 passed/46817 assertions/389.89秒。明示exitと全警告原因は未提示であり、今回限定成功へ読み替えない
 - Previous review/code at v1.93: PR133 P2修正開始HEAD827582aで契約2ファイル/工程同期を未コミット再レビュー待ち、当時アプリ/テスト無変更。F1不能参照とF2日付境界だけを変更し、初期履歴未確立/実行未承認を維持した
 - Previous tests at v1.93: 記号的R1〜R6/JSON/Markdown検証のみ、PHPUnit/全体/Pint NOT_RUN。その後ユーザー4534/46563/155 warnings/9 skipped/391.67秒、7c6d0e5 commit/push、PR133が124afa68でmerge。391.11秒/393.73秒/390.28秒は別記録、警告全原因/明示exitは未提示
 - Previous review/code/execution at v1.92: verify/stat-existing-data-integrated-acceptance-01で固定352/2349、新21run/47332結果/7392item・全行再計算/独立照合を完了し未コミットREADY_FOR_REVIEWだった。後にユーザー1df749d commit/push、PR132がea37ec91でmerge。18不正得点・元資料/39業務表/旧統計/262コード不変、25段階128M/最大peak92278784bytes、Codex PHPUnit/通常全体/Pint NOT_RUNは当時の事実として保持
@@ -393,6 +397,60 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 # 5. 現在地
 
 ## 5.0 最新工程: STAT-2026-CHRONOLOGICAL-CONNECTION-01
+
+```yaml
+current_phase: STAT-2026-CHRONOLOGICAL-CONNECTION-01-REVIEW-FIX-01
+current_engine_state: PR134_REVIEW_FIX_READY_FOR_REVIEW
+next_allowed_action: REVIEW_PR134_F1_F10_CODE_DOCUMENTS_LIMITED_EVIDENCE_ONLY
+pr134_fix_start_head: 639d1481e99ed8fe07ea9b66625edc17f1a16e62
+remote_main: 124afa68ce2acbd52384d38a7e510ad7a0121c1d
+remote_verification: LOCAL_REFERENCE_ONLY_NO_FETCH
+contract_status: ACCEPTED_FOR_LIMITED_IMPLEMENTATION
+real_execution_authorized: false
+initial_history_epoch: NOT_ESTABLISHED
+o2_implementation_basis: ACCEPTED
+o2_real_execution: NOT_AUTHORIZED
+completed_phases: PR132_FINITE_ACCEPTANCE_G1_G5_LIMITED_CONNECTION_AND_PR134_REVIEW_FIX
+superseded_phases: PR134_INITIAL_READY_STATE_AND_SUBSEQUENT_USER_FAILURES_ARE_SEPARATE_HISTORY
+blocked_phases: REAL_2026_DB_HTTP_EXECUTION_ADOPTION_LIVE_B1_H1U
+frozen_contracts: LEGACY_C1_STAT_FORMULAS_FEATURE_VERSIONS_BINS_COEFFICIENTS_DECODER_TIES_PLAN_ARTIFACTS
+unfrozen_contracts: PR134_LIMITED_FIX_CODE_REVIEW_REAL_INITIAL_HISTORY_BINDING_NOT_ESTABLISHED
+holdout_status: FROZEN_NO_ACCESS_THIS_PHASE
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+historical_publication_time_verified: UNKNOWN
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+points: null
+confidence: null
+production_db_access: 0
+production_write: 0
+real_http_this_phase: NOT_RUN
+real_2026_access: NOT_RUN
+fit_refit_rebin_oof: 0
+operational_decisions: PROPOSED_NOT_APPROVED
+permission_status: UNVERIFIED
+real_send_allowed: false
+2026_holdout: FROZEN_NO_ACCESS_THIS_PHASE
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | PR134 F1〜F10のコード/人工回帰/限定互換を再レビュー待ち。初回138成功・ユーザー全体20失敗とは別時点 |
+| next_allowed_action | PR134の今回差分/文書/限定証跡レビューのみ。O1や実2026実行へ自動進行しない |
+| completed_phases | PR132有限完了とG1〜G5製造を保持し、履歴・版・再開の限定修正受入を追加。全46や本番運用完了ではない |
+| superseded_phases | 初回READY/未コミットは過去記録。ユーザー全体20失敗は保持し、限定再現/修正と分離する。不採用方式を復活しない |
+| blocked_phases | 実2026/本番DB/実HTTP/学習/性能評価/正式採用/LIVE、B1/親lambda/H1-Uは未承認 |
+| frozen_contracts | 13STAT/式/feature版/Operational、12＋4履歴/120日/同開催、保存C1/bin/係数/Decoder/同点、旧plan/原本 |
+| unfrozen_contracts | 今回のメモリ・投影・結果/epoch版の修正コードとschema補足のレビュー。実初期履歴O1の由来/完全性は未確立 |
+| holdout_status | 人工2026日付だけを許可、実holdoutはFROZEN_NO_ACCESS_THIS_PHASE。historical_as_of=false/予測利用未承認 |
+
+正本は15.99.1と[実装記録第10節](2026-chronological-connection-01.md#10-pr134-f1f10レビュー修正--2026-11-02)。以下の8制御/初回実測はv1.94終了時の履歴。
+
+### v1.94 初回接続終了時点（履歴）
 
 ```yaml
 current_phase: STAT-2026-CHRONOLOGICAL-CONNECTION-01
@@ -2297,7 +2355,8 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
-| STAT-2026-CHRONOLOGICAL-CONNECTION-01 | G1〜G5オフラインPHP製造/人工統合/限定旧入力互換 | OFFLINE_CONNECTION_READY_FOR_REVIEW | 138 tests/1219 assertions、128M/exit0。O1未確立/実2026未許可、15.99参照 |
+| STAT-2026-CHRONOLOGICAL-CONNECTION-01-REVIEW-FIX-01 | PR134 F1〜F10限定修正/回帰 | PR134_REVIEW_FIX_READY_FOR_REVIEW | 通常183/1545・128M/exit0。全体NOT_RUN、15.99.1参照 |
+| STAT-2026-CHRONOLOGICAL-CONNECTION-01 | G1〜G5初回オフライン接続 | PR134_INITIAL_SUBMISSION_HISTORY | 初回138/1219成功と後続ユーザー全体20失敗を区別、15.99/15.99.1参照 |
 | STAT-2026-CHRONOLOGICAL-VALIDATION-CONTRACT-01 | 保存最終C1対STAT01の1月日別再生・保存・Primary評価契約 | PR133_MERGED_LIMITED_IMPLEMENTATION_BASIS_ACCEPTED | 実行承認false。初期履歴epoch未確立、旧提案/修正記録は15.98に保持 |
 | STAT-EXISTING-DATA-INTEGRATED-ACCEPTANCE-01 | 固定4日間の20上流＋品質20の統合生成/保存/全行検証 | COMPLETE_PR132_MERGED | 352候補/適格352・2349出走、新21run/47332結果/7392item。全行再計算・独立履歴参照照合一致、18不正得点は利用不可。15.97のレビュー待ちは履歴 |
 | STAT21-SAVED-WEATHER-BATCH-01 | 天候原項目の固定一括投影とPR131修正 | PR131_MERGED_FIXED_ACCEPTANCE_COMPLETE | 旧25,976候補の25,953保存/23未採用を保持。今回再build/Raw解析なし。後続ユーザー全体とCodex当時NOT_RUNを区別 |
@@ -5283,6 +5342,20 @@ PR133 MERGED。開始clean main/HEAD/ローカルorigin124afa68、指定merge親
 
 O1実初期履歴はNOT_ESTABLISHED、O2は限定実装基準のみ受入。historical_as_of=false、prediction_use=NOT_AUTHORIZED、正式採用/B1/LIVE未承認を維持。OFFLINE_CONNECTION_READY_FOR_REVIEW、未コミットで今回差分レビュー待ち。実初期資料接続/2026実行へ自動移行しない。
 
+### 15.99.1 PR134 F1〜F10レビュー修正 / 2026-11-02
+
+既存feature branch、開始clean HEAD639d1481・base/ローカルorigin124afa68を確認し、fetch/pull/切替なしで修正。初回Codex限定138/1219・全体NOT_RUN、後続ユーザー全体20 failed/155 warnings/9 skipped/4572 passed/46817 assertions/389.89秒、今回の修正/限定検証を時点分離する。ユーザー全体の明示exitと警告全原因は未確認。
+
+F1を先行100MiBの専用256Mで再現し、14直接memory/2欠落ファイル/4予測件数の同じ20失敗を確認。共有全体96MiB判定を当処理実使用増分96MiBと実PHP上限/余裕の分離へ修正し、rejectで別例外を成功扱いしない。F2〜F8は初期epoch公開前の全列挙source境界、C1不足証拠/取得範囲、39/42下限、全員得点文脈/数値正規化、予測manifest allowlist、未解決本人/中止を修正した。
+
+F9/F10はEPOCH_SELECTIONの連番/親Refと結果ごとhash版、1race1採用版、同版の内容/証拠競合、既存状態遷移に従う暫定→確定/訂正、全日固定後の結果/評価保存を追加した。候補固定後再開は保存epoch系列を検証再利用し、旧予測/入力/評価/epoch/indexを上書きしない。新run indexは明示選択結果/評価の不変snapshot。式/モデル/旧plan/統計feature版は不変。
+
+通常最終183 passed/1545 assertions（新規3クラス58/544・F追加45/320・既存安全8クラス80/681）、128M/peak71827456bytes、177.490秒、failure/error/warning/skip0、exit0。高ベースラインと既定予算超過は別記録、旧C1/Artisan/原本前後sealと実行パスは[実装記録10節](2026-chronological-connection-01.md#10-pr134-f1f10レビュー修正--2026-11-02)と `/tmp/pr134-review-20261102-F01yJOOW/` の小型review-packetを参照。
+
+先行100MiB・有限256Mの同じ3クラスは58/544・exit0、開始割当130027520bytes/peak176689152bytesで、元20失敗の各ケースが期待地点まで通った。既定96MiBを真に超える専用子PHPは対象例外で停止し、作業予算を緩和していない。旧2025固定3入力の確率/utility/Primary/同点は完全一致、原本前後seal不変。Artisan人工2日5レース/35名・36束検証/5評価再現も128M/exit0、推論なし再現を確認。F5は旧Readerの文字列得点による誤った部分平均を独立再現し、新NULL契約へ修正した。これらを実2026成績と混同しない。
+
+通常全体は旧GrowthTrendFixture/StartObservationFixture等の永久削除経路を起動せずNOT_RUN、全体回帰/過去155警告の全原因・解消は未確認。実2026/業務DB/実HTTP/学習/性能評価0、原本・旧束は不変。O1未確立、限定実装基準受入/real_execution_authorized=false、予測利用/正式採用/B1未承認を維持。未コミットPR134_REVIEW_FIX_READY_FOR_REVIEW、次は今回差分再レビューのみ。
+
 ## 15.98 STAT-2026-CHRONOLOGICAL-VALIDATION-CONTRACT-01 / 2026-11-01
 
 開始clean main/HEAD/ローカルorigin ea37ec91dc42dd0c517b444a26c2ef3b5cc89f48、PR132 merge親a25fcede/1df749d・tree259c256b7969cefb81dd8c2cbad330b6d7c93702を確認。新branch docs/stat-2026-chronological-validation-contract-01、fetch/pull/外部PR照会なし。PR132 Codex終了時の文書/実資料受入・通常全体NOT_RUN、後続ユーザー全体4534/46563/155 warnings/9 skipped/393.73秒・失敗表示なし、ユーザーcommit/push/mergeを分離する。PR131後の390.28秒は別実行。明示exit/警告全原因は未提示。
@@ -6395,6 +6468,12 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.95 / 2026-11-02
+
+PR134既存HEAD639d1481からF1〜F10を限定修正し、冒頭/metadata/5.0の8制御/工程一覧/15.99.1/引継ぎを同期。メモリ増分・初期source境界・C1不足/取得範囲・全員得点・入力allowlist・未解決本人と、同版競合/正当状態更新/複数訂正epoch/再開を修正した。offline profile v2-PR134、統計式/feature版/モデル/旧planは不変。
+
+初回138成功、後続ユーザー全体20失敗、今回通常183/1545・128M/exit0を区別。専用メモリ/互換/CLIは別ログ、全体NOT_RUN/155警告原因未確認、実2026/DB/HTTP/学習0。O1未確立/実行未承認を維持し、未コミットでPR134差分レビュー待ち。
 
 ## v1.94 / 2026-11-01
 
@@ -7545,6 +7624,12 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 ---
 
 # 27. 次回ChatGPT開始時の確認文
+
+### v1.95 PR134レビュー修正終了時の引継ぎ（現在）
+
+既存feature/stat-2026-chronological-connection-01、開始clean HEAD639d1481・base/ローカルorigin124afa68。F1〜F10修正の正本は5.0/15.99.1/[実装記録第10節](2026-chronological-connection-01.md#10-pr134-f1f10レビュー修正--2026-11-02)。通常限定183/1545・128M/exit0、特殊メモリ/限定実C1互換/Artisanは別証跡。初回138成功/全体NOT_RUNと、ユーザー全体20 failed/155 warnings/9 skipped/4572 passed/46817 assertions/389.89秒は過去記録として保持する。
+
+PR134_REVIEW_FIX_READY_FOR_REVIEW、未コミット。原本/旧結果/旧予測/旧epoch/index不変、実2026/業務DB/HTTP/学習/性能評価0。O1実初期履歴NOT_ESTABLISHED、O2具体案は限定実装基準のみ受入、real_execution_authorized=false、歴史as-of=false/予測利用/正式採用/B1/親lambda/H1-U/LIVEは禁止。全体NOT_RUN・全体回帰と155警告原因は未確認。次は今回差分/限定証跡レビューだけ、Git add/commit/push/PR/mergeはユーザーが行う。証跡root `/tmp/pr134-review-20261102-F01yJOOW/` を保持する。以下は初回終了時の履歴。
 
 ### v1.94 オフライン接続終了時の引継ぎ（現在）
 

@@ -166,3 +166,69 @@ O1実初期epochは未確立。次に必要なのは、明示source一覧とseal
 今回製造したReader/DTO/Calculator/Store/Coordinatorは人工統合で検証するが、実初期資料の完全性や全2026の容量・正解率は未確認。技術失敗stageの自動修復、運用HTTP/DB source、Scheduler、実観測承認・本番保存は実装/有効化していない。モデル再学習やλ選択は不要かどうかを本工程で評価せず、今回実行は0。次はコード/文書/限定証跡レビューのみであり、O1接続や実2026実行へ自動進行しない。
 
 最終状態: **OFFLINE_CONNECTION_READY_FOR_REVIEW**。今回の限定完了とO1/実運用未承認は両立する。実データでの的中率/予測精度改善はNOT_MEASURED_THIS_CHANGE。
+
+## 10. PR134 F1〜F10レビュー修正 / 2026-11-02
+
+第1〜9節の138成功・全体NOT_RUNはCodex初回終了時の記録。その後ユーザーは全体20 failed /155 warnings /9 skipped /4,572 passed /46,817 assertions /389.89秒を報告した。明示exitと155警告の全原因は未確認。今回の限定成功を全体成功へ読み替えない。
+
+修正開始は既存feature/stat-2026-chronological-connection-01、clean HEAD `639d1481e99ed8fe07ea9b66625edc17f1a16e62`、親/base/ローカルorigin/mainは124afa68。fetch/pull/main切替やブランチ作成、Git公開操作は行わない。原本・旧束・過去の不採用判断とO1/O2/実運用未承認は維持する。
+
+### 10.1 原因と修正
+
+| 指摘 | 原因 / 修正箇所 | 回帰の対象 | 実測結果 | 残件・適用範囲 |
+| --- | --- | --- | --- | --- |
+| F1 | HistoryReaderが共有全体の割当量を96MiBと比較。HistoryMemoryBudgetで実使用増分96MiB/実PHP上限と8MiB余裕を分離。rejectは理由と到達地点を検査 | 通常128M/先行100MiB・256M、真の既定96MiB超過、元20失敗 | 限定PASS、専用実測は10.4 | 通常全体は未実行 |
+| F2 | seal確認だけの初期受入。Reader/StatEngineで公開前stream検証、BundleRulesで境界検査 | 当日/未来/未release行は技術失敗・予測/結果読取り0、前日release境界は通過 | 3拒否＋対照PASS | O1実資料未確立 |
+| F3 | 不完全行を不足判定前に捨てる。Readerの通常STAT計数とC1証拠投影を分離 | 同本人・別開催・120日内はPARTIAL_HISTORY/4NULL、別本人/同開催/窓外の対照 | PASS | 実履歴接続はO1 |
+| F4 | 39/42下限未適用とC1の2022固定。Reader/新Aggregatorへ明示取得開始を渡す | JST下限一致/直前、12月開始LEFT_TRUNCATED、取得開始不明は補完しない | 件数/値/4NULL PASS | manifestは明示開始必須、実完全性未確認 |
+| F5 | 既知選手だけの平均等。HistoricalScoreContextを既存Batch03/04と共有 | 欠損/0入りは3値NULL、完全得点のみ算出。DTO/保存STAT31 COMPETITION_CONTEXT | 算術・保存値PASS | 新規実履歴の全量受入は未実施 |
+| F6 | int/floatを?string DTOへ直渡し。Readerで既存raceScore()正規化 | 同一得点の文字列/int/floatでpair得点/計算値一致 | PASS、TypeError0 | source/bundle hashのbyte一致は要求しない |
+| F7 | 無検査spread。InputManifest/Source/BundleRulesで構造別allowlist、本人4列＋Raw由来3列を投影 | 禁止列3ケースは技術失敗、正当NULL3ケースは不能、Raw表示項目を非投影 | PASS | 実2026入力未許可 |
+| F8 | 元race IDのNULL同士比較/中止早期return。ResultMatcherで未解決と競合を分離 | NULL双方/片側、中止空行、既知競合、不正日時、翌日正常処理。未検証history_event=NULL | PASS | 本番DB照合なし |
+| F9 | 固定1個の訂正epoch/通常epochへの巻戻り。Coordinator/EpochSelectionsで明示親/連番/hash版を保存 | 複数レース/同race v2→v3、4公開位置と候補固定後の中断再開、別系列/既固定日拒否、created_at保持 | 結合5ケース等PASS、旧Ref/bytes不変 | 人工checkpoint検証、実運用障害試験は未実施 |
+| F10 | 既存IDで受領内容を無視/v>1をCORRECTED限定。ResultVersions/BundleRulesで内容・証拠比較と既存状態遷移 | 同版差/日別file seal差、暫定→確定/確定→訂正、全日固定後の追加、親/版飛ばし/退行拒否 | PASS、再現は旧/新版を個別確認 | 運用取得/実資料評価は未許可 |
+
+### 10.2 結果版・epoch・索引の補足
+
+7種のまま、validation_runへEPOCH_SELECTIONイベントを追加する。日付＋連番の既知IDでparent_selection/base_epoch/selected_epoch/updated_resultを辿り、mtimeや任意ディレクトリ名で最新を推定しない。epochは親＋採用result Ref＋対象日のhash ID。sources/inputs/取得範囲を変えず、raceごとに1つの明示採用版だけを保持する。候補固定後はそのepoch系列を検証再利用し、新訂正を適用しない。
+
+resultはsource_resultに正規化した受領内容（元ID/本人/状態/日時/source_id/source_seal）を保存する。同じID/版で証拠が変わっても黙殺せずCONFLICT。FileResultSourceのsealは日別ファイル全bytesであり、他レースの更新でも同版の証拠が変わるため、その影響行にも新versionが必要である。自動で証拠差を無視したり旧Rawを再sealしない。
+
+version>1は連続版＋同race親Ref＋既存canTransitionFromを必須とする。PROVISIONAL→CONFIRMEDをCORRECTEDへ偽装しない。correct()は結果/評価保存だけ（futureDay/parentEpochなし）と、未処理将来epochへの明示採用を分離する。全日が固定済みでも前者は可能。実行時刻だけが変わった再試行では保存済みcreated_at等を保持する。
+
+RUN_INDEXはselected_results/selected_evaluationsを持つ不変snapshot。異なる選択版は別hash IDで保存し、1race1結果/評価だけを母数へ入れる。correct()単独による追加結果/評価は旧run索引を更新せず、旧索引は当時の集計を表す。明示した新版をexecuteで選ぶ場合も予測/lock/旧epochは不変、新索引を追加する。reproduceは全保存評価版を個別再現し、版を混ぜて合計しない。
+
+### 10.3 今回の検証記録
+
+証跡root `/tmp/pr134-review-20261102-F01yJOOW/`。前回の/tmp runnerは現存しなかったため、同じ許可範囲のbwrap runnerを新規作成した。原本read-only/ネットワーク遮断/人工.env・storage/bootstrap-cache/隔離/tmp、生成物と失敗資料は保持する。
+
+修正前のbefore-highは、有限256M PHPへ100MiBの先行割当を保持して新規3クラス58件を実行。38 passed /4 assertion failures /16 errors、exit2となり20失敗を再現した。内訳は直接memory例外14、予定中断前のmemory停止を旧rejectが受け入れた後の欠落ファイル2・予測件数4。ユーザー全体と同じ原因経路を限定再現した事実であり、全体の完全再現ではない。
+
+before-regressions-v2は履歴/入力不備を人工再現。追加テスト自体の補助名run()とPHPUnit final methodの衝突、DTOプロパティ名の誤記も中間ログへ保持し修正した。これらを本体の不具合と混同しない。before-version-fixesはF9/F10の10ケースを実行し、同版の差替え黙殺4件と更新/訂正条件6件の破綻を記録した。
+
+最終実測・コマンド・T/A/R対応は次節と小型review-packetに記録する。通常全体は旧GrowthTrendFixture/StartObservationFixture等のunlink/deleteDirectoryと永久削除禁止が衝突するためNOT_RUNとし、旧helperの一括改変やテストskipは行わない。
+
+### 10.4 最終コードの限定検証
+
+通常受入は `/usr/bin/php8.5` /PHP8.5.4 /128M、**183 passed /1,545 assertions /exit0**、177.490秒、PHP peak **71,827,456 bytes**。新規3クラス58/544、F修正追加45/320、既存安全8クラス80/681。failure/error/warning/skip0、全体テストの成功ではない。
+
+T01〜T12/A01〜A14/R1〜R6の元受入を維持し、F1をT01/03/07/08/12・A07/12・R3/6、F2をT02/06・A01/02/04・R3/5、F3〜F6をT05/06・A04/07/13・R5、F7をT03/04・A03/05/08・R1/2/3、F8をT03/09・A07/08/10・R2/4、F9/F10をT07/08/09/10・A04/09/10/11/12・R6へ対応させた。A13/14は別の限定実保存C1互換も併記する。重複するケース数を足し上げていない。
+
+実行は `bash /tmp/pr134-review-20261102-F01yJOOW/run-tests.sh acceptance-final-v2 128M 0` に第7節の11ファイルと追加 `tests/Unit/Domain/Keirin/Backtest/ChronologicalReviewFixTest.php` を指定した。runner内部の実PHPUnit引数、全stdout/stderr/JUnit/events/開始終了/exit/resourcesを同名ディレクトリへ保持する。初回の最終候補179件中2件は厳密化した拒否理由の期待名が誤っており、実際のInvalid bundle directoryへ修正した後、限定6件と最終183件で再確認した。業務上の期待値や警告設定を緩和していない。
+
+高ベースライン、既定作業予算の専用子PHP、実保存C1の限定互換、Artisan3mode、最終文書検証の個別実測はreview-packetとverification-summary.jsonを参照。通常全体NOT_RUN/全体回帰未確認、既存155警告の全原因・解消はNOT_CONFIRMED。実2026/業務DB/実HTTP/学習/予測性能評価0、旧原本/モデル/旧束は変更・移動・削除せず、未コミットでPR134差分レビュー待ちとする。
+
+| 個別検証 | 実測 | PHP limit / peak bytes | 終了 |
+| --- | --- | --- | --- |
+| 同じ新規3クラスの高ベースライン | 58 passed /544 assertions、53.556秒。開始割当130,027,520 bytes（先行割当前25,165,824） | 256M /176,689,152 | exit0、failure/error/warning/skip0 |
+| 既定96MiB作業予算の真の超過 | 専用子PHPでbaseline6,671,176 bytesの後に97MiBを割当。対象RuntimeExceptionを確認、PHP自体のexhaustionではない | 256M /112,201,728、作業上限100,663,296維持 | 親テストPASS、子exit0 |
+| 限定実保存C1互換 | race12542/12543/12544、5/5/6名。確率/utility/Primary/同点完全一致、原本START/END不変、fit0 | 128M /10,485,760 | exit0 |
+| Artisan人工E2E＋実保存C1 | 2日/5レース/35名、両方式T5/P5/N0/U0/E5、X0 | 128M /56,623,104 | exit0 |
+| Artisan verify /reproduce-evaluation | 36束/2日検証、保存評価5件再現。両modeのinference0 | 128M /各50,331,648 | 各exit0 |
+| F5旧Reader独立比較 | 旧HEADのReaderを隔離した別名クラスで実行。文字列得点100/90/80/70/NULLまたは0の旧mean85/max100/std11.180339887498949が、修正後はすべてNULL | 128M /10,485,760 | exit0 |
+
+高ベースラインは `run-tests.sh after-high 256M 1` に元3クラスを指定した。F5独立比較は `run-script.sh f5-original-comparison f5-original.php`、旧入力互換は `run-script.sh legacy-final legacy.php`、Artisanは `run-script.sh cli-final cli.php`。全scriptは証跡rootに保持し、実コマンド/開始終了/exit/stdout/stderrを記録する。F5比較の旧コードSHAはdc707a8703adf5f2dfb4c3d410a10193e1a89b83265085b3bcb1b8a93ba0c217。現在の共有helperだけの自己比較でなく、旧Readerの不備をF6の型エラーと分離して確認した。
+
+メモリ値の意味も分離する。runnerの開始割当/peakはPHP全体のmemory_get_usage(true)/peak(true)。機能予算はReader呼出し時のmemory_get_usage(false)からの実使用増分と実PHP上限/余裕であり、共有プロセスの開始割当を96MiBと比較しない。専用256M試験の成功は通常128Mの上限緩和ではない。
+
+最終状態 **PR134_REVIEW_FIX_READY_FOR_REVIEW**。今回の限定修正受入であり、全体成功・155警告解消・O1確立・実2026精度改善を認定しない。

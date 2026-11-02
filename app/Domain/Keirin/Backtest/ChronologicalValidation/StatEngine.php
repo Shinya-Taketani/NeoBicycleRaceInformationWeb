@@ -25,6 +25,14 @@ use Illuminate\Contracts\Container\Container;
 
 final class StatEngine
 {
+    public function validateInitialHistory(array $epoch, Store $store, Scope $scope): void
+    {
+        $budget = new HistoryMemoryBudget;
+        foreach ($this->reader->events($epoch, $store, $scope) as $event) {
+            $budget->check();
+        }
+    }
+
     public function __construct(private readonly Container $container, private readonly Stat01Calculator $stat01, private readonly Bt02SignalRegistry $registry,
         private readonly Bt02SignalEligibilityEvaluator $eligibility, private readonly HistoryAggregator $aggregator, private readonly HistoryReader $reader, private readonly RaceStageNormalizer $stages) {}
 
@@ -85,7 +93,7 @@ final class StatEngine
                     'source_ref' => $sourceRef, 'source_run_id' => null, 'execution_uuid' => $uuid];
             }
             $h = $this->aggregator->aggregateChronological(['race_id' => $r['original_race_id'], 'meeting_id' => $r['meeting_id'], 'player_id' => $e['original_player_id'],
-                'race_date' => $r['race_date'], 'meeting_start' => $r['meeting_start'], 'meeting_end' => $r['meeting_end'], 'input_as_of' => $input['input_as_of']], $history['c1'][$e['original_player_id']] ?? [], $scope);
+                'race_date' => $r['race_date'], 'meeting_start' => $r['meeting_start'], 'meeting_end' => $r['meeting_end'], 'input_as_of' => $input['input_as_of']], $history['c1'][$e['original_player_id']] ?? [], $scope, $epoch['history_event_from']);
             $sd = $s->features['RACE_SCORE_STDDEV_POP'];
             $entries[] = ['id' => $e['original_entry_id'], 'bike' => $e['bike'], 'raw' => $s->features['RACE_SCORE_RAW'], 'stat01_rank' => $s->features['RACE_SCORE_RANK'],
                 'anchor' => $sd === 0.0 ? 0.0 : $s->features['RACE_SCORE_Z'], 'anchor_status' => $sd === 0.0 ? 'ZERO_VARIANCE' : 'AVAILABLE',

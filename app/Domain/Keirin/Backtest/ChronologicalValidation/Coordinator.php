@@ -49,6 +49,7 @@ final class Coordinator
 
     private function run(array $manifest, LoadedModel $model, string $modelHash, Store $store, ResultSource $results, Scope $scope, ?Closure $integrity): array
     {
+        InputManifest::validate($manifest);
         $contractHash = hash_file('sha256', dirname(__DIR__, 5).'/docs/contracts/stat-2026-chronological-validation-v1.json');
         $identity = ['scope' => $manifest['scope'], 'run_id' => $manifest['run_id'], 'input_manifest_sha256' => Json::hash($manifest), 'model_sha256' => $modelHash, 'code_sha256' => self::codeHash(), 'contract_sha256' => $contractHash];
         foreach ($manifest['history']['sources'] as $source) {
@@ -63,6 +64,7 @@ final class Coordinator
             $epoch = ['epoch_id' => 'initial-history', 'parent_epoch' => null, 'logical_available_from' => $scope->from, 'history_event_from' => $manifest['history']['history_event_from'],
                 'history_event_end_exclusive' => $scope->from.'T00:00:00+09:00', 'sources' => $manifest['history']['sources'], 'results' => [], 'inputs' => [], 'release_order' => [],
                 'actual_capture_order' => [], 'publication_times' => [], 'publication_status' => 'UNKNOWN', 'exclusions' => [], 'created_at' => $this->now()];
+            $this->stats->validateInitialHistory($epoch, $store, $scope);
             $epochRef = $store->put('initial-history', 'history_epoch', $epoch);
             $run = ['run_id' => $manifest['run_id'], 'scope' => $manifest['scope'], 'contract_version' => 'STAT-2026-CHRONOLOGICAL-VALIDATION-v1',
                 'contract_sha256' => hash_file('sha256', dirname(__DIR__, 5).'/docs/contracts/stat-2026-chronological-validation-v1.json'), 'period' => ['from' => $scope->from, 'to' => $scope->to],
@@ -81,17 +83,13 @@ final class Coordinator
             $days[$candidate['race_date']][] = $candidate;
         }
         ksort($days);
-        $dayRefs = $contributions = [];
+        $dayRefs = $contributions = $selectedResults = $selectedEvaluations = [];
         $candidateCounts = ['C' => 0, 'X' => 0, 'T' => 0];
         foreach ($days as $day => $candidates) {
             BundleRules::require(count($candidates) <= 256, 'Bounded daily candidate capacity exceeded.');
             $prefix = 'd'.str_replace('-', '', $day);
             $candidateId = $prefix.'-candidates';
-            if (! $store->has($candidateId) && $store->has($prefix.'-corrected-epoch')) {
-                $corrected = $store->get($store->reference($prefix.'-corrected-epoch'))['data'];
-                BundleRules::require($corrected['parent_epoch'] === $epochRef && $corrected['logical_available_from'] === $day, 'Correction epoch is not the unprocessed forward version.');
-                $epochRef = $store->reference($prefix.'-corrected-epoch');
-            }
+            $epochRef = EpochSelections::resolve($store, $epochRef, $day);
             if ($store->has($candidateId)) {
                 $fixed = $store->get($store->reference($candidateId))['data'];
                 BundleRules::require($fixed['history_epoch'] === $epochRef, 'Restart epoch drift.');
@@ -118,6 +116,7 @@ final class Coordinator
                     'candidate_manifest' => null, 'predictions' => $unprocessed, 'no_prediction' => [], 'technical_unprocessed' => $technical, 'counts' => ['C' => count($fixedCandidates), 'X' => count($fixedCandidates) - count($unprocessed), 'T' => count($unprocessed), 'U' => count($unprocessed)],
                     'state' => 'CANDIDATES_LOCKED', 'locked_at' => null, 'result_open_receipt' => null, 'day_lock' => null, 'opened_at' => null, 'projections' => $projected];
                 $store->put($candidateId, 'day_manifest', $fixed);
+                $this->pause('AFTER_CANDIDATES');
             }
             BundleRules::require($fixed['technical_unprocessed'] === [], 'Retained technical unprocessed candidates block day opening.');
             $candidateRef = $store->reference($candidateId);
@@ -247,31 +246,14 @@ final class Coordinator
                 $candidate = $pending[$key];
                 unset($pending[$key]);
                 $id = $prefix.'-'.substr(hash('sha256', $key), 0, 12).'-result-v'.$result['result_version'];
-                if (! $store->has($id)) {
-                    $audit = $this->matcher->match($candidate, $result);
-                    $parent = $result['result_version'] === 1 ? null : $store->reference($prefix.'-'.substr(hash('sha256', $key), 0, 12).'-result-v'.($result['result_version'] - 1));
-                    $row = [...$result, 'result_id' => $id, 'parent_result' => $parent, 'raw' => $result['source_seal'], 'fetch_log_or_capture_id' => $result['source_id'],
-                        'official_publication_at' => null, 'publication_reason' => 'UNKNOWN', 'predictions' => $lock['predictions'][$key], 'day_lock' => $lockRef, 'opening_receipt' => $receiptRef, 'identity_audit' => $audit,
-                        'parser_version' => 'CHRONOLOGICAL-OFFLINE-RESULT-v1', 'history_event' => null];
-                    $projection = $fixed['projections'][$key];
-                    if ($audit['verified'] && $projection['race'] !== null && $projection['race']['scheduled_start_at'] !== null && $projection['race']['meeting_start'] !== null && count($result['entries']) === count($projection['entries'])) {
-                        $eventEntries = [];
-                        foreach ($projection['entries'] as $e) {
-                            $actual = array_values(array_filter($result['entries'], fn (array $a): bool => $a['bike'] === $e['bike']))[0];
-                            $eventEntries[] = [...$e, 'rank' => $actual['rank'], 'status' => $actual['status'], 'winning_technique' => $actual['winning_technique']];
-                        }
-                        $row['history_event'] = ['material_kind' => $scope->kind, 'race' => $projection['race'], 'context' => $projection['context'], 'entries' => $eventEntries,
-                            'race_status' => $result['official_status'], 'source_id' => $result['source_id'], 'verified' => true,
-                            'logical_available_from' => Scope::day($day)->modify('+1 day')->format('Y-m-d'), 'input_fetched_at' => $projection['capture_refs'][0]['fetched_at'],
-                            'fetched_at' => $result['fetched_at'], 'saved_at' => $result['saved_at'], 'confirmed_at' => null];
-                    }
-                    $store->put($id, 'result_bundle', $row);
-                }
-                $ref = $store->reference($id);
+                $parent = $result['result_version'] === 1 ? null : $store->reference($prefix.'-'.substr(hash('sha256', $key), 0, 12).'-result-v'.($result['result_version'] - 1));
+                $ref = ResultVersions::save($store, $candidate, $fixed['projections'][$key], $result, $scope, $lockRef, $receiptRef, $parent);
                 $r = $store->get($ref)['data'];
                 $this->pause('BEFORE_EVALUATION');
                 $evaluationRef = $this->evaluation($store, $r, $ref, $id.'-evaluation');
                 $contributions[] = $store->get($evaluationRef)['data']['contribution'];
+                $selectedResults[$key] = $ref;
+                $selectedEvaluations[$key] = $evaluationRef;
             }
             BundleRules::require($pending === [], 'Unprocessed result races remain; day not final.');
             $nextId = $prefix.'-next-epoch';
@@ -282,16 +264,13 @@ final class Coordinator
                 $newResults = $newInputs = [];
                 foreach ($store->all() as $ref) {
                     $bundle = $store->get($ref);
-                    if ($bundle['kind'] === 'result_bundle' && $bundle['data']['day_lock'] === $lockRef) {
-                        $newResults[] = $ref;
-                    }
                     if ($bundle['kind'] === 'input_bundle' && $bundle['data']['candidate_ref']['manifest'] === $candidateRef) {
                         $newInputs[] = $ref;
                     }
                 }
                 $epochRef = $store->put($nextId, 'history_epoch', [...$previous, 'epoch_id' => $nextId, 'parent_epoch' => $epochRef,
                     'logical_available_from' => Scope::day($day)->modify('+1 day')->format('Y-m-d'), 'history_event_end_exclusive' => Scope::day($day)->modify('+1 day')->format(DATE_ATOM),
-                    'results' => [...$previous['results'], ...$newResults], 'inputs' => [...$previous['inputs'], ...$newInputs], 'created_at' => $this->now()]);
+                    'results' => ResultVersions::adopt($store, $previous['results'], array_values(array_intersect_key($selectedResults, $lock['predictions']))), 'inputs' => [...$previous['inputs'], ...$newInputs], 'created_at' => $this->now()]);
             }
             $dayRefs[$day] = $lockRef;
             foreach (['C', 'X', 'T'] as $name) {
@@ -299,12 +278,12 @@ final class Coordinator
             }
             $this->pause('AFTER_DAY');
         }
-        $index = [...$run, 'days' => $dayRefs, 'header' => $store->reference('run'), 'event' => 'RUN_INDEX'];
+        $index = [...$run, 'days' => $dayRefs, 'header' => $store->reference('run'), 'event' => 'RUN_INDEX', 'selected_results' => $selectedResults, 'selected_evaluations' => $selectedEvaluations];
         if ($integrity !== null) {
             $integrity();
         }
         BundleRules::require(self::codeHash() === $identity['code_sha256'], 'Execution code changed before run completion.');
-        $store->put('index-'.substr(Json::hash($dayRefs), 0, 20), 'validation_run', $index);
+        $store->put('index-'.substr(Json::hash([$dayRefs, $selectedResults]), 0, 20), 'validation_run', $index);
 
         return ['status' => 'OFFLINE_CONNECTION_COMPLETED', 'scope' => $manifest['scope'], 'summary' => [...$this->evaluator->combine($contributions), 'candidate_counts' => $candidateCounts], 'days' => $dayRefs, 'fit_count' => 0, 'real_execution_authorized' => false];
     }
@@ -350,45 +329,29 @@ final class Coordinator
         return ['status' => 'EVALUATIONS_REPRODUCED', 'evaluations' => $count, 'inference_count' => 0];
     }
 
-    public function correct(Store $store, array $parentResult, array $correction, array $parentEpoch, string $futureDay): array
+    public function correct(Store $store, array $parentResult, array $correction, ?array $parentEpoch = null, ?string $futureDay = null): array
     {
         return $store->locked('run', function () use ($store, $parentResult, $correction, $parentEpoch, $futureDay): array {
             $run = $store->get($store->reference('run'))['data'];
-            (new Scope(...$run['scope']))->target($futureDay);
+            $scope = new Scope(...$run['scope']);
             $old = $store->get($parentResult)['data'];
-            Scope::day($futureDay);
-            $id = 'd'.str_replace('-', '', $futureDay).'-corrected-epoch';
-            BundleRules::require($futureDay > $old['race_date'] && ! $store->has('d'.str_replace('-', '', $futureDay).'-candidates')
-                && $correction['official_status'] === 'CORRECTED' && $correction['result_version'] === $old['result_version'] + 1, 'Correction is not an unprocessed future version.');
+            BundleRules::require(($futureDay === null) === ($parentEpoch === null), 'Future epoch/day must be supplied together.');
+            if ($futureDay !== null) {
+                $scope->target($futureDay);
+                BundleRules::require($futureDay > $old['race_date'] && ! $store->has('d'.str_replace('-', '', $futureDay).'-candidates'), 'Correction is not an unprocessed future version.');
+            }
             $prediction = $store->get($old['predictions'][BundleRules::METHODS[0]])['data'];
             $fixed = $store->get($prediction['candidate_ref']['manifest'])['data'];
             $candidates = array_values(array_filter($fixed['candidates'], fn (array $c): bool => $c['external_race_key'] === $old['external_race_key']));
-            $audit = $this->matcher->match($candidates[0], $correction);
-            $resultId = preg_replace('/-v\d+$/', '-v'.$correction['result_version'], $old['result_id']);
-            $row = [...$old, ...$correction, 'result_id' => $resultId, 'parent_result' => $parentResult, 'identity_audit' => $audit, 'raw' => $correction['source_seal']];
-            if ($row['history_event'] !== null) {
-                $row['history_event']['race_status'] = 'CORRECTED';
-                $row['history_event']['source_id'] = $correction['source_id'];
-                $row['history_event']['fetched_at'] = $correction['fetched_at'];
-                $row['history_event']['saved_at'] = $correction['saved_at'];
-                $row['history_event']['logical_available_from'] = $futureDay;
-                foreach ($row['history_event']['entries'] as &$entry) {
-                    $actual = array_values(array_filter($correction['entries'], fn (array $e): bool => $e['bike'] === $entry['bike']))[0];
-                    foreach (['rank', 'status', 'winning_technique'] as $field) {
-                        $entry[$field] = $actual[$field];
-                    }
-                }
-                unset($entry);
-            }
-            $resultRef = $store->put($resultId, 'result_bundle', $row);
+            $resultRef = ResultVersions::save($store, $candidates[0], $fixed['projections'][$old['external_race_key']], $correction, $scope, $old['day_lock'], $old['opening_receipt'], $parentResult);
+            $row = $store->get($resultRef)['data'];
+            $resultId = $row['result_id'];
+            $this->pause('AFTER_RESULT_UPDATE');
             $evaluation = $this->evaluation($store, $row, $resultRef, $resultId.'-evaluation');
-            $epoch = $store->get($parentEpoch)['data'];
-            BundleRules::require(in_array($parentResult, $epoch['results'], true), 'Correction parent missing from fixed epoch.');
-            $epoch['results'] = array_values(array_filter($epoch['results'], fn (array $ref): bool => $store->get($ref)['data']['external_race_key'] !== $old['external_race_key']));
-            $epoch['results'][] = $resultRef;
-            $epoch = [...$epoch, 'epoch_id' => $id, 'parent_epoch' => $parentEpoch, 'logical_available_from' => $futureDay, 'created_at' => $this->now()];
+            $this->pause('AFTER_UPDATE_EVALUATION');
+            $epoch = $futureDay === null ? null : EpochSelections::append($store, $parentEpoch, $resultRef, $futureDay, $this->now(), $this->pause(...));
 
-            return ['result' => $resultRef, 'evaluation' => $evaluation, 'epoch' => $store->put($id, 'history_epoch', $epoch)];
+            return ['result' => $resultRef, 'evaluation' => $evaluation, 'epoch' => $epoch];
         });
     }
 

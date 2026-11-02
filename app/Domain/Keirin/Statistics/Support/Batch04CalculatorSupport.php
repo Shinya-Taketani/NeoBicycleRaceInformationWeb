@@ -142,25 +142,8 @@ class Batch04CalculatorSupport
             'entrant_count' => $entrantCount,
             'entries' => $entries,
         ]);
-        $complete = count($entries) === $entrantCount;
-        $scores = [];
-        foreach ($entries as $entry) {
-            $score = $entry['race_score'];
-            if ($score === null || (float) $score <= 0) {
-                $complete = false;
-            } else {
-                $scores[$entry['race_entry_id']] = (float) $score;
-            }
-        }
-        $percentiles = array_fill_keys(array_column($entries, 'race_entry_id'), null);
-        if ($complete && count($scores) > 1) {
-            foreach ($scores as $raceEntryId => $targetScore) {
-                $rank = 1 + count(array_filter($scores, fn (float $score): bool => $score > $targetScore));
-                $percentiles[$raceEntryId] = (count($scores) - $rank) / (count($scores) - 1);
-            }
-        }
 
-        return ['hash' => $hash, 'percentiles' => $percentiles];
+        return ['hash' => $hash, 'percentiles' => HistoricalScoreContext::summarize($entrantCount, $entries, $this->math)['percentiles']];
     }
 
     public function pairEventHash(Batch04HeadToHeadEventDto $event): string
