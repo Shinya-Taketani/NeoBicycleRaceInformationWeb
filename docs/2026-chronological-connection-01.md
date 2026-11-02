@@ -232,3 +232,49 @@ T01〜T12/A01〜A14/R1〜R6の元受入を維持し、F1をT01/03/07/08/12・A07
 メモリ値の意味も分離する。runnerの開始割当/peakはPHP全体のmemory_get_usage(true)/peak(true)。機能予算はReader呼出し時のmemory_get_usage(false)からの実使用増分と実PHP上限/余裕であり、共有プロセスの開始割当を96MiBと比較しない。専用256M試験の成功は通常128Mの上限緩和ではない。
 
 最終状態 **PR134_REVIEW_FIX_READY_FOR_REVIEW**。今回の限定修正受入であり、全体成功・155警告解消・O1確立・実2026精度改善を認定しない。
+
+## 11. PR134 F11/F12追加修正 / 2026-11-03
+
+PR134-REVIEW-FIX-02。既存 `feature/stat-2026-chronological-connection-01`、開始clean HEAD `117657d59a330a3ba1741c5ac78b44478b449cb6`、base/ローカルorigin/main `124afa68ce2acbd52384d38a7e510ad7a0121c1d` を確認した。前節の未コミット終了は当時の記録であり、今回はその後の117657dからの追加差分だけ。fetch/pull/ブランチ変更/Git公開操作なし。
+
+| 指摘 | 修正前に実行確認した原因 | Readerの修正と回帰結果 |
+| --- | --- | --- |
+| F11 | meeting_end=NULLの結果を正常照合・保存した翌日、Batch03投影がScope::day(NULL)へ到達しTypeError | 非NULLの開始/終了日をそれぞれ検証し、両方既知の場合だけ従来の日差+1、それ以外はNULL。race100の履歴/着順/正規化得点99.00/C1証拠は保持。正常race101は3日、初期履歴1001は1日を維持 |
+| F12 | 通常project経路がeligibleを通らず、logical_available_fromの型・実在日付を未検証 | 共通validateで必須文字列を要求しScope::dayで厳密検証。初期source・保存結果history_eventの空文字/不正月/非閏日/欠落/NULL/整数を同じ理由で拒否。F3の不足証拠投影順は変更しない |
+
+F11-A/Bは指定どおり人工4レースの先頭candidate.meeting_endだけをNULLへ変更。初日当該レースは両方式NO_PREDICTION/MISSING_MEETING_CONTEXT、結果本人照合は成功して終了日NULLを保持。翌日の正常レースは両方式PREDICTEDでday lockまで完了し、期間合計は各T=4/P=3/N=1/U=0。RunVerifier成功、保存評価4件再現、再開後も全Ref不変。C1投影にはrace100を残すが、同開催999の最終集計への加算は要求しない。
+
+F11-Cの直接STAT23確認は同本人・別race/別開催・正常完走・cutoff未満。対象meeting3000/day2/duration3、履歴meeting1000/day2/durationNULLとmeeting1001/day2/duration2で、ALL_MEETING_DAY_HISTORY=2、SAME_DAY_NUMBER_HISTORY=2、FINAL_DAY_HISTORY=1、既存VALID/FULL・品質理由なしを確認。Calculator/DTOに新しいDEGRADED判定は追加しない。期間欠落3種と正常3日、片端NULLでも他端が不正日付なら例外となる境界も確認した。
+
+F12-Aの6ケースは正しいsource sealでCoordinatorから実行し、全正常objects=0（initial-history/run/候補/input/予測/lockなし）、結果source呼出し0、FAILED_UNPROCESSEDのRuntimeException理由一致を確認。保存結果経路も別の人工束で同じ6ケースを拒否し、元結果Refは不変。F12-Bの前日release=初日、当日/未来/未release拒否、provisional/unverifiedのPARTIAL_HISTORY・4NULL、同開催/別本人/窓外の対照は既存回帰を維持した。
+
+### 11.1 検証と時点の分離
+
+| 実行 | 結果 | 時間 / 制限 / exit |
+| --- | --- | --- |
+| 前回Codex限定（履歴） | 183 passed /1,545 assertions | 177.490秒 /128M /0 |
+| 前回高ベースライン（履歴） | 58 passed /544 assertions | 53.556秒 /256M /0 |
+| 後続ユーザー全体（提示情報） | 4,637 passed /47,433 assertions /155 warnings /9 skipped、提示集計に失敗表示なし | 552.97秒、明示exitと155警告全原因は未確認 |
+| 今回修正前の新回帰20件 | 3成功・5 errors・12 failures /22 assertions、PHP警告2箇所 | PHPUnit3.878秒 /128M /2 |
+| 今回新回帰のみ | 20 passed /103 assertions、失敗/エラー/警告/skip0 | PHPUnit7.258秒 /128M /0 |
+| 今回4クラス全ケース | 123 passed /967 assertions、失敗/エラー/警告/skip0 | PHPUnit183.040秒 /128M /0 |
+
+最終内訳はReviewFix65/423、Validation26/371、StoreAndEvaluation28/161、Command4/12。新20件を含む指定4クラスの限定実行であり、前回の既存8クラス80件を再実行した件数ではない。実PHPは `/usr/bin/php8.5` /8.5.4、最終開始08:26:17・終了08:29:20 JST、runner経過183.104秒、PHP peak63,438,848 bytes。既存F1の96MiB超過検証用256M子PHPは既存4クラス内の回帰として維持し、新しい高ベースライン専用試験は追加していない。
+
+証跡rootは `/tmp/pr134-fix02-20261103-WftcuXqs/`。前回/tmp runnerは現存しなかったため同じ範囲の小型runnerを新規作成し、bwrapで原本read-only・ネットワーク遮断・人工.env/storage/cache・記録済み専用/tmpを使用。namespace起動をsandbox内で拒否された最初のログも保持し、許可された隔離起動で検証した。途中の修正後1件失敗はテスト側の得点期待表記99を既存正規化99.00へ訂正したもの。本体の数値仕様・期待件数・警告設定を緩和していない。
+
+実行コマンド（runnerが128Mと隔離条件を固定、実argv/開始終了/exit/stdout/stderr/JUnit/events/resourcesを各実行先へ保存）:
+
+```bash
+php /tmp/pr134-fix02-20261103-WftcuXqs/run.php acceptance-final \
+  tests/Unit/Domain/Keirin/Backtest/ChronologicalReviewFixTest.php \
+  tests/Unit/Domain/Keirin/Backtest/ChronologicalValidationTest.php \
+  tests/Unit/Domain/Keirin/Backtest/ChronologicalStoreAndEvaluationTest.php \
+  tests/Feature/ChronologicalValidationCommandTest.php
+```
+
+修正前はbefore-f11-f12-isolated、修正後の新20件はafter-f11-f12-v2、最終はacceptance-final。全資料・失敗stageは保持し、削除/移動しない。変更PHP2件の構文・限定Pint、文書整合とgit diff --checkを確認する。最終結果・全差分・保護ソース照合は同rootのfinal-check.json/review.diff/review-packet.txtを参照。
+
+通常全体は旧Fixtureの永久削除経路のため今回もNOT_RUN、全体回帰と155警告原因/解消は未確認。実保存C1再検証・新実資料探索・O1確立・実2026/業務DB/Redis/HTTP・学習/実データ性能評価は実行0。今回の業務コード変更はReaderだけ、既存STAT/DTO/モデル/契約JSON・版/F1〜F10の結果版と不変保存は維持。historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、正式採用/B1/LIVE未承認も不変。
+
+最終状態 **PR134_REVIEW_FIX_02_READY_FOR_REVIEW**。未コミットで停止し、次はユーザーの差分確認と同PR再レビューだけとする。

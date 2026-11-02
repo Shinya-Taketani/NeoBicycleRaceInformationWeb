@@ -130,6 +130,9 @@ final class HistoryReader
             usort($contextEntries, fn (array $a, array $b): int => $a['race_entry_id'] <=> $b['race_entry_id']);
             $score = $this->support->scoreContext($h['original_race_id'], $h['entrant_count'], $contextEntries);
             $competition = HistoricalScoreContext::summarize($h['entrant_count'], $contextEntries, $this->math);
+            $meetingStart = $h['meeting_start'] === null ? null : Scope::day($h['meeting_start']);
+            $meetingEnd = $h['meeting_end'] === null ? null : Scope::day($h['meeting_end']);
+            $meetingDuration = $meetingStart !== null && $meetingEnd !== null ? (int) $meetingStart->diff($meetingEnd)->days + 1 : null;
             $rows = [];
             foreach ($event['entries'] as $e) {
                 $state = $this->normalizer->normalize($e['status']);
@@ -150,7 +153,7 @@ final class HistoryReader
                     $histories2[$pid][] = new HistoricalRaceDto($pid, $h['original_race_id'], $e['original_entry_id'], $at, $h['meeting_id'], $event['context']['racetrack_id'],
                         $h['entrant_count'], $state->state, $state->tied, $e['rank'], $raw, $finish, $residual, $score['hash'], $fetched, $resultAt);
                     $histories3[$pid][] = new Batch03HistoricalRaceDto($pid, $h['original_race_id'], $e['original_entry_id'], $at, $event['context']['racetrack_id'], $h['meeting_id'],
-                        $h['day_number'], (int) Scope::day($h['meeting_start'])->diff(Scope::day($h['meeting_end']))->days + 1, $event['context']['meeting_grade'], $event['context']['meeting_day_kind'],
+                        $h['day_number'], $meetingDuration, $event['context']['meeting_grade'], $event['context']['meeting_day_kind'],
                         $h['race_type'], $h['race_type'], $this->stages->normalize($h['race_type']), $h['entrant_count'], $state->state, $state->tied, $e['rank'], $raw, $finish, $residual,
                         $score['hash'], $competition['score_mean'], $competition['score_max'], $competition['score_stddev_pop'], $percentile, $fetched, $resultAt, $confirmed);
                 }
@@ -205,6 +208,8 @@ final class HistoryReader
 
     private function validate(array $event, Scope $scope): void
     {
+        BundleRules::require(array_key_exists('logical_available_from', $event) && is_string($event['logical_available_from']), 'Historical logical_available_from must be a required date string.');
+        Scope::day($event['logical_available_from']);
         $h = $event['race'];
         Scope::day($h['race_date']);
         BundleRules::require(is_bool($event['verified']) && is_int($h['original_race_id']) && $h['original_race_id'] > 0, 'Historical version/identity type invalid.');

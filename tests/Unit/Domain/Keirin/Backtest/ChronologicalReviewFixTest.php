@@ -15,6 +15,12 @@ use App\Domain\Keirin\Backtest\ChronologicalValidation\RunVerifier;
 use App\Domain\Keirin\Backtest\ChronologicalValidation\Scope;
 use App\Domain\Keirin\Backtest\ChronologicalValidation\Store;
 use App\Domain\Keirin\Backtest\Experiments\TacticalHistory\HistoryAggregator;
+use App\Domain\Keirin\Statistics\Calculators\Stat23Calculator;
+use App\Domain\Keirin\Statistics\DTO\Batch03BuildOptionsDto;
+use App\Domain\Keirin\Statistics\DTO\Batch03HistoricalRaceDto;
+use App\Domain\Keirin\Statistics\DTO\Batch03TargetEntryDto;
+use App\Domain\Keirin\Statistics\Enums\StatisticFeatureResultStatus;
+use App\Domain\Keirin\Statistics\Enums\StatisticQualityStatus;
 use App\Domain\Keirin\Statistics\Repositories\Batch03HistoricalRaceRepository;
 use App\Domain\Keirin\Statistics\Support\Batch04CalculatorSupport;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -506,6 +512,165 @@ final class ChronologicalReviewFixTest extends TestCase
         }
         $this->assertSame(2, $f->coordinator()->reproduce($s)['evaluations']);
         $this->assertSame('VERIFIED', (new RunVerifier)->verify($s)['status']);
+    }
+
+    public function test_missing_meeting_end_keeps_history_and_allows_next_day_predictions(): void
+    {
+        $f = new ChronologicalFixture([5, 5, 5, 5]);
+        $f->manifest['candidates'][0]['meeting_end'] = null;
+        $s = new Store($f->root.'/store');
+        $out = $this->executeFixture($f, $s);
+        foreach (BundleRules::METHODS as $method) {
+            $this->assertSame(['T' => 4, 'P' => 3, 'N' => 1, 'U' => 0], array_intersect_key($out['summary']['coverage'][$method], array_flip(['T', 'P', 'N', 'U'])));
+        }
+        $first = $s->get($s->reference('d20260101-predictions'))['data'];
+        $key = $f->manifest['candidates'][0]['external_race_key'];
+        foreach ($first['predictions'][$key] as $ref) {
+            $p = $s->get($ref)['data'];
+            $this->assertSame('NO_PREDICTION', $p['state']);
+            $this->assertSame(['MISSING_MEETING_CONTEXT'], array_column($p['reasons'], 'code'));
+        }
+        $next = $s->get($s->reference('d20260102-predictions'))['data'];
+        $this->assertSame('DAY_PREDICTIONS_LOCKED', $next['state']);
+        foreach ($next['predictions'] as $methods) {
+            foreach ($methods as $ref) {
+                $this->assertSame('PREDICTED', $s->get($ref)['data']['state']);
+            }
+        }
+        $epoch = $s->get($next['history_epoch'])['data'];
+        $result = null;
+        foreach ($epoch['results'] as $ref) {
+            $row = $s->get($ref)['data'];
+            if ($row['original_race_id'] === 100) {
+                $result = $row;
+            }
+        }
+        $this->assertNotNull($result);
+        $this->assertTrue($result['identity_audit']['verified']);
+        $this->assertNull($result['history_event']['race']['meeting_end']);
+        $scope = new Scope(...$f->manifest['scope']);
+        $input = $f->container->make(RacecardSource::class)->project($f->manifest['candidates'][3], $scope);
+        $history = $f->container->make(HistoryReader::class)->project($input, $epoch, $s, $scope);
+        $byRace = array_column($history['batch03'][1], null, 'raceId');
+        $this->assertArrayHasKey(100, $byRace);
+        $this->assertNull($byRace[100]->meetingDurationDays);
+        $this->assertSame(1, $byRace[100]->rank);
+        $this->assertSame('99.00', $byRace[100]->raceScore);
+        $this->assertSame(3, $byRace[101]->meetingDurationDays);
+        $this->assertSame(1, $byRace[1001]->meetingDurationDays);
+        $this->assertContains(100, array_column($history['c1'][1], 'race_id'));
+        $this->assertSame('VERIFIED', (new RunVerifier)->verify($s)['status']);
+        $before = $s->all();
+        $this->assertSame(4, $f->coordinator()->reproduce($s)['evaluations']);
+        $this->assertSame($out, $this->executeFixture($f, $s));
+        $this->assertSame($before, $s->all());
+    }
+
+    #[DataProvider('meetingDurations')]
+    public function test_history_meeting_duration_preserves_null_and_validates_known_dates(?string $start, ?string $end, ?int $duration, ?string $error): void
+    {
+        $f = new ChronologicalFixture([5]);
+        $event = $this->event($f);
+        $event['race']['meeting_start'] = $start;
+        $event['race']['meeting_end'] = $end;
+        $this->history($f, [$event]);
+        if ($error !== null) {
+            $this->reject(fn () => $this->project($f), $error);
+
+            return;
+        }
+        [$history] = $this->project($f);
+        $this->assertCount(1, $history['batch03'][1]);
+        $this->assertSame($duration, $history['batch03'][1][0]->meetingDurationDays);
+        $this->assertCount(1, $history['c1'][1]);
+    }
+
+    public static function meetingDurations(): iterable
+    {
+        yield 'missing start' => [null, '2025-11-03', null, null];
+        yield 'missing end' => ['2025-11-01', null, null, null];
+        yield 'missing both' => [null, null, null, null];
+        yield 'normal three days' => ['2025-11-01', '2025-11-03', 3, null];
+        yield 'invalid start with missing end' => ['2025-02-29', null, null, 'Invalid JST date.'];
+        yield 'invalid end with missing start' => [null, '2025-13-01', null, 'Invalid JST date.'];
+    }
+
+    public function test_stat23_retains_missing_history_duration_in_all_and_same_day_only(): void
+    {
+        $f = new ChronologicalFixture([5]);
+        [$history] = $this->project($f);
+        $sample = get_object_vars($history['batch03'][1][0]);
+        $a = new Batch03HistoricalRaceDto(...[...$sample, 'raceId' => 2000, 'raceEntryId' => 20001,
+            'raceMeetingId' => 1000, 'dayNumber' => 2, 'meetingDurationDays' => null]);
+        $b = new Batch03HistoricalRaceDto(...[...$sample, 'raceId' => 2001, 'raceEntryId' => 20011,
+            'raceMeetingId' => 1001, 'dayNumber' => 2, 'meetingDurationDays' => 2]);
+        $target = new Batch03TargetEntryDto(3000, 30001, 1, 1, Scope::instant('2026-01-01T11:55:00+09:00'),
+            Scope::instant('2026-01-01T12:00:00+09:00'), 'synthetic-stat01', 28, 3000, 3000, 2, 3,
+            'F1', null, $a->rawRaceType, $a->rawRaceName, 5, $a->normalizedStage);
+        $options = new Batch03BuildOptionsDto(1, Scope::day('2022-01-01'), null, null, 3000, 1, true);
+        $result = $f->container->make(Stat23Calculator::class)->calculate($target, [$a, $b], $options, 'synthetic-stat23');
+        $this->assertSame(2, $result->features['ALL_MEETING_DAY_HISTORY']['sample_count']);
+        $this->assertSame(2, $result->features['SAME_DAY_NUMBER_HISTORY']['sample_count']);
+        $this->assertSame(1, $result->features['FINAL_DAY_HISTORY']['sample_count']);
+        $this->assertSame(StatisticFeatureResultStatus::Valid, $result->status);
+        $this->assertSame(StatisticQualityStatus::Full, $result->qualityStatus);
+        $this->assertSame([], $result->evidence['quality_reasons']);
+    }
+
+    #[DataProvider('invalidReleases')]
+    public function test_invalid_release_is_rejected_before_initial_publication(bool $present, mixed $release, string $reason): void
+    {
+        $f = new ChronologicalFixture([5]);
+        $event = $this->event($f);
+        unset($event['logical_available_from']);
+        if ($present) {
+            $event['logical_available_from'] = $release;
+        }
+        $this->history($f, [$event]);
+        $s = new Store($f->root.'/store');
+        $source = $f->source($s);
+        $this->reject(fn () => $this->executeFixture($f, $s, $source), $reason);
+        $this->assertSame([], $s->all());
+        $this->assertSame([], $source->calls);
+        $failed = glob($s->root.'/stages/failure-*/FAILED.json');
+        $this->assertCount(1, $failed);
+        $record = Json::read($failed[0]);
+        $this->assertSame(RuntimeException::class, $record['exception']);
+        $this->assertSame($reason, $record['message']);
+        $this->assertSame('FAILED_UNPROCESSED', $record['status']);
+    }
+
+    #[DataProvider('invalidReleases')]
+    public function test_saved_result_history_uses_the_same_release_validation(bool $present, mixed $release, string $reason): void
+    {
+        $f = new ChronologicalFixture([5]);
+        $s = new Store($f->root.'/store');
+        $this->executeFixture($f, $s);
+        $epoch = $s->get($s->reference('d20260101-next-epoch'))['data'];
+        $ref = $epoch['results'][0];
+        $row = $s->get($ref)['data'];
+        unset($row['history_event']['logical_available_from']);
+        if ($present) {
+            $row['history_event']['logical_available_from'] = $release;
+        }
+        // A new artificial bundle tests the result-backed Reader path without altering the original.
+        $invalid = $s->put('artificial-invalid-release-result', 'result_bundle', $row);
+        $scope = new Scope(...$f->manifest['scope']);
+        $reader = $f->container->make(HistoryReader::class);
+        $this->reject(fn () => iterator_to_array($reader->events([...$epoch, 'sources' => [], 'results' => [$invalid]], $s, $scope)), $reason);
+        $this->assertSame($ref, $s->reference($ref['bundle_id']));
+        $this->assertSame('2026-01-02', $s->get($ref)['data']['history_event']['logical_available_from']);
+    }
+
+    public static function invalidReleases(): iterable
+    {
+        yield 'empty' => [true, '', 'Invalid JST date.'];
+        yield 'invalid month' => [true, '2025-13-01', 'Invalid JST date.'];
+        yield 'non leap date' => [true, '2025-02-29', 'Invalid JST date.'];
+        $type = 'Historical logical_available_from must be a required date string.';
+        yield 'missing' => [false, null, $type];
+        yield 'null' => [true, null, $type];
+        yield 'integer' => [true, 20251201, $type];
     }
 
     private function revision(ChronologicalFixture $f, int $i, string $status, int $version): array
