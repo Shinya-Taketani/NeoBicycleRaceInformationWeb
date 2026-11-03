@@ -1,5 +1,7 @@
 # STATISTICAL_ENGINE_MASTER_PLAN
 
+> 2026-11-04 最新: PR135 MERGED、開始clean main/HEAD/ローカルorigin `62d3af9960ff57079cc3cfb5672a5e64aa6db285` と指定merge親/treeを照合し、新feature/stat-2026-initial-history-metadata-supplement-01で専用CLIを製造した。今回限定のREAD ONLY/REPEATABLE READ・1snapshotで固定101,326 race/717,709 entry/254,281 fetch/127,121 import/716,837 resultキーを全件抽出し、変更/不在/追加0、別PHPのオフラインverify成功。INITIAL_HISTORY_METADATA_SUPPLEMENT_COMPLETE_AWAITING_REVIEW、正本5.0/15.101/[実装・実測記録](stat-2026-initial-history-metadata-supplement-01.md)。限定55 tests/349 assertions・128M/exit0、通常全体NOT_RUN。O1未確立、29未取得/209出走と25,921未参照版の時刻不足を保持。業務書込み/HTTP/実2026/学習/予測0。次は今回差分と履歴投影仕様案のレビューのみ。以下のDB未承認・未コミット・テスト結果は各時点の履歴。
+
 > 2026-11-03 最新: PR134は `ad869b915f0e1088ae20ee7c8ba2eb7eb441bc7a` でマージ済み／限定オフライン接続実装受入済み。開始clean main/HEAD/ローカルoriginと指定merge親/treeを確認し、新branch `docs/stat-2026-initial-history-source-audit-01` で既知4資料のオフライン実測を完了した。結論C（限定追加抽出が必要）、B/C 101,326レース・717,709出走、固定Raw8レース22版。正本は5.0・15.100・[調査報告](stat-2026-initial-history-source-audit-01.md)。O1実初期epoch未確立、次は本調査と不足メタデータ抽出仕様のレビューのみ。実DB/HTTP/2026/学習/予測0、正式epoch未作成、PHPUnit/Pint/全体NOT_RUN。以下のPR134未マージ・未コミット・旧テスト実績は各時点の履歴。
 
 > 2026-11-03 現在: PR134追加修正F11/F12。既存feature/stat-2026-chronological-connection-01の開始clean HEAD `117657d59a330a3ba1741c5ac78b44478b449cb6` からReaderのnullable開催日数・利用開始日検証だけを修正し、指定4クラス123 tests/967 assertions・128M/exit0を確認した。PR134_REVIEW_FIX_02_READY_FOR_REVIEW、未コミット。正本は5.0・15.99.2・[追加修正記録](2026-chronological-connection-01.md#11-pr134-f11f12追加修正--2026-11-03)。前回Codex限定/高ベースラインと後続ユーザー全体4,637 passed/47,433 assertions/155 warnings/9 skipped/552.97秒は別時点。今回全体NOT_RUN、O1未確立/実2026・DB・HTTP・学習禁止を維持する。以下の未コミット状態等は各時点の履歴。
@@ -123,13 +125,14 @@
 > Primary三連単のdevelopment改善と既存incremental Gate NOT_PASSEDを分離し、正式採用・2026・LIVEは開放しない。Git書込み/PR操作はユーザーが行う。
 
 - Document: 統計エンジン開発工程マスター
-- Version: 1.97
+- Version: 1.98
 - Created: 2026-08-23
-- Updated: 2026-11-03（PR134 MERGED同期、既知2022〜2025資料の初期履歴source監査。正式epoch/実2026実行なし）
+- Updated: 2026-11-04（PR135 MERGED同期、固定2022〜2025不足メタデータの限定READ ONLY抽出・独立verify完了。正式epoch/実2026実行なし）
 - Repository: `Shinya-Taketani/NeoBicycleRaceInformationWeb`
 - Intended repository path: `docs/statistical-engine-master-plan.md`
 - Remote `main` at creation: `82d394ec014b46ca4792858fbe9fe35eaa7434d5`
-- Remote `main` at last update: `ad869b915f0e1088ae20ee7c8ba2eb7eb441bc7a`（今回開始main/HEAD/ローカルorigin、PR134 merge親/tree照合。fetch/外部GitHub照会なし、最新リモートの独立再確認ではない）
+- Remote `main` at last update: `62d3af9960ff57079cc3cfb5672a5e64aa6db285`（今回開始main/HEAD/ローカルorigin、PR135 merge親/tree照合。fetch/外部GitHub照会なし、最新リモートの独立再確認ではない）
+- Previous remote main at v1.97: `ad869b915f0e1088ae20ee7c8ba2eb7eb441bc7a`（初期履歴source監査開始時、PR134 MERGED。当時の記録）
 - Previous remote main at v1.94〜v1.96: `124afa68ce2acbd52384d38a7e510ad7a0121c1d`（PR134実装・レビュー修正時、PR133 MERGED。当時の記録）
 - Previous remote main at v1.93: `ea37ec91dc42dd0c517b444a26c2ef3b5cc89f48`（PR133契約初版/P2時点、PR132 MERGED。当時の記録）
 - Previous remote main at v1.92: `a25fcede1b9ba71ffa8b2ff293613340042ca779`（固定MVP統合受入開始時、PR131 MERGED。当時の記録）
@@ -156,10 +159,11 @@
 - Previous remote main at v1.71: `447b096f9d472f893f95901a8837d1ae1ff60946`（ローカルorigin/mainとPR112 merge履歴確認、fetch/外部照会なし）
 - Previous remote main at v1.70: `3abaaf8acc2230cd660abe339e7757d10b8afae9`（開始時ローカルorigin/mainとPR104 merge履歴確認、fetchなし）
 - Previous remote main at v1.69: `d19f5656b20b45aaa6302d9ce63f8d8d3968eb2d`（ローカルorigin/mainとPR102 merge commit確認、fetchなし）
-- Current review: PR134 MERGED/限定オフライン接続実装受入済み。新docs branchでSOURCE_AUDIT_COMPLETE_EXTRACTION_REQUIRED、今回2文書/監査証跡を未コミットでレビュー待ち。Git add/commit/push/PR/mergeはユーザーが行う
-- Current code: アプリ/既存テスト/設定/契約/式/モデル無変更。新規専用rootの調査スクリプトのみ。旧生成入口のDB接続経路は起動しない
-- Current execution record: A/B/C/Dメタデータ18JSONLを各1stream/seal一致、保存cacheを明示read-only、固定8レース22Raw版を照合。保存時刻/文脈不足と容量対応案を特定、O1未確立。15.100と調査報告を参照
-- Current tests record: 調査スクリプト構文/集計整合/文書静的検証のみ。PHPUnit/Pint/通常全体NOT_RUN。調査子PHP128M/最大peak10485760bytes、調査2失敗と検証ログの排他生成拒否・各回復を別ログ保持。過去155警告全原因/全体回帰は未確認
+- Current review: PR135 MERGED。新feature branchでINITIAL_HISTORY_METADATA_SUPPLEMENT_COMPLETE_AWAITING_REVIEW、今回コード/3文書/新証跡を未コミットでレビュー待ち。Git add/commit/push/PR/mergeはユーザーが行う
+- Current code: 専用CLIとInitialHistoryMetadataのplan/export/verify、人工限定テストを新設。旧Reader/Scope/STAT式/モデル/設定/安全helperは不変
+- Current execution record: 固定8表・READ ONLY/REPEATABLE READ・snapshot552827:552827:で1回抽出、5型全件MATCH/変更・不在・追加0、業務書込み0。切断後に保存物のみ別PHPで全件verify成功。内部文脈/版別時刻を補完しO1未確立を維持。15.101と実装・実測記録を参照
+- Current tests record: 最終限定55 passed/349 assertions・128M/peak55050240bytes・exit0、失敗/警告/notice/skip0。実plan/export/verifyも各128M/exit0、実抽出peak33554432bytes。新規16PHP構文/限定Pint・文書/diff検証、通常全体NOT_RUN（旧永久削除経路は起動しない）。全体回帰/過去警告全原因は未確認
+- Previous review/code/execution/tests at v1.97: PR134 MERGED後の2文書と限定監査を未コミットでレビュー待ちだった履歴。18JSONL/旧read-only SQLite/固定8レース22Raw版、結論C・DB抽出NOT_RUN・PHPUnit/Pint/全体NOT_RUN、128M/最大peak10485760bytes、調査2失敗と回復ログは当時の記録として保持。その後PR135で保存・マージされた
 - Previous review/code/execution/tests at v1.96: PR134既存feature branchでF11/F12を開始HEAD117657dから未コミット修正し再レビュー待ちだった履歴。Readerのnullable開催日数/利用開始日検証・人工4レース翌日接続/不正日付拒否、指定4クラス123 passed/967 assertions、128M/peak63438848bytes、183.040秒、failure/error/warning/skip0、exit0。通常全体NOT_RUN、O1未確立。その後PR134で保存・マージされた
 - Previous review/code/tests at v1.95: F1〜F10を開始HEAD639d1481から未コミット修正して限定183/1545・128M/177.490秒/exit0、高ベースライン58/544・256M/53.556秒/exit0。今回開始HEADは後続117657d。その後のユーザー全体4,637 passed/47,433 assertions/155 warnings/9 skipped/552.97秒は提示集計に失敗表示なし、明示exit/警告全原因未確認。過去未コミット・Codex全体NOT_RUNは当時の履歴として保持
 - Previous review/code at v1.94: main124afa68からG1〜G5を製造し未コミットレビュー待ち。その後ユーザー639d1481 commit/pushでPR134作成。初回コード/証跡は当時の版として保持する
@@ -403,7 +407,68 @@ MASTER PLANと実コード / DB正式runに矛盾がある場合、
 
 # 5. 現在地
 
-## 5.0 最新工程: STAT-2026-INITIAL-HISTORY-SOURCE-AUDIT-01
+## 5.0 最新工程: STAT-2026-INITIAL-HISTORY-METADATA-SUPPLEMENT-01
+
+```yaml
+current_phase: STAT-2026-INITIAL-HISTORY-METADATA-SUPPLEMENT-01
+current_engine_state: INITIAL_HISTORY_METADATA_SUPPLEMENT_COMPLETE_AWAITING_REVIEW
+next_allowed_action: REVIEW_METADATA_SUPPLEMENT_AND_INITIAL_HISTORY_PROJECTION_SPEC_ONLY
+start_main_sha: 62d3af9960ff57079cc3cfb5672a5e64aa6db285
+remote_main: 62d3af9960ff57079cc3cfb5672a5e64aa6db285
+remote_verification: LOCAL_REFERENCE_PARENTS_TREE_ONLY_NO_FETCH
+pr135_status: MERGED_SOURCE_AUDIT_ACCEPTED
+contract_status: ACCEPTED_FOR_LIMITED_IMPLEMENTATION
+real_execution_authorized: false
+metadata_supplement_authorization: FIXED_2022_2025_READ_ONLY_ONLY
+metadata_supplement_execution: COMPLETE_INDEPENDENT_OFFLINE_VERIFIED
+initial_history_epoch: NOT_ESTABLISHED
+proposed_next_phase: STAT-2026-INITIAL-HISTORY-PROJECTION-01
+projection_execution: NOT_RUN_REQUIRES_SEPARATE_AUTHORIZATION
+o2_implementation_basis: ACCEPTED
+o2_real_execution: NOT_AUTHORIZED
+completed_phases: PR132_FINITE_ACCEPTANCE_PR134_LIMITED_CONNECTION_PR135_SOURCE_AUDIT_AND_METADATA_SUPPLEMENT
+superseded_phases: PR135_DB_NOT_RUN_AND_REVIEW_ONLY_STATES_ARE_HISTORICAL
+blocked_phases: FORMAL_INITIAL_EPOCH_REAL_2026_HTTP_EXECUTION_ADOPTION_LIVE_B1_H1U_DB_WRITES
+frozen_contracts: LEGACY_READER_SCOPE_C1_STAT_FORMULAS_FEATURE_VERSIONS_BINS_COEFFICIENTS_DECODER_TIES_PLAN_ARTIFACTS
+unfrozen_contracts: NEW_METADATA_CLI_TESTS_THREE_DOCUMENTS_AND_PROJECTION_SPEC_REVIEW_ONLY
+holdout_status: FROZEN_NO_ACCESS_THIS_PHASE
+method_b1_status: PROPOSED_NOT_APPROVED
+method_selected: NONE
+selected_lambda: NONE
+formal_b1_data_acceptance_status: NOT_RUN
+historical_as_of_available: false
+historical_publication_time_verified: UNKNOWN
+prediction_use: NOT_AUTHORIZED
+formal_adoption: false
+points: null
+confidence: null
+production_db_access: 1
+production_db_access_scope: FIXED_READ_ONLY_SNAPSHOT_552827_552827
+production_write: 0
+saved_sqlite_audit: READ_ONLY_INPUT_NEW_EXCLUSIVE_LOCAL_INDEX_OUTPUT
+real_http_this_phase: NOT_RUN
+real_2026_access: NOT_RUN
+fit_refit_rebin_oof: 0
+operational_decisions: PROPOSED_NOT_APPROVED
+permission_status: UNVERIFIED
+real_send_allowed: false
+2026_holdout: FROZEN_NO_ACCESS_THIS_PHASE
+```
+
+| 制御項目 | 最新の扱い |
+| --- | --- |
+| current_engine_state | 固定5型全件抽出/分類・別PHPオフライン検証完了。O1未確立、metadata MATCHとRaw全件受入を区別 |
+| next_allowed_action | 今回コード/実測と次の投影仕様案のレビューのみ。全Raw/正式epoch/実2026へ自動進行しない |
+| completed_phases | PR132有限完了、PR134限定接続実装、PR135 source監査受入、今回不足メタデータ補完 |
+| superseded_phases | 15.100/v1.97のDB未実行・別承認待ちは当時の事実。旧実測/不採用判断を保持 |
+| blocked_phases | 業務DB書込み、実初期epoch、実2026/HTTP/学習/評価/正式採用/LIVE、B1/親lambda/H1-U |
+| frozen_contracts | 旧Reader/Scope/監査容量・13STAT/式/feature版、保存C1/bin/係数/Decoder/同点、旧plan/原本 |
+| unfrozen_contracts | 専用CLI/限定テスト/3文書のレビュー。次の不足証拠/監査stream投影は案であり今回未実装 |
+| holdout_status | 実2026開催metadataも参照0、historical_as_of=false/予測利用未承認。2026取得の過去年資料と区別 |
+
+正本は15.101と[実装・実測記録](stat-2026-initial-history-metadata-supplement-01.md)。未取得29レース/209出走・現行未参照25,921 importを保持し、現在版の保存時刻を旧版へ転記しない。今回限定のREAD ONLY許可はDB書込みや次工程の承認ではない。
+
+### v1.97 初期履歴source監査終了時点（以下の状態・8制御・実測は履歴）
 
 ```yaml
 current_phase: STAT-2026-INITIAL-HISTORY-SOURCE-AUDIT-01
@@ -2421,6 +2486,7 @@ BT-03E-02以降で利用する場合は、
 
 | Phase | 目的 | 状態 | 判定 |
 |---|---|---|---|
+| STAT-2026-INITIAL-HISTORY-METADATA-SUPPLEMENT-01 | 固定不足メタデータの専用READ ONLY抽出/独立verify | INITIAL_HISTORY_METADATA_SUPPLEMENT_COMPLETE_AWAITING_REVIEW | 5型全件MATCH/変更・不在・追加0、限定55/349・128M/exit0。O1未確立、15.101参照 |
 | STAT-2026-INITIAL-HISTORY-SOURCE-AUDIT-01 | A/B/C/D限定実測/36項目投影対応/不足抽出案 | SOURCE_AUDIT_COMPLETE_EXTRACTION_REQUIRED | 101,326レース/717,709出走・Raw8レース22版。O1未確立、DB抽出未実行。15.100参照 |
 | PR134-REVIEW-FIX-02 | F11開催期間欠損/F12利用開始日検証 | MERGED_LIMITED_OFFLINE_IMPLEMENTATION_ACCEPTED | 過去の指定4クラス123/967・128M/exit0、全体NOT_RUNを保持。15.99.2参照 |
 | STAT-2026-CHRONOLOGICAL-CONNECTION-01-REVIEW-FIX-01 | PR134 F1〜F10限定修正/回帰 | MERGED_LIMITED_OFFLINE_IMPLEMENTATION_ACCEPTED | 過去の通常183/1545・128M/exit0。全体NOT_RUN、15.99.1参照 |
@@ -5398,6 +5464,22 @@ manifest29058 bytes/SHA `2fd97547840c3a14b3703d431da49fd670e677c4b72ac1eb5aeddc7
 IN_SAMPLE_REPLAY_TECHNICAL_CHECK、historical_as_of_available=false、generalization_performance_evaluated=false、adoption/freeze/LIVE=false、points=null、gate_ci_bootstrap=NOT_RUN。
 詳細と実コマンド・小型ZIPは docs/c1-stat35-composition-result-01.md。未コミットで今回結果/コードレビューだけを待ち、次工程へ進まない。
 
+## 15.101 STAT-2026-INITIAL-HISTORY-METADATA-SUPPLEMENT-01 / 2026-11-04
+
+PR135 MERGED。開始clean main/HEAD/ローカルorigin `62d3af9960ff57079cc3cfb5672a5e64aa6db285`、指定親ad869b91/5bae9b83・tree efe3a7eb一致、新feature/stat-2026-initial-history-metadata-supplement-01を作成した。専用CLIのplan/export/verifyと限定テストを新設。R最終manifest/field-map-v3/spec-v2、B/Cの必要scope/sealのみを再利用し、全18資料/旧cache/Raw本文を再監査していない。15.100のDB未実行・次はレビューのみは当時の履歴であり、今回の最新ユーザー指示で固定READ ONLY抽出を許可された。
+
+実測接続は127.0.0.1:5432 / neo_keirin_prediction_db / public。専用接続/query log無効/reconnect禁止、sessionとtransaction read-only、repeatable read、lock5s/statement15min、snapshot552827:552827:を照合。固定8表・レース日2022以上2026未満/source条件をLEFT JOINのON側へ置き、最大200キー/10,603 chunk、1snapshotで完了後ROLLBACK/disconnectした。追加検出は固定raceのentry/resultキーと参照IDだけ。業務書込み0。
+
+CONTEXT101,326/ENTRY717,709/FETCH254,281/IMPORT127,121/RESULT716,837は全MATCH、変更/対象内不在/追加entry・result0。内部場/開催日ID・日番号・開催終了日/day_kindを全raceで非NULL確認、grade NULL124は保持。2025レースのmeeting_endが2026年に及ぶ98件を落とさず、実2026開催は読んでいない。day_kind「1」に時間帯等の意味を推定しない。年別/状態別・旧値対比は[実装・実測記録](stat-2026-initial-history-metadata-supplement-01.md)参照。
+
+Raw保存後log記録254,280/254,281、import状態記録127,121/127,121、同一固定版の結果保存処理時刻716,837行/101,200版を追跡。未参照25,921版＝中止113＋RESULTS_AVAILABLE25,808には現在版時刻を流用しない。中止97レース/663出走の結果0行と、結果未取得29レース/209出走を分離。PJ0315 DNS_FAILURE1、旧/現在の結果本人ID NULL716,837を保持し修復なし。183,159行のcreated_atが再import取得より古いことは正常な初回作成時刻として扱う。公式公開/確定時刻UNKNOWN、history_event.saved_at割当は未実施。
+
+新証跡root `/home/shinya/neo-keirin-artifacts/stat-2026-initial-history-metadata-supplement-01/run-20261104-WfXXHxz8`。plan manifest SHA `996a44c086af517cb16ccc0cdb501e4af118ee79dcc4751a0c39dd04f7add487`、export `c58e0ea87fbb3965289011114fe330a34cdb0c2188f31db4b3523de8dea95862`、独立verify `cbae2db73e1d254550c0385dc1ad932450d0809f816406821c945acfc5aedd46`。実抽出07:45:59〜07:47:39 JST/99.853秒・verify07:48:13〜07:49:53/99.705秒、各128M/peak33,554,432bytes/exit0。正確なファイル集合/seal/全キー/型別digest/結合/比較/時刻/理由/summaryを保存物だけで検算した。再抽出なし。
+
+最終限定55 passed/349 assertions（新規36/157＋既存19/192）、128M/peak55,050,240bytes・2.250秒、failure/error/warning/notice/skip0、exit0。初回人工テストnotice1と解消の経緯はログ保持。新16PHP構文/限定Pint・文書/diff検証、通常全体NOT_RUN（旧永久削除helperを起動しない）、全体回帰・過去警告全原因未確認。原本read-only/人工env-storage、plan/verify/testsネットワーク遮断。実抽出のみ許可localhost接続、HTTP/Redis/実2026/学習/予測/評価0、原本/既存成果物/旧code不変、削除・移動0。
+
+INITIAL_HISTORY_METADATA_SUPPLEMENT_COMPLETE_AWAITING_REVIEW、O1 NOT_ESTABLISHED/歴史as-of=false/予測・正式採用/B1/親lambda/H1-U/LIVE未承認。次の1工程案STAT-2026-INITIAL-HISTORY-PROJECTION-01は、新export/固定scope/Rのv3/v2/封印Raw参照を入力とし、版選択/全名簿・得点・結果Raw照合/列意味に沿う時刻投影/29不足証拠のC1接続/8192監査明細stream化と元算術不変/1825日左切断を受入条件とする。上限増加・短縮・間引きや再棚卸しへ戻らず、今回自動実行しない。未コミットでコードとこの仕様案のレビューを待つ。
+
 ## 15.100 STAT-2026-INITIAL-HISTORY-SOURCE-AUDIT-01 / 2026-11-03
 
 開始clean main/HEAD/ローカルorigin ad869b915f0e1088ae20ee7c8ba2eb7eb441bc7a、指定merge親124afa68/cec44e3・tree5ee6a231一致でPR134 MERGED/限定オフライン接続実装受入済みを確認。新docs/stat-2026-initial-history-source-audit-01を作成。fetch/外部照会なし。15.99以下とv1.96以前の未コミット/再レビュー待ち/テスト実績は当時の履歴として保持する。
@@ -6560,6 +6642,10 @@ reason:
 ---
 
 # 25. 変更履歴
+
+## v1.98 / 2026-11-04
+
+PR135を62d3af99でマージ済み/source監査受入済みへ同期し、専用メタデータ補完CLI/限定テストと実READ ONLY抽出・独立verifyの完了を記録。冒頭metadata/5.0の8制御/工程一覧/15.101/引継ぎを同時更新。固定5型全件MATCH・変更/不在/追加0、内部文脈と版別時刻、中止97・未取得29/209出走・未参照25,921版・DNS1の不足を分離した。限定55/349・128M/exit0、実抽出/verify各128M/exit0、業務書込み/HTTP/実2026/学習0。全体NOT_RUN・O1未確立/予測利用禁止と旧履歴/モデル/実測を保持。次は今回差分と履歴投影仕様案のレビューのみ。未コミット。
 
 ## v1.97 / 2026-11-03
 
@@ -7725,7 +7811,13 @@ PR115レビュー修正（2026-10-20）はcleanな既存branchでfetch/ls-remote
 
 # 27. 次回ChatGPT開始時の確認文
 
-### v1.97 初期履歴source監査終了時の引継ぎ（現在）
+### v1.98 不足メタデータ補完終了時の引継ぎ（現在）
+
+PR135 MERGED、開始clean main/HEAD/ローカルorigin62d3af9960ff57079cc3cfb5672a5e64aa6db285からfeature/stat-2026-initial-history-metadata-supplement-01を作成。正本5.0/15.101/[実装・実測記録](stat-2026-initial-history-metadata-supplement-01.md)、証跡 `/home/shinya/neo-keirin-artifacts/stat-2026-initial-history-metadata-supplement-01/run-20261104-WfXXHxz8`。専用CLI plan/export/verify、固定101326 race/717709 entry/254281 fetch/127121 import/716837 resultキーを全件MATCH・変更/不在/追加0。許可された実DB READ ONLY/REPEATABLE READ・1snapshotのみ、切断後の独立全件verify成功。INITIAL_HISTORY_METADATA_SUPPLEMENT_COMPLETE_AWAITING_REVIEW、未コミットでレビュー待ち。
+
+次は今回コード/実測とSTAT-2026-INITIAL-HISTORY-PROJECTION-01案のレビューだけ。入力は新export/固定scope/Rの最終v3/v2と封印Raw参照、残件は版選択/全Raw本人・得点照合/意味を区別した時刻投影/29未取得209出走の不足証拠/全epoch8192明細のstream化と1825日左切断である。今回全Raw・正式epoch/history_event/validation_runは未作成、O1 NOT_ESTABLISHED。限定55/349・128M/exit0、通常全体NOT_RUNと全体回帰未確認を分離する。DB書込み/HTTP/Redis/実2026/学習/予測/評価0、historical_as_of=false/予測・正式採用/B1/親lambda/H1-U/LIVE未承認。Git add/commit/push/PR/mergeはユーザーが行う。以下は過去時点の引継ぎ。
+
+### v1.97 初期履歴source監査終了時の引継ぎ（履歴）
 
 PR134 MERGED/限定オフライン接続実装受入済み。開始clean main/HEAD/ローカルorigin ad869b915f0e1088ae20ee7c8ba2eb7eb441bc7a、指定merge親/tree一致から新docs/stat-2026-initial-history-source-audit-01で調査した。正本5.0/15.100/[調査報告](stat-2026-initial-history-source-audit-01.md)、証跡 `/home/shinya/neo-keirin-artifacts/stat-2026-initial-history-source-audit-01/run-20261103-9WpE3ttB`。18JSONL/保存SQLite read-only/固定Raw8レース22版を確認。結論C、SOURCE_AUDIT_COMPLETE_EXTRACTION_REQUIRED、2文書を未コミットでレビュー待ち。
 
