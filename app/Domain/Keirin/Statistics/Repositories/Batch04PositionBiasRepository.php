@@ -10,6 +10,7 @@ use App\Domain\Keirin\Statistics\DTO\Batch04TargetEntryDto;
 use App\Domain\Keirin\Statistics\Enums\HistoricalResultState;
 use App\Domain\Keirin\Statistics\Support\Batch04CalculatorSupport;
 use App\Domain\Keirin\Statistics\Support\HistoricalResultStateNormalizer;
+use App\Domain\Keirin\Statistics\Support\PositionHistoryBucket;
 use DateTimeImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -19,7 +20,7 @@ class Batch04PositionBiasRepository
 {
     private const HISTORY_ROW_BATCH_SIZE = 250;
 
-    /** @var array<string, array<string, mixed>> */
+    /** @var array<string, PositionHistoryBucket> */
     private array $buckets = [];
 
     private ?DateTimeImmutable $historyFrom = null;
@@ -303,84 +304,14 @@ class Batch04PositionBiasRepository
         ?float $residual,
         string $fetchedAt,
     ): void {
-        $bucket = $this->buckets[$key] ?? [
-            'history_count' => 0,
-            'history_hash' => null,
-            'win_count' => 0,
-            'top2_count' => 0,
-            'top3_count' => 0,
-            'rank_count' => 0,
-            'rank_sum' => 0.0,
-            'finish_count' => 0,
-            'finish_sum' => 0.0,
-            'residual_count' => 0,
-            'residual_sum' => 0.0,
-            'source_max_fetched_at' => null,
-        ];
-        $bucket['history_count']++;
-        $bucket['history_hash'] = $this->support->hash([
-            'previous_history_hash' => $bucket['history_hash'],
-            'event_hash' => $eventHash,
-        ]);
-        if ($rank !== null) {
-            $bucket['rank_count']++;
-            $bucket['rank_sum'] += $rank;
-            $bucket['win_count'] += $rank === 1 ? 1 : 0;
-            $bucket['top2_count'] += $rank <= 2 ? 1 : 0;
-            $bucket['top3_count'] += $rank <= 3 ? 1 : 0;
-        }
-        if ($finishPercentile !== null) {
-            $bucket['finish_count']++;
-            $bucket['finish_sum'] += $finishPercentile;
-        }
-        if ($residual !== null) {
-            $bucket['residual_count']++;
-            $bucket['residual_sum'] += $residual;
-        }
-        $bucket['source_max_fetched_at'] = max((string) ($bucket['source_max_fetched_at'] ?? ''), $fetchedAt);
-        $this->buckets[$key] = $bucket;
+        $this->buckets[$key] ??= new PositionHistoryBucket($this->support);
+        $this->buckets[$key]->add($eventHash, $rank, $finishPercentile, $residual, $fetchedAt);
     }
 
     /** @return array<string, mixed> */
     private function summary(string $key): array
     {
-        $bucket = $this->buckets[$key] ?? null;
-        if ($bucket === null) {
-            return [
-                'history_count' => 0,
-                'history_hash' => null,
-                'sample_count' => 0,
-                'win_count' => 0,
-                'win_rate' => null,
-                'top2_count' => 0,
-                'top2_rate' => null,
-                'top3_count' => 0,
-                'top3_rate' => null,
-                'mean_rank' => null,
-                'mean_finish_strength_percentile' => null,
-                'residual_sample_count' => 0,
-                'mean_score_expectation_residual' => null,
-                'source_max_fetched_at' => null,
-            ];
-        }
-        $count = (int) $bucket['history_count'];
-
-        return [
-            'history_count' => $count,
-            'history_hash' => $bucket['history_hash'],
-            'sample_count' => $count,
-            'win_count' => $bucket['win_count'],
-            'win_rate' => $count > 0 ? $bucket['win_count'] / $count : null,
-            'top2_count' => $bucket['top2_count'],
-            'top2_rate' => $count > 0 ? $bucket['top2_count'] / $count : null,
-            'top3_count' => $bucket['top3_count'],
-            'top3_rate' => $count > 0 ? $bucket['top3_count'] / $count : null,
-            'mean_rank' => $bucket['rank_count'] > 0 ? $bucket['rank_sum'] / $bucket['rank_count'] : null,
-            'mean_finish_strength_percentile' => $bucket['finish_count'] > 0 ? $bucket['finish_sum'] / $bucket['finish_count'] : null,
-            'residual_sample_count' => $bucket['residual_count'],
-            'mean_score_expectation_residual' => $bucket['residual_count'] > 0 ? $bucket['residual_sum'] / $bucket['residual_count'] : null,
-            'source_max_fetched_at' => $bucket['source_max_fetched_at'],
-        ];
+        return ($this->buckets[$key] ?? new PositionHistoryBucket($this->support))->summary();
     }
 
     private function fieldBikeKey(Batch04TargetEntryDto $target): string

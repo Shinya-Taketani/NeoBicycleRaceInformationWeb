@@ -9,14 +9,19 @@ use DateTimeImmutable;
 readonly class Batch03BuildOptionsDto
 {
     public function __construct(
-        public int $stat01RunId,
+        public ?int $stat01RunId,
         public DateTimeImmutable $historyFrom,
         public ?DateTimeImmutable $from,
         public ?DateTimeImmutable $to,
         public ?int $raceId,
         public int $chunkSize,
         public bool $dryRun,
-    ) {}
+        public ?ArtifactCalculationSource $artifactSource = null,
+    ) {
+        if (($stat01RunId === null) !== ($artifactSource !== null)) {
+            throw new \InvalidArgumentException('Exactly one DB run or artifact calculation source is required.');
+        }
+    }
 
     /** @return array<string, bool|int|string|null> */
     public function parameters(string $batchExecutionUuid): array

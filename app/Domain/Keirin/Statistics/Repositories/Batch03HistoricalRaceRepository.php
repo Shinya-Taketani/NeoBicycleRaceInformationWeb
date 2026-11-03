@@ -12,6 +12,7 @@ use App\Domain\Keirin\Statistics\DTO\Batch03TargetEntryDto;
 use App\Domain\Keirin\Statistics\DTO\Stat01TargetCountsDto;
 use App\Domain\Keirin\Statistics\Support\DeterministicJsonHasher;
 use App\Domain\Keirin\Statistics\Support\HistoricalResultStateNormalizer;
+use App\Domain\Keirin\Statistics\Support\HistoricalScoreContext;
 use App\Domain\Keirin\Statistics\Support\RaceStageNormalizer;
 use App\Domain\Keirin\Statistics\Support\StatisticalMath;
 use App\Models\StatisticFeatureRun;
@@ -377,32 +378,8 @@ class Batch03HistoricalRaceRepository
     private function scoreContextSummary(int $raceId, int $entrantCount, array $context): array
     {
         $hash = $this->hasher->hash(['race_id' => $raceId, 'entrant_count' => $entrantCount, 'entries' => $context]);
-        $complete = count($context) === $entrantCount;
-        $scores = [];
-        foreach ($context as $entry) {
-            $score = $entry['race_score'];
-            if ($score === null || (float) $score <= 0) {
-                $complete = false;
-            } else {
-                $scores[$entry['race_entry_id']] = (float) $score;
-            }
-        }
-        $percentiles = array_fill_keys(array_column($context, 'race_entry_id'), null);
-        if ($complete && count($scores) > 1) {
-            foreach ($scores as $raceEntryId => $targetScore) {
-                $rank = 1 + count(array_filter($scores, fn (float $score): bool => $score > $targetScore));
-                $percentiles[$raceEntryId] = (count($scores) - $rank) / (count($scores) - 1);
-            }
-        }
-        $numericScores = $complete ? array_values($scores) : [];
 
-        return [
-            'hash' => $hash,
-            'percentiles' => $percentiles,
-            'score_mean' => $this->math->mean($numericScores),
-            'score_max' => $numericScores !== [] ? max($numericScores) : null,
-            'score_stddev_pop' => $this->math->populationStandardDeviation($numericScores),
-        ];
+        return ['hash' => $hash, ...HistoricalScoreContext::summarize($entrantCount, $context, $this->math)];
     }
 
     private function raceScore(mixed $value): ?string

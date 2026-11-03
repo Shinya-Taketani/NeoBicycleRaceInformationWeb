@@ -1,10 +1,12 @@
 # STAT-2026-CHRONOLOGICAL-VALIDATION-CONTRACT-01
 
+> 2026-11-01 限定実装への移行: PR133は124afa68でマージ済み。最新ユーザー指示により具体案を **ACCEPTED_FOR_LIMITED_IMPLEMENTATION** として受入。実2026実行は `real_execution_authorized=false`、O1実初期履歴はNOT_ESTABLISHEDのまま。実装・限定試験は[接続実装記録](2026-chronological-connection-01.md)と第13節を参照。以下の文書のみ/未実装/レビュー限定はPR133終了時点の履歴であり、今回の製造を禁止する現在状態ではない。
+
 > PR133 P2修正（2026-11-01）: 既存branchのclean HEAD `827582af4bb311b1e78e3fa0b5b5504ae30d5e0f` からF1/F2を修正。不能時もprediction_bundleを正本とし、先行する候補固定版から結果保存までの参照と、JST日付の履歴境界を統一した。第7.1・8.2・12節参照。初版の実物確認/検証は当時の履歴として保持し、今回再実行していない。
 
 ## 1. 状態・根拠の優先順位
 
-2026-11-01 JST。**READY_FOR_REVIEW_WITH_OPEN_ITEMS**。契約案は **PROPOSED_FOR_REVIEW**、実行許可はfalse。今回は文書とJSONだけであり、実2026資料の閲覧・取得・STAT計算・予測・評価はすべて0。性能改善・正式採用・LIVE・発走前可用性の証明ではない。
+PR133設計終了時点（履歴）: 2026-11-01 JST。**READY_FOR_REVIEW_WITH_OPEN_ITEMS**。当時の契約案は **PROPOSED_FOR_REVIEW**、実行許可はfalse。当工程は文書とJSONだけであり、実2026資料の閲覧・取得・STAT計算・予測・評価はすべて0。性能改善・正式採用・LIVE・発走前可用性の証明ではない。現在の限定実装受入は第13節で区別する。
 
 条件値の正本は[機械可読契約v1](contracts/stat-2026-chronological-validation-v1.json)、工程状態の正本は[MASTER PLAN](statistical-engine-master-plan.md) 5.0/15.98。以下の型・例外・接続案とJSONは一体としてレビューする。後続実装の受入ケースは未実装・未実行であり、成功済みとはしない。
 
@@ -275,7 +277,7 @@ Pipeline Request/RaceInputSource、HistoryReader、HistoryAggregator、Dataset�
 
 **Contract::planを書き換えるだけでは旧束を壊す**。ModelLoader::publishedはFinal Contract全体、Pipeline ArtifactStore::verifyとResultStore::verifyも各planとの厳密一致を要求する。旧plan/学習年/モデルbytes/旧sealは不変のまま、新しい許可scopeのvalidation/input入口を別にする。Final ModelLoader::restoreによるモデル構造検査は利用可能だが、旧predictionsにはDatasetも含む年拒否があるため直接2026を流さない。境界分離が必要なら新メソッド/薄い明示scope引数と旧既定入口を分離し、旧2026拒否と限定2022〜2025の数値一致・旧artifact読込をA13/A14で必須検査する。新実行コードSHAは新しい識別、古い生成時code sealは書き換えない。
 
-## 10. 未決事項と次の受入
+## 10. PR133終了時の未決事項と次の受入（履歴）
 
 - **O1 初期履歴未確立**: 第3.1節の既知キャッシュ/元exportを限定検証して生イベント/得点文脈束を接続する案を推奨。選択肢は、別途承認した明示的な疎履歴/NULLでの実行。いずれも「当時公開済み」を作らない。影響は実行時の初期epoch bindingで、契約レビューやadapter製造全体を停止する理由ではない。
 - **O2 具体案の承認待ち**: 1月/保存最終C1/STAT01基準/日別lock/Primary共通母数をレビューで決定する。実2026取得・評価/HTTP/保存の許可はさらに明示する。許諾UNVERIFIEDやD1〜D8を確認済みにしない。
@@ -301,3 +303,31 @@ F1は第6・7・7.1・8節/保存表/既存受入ケース、JSON prediction/inp
 今回提示された別ユーザー全体ログは4,534 passed/46,563 assertions/155 warnings/9 skipped/391.11秒。第1節のPR132後393.73秒・PR131後390.28秒とは混同せず、今回Codexの検証でも警告全解消の証拠でもない。PHPUnit/通常全体/Pintは今回**NOT_RUN**。`python3 /tmp/pr133-contract-review-20261101-8ctFpNtz/validate.py` でR1〜R6のメモリ内仕様検算、JSON構文/条件、Markdown155相対リンク/42表/コードブロック、差分範囲/git diff --checkを検証し、766チェック成功・exit0。これは記号的な仕様検算であり、実在bundle/RawやPHP実装の検証ではない。
 
 状態はREADY_FOR_REVIEW_WITH_OPEN_ITEMSのまま、PR133再レビュー待ち。初期履歴NOT_ESTABLISHED/O1、具体案承認待ち/O2、期間/モデル/STAT/指標とPR132有限完了を維持。旧原本の再hash/DB/HTTP/SQLiteコピー/実2026参照/学習/予測/結果評価は0、app/tests/config/database/依存/AGENTS.md無変更、未コミットで停止する。
+
+## 13. PR133マージ後の限定接続実装 / 2026-11-01
+
+PR133の修正終了HEAD827582aと未コミット状態は当時の事実。その後ユーザーは全体4,534 passed /46,563 assertions /155 warnings /9 skipped /391.67秒（最終集計に失敗表示なし）を実行し、7c6d0e5をcommit/push、124afa68でmergeした。391.11秒/393.73秒/390.28秒はそれぞれ別記録である。明示exit・警告全原因は未確認のまま。本限定検証の結果に読み替えない。
+
+O2は「1月/保存最終C1対STAT01/日別lock/Primary共通母数を限定製造の基準として受入済み」と「実2026実行未許可」に分離した。正本JSONのlimited_implementation_acceptanceとoffline_implementation_profileを参照。正確な承認時刻は未提示であり、架空のtimestampを登録しない。O1の由来・完全性・実資料接続は未確立である。
+
+実装補足は7種類を維持する。validation_runの固定HEADERと後続RUN_INDEX、day_manifestのCANDIDATES_LOCKED/DAY_PREDICTIONS_LOCKED/RESULTS_OPENEDを不変イベントとして別IDで保存する。receiptは開放時刻と既存day lock Refを持つ。日別lockを後から書き換えない。candidate_refは必ず先行候補版へ向き、終端→候補→epochでhash循環を作らない。
+
+### 13.1 PR134修正補足 / 2026-11-02
+
+offline_implementation_profileはv2-PR134。期間/方式/13STAT/既存feature版/モデル/5指標/母数を変えず、入力schemaと取得範囲、結果/epoch版管理を補足する。初版v1の138成功と、その後のユーザー全体20失敗は別記録として[接続実装記録第10節](2026-chronological-connection-01.md#10-pr134-f1f10レビュー修正--2026-11-02)へ残す。旧束のbytes/manifest/code sealをv2へ書き換えない。
+
+- 初期sourceはsealだけでなく、初日Dのevent day<D、logical release<=D、宣言end未満を公開前にstream検証する。当日/未来/未releaseの混入は技術失敗。
+- history_event_fromは全STATのJST00下限。39母集団/42pairにも適用し、C1新入口へ宣言した取得開始を渡す。120日未充足/取得開始不明はLEFT_TRUNCATED/4NULL、旧aggregate()の2022固定と旧年制約は維持。実行manifestには明示的な開始を要求し、不明を2022へ補完しない。
+- 正常STATの計数と、未確定/unverifiedを含むC1の不足証拠を分離する。全員の正の有限得点が揃わない競争文脈は平均/最大/母std/percentile/residualをNULLとし、既知選手だけで代用しない。pairの数値原値は既存raceScore()で正規化する。
+- 対象manifestは構造別allowlist/型をhash前に検査。元本人4列とRaw由来3列だけを投影し、対象candidate/context/本人対応のrank/status等を拒否する。過去履歴と結果のrank/statusは禁止しない。元race IDは正整数一致だけverified、NULL双方/片側は未検証とし、既知競合/不正日時/未知Enumは隠さない。
+- result.source_resultは受領内容と取得証拠を版単位で固定する。同版の着順/状態/本人/日時/source_id/取得seal差はCONFLICT。日別結果file全bytesがseal単位であり、他レース更新による証拠差も黙殺しない。v>1は同raceの直前parent Refと既存canTransitionFrom、別evaluationを要求。正当な暫定→確定をCORRECTEDへ偽装しない。
+- 結果/評価の保存と、未処理の将来epoch採用を分離する。全日固定済みでも前者は可能。validation_runのEPOCH_SELECTIONへ日付連番/親selection/base/採用epoch/更新結果を明示し、epoch IDは親/結果/日付のhashで区別。親系列・範囲・sealを検証して再開し、同raceを1採用版に限定する。保存済みcreated_atは再試行で維持する。
+- RUN_INDEXは方式別評価の元となる1race1版のselected_results/selected_evaluationsを持つ不変snapshot。別選択なら別ID、既存索引/予測/確定入力/epochは不変。結果更新だけの追加では旧索引を当時の状態として残し、保存評価の再現は旧/新を個別に行い二重合計しない。
+
+受入は前工程のT01〜T12/A01〜A14/R1〜R6にF1〜F10の境界・欠損・版・再開試験を追加する。実2026未許可・O1未確立・予測利用禁止/B1未承認は不変であり、v2は実初期資料や予測精度を確立した承認ではない。
+
+DB由来ではない計算はARTIFACT source_ref/row_ref/execution_uuid/calculation_versionを保存し、source_run_id/source_result_idはNULLとする。元race/entry/player IDは保持し、仮のDB run IDは作らない。入力構成不能のNO_PREDICTIONだけinput=NULLを許可し、既存input・capture証拠・理由を保持する。CLIの人工scopeはSYNTHETIC_TEST、旧資料互換はLEGACY_COMPATIBILITYで区別する。
+
+新規JSON正規化はobjectキーだけ整列しlist順序と空object/listを保持する。専用Storeの各bundleはdata.json/manifest.json/LOCKEDの正確な3件であり、依存seal/状態/本人/終端/母数を検証する。旧Files::canonical、旧Contract::plan、モデルbytesと過去code sealは変更しない。
+
+G1〜G5のPHP実装・人工受入・旧入力互換の実測とT01〜T12/A01〜A14/R1〜R6対応は[接続実装記録](2026-chronological-connection-01.md)。これらは実2026の成績でも、当時の発走前資料を確立した証明でもない。historical_as_of_available=false、prediction_use=NOT_AUTHORIZED、正式採用/B1/LIVE未承認を維持する。次は今回差分と限定証跡のレビューのみ。
